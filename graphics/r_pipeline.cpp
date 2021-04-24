@@ -3,9 +3,6 @@
 //all rights reserved uwu
 
 #include "imgui.h"
-#ifndef USE_OPENGL
-#include "imgui_sdl.h"
-#endif
 #include "gui.h"
 
 #include "system_list.h"

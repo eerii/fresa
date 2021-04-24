@@ -12,7 +12,8 @@ void Gui::settings(Config &c) {
     
     ImGui::Checkbox("Use dithering", &c.use_dithering);
     ImGui::Checkbox("Use grayscale", &c.use_grayscale);
-    ImGui::SliderInt("Palette", &c.palette_index, 0, c.num_palettes - 1);
+    ImGui::Checkbox("Use light", &c.use_light);
+    ImGui::SliderInt("Palette", &c.palette_index, -1, c.num_palettes - 1);
     
     ImGui::End();
 }

@@ -22,6 +22,7 @@ namespace Verse
         
         bool use_dithering;
         bool use_grayscale;
+        bool use_light;
         int palette_index;
         int num_palettes;
         
