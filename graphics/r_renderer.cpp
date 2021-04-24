@@ -24,11 +24,11 @@ using namespace Graphics;
 namespace {
     SDL_GLContext context;
 
-    ui8 pid[2];
+    ui8 pid[3];
 
     ui32 fbo, fb_tex;
     ui32 vao;
-    ui32 vbo;
+    ui32 vbo[2];
 
     float vertices[] = {
          0.0,  1.0,  0.0,  1.0,
@@ -50,8 +50,7 @@ namespace {
     glm::mat4 mat_proj;
     glm::mat4 fb_mat_proj, fb_mat_view;
     glm::mat4 fb_mat_model, fb_mat_model_bg;
-    ui8 mat_loc;
-    ui8 fb_mat_loc;
+    ui8 mat_loc, fb_mat_loc, mat_loc_3D;
 
     ui32 palette_tex;
     glm::mat4 dither_mat = glm::mat4(
@@ -113,6 +112,8 @@ void Graphics::Renderer::GL::create(Config &c, SDL_Window* window) {
     log::graphics("Program (Render) ID: %d", pid[0]);
     pid[1] = Graphics::Shader::compileProgram("res/shaders/post.vertex", "res/shaders/post.frag");
     log::graphics("Program (Post) ID: %d", pid[1]);
+    pid[2] = Graphics::Shader::compileProgram("res/shaders/render3d.vertex", "res/shaders/render3d.frag");
+    log::graphics("Program (Render 3D) ID: %d", pid[2]);
     log::graphics("---");
     
     //FRAMEBUFFER
@@ -138,25 +139,19 @@ void Graphics::Renderer::GL::create(Config &c, SDL_Window* window) {
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
     
-    //ATTRIBUTES
-    //0 - v_transform
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    
     //VALIDATE PROGRAMS
     for (ui8 p : pid) {
         Graphics::Shader::validateProgram(p);
     }
     
     //VBO
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glGenBuffers(2, vbo);
     
     //MATRIX LOCATIONS
     mat_proj = glm::ortho(0.0f, (float)(c.resolution.x), 0.0f, (float)(c.resolution.y));
     mat_loc = glGetUniformLocation(pid[0], "mvp");
     fb_mat_loc = glGetUniformLocation(pid[1], "mvp");
+    mat_loc_3D = glGetUniformLocation(pid[2], "mvp");
     
     //BLEND ALPHA
     glEnable(GL_BLEND);
@@ -216,8 +211,13 @@ void Graphics::Renderer::GL::renderTexture(ui32 &tex_id, Rect &src, Rect &dst, u
     
     glUniformMatrix4fv(mat_loc, 1, GL_FALSE, glm::value_ptr(mat_proj * *mat_camera * mat_model));
     
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    glUseProgram(pid[0]);
     
     glBindTexture(GL_TEXTURE_2D, tex_id);
     
@@ -244,12 +244,39 @@ void Graphics::Renderer::GL::renderTilemap(ui32 &tex_id, float *vertices, int si
     
     glUniformMatrix4fv(mat_loc, 1, GL_FALSE, glm::value_ptr(mat_proj * *mat_camera));
     
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 24 * size, vertices, GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
     
     glBindTexture(GL_TEXTURE_2D, tex_id);
     
     glDrawArrays(GL_TRIANGLES, 0, 6 * size);
+}
+
+void Graphics::Renderer::GL::render3D(float *vertices, int size, Config &c) {
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glUseProgram(pid[2]);
+    
+    Rect dst = Rect(128, 90, 24, 24);
+    
+    glm::mat4 mat_model = glm::mat4(1.0f);
+    mat_model = glm::translate(mat_model, glm::vec3(stretch_factor.x * (dst.pos.x / c.render_scale),
+                                                    stretch_factor.y * (dst.pos.y / c.render_scale), 0.0f));
+    mat_model = glm::rotate(mat_model, (float)sin(Time::current * 0.001) * 6.28f, glm::vec3(1.0f, 0.5f, 0.0f));
+    mat_model = glm::scale(mat_model, glm::vec3(stretch_factor.x * (dst.size.x / c.render_scale),
+                                                stretch_factor.y * (dst.size.y / c.render_scale), 1.0f));
+    
+    glUniformMatrix4fv(mat_loc_3D, 1, GL_FALSE, glm::value_ptr(mat_proj * mat_model));
+    
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * size, vertices, GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    glDrawArrays(GL_TRIANGLES, 0, 3 * size);
 }
 
 void Graphics::Renderer::GL::clear(Scene &scene, Config &c) {
@@ -295,16 +322,21 @@ void Graphics::Renderer::GL::render(Config &c) {
     
     //LIGTH
 #ifdef LIGHT
-    std::vector<glm::vec4> light_sources = System::Light::getLight();
-    Vec2 light_correction = Vec2(c.window_size.x / (c.window_size.x - (c.window_padding.x * 2)),
-                                 c.window_size.y / (c.window_size.y - (c.window_padding.y * 2)));
-    for (int i = 0; i < light_sources.size(); i++) {
-        light_sources[i].x += (0.5 - (camera_centre->x / c.resolution.x)) * light_correction.x;
-        light_sources[i].y += (0.5 - (camera_centre->y / c.resolution.y)) * light_correction.y;
+    if (c.use_light) {
+        std::vector<glm::vec4> light_sources = System::Light::getLight();
+        Vec2 light_correction = Vec2(c.window_size.x / (c.window_size.x - (c.window_padding.x * 2)),
+                                     c.window_size.y / (c.window_size.y - (c.window_padding.y * 2)));
+        for (int i = 0; i < light_sources.size(); i++) {
+            light_sources[i].x += (0.5 - (camera_centre->x / c.resolution.x)) * light_correction.x;
+            light_sources[i].y += (0.5 - (camera_centre->y / c.resolution.y)) * light_correction.y;
+        }
+        glUniform4fv(glGetUniformLocation(pid[1], "light"), (int)(light_sources.size()), reinterpret_cast<GLfloat *>(light_sources.data()));
+        glUniform1i(glGetUniformLocation(pid[1], "light_size"), (int)(light_sources.size()));
+        glUniform1f(glGetUniformLocation(pid[1], "light_distortion"), light_distortion);
+        glUniform1i(glGetUniformLocation(pid[1], "use_light"), true);
+    } else {
+        glUniform1i(glGetUniformLocation(pid[1], "use_light"), false);
     }
-    glUniform4fv(glGetUniformLocation(pid[1], "light"), (int)(light_sources.size()), reinterpret_cast<GLfloat *>(light_sources.data()));
-    glUniform1i(glGetUniformLocation(pid[1], "light_size"), (int)(light_sources.size()));
-    glUniform1f(glGetUniformLocation(pid[1], "light_distortion"), light_distortion);
 #endif
     
     //DITHER
@@ -322,10 +354,9 @@ void Graphics::Renderer::GL::render(Config &c) {
     glUniform1i(glGetUniformLocation(pid[1], "tex"), 0);
     
     //VERTEX DATA
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[0 ]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(fb_vertices), fb_vertices, GL_STATIC_DRAW);
     
-    glBindVertexArray(vao);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     

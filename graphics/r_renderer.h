@@ -21,6 +21,8 @@ namespace Verse::Graphics::Renderer::GL
     void prepareTilemap(Rect &dst, Config &c, std::array<float, 24> &vertices);
     void renderTilemap(ui32 &tex_id, float* vertices, int size);
 
+    void render3D(float* vertices, int size, Config &c);
+
     void clear(Scene &scene, Config &c);
     void useCamera(glm::mat4 *mat, Vec2 *pos);
     void render(Config &c);
