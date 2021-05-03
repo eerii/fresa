@@ -16,15 +16,22 @@
 
 #include "system_list.h"
 
-//TODO: ABSTRACT RENDERER
-
 using namespace Verse;
 using namespace Graphics;
 
 namespace {
     SDL_GLContext context;
 
-    ui8 pid[3];
+    enum Shaders {
+        EMPTY = 0,
+        RENDER2D,
+        RENDER3D,
+        POST,
+        CAM,
+        WINDOW,
+        LAST
+    };
+    ui8 shaders[LAST]; //Program ID
 
     ui32 fbo, fb_tex;
     ui32 vao;
@@ -66,7 +73,7 @@ namespace {
     float light_distortion;
 }
 
-void Graphics::Renderer::GL::create(Config &c, SDL_Window* window) {
+void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //CONTEXT
     context = SDL_GL_CreateContext(window);
     if (context == NULL) {
@@ -108,12 +115,21 @@ void Graphics::Renderer::GL::create(Config &c, SDL_Window* window) {
     ImGui_ImplOpenGL3_Init();
     
     //SHADERS
-    pid[0] = Graphics::Shader::compileProgram("res/shaders/render.vertex", "res/shaders/render.frag");
-    log::graphics("Program (Render) ID: %d", pid[0]);
-    pid[1] = Graphics::Shader::compileProgram("res/shaders/post.vertex", "res/shaders/post.frag");
-    log::graphics("Program (Post) ID: %d", pid[1]);
-    pid[2] = Graphics::Shader::compileProgram("res/shaders/render3d.vertex", "res/shaders/render3d.frag");
-    log::graphics("Program (Render 3D) ID: %d", pid[2]);
+    shaders[RENDER2D] = Graphics::Shader::compileProgram("res/shaders/render.vertex", "res/shaders/render.frag");
+    log::graphics("Program (Render) ID: %d", shaders[RENDER2D]);
+    
+    shaders[RENDER3D] = Graphics::Shader::compileProgram("res/shaders/render3d.vertex", "res/shaders/render3d.frag");
+    log::graphics("Program (Render 3D) ID: %d", shaders[RENDER3D]);
+    
+    shaders[POST] = Graphics::Shader::compileProgram("res/shaders/render3d.vertex", "res/shaders/render3d.frag");
+    log::graphics("Program (Post) ID: %d", shaders[POST]);
+    
+    shaders[CAM] = Graphics::Shader::compileProgram("res/shaders/render3d.vertex", "res/shaders/render3d.frag");
+    log::graphics("Program (Cam) ID: %d", shaders[CAM]);
+    
+    shaders[WINDOW] = Graphics::Shader::compileProgram("res/shaders/post.vertex", "res/shaders/post.frag");
+    log::graphics("Program (Window) ID: %d", shaders[WINDOW]);
+    
     log::graphics("---");
     
     //FRAMEBUFFER
@@ -140,8 +156,9 @@ void Graphics::Renderer::GL::create(Config &c, SDL_Window* window) {
     glBindVertexArray(vao);
     
     //VALIDATE PROGRAMS
-    for (ui8 p : pid) {
-        Graphics::Shader::validateProgram(p);
+    for (ui8 p : shaders) {
+        if(p != shaders[EMPTY] and p != shaders[LAST])
+            Graphics::Shader::validateProgram(p);
     }
     
     //VBO
@@ -149,9 +166,9 @@ void Graphics::Renderer::GL::create(Config &c, SDL_Window* window) {
     
     //MATRIX LOCATIONS
     mat_proj = glm::ortho(0.0f, (float)(c.resolution.x), 0.0f, (float)(c.resolution.y));
-    mat_loc = glGetUniformLocation(pid[0], "mvp");
-    fb_mat_loc = glGetUniformLocation(pid[1], "mvp");
-    mat_loc_3D = glGetUniformLocation(pid[2], "mvp");
+    mat_loc = glGetUniformLocation(shaders[RENDER2D], "mvp");
+    fb_mat_loc = glGetUniformLocation(shaders[WINDOW], "mvp");
+    mat_loc_3D = glGetUniformLocation(shaders[RENDER3D], "mvp");
     
     //BLEND ALPHA
     glEnable(GL_BLEND);
@@ -170,7 +187,7 @@ void Graphics::Renderer::GL::create(Config &c, SDL_Window* window) {
     }
 }
 
-ui32 Graphics::Renderer::GL::createTexture(ui8* tex, int w, int h) {
+ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h) {
     ui32 tex_id;
     
     glGenTextures(1, &tex_id);
@@ -184,9 +201,9 @@ ui32 Graphics::Renderer::GL::createTexture(ui8* tex, int w, int h) {
     return tex_id;
 }
 
-void Graphics::Renderer::GL::renderTexture(ui32 &tex_id, Rect &src, Rect &dst, ui16 frames, Config &c, bool flip) {
+void Graphics::Renderer::renderTexture(ui32 &tex_id, Rect &src, Rect &dst, ui16 frames, Config &c, bool flip) {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glUseProgram(pid[0]);
+    glUseProgram(shaders[RENDER2D]);
     
     if (frames > 1) {
         vertices[4*0 + 2] = (float)src.pos.x / (float)(src.size.x * (frames + 1));
@@ -217,7 +234,7 @@ void Graphics::Renderer::GL::renderTexture(ui32 &tex_id, Rect &src, Rect &dst, u
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     
-    glUseProgram(pid[0]);
+    glUseProgram(shaders[RENDER2D]);
     
     glBindTexture(GL_TEXTURE_2D, tex_id);
     
@@ -229,7 +246,7 @@ void Graphics::Renderer::GL::renderTexture(ui32 &tex_id, Rect &src, Rect &dst, u
     vertices[4*3 + 2] = 1.0;
 }
 
-void Graphics::Renderer::GL::prepareTilemap(Rect &dst, Config &c, std::array<float, 24> &vertices) {
+void Graphics::Renderer::prepareTilemap(Rect &dst, Config &c, std::array<float, 24> &vertices) {
     for (int i = 0; i < 6; i++) {
         vertices[4*i + 0] = (i % 2 == 1) ? stretch_factor.x * (dst.size.x / c.render_scale) : 0.0;
         vertices[4*i + 0] += stretch_factor.x * (dst.pos.x / c.render_scale);
@@ -238,9 +255,9 @@ void Graphics::Renderer::GL::prepareTilemap(Rect &dst, Config &c, std::array<flo
     }
 }
 
-void Graphics::Renderer::GL::renderTilemap(ui32 &tex_id, float *vertices, int size) {
+void Graphics::Renderer::renderTilemap(ui32 &tex_id, float *vertices, int size) {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glUseProgram(pid[0]);
+    glUseProgram(shaders[RENDER2D]);
     
     glUniformMatrix4fv(mat_loc, 1, GL_FALSE, glm::value_ptr(mat_proj * *mat_camera));
     
@@ -255,9 +272,9 @@ void Graphics::Renderer::GL::renderTilemap(ui32 &tex_id, float *vertices, int si
     glDrawArrays(GL_TRIANGLES, 0, 6 * size);
 }
 
-void Graphics::Renderer::GL::render3D(float *vertices, int size, Config &c) {
+void Graphics::Renderer::render3D(float *vertices, int size, Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glUseProgram(pid[2]);
+    glUseProgram(shaders[RENDER3D]);
     
     Rect dst = Rect(128, 90, 24, 24);
     
@@ -279,7 +296,7 @@ void Graphics::Renderer::GL::render3D(float *vertices, int size, Config &c) {
     glDrawArrays(GL_TRIANGLES, 0, 3 * size);
 }
 
-void Graphics::Renderer::GL::clear(Scene &scene, Config &c) {
+void Graphics::Renderer::clear(Scene &scene, Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glClearColor(c.background_color[0], c.background_color[1], c.background_color[2], c.background_color[3]);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -307,18 +324,18 @@ void Graphics::Renderer::GL::clear(Scene &scene, Config &c) {
     }
 }
 
-void Graphics::Renderer::GL::useCamera(glm::mat4 *mat, Vec2 *pos) {
+void Graphics::Renderer::useCamera(glm::mat4 *mat, Vec2 *pos) {
     mat_camera = mat;
     camera_centre = pos;
 }
 
-void Graphics::Renderer::GL::render(Config &c) {
+void Graphics::Renderer::render(Config &c) {
     //RENDER TO WINDOW
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glUseProgram(pid[1]);
+    glUseProgram(shaders[WINDOW]);
     
     //PALETTE
-    Graphics::Palette::render(c, palette_tex, pid[1]);
+    Graphics::Palette::render(c, palette_tex, shaders[WINDOW]);
     
     //LIGTH
 #ifdef LIGHT
@@ -330,28 +347,28 @@ void Graphics::Renderer::GL::render(Config &c) {
             light_sources[i].x += (0.5 - (camera_centre->x / c.resolution.x)) * light_correction.x;
             light_sources[i].y += (0.5 - (camera_centre->y / c.resolution.y)) * light_correction.y;
         }
-        glUniform4fv(glGetUniformLocation(pid[1], "light"), (int)(light_sources.size()), reinterpret_cast<GLfloat *>(light_sources.data()));
-        glUniform1i(glGetUniformLocation(pid[1], "light_size"), (int)(light_sources.size()));
-        glUniform1f(glGetUniformLocation(pid[1], "light_distortion"), light_distortion);
-        glUniform1i(glGetUniformLocation(pid[1], "use_light"), true);
+        glUniform4fv(glGetUniformLocation(shaders[WINDOW], "light"), (int)(light_sources.size()), reinterpret_cast<GLfloat *>(light_sources.data()));
+        glUniform1i(glGetUniformLocation(shaders[WINDOW], "light_size"), (int)(light_sources.size()));
+        glUniform1f(glGetUniformLocation(shaders[WINDOW], "light_distortion"), light_distortion);
+        glUniform1i(glGetUniformLocation(shaders[WINDOW], "use_light"), true);
     } else {
-        glUniform1i(glGetUniformLocation(pid[1], "use_light"), false);
+        glUniform1i(glGetUniformLocation(shaders[WINDOW], "use_light"), false);
     }
 #endif
     
     //DITHER
     if (c.use_dithering) {
-        glUniformMatrix4fv(glGetUniformLocation(pid[1], "dither_mat"), 1, GL_FALSE, glm::value_ptr(dither_mat));
-        glUniform1i(glGetUniformLocation(pid[1], "use_dithering"), true);
+        glUniformMatrix4fv(glGetUniformLocation(shaders[WINDOW], "dither_mat"), 1, GL_FALSE, glm::value_ptr(dither_mat));
+        glUniform1i(glGetUniformLocation(shaders[WINDOW], "use_dithering"), true);
     }
     else {
-        glUniform1i(glGetUniformLocation(pid[1], "use_dithering"), false);
+        glUniform1i(glGetUniformLocation(shaders[WINDOW], "use_dithering"), false);
     }
     
     //FB TEXTURE
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, fb_tex);
-    glUniform1i(glGetUniformLocation(pid[1], "tex"), 0);
+    glUniform1i(glGetUniformLocation(shaders[WINDOW], "tex"), 0);
     
     //VERTEX DATA
     glBindBuffer(GL_ARRAY_BUFFER, vbo[0 ]);
@@ -361,23 +378,23 @@ void Graphics::Renderer::GL::render(Config &c) {
     glEnableVertexAttribArray(0);
     
     //BACKGROUND
-    glUniform1i(glGetUniformLocation(pid[1], "is_background"), true);
+    glUniform1i(glGetUniformLocation(shaders[WINDOW], "is_background"), true);
     glUniformMatrix4fv(fb_mat_loc, 1, GL_FALSE, glm::value_ptr(fb_mat_proj * fb_mat_model_bg));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     //LEVEL
-    glUniform1i(glGetUniformLocation(pid[1], "is_background"), false);
+    glUniform1i(glGetUniformLocation(shaders[WINDOW], "is_background"), false);
     glUniformMatrix4fv(fb_mat_loc, 1, GL_FALSE, glm::value_ptr(fb_mat_proj * fb_mat_view * fb_mat_model));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     
 }
 
-void Graphics::Renderer::GL::present(SDL_Window* window) {
+void Graphics::Renderer::present(SDL_Window* window) {
     SDL_GL_SwapWindow(window);
 }
 
-void Graphics::Renderer::GL::destroy() {
+void Graphics::Renderer::destroy() {
     //OPENGL
     
     //IMGUI

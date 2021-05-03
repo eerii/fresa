@@ -12,7 +12,7 @@
 #include "config.h"
 #include "scene.h"
 
-namespace Verse::Graphics::Renderer::GL
+namespace Verse::Graphics::Renderer
 {
     void create(Config &c, SDL_Window* window);
 
