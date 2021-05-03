@@ -15,17 +15,23 @@
 namespace Verse::Graphics::Renderer
 {
     void create(Config &c, SDL_Window* window);
-
-    ui32 createTexture(ui8* tex, int w, int h);
+    
     void renderTexture(ui32 &tex_id, Rect &src, Rect &dst, ui16 frames, Config &c, bool flip);
-    void prepareTilemap(Rect &dst, Config &c, std::array<float, 24> &vertices);
     void renderTilemap(ui32 &tex_id, float* vertices, int size);
-
     void render3D(float* vertices, int size, Config &c);
 
-    void clear(Scene &scene, Config &c);
-    void useCamera(glm::mat4 *mat, Vec2 *pos);
     void render(Config &c);
+    void renderPost(Config &c);
+    void renderCam(Config &c);
+    void renderWindow(Config &c);
+
     void present(SDL_Window* window);
+    void clear(Scene &scene, Config &c);
+    
     void destroy();
+
+    void bindCamera(glm::mat4 *mat, Vec2 *pos);
+    void createFramebuffer(ui32 &fb, ui32 &tex, Vec2 res, Config &c);
+    ui32 createTexture(ui8* tex, int w, int h);
+    void prepareTilemap(Rect &dst, Config &c, std::array<float, 24> &vertices);
 }

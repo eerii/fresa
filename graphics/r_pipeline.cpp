@@ -55,8 +55,11 @@ void Graphics::render(Scene &scene, Config &c, ui16 fps) {
     //RENDER SYSTEMS
     RENDER_SYSTEMS
     
-    //RENDER FRAMEBUFFER
-    Renderer::render(c);
+    //RENDER
+    Renderer::renderPost(c);
+    Renderer::renderCam(c);
+    Renderer::renderWindow(c);
+    //Renderer::render(c);
     
     //RENDER GUI
     if (c.enable_gui)
