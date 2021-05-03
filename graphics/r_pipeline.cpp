@@ -40,13 +40,13 @@ void Graphics::init(Config &c) {
     log::graphics("Refresh Rate: %d", refresh_rate);
     
     //RENDERER
-    Renderer::GL::create(c, window);
+    Renderer::create(c, window);
 }
 
 
 void Graphics::render(Scene &scene, Config &c, ui16 fps) {
     //CLEAR
-    Renderer::GL::clear(scene, c);
+    Renderer::clear(scene, c);
     
     //PRERENDER GUI
     if (c.enable_gui)
@@ -56,19 +56,19 @@ void Graphics::render(Scene &scene, Config &c, ui16 fps) {
     RENDER_SYSTEMS
     
     //RENDER FRAMEBUFFER
-    Renderer::GL::render(c);
+    Renderer::render(c);
     
     //RENDER GUI
     if (c.enable_gui)
         Gui::render();
     
     //PRESENT
-    Renderer::GL::present(window);
+    Renderer::present(window);
 }
 
 
 void Graphics::destroy() {
-    Renderer::GL::destroy();
+    Renderer::destroy();
     SDL_DestroyWindow(window);
 }
 
