@@ -17,9 +17,10 @@ namespace {
 }
 
 void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
-    glActiveTexture(GL_TEXTURE1);
+    glUseProgram(pid);
+    glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, palette_tex);
-    glUniform1i(glGetUniformLocation(pid, "palette"), 1);
+    glUniform1i(glGetUniformLocation(pid, "palette"), 2);
     
     if (previous_palette != c.palette_index) {
         if (switch_palette_time == 0) {
