@@ -59,8 +59,8 @@ namespace {
 
     //MATRICES
     Vec2 *camera_centre;
-    glm::mat4 *m_camera, *m_e_camera;
-
+    mat4 *m_camera, *m_e_camera;
+    mat4 proj_render, proj_post, proj_cam, proj_window;
     ui8 mvp[S_LAST];
 
     //MISC
@@ -214,6 +214,11 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     mvp[S_POST] = glGetUniformLocation(shaders[S_POST], "mvp");
     mvp[S_CAM] = glGetUniformLocation(shaders[S_CAM], "mvp");
     mvp[S_WINDOW] = glGetUniformLocation(shaders[S_WINDOW], "mvp");
+    
+    proj_render = ortho(0.0f, (float)c.resolution.x + 2, (float)c.resolution.y + 2, 0.0f);
+    proj_post = ortho(0.0f, 1.0f, 0.0f, 1.0f);
+    proj_cam = ortho(0.0f, (float)(c.resolution.x * c.render_scale), 0.0f, (float)(c.resolution.y * c.render_scale));
+    proj_window = ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
     //-----------------------------------------
     
     //BLEND ALPHA
@@ -266,8 +271,7 @@ void Graphics::Renderer::renderTexture(ui32 &tex_id, Rect &src, Rect &dst, ui16 
     
     //Matrices
     mat4 model = matModel2D(dst.pos - Vec2(1,1), dst.size); //Add the border
-    mat4 proj = glm::ortho(0.0f, (float)c.resolution.x + 2, (float)c.resolution.y + 2, 0.0f);
-    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj * *m_camera * model));
+    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * *m_camera * model));
     
     //Draw
     glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -300,8 +304,7 @@ void Graphics::Renderer::renderTilemap(ui32 &tex_id, float *vertices, int size, 
     
     //Matrices
     mat4 model = translate(mat4(1.0f), vec3(-1.0f, -1.0f, 0.0f));
-    mat4 proj = ortho(0.0f, (float)c.resolution.x + 2, (float)c.resolution.y + 2, 0.0f);
-    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj * *m_camera * model));
+    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * *m_camera * model));
     
     //Draw
     glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -381,8 +384,7 @@ void Graphics::Renderer::renderPost(Config &c) {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     
     //Matrices
-    mat4 proj = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
-    glUniformMatrix4fv(mvp[S_POST], 1, GL_FALSE, glm::value_ptr(proj));
+    glUniformMatrix4fv(mvp[S_POST], 1, GL_FALSE, glm::value_ptr(proj_post));
     
     //Draw
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -419,8 +421,7 @@ void Graphics::Renderer::renderCam(Config &c) {
     
     //Matrices
     mat4 model = matModel2D(Vec2(-c.render_scale, -c.render_scale), (c.resolution + Vec2(2,2)) * c.render_scale);
-    mat4 proj = glm::ortho(0.0f, (float)(c.resolution.x * c.render_scale), 0.0f, (float)(c.resolution.y * c.render_scale));
-    glUniformMatrix4fv(mvp[S_CAM], 1, GL_FALSE, glm::value_ptr(proj * *m_e_camera * model));
+    glUniformMatrix4fv(mvp[S_CAM], 1, GL_FALSE, glm::value_ptr(proj_cam * *m_e_camera * model));
     
     //Draw
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -461,16 +462,15 @@ void Graphics::Renderer::renderWindow(Config &c) {
     //Matrices
     mat4 model = matModel2D((c.window_size - c.resolution * c.render_scale) * 0.5f, c.resolution * c.render_scale);
     mat4 modelbg = matModel2D(Vec2(0,0), c.window_size);
-    mat4 proj = glm::ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
     
     //Draw Background
     glUniform1i(glGetUniformLocation(shaders[S_WINDOW], "is_background"), true);
-    glUniformMatrix4fv(mvp[S_WINDOW], 1, GL_FALSE, glm::value_ptr(proj * modelbg));
+    glUniformMatrix4fv(mvp[S_WINDOW], 1, GL_FALSE, glm::value_ptr(proj_window * modelbg));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     //Draw Level
     glUniform1i(glGetUniformLocation(shaders[S_WINDOW], "is_background"), false);
-    glUniformMatrix4fv(mvp[S_WINDOW], 1, GL_FALSE, glm::value_ptr(proj * model));
+    glUniformMatrix4fv(mvp[S_WINDOW], 1, GL_FALSE, glm::value_ptr(proj_window * model));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -533,6 +533,9 @@ void Graphics::Renderer::clear(Scene &scene, Config &c) {
         }
         
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        
+        proj_cam = ortho(0.0f, (float)(c.resolution.x * c.render_scale), 0.0f, (float)(c.resolution.y * c.render_scale));
+        proj_window = ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
         
 #ifdef TILEMAP
         System::Tilemap::init(scene, c);
