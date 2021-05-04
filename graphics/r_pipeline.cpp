@@ -46,6 +46,7 @@ void Graphics::init(Config &c) {
 
 void Graphics::render(Scene &scene, Config &c, ui16 fps) {
     //CLEAR
+    glViewport(0, 0, c.resolution.x + 2, c.resolution.y + 2);
     Renderer::clear(scene, c);
     
     //PRERENDER GUI
@@ -54,12 +55,13 @@ void Graphics::render(Scene &scene, Config &c, ui16 fps) {
     
     //RENDER SYSTEMS
     RENDER_SYSTEMS
-    
-    //RENDER
+
+    //RENDER TO WINDOW
     Renderer::renderPost(c);
+    glViewport(0, 0, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale);
     Renderer::renderCam(c);
+    glViewport(0, 0, c.window_size.x, c.window_size.y);
     Renderer::renderWindow(c);
-    //Renderer::render(c);
     
     //RENDER GUI
     if (c.enable_gui)
