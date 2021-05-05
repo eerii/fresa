@@ -107,6 +107,68 @@ void Serialization::appendYAML(str name, std::vector<str> key, YAML::Node &file,
     }
 }
 
+//IMPORTANT: You need to specify (str) to call these functions, otherwise it will default to the other one
+void Serialization::appendYAML(str name, str key, str value, bool overwrite) {
+    YAML::Node n = YAML::Load(value);
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, str value, bool overwrite) {
+    YAML::Node n = YAML::Load(value);
+    appendYAML(name, key, n, overwrite);
+}
+//----------------------
+
+void Serialization::appendYAML(str name, str key, int num, bool overwrite) {
+    YAML::Node n = YAML::Load(std::to_string(num));
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, int num, bool overwrite) {
+    YAML::Node n = YAML::Load(std::to_string(num));
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, str key, float num, bool overwrite) {
+    YAML::Node n = YAML::Load(std::to_string(num));
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, float num, bool overwrite) {
+    YAML::Node n = YAML::Load(std::to_string(num));
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, str key, bool b, bool overwrite) {
+    YAML::Node n = YAML::Load(std::to_string(b));
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, bool b, bool overwrite) {
+    YAML::Node n = YAML::Load(std::to_string(b));
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, str key, Vec2 vec, bool overwrite) {
+    YAML::Node n = YAML::Load("[" + std::to_string(vec.x) + "," + std::to_string(vec.y) + "]");
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, Vec2 vec, bool overwrite) {
+    YAML::Node n = YAML::Load("[" + std::to_string(vec.x) + "," + std::to_string(vec.y) + "]");
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, str key, Rect rect, bool overwrite) {
+    YAML::Node n = YAML::Load("[" + std::to_string(rect.pos.x) + "," + std::to_string(rect.pos.y) + "," + std::to_string(rect.size.x) + "," + std::to_string(rect.size.y) + "]");
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, Rect rect, bool overwrite) {
+    YAML::Node n = YAML::Load("[" + std::to_string(rect.pos.x) + "," + std::to_string(rect.pos.y) + "," + std::to_string(rect.size.x) + "," + std::to_string(rect.size.y) + "]");
+    appendYAML(name, key, n, overwrite);
+}
+
 void Serialization::removeYAML(str name, str key) {
     YAML::Node file_to_modify;
     loadYAML(name, file_to_modify);
