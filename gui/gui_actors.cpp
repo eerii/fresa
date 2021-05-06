@@ -35,8 +35,8 @@ void Gui::actors(Scene &scene) {
             
             ImGui::TableNextColumn();
             ImGui::Text("x: %d, y:%d",
-                        (int)scene.getComponent<Component::Collider>(ent)->transform.pos.x,
-                        (int)scene.getComponent<Component::Collider>(ent)->transform.pos.y);
+                        (int)scene.getComponent<Component::Collider>(ent)->transform.x,
+                        (int)scene.getComponent<Component::Collider>(ent)->transform.y);
             
             ImGui::TableNextColumn();
             ImGui::Text("x: %.2f, y:%.2f",

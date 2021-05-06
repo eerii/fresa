@@ -17,7 +17,7 @@ namespace Verse::Graphics::Renderer
 {
     void create(Config &c, SDL_Window* window);
     
-    void renderTexture(ui32 &tex_id, Rect &src, Rect &dst, ui16 frames, Config &c, bool flip);
+    void renderTexture(ui32 &tex_id, Rect2 &src, Rect2 &dst, ui16 frames, Config &c, bool flip);
     void renderTilemap(ui32 &tex_id, float* vertices, int size, Config &c);
     void render3D(float* vertices, int size, Config &c);
 
@@ -31,11 +31,11 @@ namespace Verse::Graphics::Renderer
     
     void destroy();
 
-    void bindCamera(glm::mat4 *mat, glm::mat4 *mat_e, Vec2 *pos);
+    void bindCamera(glm::mat4 *mat, glm::mat4 *mat_e, Vec2f *pos);
     void createFramebuffer(ui32 &fb, ui32 &tex, Vec2 res, Config &c);
     ui32 createTexture(ui8* tex, int w, int h);
-    void prepareTilemap(Rect &dst, Config &c, std::array<float, 24> &vertices);
+    void prepareTilemap(Rect2 &dst, Config &c, std::array<float, 24> &vertices);
 
     glm::mat4 matModel2D(Vec2 pos, Vec2 size, float rotation = 0.0f);
-    glm::mat4 matModel2D(Rect rect, float rotation = 0.0f);
+    glm::mat4 matModel2D(Rect2 rect, float rotation = 0.0f);
 }

@@ -19,6 +19,7 @@ namespace Verse
         void debug(str p_info, ...);
     
         void vec2(Vec2 p_vector, str p_name = "");
+        void vec2(Vec2f p_vector, str p_name = "");
         void num(int p_number, str p_name = "");
         void num(ui32 p_number, str p_name = "");
         void num(ui64 p_number, str p_name = "");

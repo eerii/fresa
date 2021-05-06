@@ -9,6 +9,16 @@
 
 using namespace Verse;
 
+void Serialization::initYAML() {
+    std::filesystem::create_directory("save");
+    
+    std::filesystem::path f{"save"};
+    if (not std::filesystem::exists(f)) {
+        log::error("The serialization directory was not successfully created");
+        return;
+    }
+}
+
 void Serialization::loadYAML(str name, YAML::Node &file) {
     str path = "res/serialization/" + name + ".yaml";
     
@@ -159,13 +169,33 @@ void Serialization::appendYAML(str name, std::vector<str> key, Vec2 vec, bool ov
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, str key, Rect rect, bool overwrite) {
-    YAML::Node n = YAML::Load("[" + std::to_string(rect.pos.x) + "," + std::to_string(rect.pos.y) + "," + std::to_string(rect.size.x) + "," + std::to_string(rect.size.y) + "]");
+void Serialization::appendYAML(str name, str key, Rect2 rect, bool overwrite) {
+    YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, std::vector<str> key, Rect rect, bool overwrite) {
-    YAML::Node n = YAML::Load("[" + std::to_string(rect.pos.x) + "," + std::to_string(rect.pos.y) + "," + std::to_string(rect.size.x) + "," + std::to_string(rect.size.y) + "]");
+void Serialization::appendYAML(str name, std::vector<str> key, Rect2 rect, bool overwrite) {
+    YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, str key, Vec2f vec, bool overwrite) {
+    YAML::Node n = YAML::Load("[" + std::to_string(vec.x) + "," + std::to_string(vec.y) + "]");
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, Vec2f vec, bool overwrite) {
+    YAML::Node n = YAML::Load("[" + std::to_string(vec.x) + "," + std::to_string(vec.y) + "]");
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, str key, Rect2f rect, bool overwrite) {
+    YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, Rect2f rect, bool overwrite) {
+    YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
     appendYAML(name, key, n, overwrite);
 }
 

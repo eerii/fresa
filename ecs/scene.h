@@ -22,8 +22,6 @@ namespace Verse
         std::vector<ComponentPool*> component_pools;
         
         Vec2 size;
-        std::vector<Scene*> connected_scenes;
-        std::vector<Vec2> pos_connected_scenes;
         
         EntityID createEntity();
         EntityID createEntity(std::string name);
@@ -66,7 +64,6 @@ namespace Verse
         std::string getName(EntityID eid);
         
         void setSize(Vec2 scene_size);
-        void addConnectedScene(Scene* scene, Vec2 pos);
     };
 
     template<typename... ComponentTypes>

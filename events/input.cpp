@@ -100,8 +100,8 @@ const InputState* Input::state() { return &g_curr_state; }
 const InputState* Input::lastState() { return &g_last_state; }
 
 
-Vec2 Input::mouse() { return g_curr_state.mouse.position; }
-Vec2 Input::mouseScreen() { return g_curr_state.mouse.screen_position; }
+Vec2f Input::mouse() { return g_curr_state.mouse.position; }
+Vec2f Input::mouseScreen() { return g_curr_state.mouse.screen_position; }
 
 int Input::mouseWheel() { return g_curr_state.mouse.wheel; };
 
