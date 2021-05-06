@@ -58,7 +58,7 @@ namespace {
     };
 
     //MATRICES
-    Vec2 *camera_centre;
+    Vec2f *camera_centre;
     mat4 *m_camera, *m_e_camera;
     mat4 proj_render, proj_post, proj_cam, proj_window;
     ui8 mvp[S_LAST];
@@ -74,7 +74,6 @@ namespace {
     });
 
     Vec2 previous_window_size;
-    Vec2 stretch_factor;
 }
 
 
@@ -244,7 +243,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
 //PHASE 1: RENDER TO SMALL TEXTURE
 //fb_render, tex_render (c.resolution) using shaders[S_RENDER2D] or shaders[S_RENDER3D]
 //-----------------------------------------
-void Graphics::Renderer::renderTexture(ui32 &tex_id, Rect &src, Rect &dst, ui16 frames, Config &c, bool flip) {
+void Graphics::Renderer::renderTexture(ui32 &tex_id, Rect2 &src, Rect2 &dst, ui16 frames, Config &c, bool flip) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_RENDER2D]);
@@ -252,8 +251,8 @@ void Graphics::Renderer::renderTexture(ui32 &tex_id, Rect &src, Rect &dst, ui16 
     //Animations and flip
     //TODO: CHANGE TO MAT MULT
     if (frames > 1) {
-        vertices[4*0 + 2] = (float)src.pos.x / (float)(src.size.x * (frames + 1));
-        vertices[4*1 + 2] = vertices[4*0 + 2] + (float)src.size.x / (float)(src.size.x * (frames + 1));
+        vertices[4*0 + 2] = (float)src.x / (float)(src.w * (frames + 1));
+        vertices[4*1 + 2] = vertices[4*0 + 2] + (float)src.w / (float)(src.w * (frames + 1));
         vertices[4*2 + 2] = vertices[4*0 + 2];
         vertices[4*3 + 2] = vertices[4*1 + 2];
     }
@@ -270,7 +269,7 @@ void Graphics::Renderer::renderTexture(ui32 &tex_id, Rect &src, Rect &dst, ui16 
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     
     //Matrices
-    mat4 model = matModel2D(dst.pos - Vec2(1,1), dst.size); //Add the border
+    mat4 model = matModel2D(dst.pos() - Vec2(1,1), dst.size()); //Add the border
     glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * *m_camera * model));
     
     //Draw
@@ -366,7 +365,7 @@ void Graphics::Renderer::renderPost(Config &c) {
         }
         glUniform4fv(glGetUniformLocation(shaders[S_POST], "light"), (int)(light_sources.size()), reinterpret_cast<GLfloat *>(light_sources.data()));
         glUniform1i(glGetUniformLocation(shaders[S_POST], "light_size"), (int)(light_sources.size()));
-        glUniform1f(glGetUniformLocation(shaders[S_POST], "light_distortion"), c.resolution.x / c.resolution.y);
+        glUniform1f(glGetUniformLocation(shaders[S_POST], "light_distortion"), (float)c.resolution.x / (float)c.resolution.y);
         glUniform1i(glGetUniformLocation(shaders[S_POST], "use_light"), true);
     } else {
         glUniform1i(glGetUniformLocation(shaders[S_POST], "use_light"), false);
@@ -565,7 +564,7 @@ void Graphics::Renderer::destroy() {
 
 //HELPERS
 //-----------------------------------------
-void Graphics::Renderer::bindCamera(glm::mat4 *mat, glm::mat4 *mat_e, Vec2 *pos) {
+void Graphics::Renderer::bindCamera(glm::mat4 *mat, glm::mat4 *mat_e, Vec2f *pos) {
     m_camera = mat;
     m_e_camera = mat_e;
     camera_centre = pos;
@@ -605,13 +604,13 @@ ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h) {
     return tex_id;
 }
 
-void Graphics::Renderer::prepareTilemap(Rect &dst, Config &c, std::array<float, 24> &vertices) {
+void Graphics::Renderer::prepareTilemap(Rect2 &dst, Config &c, std::array<float, 24> &vertices) {
     //TODO: CHANGE FOR MAT MULT
     for (int i = 0; i < 6; i++) {
-        vertices[4*i + 0] = (i % 2 == 1) ? dst.size.x : 0.0;
-        vertices[4*i + 0] += dst.pos.x;
-        vertices[4*i + 1] = (i < 2 or i == 3) ? dst.size.y : 0.0;
-        vertices[4*i + 1] += dst.pos.y;
+        vertices[4*i + 0] = (i % 2 == 1) ? dst.w : 0.0;
+        vertices[4*i + 0] += dst.x;
+        vertices[4*i + 1] = (i < 2 or i == 3) ? dst.h : 0.0;
+        vertices[4*i + 1] += dst.y;
     }
 }
 //-----------------------------------------
@@ -627,8 +626,8 @@ mat4 Graphics::Renderer::matModel2D(Vec2 pos, Vec2 size, float rotation) {
     
     return t * r * s;
 }
-mat4 Graphics::Renderer::matModel2D(Rect rect, float rotation) {
-    return Graphics::Renderer::matModel2D(rect.pos, rect.size, rotation);
+mat4 Graphics::Renderer::matModel2D(Rect2 rect, float rotation) {
+    return Graphics::Renderer::matModel2D(rect.pos(), rect.size(), rotation);
 }
 
 //-----------------------------------------

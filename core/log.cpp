@@ -89,6 +89,9 @@ void log::debug(str p_info, ...)
 void log::vec2(Vec2 p_vector, str p_name) {
     std::clog << "[VECTOR] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
 }
+void log::vec2(Vec2f p_vector, str p_name) {
+    std::clog << "[VECTOR] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
+}
 
 void log::num(int p_number, str p_name) {
     std::clog << "[NUMBER]: " << p_name << ((p_name == "") ? "" : ": ") << p_number << std::endl;
