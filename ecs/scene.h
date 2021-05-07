@@ -22,6 +22,7 @@ namespace Verse
         std::vector<ComponentPool*> component_pools;
         
         Vec2 size;
+        str name;
         
         EntityID createEntity();
         EntityID createEntity(std::string name);
@@ -61,9 +62,7 @@ namespace Verse
             mask[Entity::getIndex(eid)].reset(Component::getID<T>());
         }
         
-        std::string getName(EntityID eid);
-        
-        void setSize(Vec2 scene_size);
+        str getName(EntityID eid);
     };
 
     template<typename... ComponentTypes>

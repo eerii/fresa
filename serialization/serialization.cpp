@@ -10,17 +10,12 @@
 using namespace Verse;
 
 void Serialization::initYAML() {
-    std::filesystem::create_directory("save");
-    
-    std::filesystem::path f{"save"};
-    if (not std::filesystem::exists(f)) {
-        log::error("The serialization directory was not successfully created");
-        return;
-    }
+    std::filesystem::create_directory("res/save");
+    std::filesystem::create_directory("res/scenes");
 }
 
 void Serialization::loadYAML(str name, YAML::Node &file) {
-    str path = "res/serialization/" + name + ".yaml";
+    str path = "res/" + name + ".yaml";
     
     //Check if the file exists
     std::filesystem::path f{path};
@@ -38,13 +33,13 @@ void Serialization::loadYAML(str name, YAML::Node &file) {
 }
 
 void Serialization::writeYAML(str name, YAML::Node &file) {
-    str path = "res/serialization/" + name + ".yaml";
+    str path = "res/" + name + ".yaml";
     std::ofstream fout(path);
     fout << file;
 }
 
 void Serialization::destroyYAML(str name) {
-    str path = "res/serialization/" + name + ".yaml";
+    str path = "res/" + name + ".yaml";
     
     std::filesystem::path f{path};
     
@@ -229,7 +224,6 @@ void Serialization::removeYAML(str name, std::vector<str> key) {
             if (temp_node[i-1][key[i]]) {
                 temp_node[i] = temp_node[i-1][key[i]];
             } else {
-                log::info("hi?");
                 return;
             }
         } catch (const YAML::Exception &e) {
