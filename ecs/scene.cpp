@@ -7,12 +7,13 @@
 using namespace Verse;
 
 EntityID Scene::createEntity(std::string name) {
-    if (!free_entities.empty()) {
+    if (not free_entities.empty()) {
         Entity::EntityIndex new_index = free_entities.front();
         free_entities.pop_back();
         
         EntityID new_id = Entity::createID(new_index, Entity::getVersion(entities[new_index]));
         entities[new_index] = new_id;
+        entity_names[new_index] = name;
         return entities[new_index];
     }
     
@@ -33,10 +34,6 @@ void Scene::removeEntity(EntityID eid) {
     free_entities.push_back(Entity::getIndex(eid));
 }
 
-std::string Scene::getName(EntityID eid) {
+str Scene::getName(EntityID eid) {
     return entity_names[Entity::getIndex(eid)];
-}
-
-void Scene::setSize(Vec2 scene_size) {
-    size = scene_size;
 }
