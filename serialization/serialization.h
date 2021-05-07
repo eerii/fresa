@@ -4,10 +4,13 @@
 
 #pragma once
 
+#include <yaml-cpp/yaml.h>
+
 #include "dtypes.h"
 #include "log.h"
 
-#include <yaml-cpp/yaml.h>
+#include "scene.h"
+#include "config.h"
 
 namespace Verse::Serialization
 {
@@ -39,6 +42,10 @@ namespace Verse::Serialization
 
     void removeYAML(str name, str key);
     void removeYAML(str name, std::vector<str> key);
+
+    void loadComponentsFromYAML(EntityID eid, str entity_name, YAML::Node &entity, Scene &s);
+    void loadScene(str name, Scene &s, Config &c);
+    EntityID loadPlayer(Scene &s);
 }
 
 namespace YAML
