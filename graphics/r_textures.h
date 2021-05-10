@@ -15,6 +15,12 @@
 namespace Verse::Graphics::Texture
 {
     void loadTexture(str path, ui32 &tex_id);
+
+    void createWhiteNoise(int size, ui8* noise_data, ui32 &tex_id);
+    void offsetWhiteNoise(int size, ui8* noise_data, ui32 &tex_id);
+    void createPerlinNoise(int size, Vec2 offset, float freq, int octaves, ui32 seed, ui8* noise_data, ui32 &tex_id);
+    void createGradient(int size, ui32 &tex_id);
+
 #ifdef TEXTURE
     void loadTexture(str path, Component::Texture* tex);
 #endif
