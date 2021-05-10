@@ -12,8 +12,6 @@
 #include "scene.h"
 #include "config.h"
 
-#define RENDER_SCALE 4
-
 namespace Verse::Graphics
 {
     void init(Config &c);

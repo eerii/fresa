@@ -10,6 +10,7 @@
 
 #include "gui.h"
 #include "time.h"
+
 #include "stb_image.h"
 
 #include "system_list.h"
@@ -29,6 +30,7 @@ namespace {
         S_POST,
         S_CAM,
         S_WINDOW,
+        S_FIRE,
         S_LAST
     };
     ui8 shaders[S_LAST];
@@ -42,6 +44,7 @@ namespace {
         V_EMPTY = 0,
         V_TEX,
         V_TILE,
+        V_FIRE,
         V_3D,
         V_POST,
         V_DRAW,
@@ -65,14 +68,6 @@ namespace {
 
     //MISC
     ui32 palette_tex;
-    glm::mat4 dither_mat = glm::mat4(
-    {
-        0.0,   8.0,   2.0,   10.0,
-        12.0,  4.0,   14.0,  6.0,
-        3.0,   11.0,  1.0,   9.0,
-        15.0,  7.0,   13.0,  5.0
-    });
-
     Vec2 previous_window_size;
 }
 
@@ -139,6 +134,9 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     shaders[S_WINDOW] = Graphics::Shader::compileProgram("res/shaders/window.vertex", "res/shaders/window.frag");
     log::graphics("Program (Window) ID: %d", shaders[S_WINDOW]);
     
+    shaders[S_FIRE] = Graphics::Shader::compileProgram("res/shaders/lume.vertex", "res/shaders/lume.frag");
+    log::graphics("Program (Fire) ID: %d", shaders[S_FIRE]);
+    
     log::graphics("---");
     //-----------------------------------------
     
@@ -185,7 +183,13 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     
-    //Phase 1c: Render 3D
+    //Phase 1c: Render fire
+    glBindVertexArray(vao[V_FIRE]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_FIRE]);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    //Phase 1d: Render 3D
     glBindVertexArray(vao[V_3D]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_3D]);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -210,6 +214,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //-----------------------------------------
     mvp[S_RENDER2D] = glGetUniformLocation(shaders[S_RENDER2D], "mvp");
     mvp[S_RENDER3D] = glGetUniformLocation(shaders[S_RENDER3D], "mvp");
+    mvp[S_FIRE] = glGetUniformLocation(shaders[S_FIRE], "mvp");
     mvp[S_POST] = glGetUniformLocation(shaders[S_POST], "mvp");
     mvp[S_CAM] = glGetUniformLocation(shaders[S_CAM], "mvp");
     mvp[S_WINDOW] = glGetUniformLocation(shaders[S_WINDOW], "mvp");
@@ -226,9 +231,6 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     
     //PALETTE TEX
     Graphics::Texture::loadTexture("res/graphics/palette_multi.png", palette_tex);
-    
-    //DITHER
-    dither_mat /= 16.0;
     
     //CATCH ERRORS
     GLenum e;
@@ -315,6 +317,43 @@ void Graphics::Renderer::renderTilemap(ui32 &tex_id, float *vertices, int size, 
     GLenum e;
     while ((e = glGetError()) != GL_NO_ERROR) {
        log::error("OpenGL Error during Rendering Tilemaps: %d", e);
+    }
+}
+
+void Graphics::Renderer::renderFire(Rect2 &dst, ui32 &p_tex, ui32 &w_tex, ui32 &f_tex) {
+    //Render Target: fb_render
+    glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
+    glUseProgram(shaders[S_FIRE]);
+    
+    //Vertices
+    glBindVertexArray(vao[V_FIRE]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_FIRE]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    //Matrices
+    mat4 model = matModel2D(dst.pos() - Vec2(1,1), dst.size());
+    glUniformMatrix4fv(mvp[S_FIRE], 1, GL_FALSE, glm::value_ptr(proj_render * *m_camera * model));
+    
+    //Textures
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, p_tex);
+    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "pnoise"), 2);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, w_tex);
+    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "wnoise"), 3);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, f_tex);
+    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "flame"), 4);
+    
+    //Draw
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindVertexArray(0);
+    
+    GLenum e;
+    while ((e = glGetError()) != GL_NO_ERROR) {
+       log::error("OpenGL Error during Rendering Fire: %d", e);
     }
 }
 
@@ -590,13 +629,17 @@ void Graphics::Renderer::createFramebuffer(ui32 &fb, ui32 &tex, Vec2 res, Config
     }
 }
 
-ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h) {
+ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h, bool rgba) {
     ui32 tex_id;
     
     glGenTextures(1, &tex_id);
     
     glBindTexture(GL_TEXTURE_2D, tex_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex);
+    if (rgba) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex);
+    } else {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, tex);
+    }
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);

@@ -16,8 +16,8 @@
 using namespace Verse;
 
 void Serialization::initYAML() {
-    std::filesystem::create_directory("res/save");
-    std::filesystem::create_directory("res/scenes");
+    std::filesystem::create_directories("res/data/save");
+    std::filesystem::create_directories("res/data/scenes");
 }
 
 void Serialization::loadYAML(str name, YAML::Node &file) {
@@ -445,5 +445,31 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             }
             System::Camera::init(camera);
         }
+#endif
+#ifdef FIRE
+    if (entity["fire"]) {
+        Component::Fire* fire = s.addComponent<Component::Fire>(eid);
+        if (entity["fire"]["transform"])
+            fire->transform = entity["fire"]["transform"].as<Rect2>();
+        if (entity["fire"]["offset"])
+            fire->offset = entity["fire"]["offset"].as<Vec2>();
+        if (entity["fire"]["dir"])
+            fire->dir = entity["fire"]["dir"].as<Vec2>();
+        if (entity["fire"]["fps"])
+            fire->fps = (ui8)entity["fire"]["fps"].as<int>();
+        if (entity["fire"]["freq"])
+            fire->freq = entity["fire"]["freq"].as<float>();
+        if (entity["fire"]["octaves"])
+            fire->octaves = (ui8)entity["fire"]["octaves"].as<int>();
+        if (entity["fire"]["seed"])
+            fire->seed = (ui32)entity["fire"]["seed"].as<int>();
+        if (not entity["fire"]["res"]) {
+            log::error("You created a fire component for " + entity_name + " but it has no res for the texture");
+            s.removeEntity(eid);
+            return;
+        }
+        Graphics::Texture::loadTexture(entity["fire"]["res"].as<str>(), fire->flame_tex);
+        System::Fire::init(fire);
+    }
 #endif
 }
