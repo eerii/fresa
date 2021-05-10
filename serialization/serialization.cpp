@@ -278,12 +278,12 @@ void Serialization::loadScene(str name, Scene &s, Config &c) {
         EntityID eid = s.createEntity(entity_name);
         
         //Add components
-        Serialization::loadComponentsFromYAML(eid, entity_name, entity, s);
+        Serialization::loadComponentsFromYAML(eid, entity_name, entity, s, c);
     }
     //--------------------------------------
 }
 
-EntityID Serialization::loadPlayer(Scene &s) {
+EntityID Serialization::loadPlayer(Scene &s, Config &c) {
     YAML::Node data;
     str path = "data/player";
     Serialization::loadYAML(path, data);
@@ -296,12 +296,12 @@ EntityID Serialization::loadPlayer(Scene &s) {
     YAML::Node player = data["player"];
     
     EntityID eid = s.createEntity("player");
-    Serialization::loadComponentsFromYAML(eid, "player", player, s);
+    Serialization::loadComponentsFromYAML(eid, "player", player, s, c);
     
     return eid;
 }
 
-void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::Node &entity, Scene &s) {
+void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::Node &entity, Scene &s, Config &c) {
 #ifdef TEXTURE
         if (entity["texture"]) {
             Component::Texture* texture = s.addComponent<Component::Texture>(eid);
@@ -440,8 +440,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 camera->la_speed = entity["camera"]["la_speed"].as<int>();
             if (entity["camera"]["controller"]) {
                 if (entity["camera"]["controller"].as<str>() == "actor")
-                    camera->controller = NULL;
-                //TODO: CHANGE
+                    camera->controller = CAMERA_ACTOR_CONTROLLER;
             }
             System::Camera::init(camera);
         }

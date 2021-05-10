@@ -19,7 +19,7 @@ namespace Verse::Graphics::Renderer
     
     void renderTexture(ui32 &tex_id, Rect2 &src, Rect2 &dst, ui16 frames, Config &c, bool flip);
     void renderTilemap(ui32 &tex_id, float* vertices, int size, Config &c);
-    void renderFire(Rect2 &dst, ui32 &p_tex, ui32 &w_tex, ui32 &f_tex);
+    void renderFire(Rect2 &dst, ui32 &p_tex, ui32 &f_tex);
     void render3D(float* vertices, int size, Config &c);
 
     void render(Config &c);
