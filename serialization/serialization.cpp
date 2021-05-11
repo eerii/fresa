@@ -441,6 +441,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             if (entity["camera"]["controller"]) {
                 if (entity["camera"]["controller"].as<str>() == "actor")
                     camera->controller = CAMERA_ACTOR_CONTROLLER;
+                if (entity["camera"]["controller"].as<str>() == "free")
+                    camera->controller = CAMERA_FREE_CONTROLLER;
             }
             System::Camera::init(camera);
         }
