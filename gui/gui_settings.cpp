@@ -7,7 +7,7 @@
 
 using namespace Verse;
 
-void Gui::settings(Config &c) {
+void Gui::settings(Scene &s, Config &c) {
     ImGui::Begin("Config");
     
     ImGui::Checkbox("Use grayscale", &c.use_grayscale);

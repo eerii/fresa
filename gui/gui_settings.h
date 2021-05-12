@@ -7,8 +7,9 @@
 #include "dtypes.h"
 #include "log.h"
 #include "config.h"
+#include "scene.h"
 
 namespace Verse::Gui
 {
-    void settings(Config &c);
+    void settings(Scene &s, Config &c);
 }
