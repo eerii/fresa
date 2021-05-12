@@ -230,7 +230,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     //PALETTE TEX
-    Graphics::Texture::loadTexture("res/graphics/palette_multi.png", palette_tex);
+    Graphics::Texture::loadTexture("res/graphics/palette.png", palette_tex);
     
     //CATCH ERRORS
     GLenum e;

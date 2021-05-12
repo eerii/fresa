@@ -33,7 +33,7 @@ void Gui::prerender(Scene &scene, Config &c, ui16 &fps, SDL_Window* window) {
     Gui::entities(scene);
     Gui::actors(scene);
     Gui::performance(fps);
-    Gui::settings(c);
+    Gui::settings(scene, c);
 }
 
 void Gui::render() {
