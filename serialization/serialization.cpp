@@ -313,8 +313,28 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             Graphics::Texture::loadTexture(entity["texture"]["res"].as<str>(), texture);
             if (entity["texture"]["transform"])
                 texture->transform = entity["texture"]["transform"].as<Rect2>();
-            if (entity["texture"]["offset"])
-                texture->offset = entity["texture"]["offset"].as<Vec2>();
+            if (entity["texture"]["offset"]) {
+                if (entity["texture"]["offset"].IsMap()) {
+                    for(YAML::const_iterator i=entity["texture"]["offset"].begin(); i != entity["texture"]["offset"].end(); i++) {
+                        texture->offset.push_back(i->second.as<Vec2>());
+                    }
+                } else {
+                    texture->offset.push_back(entity["texture"]["offset"].as<Vec2>());
+                }
+            } else {
+                texture->offset.push_back(Vec2(0,0));
+            }
+            if (entity["texture"]["layer"]) {
+                if (entity["texture"]["layer"].IsMap()) {
+                    for(YAML::const_iterator i=entity["texture"]["layer"].begin(); i != entity["texture"]["layer"].end(); i++) {
+                        texture->layer.push_back(i->second.as<int>());
+                    }
+                } else {
+                    texture->layer.push_back(entity["texture"]["layer"].as<int>());
+                }
+            } else {
+                texture->layer.push_back(0);
+            }
         }
 #endif
 #ifdef ANIMATION
@@ -380,6 +400,11 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 tilemap->pos = entity["tilemap"]["pos"].as<Vec2>();
             if (entity["tilemap"]["tex_size"])
                 tilemap->tex_size = entity["tilemap"]["tex_size"].as<Vec2>();
+            if (entity["tilemap"]["layer"]) {
+                tilemap->layer = entity["tilemap"]["layer"].as<int>();
+            } else {
+                tilemap->layer = 0;
+            }
         }
 #endif
 #ifdef COLLIDER
@@ -468,6 +493,11 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             log::error("You created a fire component for " + entity_name + " but it has no res for the texture");
             s.removeEntity(eid);
             return;
+        }
+        if (entity["fire"]["layer"]) {
+            fire->layer = entity["fire"]["layer"].as<int>();
+        } else {
+            fire->layer = 0;
         }
         Graphics::Texture::loadTexture(entity["fire"]["res"].as<str>(), fire->flame_tex);
         System::Fire::init(fire);

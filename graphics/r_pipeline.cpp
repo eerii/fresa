@@ -54,7 +54,10 @@ void Graphics::render(Scene &scene, Config &c, ui16 fps) {
         Gui::prerender(scene, c, fps, window);
     
     //RENDER SYSTEMS
+    glEnable(GL_DEPTH_TEST);
+    //glDepthFunc(GL_LESS);
     RENDER_SYSTEMS
+    glDisable(GL_DEPTH_TEST);
 
     //RENDER TO WINDOW
     Renderer::renderPost(c);

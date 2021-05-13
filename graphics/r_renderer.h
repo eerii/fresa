@@ -17,9 +17,9 @@ namespace Verse::Graphics::Renderer
 {
     void create(Config &c, SDL_Window* window);
     
-    void renderTexture(ui32 &tex_id, Rect2 &src, Rect2 &dst, ui16 frames, Config &c, bool flip);
-    void renderTilemap(ui32 &tex_id, float* vertices, int size, Config &c);
-    void renderFire(Rect2 &dst, ui32 &p_tex, ui32 &f_tex);
+    void renderTexture(ui32 &tex_id, glm::mat4 model, float* vertices, Config &c, int layer);
+    void renderTilemap(ui32 &tex_id, float* vertices, int size, Config &c, int layer);
+    void renderFire(Rect2 &dst, ui32 &p_tex, ui32 &f_tex, int layer);
     void render3D(float* vertices, int size, Config &c);
 
     void render(Config &c);
@@ -34,6 +34,7 @@ namespace Verse::Graphics::Renderer
 
     void bindCamera(glm::mat4 *mat, glm::mat4 *mat_e, Vec2f *pos);
     void createFramebuffer(ui32 &fb, ui32 &tex, Vec2 res, Config &c);
+    void createDepthFramebuffer(ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2 res, Config &c);
     ui32 createTexture(ui8* tex, int w, int h, bool rgba = true);
     void prepareTilemap(Rect2 &dst, Config &c, std::array<float, 24> &vertices);
 
