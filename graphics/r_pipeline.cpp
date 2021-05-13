@@ -34,6 +34,8 @@ void Graphics::init(Config &c) {
     
     //CREATE A WINDOW
     window = Graphics::Window::createWindow(c);
+    if(window == nullptr)
+        log::error("There was an error with the window pointer, check r_pipeline");
     
     //REFRESH RATE
     Graphics::calculateRefreshRate();
@@ -77,7 +79,8 @@ void Graphics::render(Scene &scene, Config &c, ui16 fps) {
 
 void Graphics::destroy() {
     Renderer::destroy();
-    SDL_DestroyWindow(window);
+    if (window != nullptr)
+        SDL_DestroyWindow(window);
 }
 
 
@@ -85,7 +88,8 @@ void Graphics::calculateRefreshRate() {
     int displayIndex = SDL_GetWindowDisplayIndex(window);
     
     SDL_DisplayMode mode;
-    SDL_GetDisplayMode(displayIndex, 0, &mode);
+    if(SDL_GetDisplayMode(displayIndex, 0, &mode))
+        log::error("Error getting display mode: ", SDL_GetError());
     
     refresh_rate = mode.refresh_rate;
 }

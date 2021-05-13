@@ -15,11 +15,7 @@ using namespace Verse;
 
 namespace
 {
-    Scene* scene;
-
-    Config* config;
     ui32 accumulator;
-
     ui16 fps_time;
     ui16 frames;
     ui16 fps;
@@ -27,9 +23,6 @@ namespace
 
 bool Game::init(Config &c) {
     log::debug("Starting the game...");
-    
-    //CONFIGURATION
-    config = &c;
     
     //INITIALIZE FILE SYSTEM
     File::init();
@@ -48,25 +41,20 @@ bool Game::init(Config &c) {
     }
     
     //INITIALIZE GRAPHICS
-    Graphics::init(*config);
+    Graphics::init(c);
     
     return true;
 }
 
-void Game::setActiveScene(Scene *active_scene) {
-    scene = active_scene;
-}
-
-bool Game::update() {
-    bool running = true;
-    
+bool Game::update(Config &c, Scene &s) {
     timeFrame();
     
     //PHYSICS UPDATE
-    running = physicsUpdate();
+    if (not physicsUpdate(c, s))
+        return false;
     
     //RENDER UPDATE
-    Graphics::render(*scene, *config, fps);
+    Graphics::render(s, c, fps);
     
     //PREVENT RUNNING TOO FAST
     ui16 frame_ticks = (ui16)(time() - Time::current);
@@ -83,21 +71,20 @@ bool Game::update() {
         fps_time = 0;
     }
     
-    return running;
+    return true;
 }
 
-bool Game::physicsUpdate() {
-    bool running = true;
-    
+bool Game::physicsUpdate(Config &c, Scene &s) {
     while (accumulator >= TIMESTEP) {
         accumulator -= TIMESTEP;
         
         //GET EVENTS
-        running &= Events::handleEvents(*config);
+        if (not Events::handleEvents(c))
+            return false;
         
         //UPDATE GUI
-        if(config->enable_gui)
-            Gui::update(1.0f / 60.0f, *config);
+        if(c.enable_gui)
+            Gui::update(1.0f / 60.0f, c);
         
         //UPDATE SYSTEMS
         PHYSICS_UPDATE_SYSTEMS
@@ -106,7 +93,7 @@ bool Game::physicsUpdate() {
         Input::frame();
     }
     
-    return running;
+    return true;
 }
 
 void Game::timeFrame() {

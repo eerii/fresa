@@ -65,8 +65,6 @@ namespace {
     };
 
     //MATRICES
-    Vec2f *camera_centre;
-    mat4 *m_camera, *m_e_camera;
     mat4 proj_render, proj_post, proj_cam, proj_window;
     ui8 mvp[S_LAST];
 
@@ -83,12 +81,12 @@ namespace {
 void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //CONTEXT
     context = SDL_GL_CreateContext(window);
-    if (context == NULL) {
+    if (context == nullptr) {
         log::error("Error creating OpenGL Context: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
     }
-    if (SDL_GL_MakeCurrent(window, context) != 0) {
+    if (SDL_GL_MakeCurrent(window, context)) {
         log::error("Error making OpenGL Context current: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
@@ -105,7 +103,8 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     #endif
     
     //V-SYNC
-    SDL_GL_SetSwapInterval(1);
+    if (SDL_GL_SetSwapInterval(1))
+        log::error("Error enabling V-Sync: ", SDL_GetError());
     
     //INFORMATION
     log::graphics("---");
@@ -116,11 +115,14 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     log::graphics("---");
     
     //IMGUI
-    ImGui::CreateContext();
+    ImGuiContext* imgui_context = ImGui::CreateContext();
+    if (imgui_context == nullptr)
+        log::error("Error creating ImGui context: ", SDL_GetError());
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    ImGui_ImplSDL2_InitForOpenGL(window, context);
-    ImGui_ImplOpenGL3_Init();
-    
+    if (not ImGui_ImplSDL2_InitForOpenGL(window, context))
+        log::error("Error initializing ImGui for SDL");
+    if (not ImGui_ImplOpenGL3_Init())
+        log::error("Error initializing ImGui for OpenGL");
     
     //SHADERS
     //-----------------------------------------
@@ -242,9 +244,9 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     Graphics::Texture::loadTexture("res/graphics/palette.png", palette_tex);
     
     //CATCH ERRORS
-    GLenum e;
-    while ((e = glGetError()) != GL_NO_ERROR) {
-       log::error("OpenGL Error during Init: %d", e);
+    GLenum e(glGetError());
+    while (e != GL_NO_ERROR) {
+       log::error("OpenGL Error during Rendering Textures: %d");
     }
 }
 //-----------------------------------------
@@ -269,7 +271,9 @@ void Graphics::Renderer::renderTexture(ui32 &tex_id, glm::mat4 model, float* ver
     glUniform1f(loc_layer, (float)layer);
     
     //Matrices
-    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * *m_camera * model));
+    if(c.active_camera == nullptr)
+        log::error("No active camera! (Rendering texture)");
+    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     
     //Draw
     glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -278,8 +282,8 @@ void Graphics::Renderer::renderTexture(ui32 &tex_id, glm::mat4 model, float* ver
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
     
-    GLenum e;
-    while ((e = glGetError()) != GL_NO_ERROR) {
+    GLenum e(glGetError());
+    while (e != GL_NO_ERROR) {
        log::error("OpenGL Error during Rendering Textures: %d");
     }
 }
@@ -299,7 +303,9 @@ void Graphics::Renderer::renderTilemap(ui32 &tex_id, float *vertices, int size, 
     
     //Matrices
     mat4 model = translate(mat4(1.0f), vec3(-1.0f, -1.0f, 0.0f));
-    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * *m_camera * model));
+    if(c.active_camera == nullptr)
+        log::error("No active camera! (Rendering tilemap)");
+    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     
     //Draw
     glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -308,13 +314,13 @@ void Graphics::Renderer::renderTilemap(ui32 &tex_id, float *vertices, int size, 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
     
-    GLenum e;
-    while ((e = glGetError()) != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Tilemaps: %d", e);
+    GLenum e(glGetError());
+    while (e != GL_NO_ERROR) {
+       log::error("OpenGL Error during Rendering Textures: %d");
     }
 }
 
-void Graphics::Renderer::renderFire(Rect2 &dst, ui32 &p_tex, ui32 &f_tex, int layer) {
+void Graphics::Renderer::renderFire(Rect2 &dst, ui32 &p_tex, ui32 &f_tex, Config &c, int layer) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_FIRE]);
@@ -329,7 +335,9 @@ void Graphics::Renderer::renderFire(Rect2 &dst, ui32 &p_tex, ui32 &f_tex, int la
     
     //Matrices
     mat4 model = matModel2D(dst.pos() - Vec2(1,1), dst.size());
-    glUniformMatrix4fv(mvp[S_FIRE], 1, GL_FALSE, glm::value_ptr(proj_render * *m_camera * model));
+    if(c.active_camera == nullptr)
+        log::error("No active camera! (Rendering fire)");
+    glUniformMatrix4fv(mvp[S_FIRE], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     
     //Textures
     glActiveTexture(GL_TEXTURE2);
@@ -348,9 +356,9 @@ void Graphics::Renderer::renderFire(Rect2 &dst, ui32 &p_tex, ui32 &f_tex, int la
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
     
-    GLenum e;
-    while ((e = glGetError()) != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Fire: %d", e);
+    GLenum e(glGetError());
+    while (e != GL_NO_ERROR) {
+       log::error("OpenGL Error during Rendering Textures: %d");
     }
 }
 
@@ -371,9 +379,9 @@ void Graphics::Renderer::render3D(float *vertices, int size, Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
     
-    GLenum e;
-    while ((e = glGetError()) != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering 3D Objects: %d", e);
+    GLenum e(glGetError());
+    while (e != GL_NO_ERROR) {
+       log::error("OpenGL Error during Rendering Textures: %d");
     }
 }
 //-----------------------------------------
@@ -395,9 +403,11 @@ void Graphics::Renderer::renderPost(Config &c) {
     //Light
     if (c.use_light) {
         std::vector<glm::vec4> light_sources = System::Light::getLight();
+        if(c.active_camera == nullptr)
+            log::error("No active camera! (Rendering light)");
         for (int i = 0; i < light_sources.size(); i++) {
-            light_sources[i].x += (0.5 - (camera_centre->x / c.resolution.x));
-            light_sources[i].y -= (0.5 - (camera_centre->y / c.resolution.y));
+            light_sources[i].x += (0.5 - (c.active_camera->pos.x / c.resolution.x));
+            light_sources[i].y -= (0.5 - (c.active_camera->pos.y / c.resolution.y));
         }
         glUniform4fv(glGetUniformLocation(shaders[S_POST], "light"), (int)(light_sources.size()), reinterpret_cast<GLfloat *>(light_sources.data()));
         glUniform1i(glGetUniformLocation(shaders[S_POST], "light_size"), (int)(light_sources.size()));
@@ -427,9 +437,9 @@ void Graphics::Renderer::renderPost(Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
     
-    GLenum e;
-    while ((e = glGetError()) != GL_NO_ERROR) {
-       log::error("OpenGL Error during Post: %d", e);
+    GLenum e(glGetError());
+    while (e != GL_NO_ERROR) {
+       log::error("OpenGL Error during Rendering Textures: %d");
     }
 }
 //-----------------------------------------
@@ -456,7 +466,9 @@ void Graphics::Renderer::renderCam(Config &c) {
     
     //Matrices
     mat4 model = matModel2D(Vec2(-c.render_scale, -c.render_scale), (c.resolution + Vec2(2,2)) * c.render_scale);
-    glUniformMatrix4fv(mvp[S_CAM], 1, GL_FALSE, glm::value_ptr(proj_cam * *m_e_camera * model));
+    if(c.active_camera == nullptr)
+        log::error("No active camera! (Rendering extra camera)");
+    glUniformMatrix4fv(mvp[S_CAM], 1, GL_FALSE, glm::value_ptr(proj_cam * c.active_camera->m_extra * model));
     
     //Draw
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -464,9 +476,9 @@ void Graphics::Renderer::renderCam(Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
     
-    GLenum e;
-    while ((e = glGetError()) != GL_NO_ERROR) {
-       log::error("OpenGL Error during Cam and Resize: %d", e);
+    GLenum e(glGetError());
+    while (e != GL_NO_ERROR) {
+       log::error("OpenGL Error during Rendering Textures: %d");
     }
 }
 //-----------------------------------------
@@ -511,9 +523,9 @@ void Graphics::Renderer::renderWindow(Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
     
-    GLenum e;
-    while ((e = glGetError()) != GL_NO_ERROR) {
-       log::error("OpenGL Error during Window: %d", e);
+    GLenum e(glGetError());
+    while (e != GL_NO_ERROR) {
+       log::error("OpenGL Error during Rendering Textures: %d");
     }
 }
 //-----------------------------------------
@@ -576,6 +588,11 @@ void Graphics::Renderer::clear(Scene &scene, Config &c) {
         System::Tilemap::init(scene, c);
 #endif
     }
+    
+    GLenum e(glGetError());
+    while (e != GL_NO_ERROR) {
+       log::error("OpenGL Error during Clear: %d");
+    }
 }
 //-----------------------------------------
 
@@ -600,12 +617,6 @@ void Graphics::Renderer::destroy() {
 
 //HELPERS
 //-----------------------------------------
-void Graphics::Renderer::bindCamera(glm::mat4 *mat, glm::mat4 *mat_e, Vec2f *pos) {
-    m_camera = mat;
-    m_e_camera = mat_e;
-    camera_centre = pos;
-}
-
 void Graphics::Renderer::createFramebuffer(ui32 &fb, ui32 &tex, Vec2 res, Config &c) {
     glGenFramebuffers(1, &fb);
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
