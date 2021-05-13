@@ -5,6 +5,7 @@
 #pragma once
 
 #include "dtypes.h"
+#include "scene.h"
 
 namespace Verse
 {
@@ -17,6 +18,8 @@ namespace Verse
         int render_scale;
         bool enable_gui;
         
+        float game_speed;
+        
         bool use_grayscale;
         bool use_light;
         int palette_index;
@@ -25,5 +28,8 @@ namespace Verse
         float background_color[4];
         
         bool render_collision_boxes;
+        
+        Scene* active_scene;
+        Component::Camera* active_camera;
     };
 }

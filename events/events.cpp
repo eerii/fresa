@@ -8,11 +8,8 @@
 
 using namespace Verse;
 
-namespace {
-    SDL_Event event;
-}
-
 bool Events::handleEvents(Config &c) {
+    SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_QUIT:
