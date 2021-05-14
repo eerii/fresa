@@ -38,7 +38,7 @@ void Graphics::Texture::loadTexture(str path, ui32 &tex_id) {
     tex_id = (ui32)Graphics::Renderer::createTexture(tex, w, h);
 }
 
-void Graphics::Texture::createWhiteNoise(int size, ui8* noise_data, ui32 &tex_id) {
+/*void Graphics::Texture::createWhiteNoise(int size, ui8* noise_data, ui32 &tex_id) {
     srand((ui32)Time::current);
     
     int s = size + 1;
@@ -61,12 +61,12 @@ void Graphics::Texture::offsetWhiteNoise(int size, ui8* noise_data, ui32 &tex_id
     Math::whiteNoise(s, 1, &noise_data[s*size]);
     
     tex_id = (ui32)Graphics::Renderer::createTexture(noise_data, s, s, false);
-}
+}*/
 
-void Graphics::Texture::createPerlinNoise(int size, Vec2 offset, float freq, int octaves, ui32 seed, ui8* noise_data, ui32 &tex_id) {
-    Math::perlinNoise(Vec2(size, size), offset, freq, octaves, seed, noise_data);
+void Graphics::Texture::createPerlinNoise(Vec2 size, Vec2 offset, float freq, int octaves, ui32 seed, ui8* noise_data, ui32 &tex_id) {
+    Math::perlinNoise(size, offset, freq, octaves, seed, noise_data);
     
-    tex_id = (ui32)Graphics::Renderer::createTexture(noise_data, size, size, false);
+    tex_id = (ui32)Graphics::Renderer::createTexture(noise_data, size.x, size.y, false);
 }
 
 void Graphics::Texture::createGradient(int size, ui32 &tex_id) {

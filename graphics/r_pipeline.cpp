@@ -6,6 +6,7 @@
 #include "gui.h"
 
 #include "system_list.h"
+#include "time.h"
 
 #include "r_pipeline.h"
 #include "r_window.h"
@@ -46,18 +47,19 @@ void Graphics::init(Config &c) {
 }
 
 
-void Graphics::render(Scene &scene, Config &c, ui16 fps) {
+void Graphics::render(Scene &scene, Config &c) {
+    ui64 prev_time = time();
+    
     //CLEAR
     glViewport(0, 0, c.resolution.x + 2, c.resolution.y + 2);
     Renderer::clear(scene, c);
     
     //PRERENDER GUI
     if (c.enable_gui)
-        Gui::prerender(scene, c, fps, window);
+        Gui::prerender(scene, c, window);
     
     //RENDER SYSTEMS
     glEnable(GL_DEPTH_TEST);
-    //glDepthFunc(GL_LESS);
     RENDER_SYSTEMS
     glDisable(GL_DEPTH_TEST);
 
@@ -71,6 +73,8 @@ void Graphics::render(Scene &scene, Config &c, ui16 fps) {
     //RENDER GUI
     if (c.enable_gui)
         Gui::render();
+    
+    c.render_time = (ui32)(time() - prev_time);
     
     //PRESENT
     Renderer::present(window);

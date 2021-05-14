@@ -17,8 +17,12 @@ namespace Verse
         Vec2 window_size;
         int render_scale;
         bool enable_gui;
+        bool use_vsync;
         
         float game_speed;
+        ui16 fps;
+        ui32 physics_time;
+        ui32 render_time;
         
         bool use_grayscale;
         bool use_light;

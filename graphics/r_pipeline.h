@@ -16,7 +16,7 @@ namespace Verse::Graphics
 {
     void init(Config &c);
 
-    void render(Scene &scene, Config &c, ui16 fps);
+    void render(Scene &scene, Config &c);
     void clear(Config &c);
     void display(Config &c);
 
