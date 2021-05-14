@@ -18,7 +18,6 @@ namespace
     ui32 accumulator;
     ui16 fps_time;
     ui16 frames;
-    ui16 fps;
 }
 
 bool Game::init(Config &c) {
@@ -43,6 +42,8 @@ bool Game::init(Config &c) {
     //INITIALIZE GRAPHICS
     Graphics::init(c);
     
+    Gui::init(c);
+    
     return true;
 }
 
@@ -52,9 +53,10 @@ bool Game::update(Config &c, Scene &s) {
     //PHYSICS UPDATE
     if (not physicsUpdate(c, s))
         return false;
+    c.physics_time = (ui32)(time() - Time::current);
     
     //RENDER UPDATE
-    Graphics::render(s, c, fps);
+    Graphics::render(s, c);
     
     //PREVENT RUNNING TOO FAST
     ui16 frame_ticks = (ui16)(time() - Time::current);
@@ -66,7 +68,7 @@ bool Game::update(Config &c, Scene &s) {
     frames++;
     fps_time += (ui16)(time() - Time::current);
     if (fps_time > 200) {
-        fps = round((float)frames / (float)(fps_time * 0.001f));
+        c.fps = round((float)frames / (float)(fps_time * 0.001f));
         frames = 0;
         fps_time = 0;
     }

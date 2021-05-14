@@ -56,3 +56,10 @@ void Graphics::Window::onResize(SDL_Event &e, Config &c) {
     imgui_io.DisplaySize.x = static_cast<float>(e.window.data1);
     imgui_io.DisplaySize.y = static_cast<float>(e.window.data2);
 }
+
+void Graphics::Window::updateVsync(Config &c) {
+    if (SDL_GL_SetSwapInterval(c.use_vsync ? 1 : 0)) {
+        str text = c.use_vsync ? "Error enabling V-Sync: " : "Error disabling V-Sync: ";
+        log::error(text, SDL_GetError());
+    }
+}

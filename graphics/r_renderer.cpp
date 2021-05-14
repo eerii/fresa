@@ -7,6 +7,7 @@
 #include "r_shader.h"
 #include "r_textures.h"
 #include "r_palette.h"
+#include "r_window.h"
 
 #include "gui.h"
 #include "time.h"
@@ -103,8 +104,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     #endif
     
     //V-SYNC
-    if (SDL_GL_SetSwapInterval(1))
-        log::error("Error enabling V-Sync: ", SDL_GetError());
+    Graphics::Window::updateVsync(c);
     
     //INFORMATION
     log::graphics("---");

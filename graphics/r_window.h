@@ -12,4 +12,5 @@ namespace Verse::Graphics::Window
 {
     SDL_Window* createWindow(Config &c);
     void onResize(SDL_Event &e, Config &c);
+    void updateVsync(Config &c);
 }
