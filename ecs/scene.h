@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include <vector>
-
-#include "dtypes.h"
-#include "log.h"
 #include "ecs.h"
 #include "cpool.h"
+
+#include <vector>
 
 namespace Verse
 {

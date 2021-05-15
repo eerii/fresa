@@ -7,6 +7,8 @@
 #include <fstream>
 #include <streambuf>
 
+#include "log.h"
+
 using namespace Verse;
 
 void File::init() {

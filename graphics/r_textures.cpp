@@ -2,9 +2,10 @@
 //by jose pazos perez
 //all rights reserved uwu
 
-#include "time.h"
-#include "noise.h"
 #include "r_textures.h"
+
+#include "noise.h"
+
 #include "r_renderer.h"
 #include "r_opengl.h"
 

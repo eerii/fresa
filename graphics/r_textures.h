@@ -4,13 +4,10 @@
 
 #pragma once
 
-#include "stb_image.h"
-
-#include "dtypes.h"
-#include "log.h"
 #include "config.h"
-
 #include "component_list.h"
+
+#include "stb_image.h"
 
 namespace Verse::Graphics::Texture
 {

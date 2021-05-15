@@ -3,17 +3,17 @@
 //all rights reserved uwu
 
 #include "r_renderer.h"
+
+#include "log.h"
+#include "time.h"
+
+#include "gui.h"
+
 #include "r_opengl.h"
 #include "r_shader.h"
 #include "r_textures.h"
 #include "r_palette.h"
 #include "r_window.h"
-
-#include "gui.h"
-#include "time.h"
-
-#include "stb_image.h"
-
 #include "system_list.h"
 
 #define CLIPPING_FAR -1000.0f

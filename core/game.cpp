@@ -3,12 +3,14 @@
 //all rights reserved uwu
 
 #include "game.h"
+
+#include "log.h"
 #include "time.h"
 #include "input.h"
 #include "file.h"
 #include "events.h"
 #include "gui.h"
-
+#include "r_pipeline.h"
 #include "system_list.h"
 
 using namespace Verse;

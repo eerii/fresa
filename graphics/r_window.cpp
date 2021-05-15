@@ -3,6 +3,8 @@
 //all rights reserved uwu
 
 #include "r_window.h"
+
+#include "log.h"
 #include "imgui.h"
 
 #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL

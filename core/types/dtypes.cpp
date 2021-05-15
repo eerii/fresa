@@ -2,7 +2,6 @@
 //by jose pazos perez
 //all rights reserved uwu
 
-#include <math.h>
 #include "dtypes.h"
 
 using namespace Verse;
@@ -167,17 +166,6 @@ Rect2& Rect2::operator -=(const Vec2 p_pos) { x -= p_pos.x; y -= p_pos.y; return
 Rect2& Rect2::operator *=(const float p_f) { x = round((float)x * p_f); y = round((float)y * p_f); return *this; };
 Rect2& Rect2::operator /=(const float p_f) { x = round((float)x / p_f); y = round((float)y / p_f); return *this; };
 Rect2& Rect2::operator =(const Vec2 p_pos) { x = p_pos.x; y = p_pos.y; return *this; };
-
-Vertices Rect2::toVertices() {
-    Vertices vert;
-    
-    vert[TOPLEFT] = pos();
-    vert[TOPRIGHT] = Vec2(x + w, y);
-    vert[BOTTOMLEFT] = Vec2(x, y + h);
-    vert[BOTTOMRIGHT] = Vec2(x + w, y + h);
-    
-    return vert;
-}
 
 SDL_Rect Rect2::toSDL() {
     SDL_Rect rect;

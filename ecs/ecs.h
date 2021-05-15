@@ -5,7 +5,8 @@
 #pragma once
 
 #include "dtypes.h"
-#include "log.h"
+
+#include <bitset>
 
 #include "component_list.h"
 #ifndef COMPONENTS

@@ -2,12 +2,14 @@
 //by jose pazos perez
 //all rights reserved uwu
 
+#include "serialization.h"
+
 #include <filesystem>
 #include <iostream>
 #include <fstream>
 #include <map>
 
-#include "serialization.h"
+#include "log.h"
 
 #include "r_textures.h"
 #include "system_list.h"

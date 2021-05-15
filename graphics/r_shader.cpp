@@ -3,6 +3,11 @@
 //all rights reserved uwu
 
 #include "r_shader.h"
+
+#include <fstream>
+#include <streambuf>
+
+#include "log.h"
 #include "r_opengl.h"
 
 using namespace Verse;

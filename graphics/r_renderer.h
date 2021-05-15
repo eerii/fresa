@@ -8,10 +8,7 @@
 #include <glm/ext.hpp>
 #include <array>
 
-#include "dtypes.h"
-#include "log.h"
 #include "config.h"
-#include "scene.h"
 
 namespace Verse::Graphics::Renderer
 {

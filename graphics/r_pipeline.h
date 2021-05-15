@@ -6,10 +6,6 @@
 
 #include <SDL2/SDL.h>
 
-#include "dtypes.h"
-#include "log.h"
-
-#include "scene.h"
 #include "config.h"
 
 namespace Verse::Graphics

@@ -3,8 +3,9 @@
 //all rights reserved uwu
 
 #include "r_palette.h"
-#include "r_opengl.h"
+
 #include "time.h"
+#include "r_opengl.h"
 
 #define TRANSITION_TIME 500
 

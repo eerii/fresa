@@ -6,10 +6,6 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include "dtypes.h"
-#include "log.h"
-
-#include "scene.h"
 #include "config.h"
 
 namespace Verse::Serialization

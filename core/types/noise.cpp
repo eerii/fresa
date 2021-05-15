@@ -3,6 +3,7 @@
 //all rights reserved uwu
 
 #include "noise.h"
+
 #include "time.h"
 
 using namespace Verse;
