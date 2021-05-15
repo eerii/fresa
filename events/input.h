@@ -9,9 +9,6 @@
 #include <SDL2/SDL.h>
 
 #include "dtypes.h"
-#include "log.h"
-
-#include "imgui.h"
 
 #define VERSE_KEY_DEFINITIONS \
     DEFINE_KEY(Unknown, 0) \

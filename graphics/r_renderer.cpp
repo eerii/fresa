@@ -8,6 +8,8 @@
 #include "time.h"
 
 #include "gui.h"
+#include "imgui_impl_sdl.h"
+#include "imgui_impl_opengl3.h"
 
 #include "r_opengl.h"
 #include "r_shader.h"
@@ -141,7 +143,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     shaders[S_WINDOW] = Graphics::Shader::compileProgram("res/shaders/window.vertex", "res/shaders/window.frag");
     log::graphics("Program (Window) ID: %d", shaders[S_WINDOW]);
     
-    shaders[S_FIRE] = Graphics::Shader::compileProgram("res/shaders/lume.vertex", "res/shaders/lume.frag");
+    shaders[S_FIRE] = Graphics::Shader::compileProgram("res/shaders/fire.vertex", "res/shaders/fire.frag");
     log::graphics("Program (Fire) ID: %d", shaders[S_FIRE]);
     
     log::graphics("---");
