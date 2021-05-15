@@ -38,6 +38,16 @@ namespace Verse
         return resizeArray<NewSize>(a, std::make_index_sequence<size>());
     }
 
+    template <std::size_t NewSize, typename T, std::size_t PrevSize, std::size_t... I>
+    constexpr std::array<T, NewSize> resizeArray(const std::array<T, PrevSize>& a, std::remove_const_t<T> fill, std::index_sequence<I...>) {
+        return { ((I < PrevSize) ? a[I] : fill)... };
+    }
+
+    template <std::size_t NewSize, typename T, std::size_t PrevSize>
+    constexpr std::array<T, NewSize> resizeArray(const std::array<T, PrevSize>& a, std::remove_const_t<T> fill) {
+        return resizeArray<NewSize>(a, fill, std::make_index_sequence<NewSize>());
+    }
+
     template <typename T, std::size_t N, std::size_t... I>
     constexpr bool areArraysEqual(const std::array<T, N>& la, const std::array<T, N>& ra, std::index_sequence<I...>) {
         return ((la[I] == ra[I]) && ...);
