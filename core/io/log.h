@@ -20,10 +20,10 @@ namespace Verse
     
         void vec2(Vec2 p_vector, str p_name = "");
         void vec2(Vec2f p_vector, str p_name = "");
-        void num(int p_number, str p_name = "");
-        void num(ui32 p_number, str p_name = "");
-        void num(ui64 p_number, str p_name = "");
-        void num(float p_number, str p_name = "");
-        void num(double p_number, str p_name = "");
+    
+        template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+        void num(T p_number, str p_name = "") {
+            std::clog << "[NUMBER]: " << p_name << ((p_name == "") ? "" : ": ") << std::to_string(p_number) << std::endl;
+        }
     }
 }
