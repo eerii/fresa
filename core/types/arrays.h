@@ -5,7 +5,6 @@
 #pragma once
 
 #include "dtypes.h"
-#include <array>
 
 namespace Verse
 {

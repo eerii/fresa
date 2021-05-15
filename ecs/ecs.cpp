@@ -3,6 +3,7 @@
 //all rights reserved uwu
 
 #include "ecs.h"
+#include "log.h"
 
 #define logComponentID(x) log::debug("%s ID: %d", #x, Component::getID<Component::x>())
 

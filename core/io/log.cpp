@@ -2,10 +2,9 @@
 //by jose pazos perez
 //all rights reserved uwu
 
-#include <string>
-#include <memory>
-
 #include "log.h"
+
+#include <memory>
 
 #define LOG_LEVEL 3
 /*

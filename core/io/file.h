@@ -8,9 +8,6 @@
 #include "CoreFoundation/CoreFoundation.h"
 #endif
 
-#include "dtypes.h"
-#include "log.h"
-
 namespace Verse::File
 {
     void init();

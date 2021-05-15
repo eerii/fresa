@@ -7,11 +7,6 @@
 #include <SDL2/SDL.h>
 #include <string>
 
-#define TOPLEFT 0
-#define TOPRIGHT 1
-#define BOTTOMLEFT 2
-#define BOTTOMRIGHT 3
-
 #define USE_OPENGL
 
 namespace Verse
@@ -121,8 +116,6 @@ namespace Verse
         static const Vec2f down_left;
     };
 
-    typedef struct Vertices { Vec2 x[4]; Vec2& operator[](int i){ return x[i]; } } Vertices;
-
     struct Rect2f;
 
     //RECT2 - 4D Vector
@@ -150,7 +143,6 @@ namespace Verse
         Rect2& operator /=(const float p_f);
         Rect2& operator =(const Vec2 p_pos);
         
-        Vertices toVertices();
         SDL_Rect toSDL();
     };
 

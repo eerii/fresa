@@ -2,18 +2,17 @@
 //by jose pazos perez
 //all rights reserved uwu
 
-#include "imgui.h"
-#include "gui.h"
+#include "r_pipeline.h"
 
-#include "system_list.h"
+#include "log.h"
 #include "time.h"
 
-#include "r_pipeline.h"
-#include "r_window.h"
-#include "r_shader.h"
+#include "gui.h"
+
 #include "r_opengl.h"
+#include "r_window.h"
 #include "r_renderer.h"
-#include "r_textures.h"
+#include "system_list.h"
 
 using namespace Verse;
 using namespace Graphics;

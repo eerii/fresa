@@ -10,10 +10,6 @@
 #pragma once
 
 #include "dtypes.h"
-#include "log.h"
-
-#include <fstream>
-#include <streambuf>
 
 namespace Verse::Graphics::Shader
 {

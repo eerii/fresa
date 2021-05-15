@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "dtypes.h"
-#include "log.h"
 #include "ecs.h"
 
 namespace Verse

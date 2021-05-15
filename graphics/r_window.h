@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "dtypes.h"
-#include "log.h"
 #include "config.h"
 
 namespace Verse::Graphics::Window

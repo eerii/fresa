@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <iostream>
-
 #include "dtypes.h"
+
+#include <iostream>
 
 namespace Verse
 {

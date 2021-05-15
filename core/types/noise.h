@@ -5,11 +5,8 @@
 #pragma once
 
 #include "dtypes.h"
-#include "log.h"
 
 #include "perlin_noise.h"
-
-#include <math.h>
 
 namespace Verse::Math
 {
