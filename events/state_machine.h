@@ -7,7 +7,7 @@
 #include <tuple>
 #include <variant>
 
-#include "arrays.h"
+#include "state_types.h"
 
 namespace Verse::State
 {
@@ -46,6 +46,8 @@ struct StateMachine {
         return state;
     }
     
+    //State types
+    constexpr static Types<States...> getStateTypes() { return {}; };
 };
 
 //Intermediate object to avoid tying the states together
@@ -118,8 +120,22 @@ struct OneOf {
 
 //For convenience, a wrapper for the previous function, for doing one action or nothing
 template <typename Action>
-struct ThisOrNothing : OneOf<Action, Nothing> {
+struct Maybe : OneOf<Action, Nothing> {
     using OneOf<Action, Nothing>::OneOf;
+};
+
+//Convert state-event pairs and turn them into an action
+struct ResolveAction {
+    template <typename State, typename Event>
+    constexpr auto operator()(Types<State, Event>) {
+        using Action = decltype(std::declval<State>().handle(std::declval<Event>()));
+        return Types<Action>{};
+    }
+    
+    template <typename State, typename Event>
+    constexpr auto operator()(Types<Types<State, Event>>) {
+        return (*this)(Types<State, Event>{});
+    }
 };
 
 }
