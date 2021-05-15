@@ -125,6 +125,7 @@ namespace Verse
 
     struct Rect2f;
 
+    //RECT2 - 4D Vector
     struct Rect2 {
         int x, y, w, h;
         
@@ -153,6 +154,7 @@ namespace Verse
         SDL_Rect toSDL();
     };
 
+    //RECT2f - 4D Vector (float)
     struct Rect2f {
         int x, y, w, h;
         
@@ -181,7 +183,8 @@ namespace Verse
     };
 
     //SIGN
-    template <typename T> int sign(T val) {
+    template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+    int sign(T val) {
         return (T(0) < val) - (val < T(0));
     }
 }

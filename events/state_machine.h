@@ -8,6 +8,7 @@
 #include <variant>
 
 #include "dtypes.h"
+#include "arrays.h"
 #include "log.h"
 
 namespace Verse::State
