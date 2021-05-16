@@ -153,13 +153,13 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //FRAMEBUFFERS
     //-----------------------------------------
     //Phase 1: Render to small texture
-    Renderer::createDepthFramebuffer(fb_render, tex_render, depth_tex_render, c.resolution + Vec2(2,2), c);
+    Renderer::createDepthFramebuffer(c, fb_render, tex_render, depth_tex_render, c.resolution + Vec2(2,2));
     
     //Phase 2: Postprocessing effects
-    Renderer::createFramebuffer(fb_post, tex_post, c.resolution + Vec2(2,2), c);
+    Renderer::createFramebuffer(c, fb_post, tex_post, c.resolution + Vec2(2,2));
     
     //Phase 3: Smooth camera and size
-    Renderer::createFramebuffer(fb_cam, tex_cam, c.resolution * c.render_scale, c);
+    Renderer::createFramebuffer(c, fb_cam, tex_cam, c.resolution * c.render_scale);
     //-----------------------------------------
     
     
@@ -258,7 +258,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
 //PHASE 1: RENDER TO SMALL TEXTURE
 //fb_render, tex_render (c.resolution) using shaders[S_RENDER2D] or shaders[S_RENDER3D]
 //-----------------------------------------
-void Graphics::Renderer::renderTexture(ui32 &tex_id, glm::mat4 model, float* vertices, Config &c, int layer) {
+void Graphics::Renderer::renderTexture(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     
@@ -290,7 +290,7 @@ void Graphics::Renderer::renderTexture(ui32 &tex_id, glm::mat4 model, float* ver
     }
 }
 
-void Graphics::Renderer::renderTilemap(ui32 &tex_id, float *vertices, int size, Config &c, int layer) {
+void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices, int size, int layer) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_RENDER2D]);
@@ -322,7 +322,7 @@ void Graphics::Renderer::renderTilemap(ui32 &tex_id, float *vertices, int size, 
     }
 }
 
-void Graphics::Renderer::renderFire(Rect2 &dst, ui32 &p_tex, ui32 &f_tex, Config &c, int layer) {
+void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_tex, int layer) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_FIRE]);
@@ -364,7 +364,7 @@ void Graphics::Renderer::renderFire(Rect2 &dst, ui32 &p_tex, ui32 &f_tex, Config
     }
 }
 
-void Graphics::Renderer::render3D(float *vertices, int size, Config &c) {
+void Graphics::Renderer::render3D(Config &c, float *vertices, int size) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_RENDER3D]);
@@ -545,7 +545,7 @@ void Graphics::Renderer::present(SDL_Window* window) {
 
 //CLEAR
 //-----------------------------------------
-void Graphics::Renderer::clear(Scene &scene, Config &c) {
+void Graphics::Renderer::clear(Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glClearColor(c.background_color[0], c.background_color[1], c.background_color[2], c.background_color[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -587,7 +587,7 @@ void Graphics::Renderer::clear(Scene &scene, Config &c) {
         proj_window = ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
         
 #ifdef TILEMAP
-        System::Tilemap::init(scene, c);
+        System::Tilemap::init(c);
 #endif
     }
     
@@ -619,7 +619,7 @@ void Graphics::Renderer::destroy() {
 
 //HELPERS
 //-----------------------------------------
-void Graphics::Renderer::createFramebuffer(ui32 &fb, ui32 &tex, Vec2 res, Config &c) {
+void Graphics::Renderer::createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2 res) {
     glGenFramebuffers(1, &fb);
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
     
@@ -639,8 +639,8 @@ void Graphics::Renderer::createFramebuffer(ui32 &fb, ui32 &tex, Vec2 res, Config
     }
 }
 
-void Graphics::Renderer::createDepthFramebuffer(ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2 res, Config &c) {
-    Graphics::Renderer::createFramebuffer(fb, tex, res, c);
+void Graphics::Renderer::createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2 res) {
+    Graphics::Renderer::createFramebuffer(c, fb, tex, res);
     
     glGenTextures(1, &d_tex);
     glBindTexture(GL_TEXTURE_2D, d_tex);
@@ -668,7 +668,7 @@ ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h, bool rgba) {
     return tex_id;
 }
 
-void Graphics::Renderer::prepareTilemap(Rect2 &dst, Config &c, std::array<float, 24> &vertices) {
+void Graphics::Renderer::prepareTilemap(Config &c, Rect2 &dst, std::array<float, 24> &vertices) {
     //TODO: CHANGE FOR MAT MULT
     for (int i = 0; i < 6; i++) {
         vertices[4*i + 0] = (i % 2 == 1) ? dst.w : 0.0;

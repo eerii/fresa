@@ -25,6 +25,9 @@ namespace
 bool Game::init(Config &c) {
     log::debug("Starting the game...");
     
+    //DELTA
+    c.delta = TIMESTEP * 0.001f;
+    
     //INITIALIZE FILE SYSTEM
     File::init();
     
@@ -49,16 +52,22 @@ bool Game::init(Config &c) {
     return true;
 }
 
-bool Game::update(Config &c, Scene &s) {
+bool Game::update(Config &c) {
     timeFrame();
     
+    //CHECK SCENE
+    if (c.active_scene == nullptr) {
+        log::error("FATAL: SCENE NOT DEFINED");
+        return false;
+    }
+    
     //PHYSICS UPDATE
-    if (not physicsUpdate(c, s))
+    if (not physicsUpdate(c))
         return false;
     c.physics_time = (ui32)(time() - Time::current);
     
     //RENDER UPDATE
-    Graphics::render(s, c);
+    Graphics::render(c);
     
     //PREVENT RUNNING TOO FAST
     ui16 frame_ticks = (ui16)(time() - Time::current);
@@ -78,7 +87,7 @@ bool Game::update(Config &c, Scene &s) {
     return true;
 }
 
-bool Game::physicsUpdate(Config &c, Scene &s) {
+bool Game::physicsUpdate(Config &c) {
     while (accumulator >= TIMESTEP) {
         accumulator -= TIMESTEP;
         
@@ -88,7 +97,7 @@ bool Game::physicsUpdate(Config &c, Scene &s) {
         
         //UPDATE GUI
         if(c.enable_gui)
-            Gui::update(1.0f / 60.0f, c);
+            Gui::update(c);
         
         //UPDATE SYSTEMS
         PHYSICS_UPDATE_SYSTEMS

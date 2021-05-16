@@ -23,17 +23,20 @@ namespace Verse
         ui16 fps;
         ui32 physics_time;
         ui32 render_time;
+        float delta;
         
         bool use_grayscale;
         bool use_light;
         int palette_index;
         int num_palettes;
-        
         float background_color[4];
         
         bool render_collision_boxes;
         
         Scene* active_scene;
         Component::Camera* active_camera;
+        
+        float gravity;
+        Vec2 gravity_dir;
     };
 }

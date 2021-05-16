@@ -9,14 +9,13 @@
 #include "config.h"
 
 #define TIMESTEP 10 //Update the simulation every 10ms (0.01s)
-#define DELTA (TIMESTEP * 0.001f)
 
 namespace Verse::Game
 {
     bool init(Config &c);
 
-    bool update(Config &c, Scene &s);
-    bool physicsUpdate(Config &c, Scene &s);
+    bool update(Config &c);
+    bool physicsUpdate(Config &c);
     void timeFrame();
 
     void stop();
