@@ -46,16 +46,16 @@ void Graphics::init(Config &c) {
 }
 
 
-void Graphics::render(Scene &scene, Config &c) {
+void Graphics::render(Config &c) {
     ui64 prev_time = time();
     
     //CLEAR
     glViewport(0, 0, c.resolution.x + 2, c.resolution.y + 2);
-    Renderer::clear(scene, c);
+    Renderer::clear(c);
     
     //PRERENDER GUI
     if (c.enable_gui)
-        Gui::prerender(scene, c, window);
+        Gui::prerender(c, window);
     
     //RENDER SYSTEMS
     glEnable(GL_DEPTH_TEST);

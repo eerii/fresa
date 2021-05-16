@@ -18,8 +18,8 @@
 using namespace Verse;
 
 void Serialization::initYAML() {
-    std::filesystem::create_directories("res/data/save");
-    std::filesystem::create_directories("res/data/scenes");
+    //std::filesystem::create_directories("res/data/save");
+    //std::filesystem::create_directories("res/data/scenes");
 }
 
 void Serialization::loadYAML(str name, YAML::Node &file) {
@@ -368,6 +368,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
         if (entity["actor"]) {
             Component::Actor* actor = s.addComponent<Component::Actor>(eid);
             if (entity["actor"]["controller"]) {
+                actor_move_func move = &System::Actor::move;
                 if (entity["actor"]["controller"].as<str>() == "player")
                     actor->controller = PLAYER_CONTROLLER;
                 if (entity["actor"]["controller"].as<str>() == "free")

@@ -10,7 +10,7 @@ namespace Verse::Graphics
 {
     void init(Config &c);
 
-    void render(Scene &scene, Config &c);
+    void render(Config &c);
     void clear(Config &c);
     void display(Config &c);
 
