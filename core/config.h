@@ -6,6 +6,7 @@
 
 #include "dtypes.h"
 #include "scene.h"
+#include <vector>
 
 namespace Verse
 {
@@ -23,7 +24,7 @@ namespace Verse
         ui16 fps;
         ui32 physics_time;
         ui32 render_time;
-        float delta;
+        float physics_delta;
         
         bool use_grayscale;
         bool use_light;
@@ -35,8 +36,9 @@ namespace Verse
         
         Scene* active_scene;
         Component::Camera* active_camera;
+        std::vector<Scene*> available_scenes;
         
         float gravity;
-        Vec2 gravity_dir;
+        Vec2f gravity_dir;
     };
 }

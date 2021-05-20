@@ -6,8 +6,12 @@
 
 #include <tuple>
 #include <variant>
+#include <typeinfo>
 
 #include "state_types.h"
+#include "static_str.h"
+
+#define CURR_STATE(SM) std::visit([](auto&&x)->decltype(auto) { return make_string(Types<typeof(*x)>()).c_str(); }, SM.curr_state)
 
 namespace Verse::State
 {
@@ -36,6 +40,15 @@ struct StateMachine {
             action.execute(machine, *state_ptr, event);
         };
         std::visit(pass_to_state, curr_state);
+    }
+    
+    //Get type
+    std::type_info const& curr_type(){
+      return std::visit( [](auto&&x)->decltype(auto){ return typeid(*x); }, curr_state );
+    }
+    template <typename State>
+    bool is(const State& state) {
+        return curr_type() == typeid(state);
     }
     
     //Change state

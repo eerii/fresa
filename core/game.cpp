@@ -25,9 +25,6 @@ namespace
 bool Game::init(Config &c) {
     log::debug("Starting the game...");
     
-    //DELTA
-    c.delta = TIMESTEP * 0.001f;
-    
     //INITIALIZE FILE SYSTEM
     File::init();
     
@@ -62,6 +59,7 @@ bool Game::update(Config &c) {
     }
     
     //PHYSICS UPDATE
+    c.physics_delta = TIMESTEP * 0.001f * c.game_speed;
     if (not physicsUpdate(c))
         return false;
     c.physics_time = (ui32)(time() - Time::current);
