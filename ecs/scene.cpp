@@ -37,3 +37,4 @@ void Scene::removeEntity(EntityID eid) {
 str Scene::getName(EntityID eid) {
     return entity_names[Entity::getIndex(eid)];
 }
+

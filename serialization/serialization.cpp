@@ -382,6 +382,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 actor->acc_ground = entity["actor"]["acc_ground"].as<int>();
             if (entity["actor"]["friction_ground"])
                 actor->friction_ground = entity["actor"]["friction_ground"].as<float>();
+            if (entity["actor"]["has_gravity"])
+                actor->has_gravity = entity["actor"]["has_gravity"].as<bool>();
         }
 #endif
 #ifdef TILEMAP
