@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "config.h"
 #include "component_list.h"
 
@@ -22,6 +24,6 @@ namespace Verse::Graphics::Texture
     void loadTexture(str path, Component::Texture* tex);
 #endif
 #ifdef TILEMAP
-    void loadTexture(str path, Component::Tilemap* tex);
+    void loadTexture(std::vector<str> path, Component::Tilemap* tex);
 #endif
 }
