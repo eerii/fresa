@@ -24,11 +24,12 @@ void Graphics::Texture::loadTexture(str path, Component::Texture* tex) {
 #endif
 
 #ifdef TILEMAP
-void Graphics::Texture::loadTexture(str path, Component::Tilemap* tex) {
+void Graphics::Texture::loadTexture(std::vector<str> path, Component::Tilemap* tex) {
     int w, h, ch;
-    tex->tex = stbi_load(path.c_str(), &w, &h, &ch, STBI_rgb_alpha);
-    
-    tex->tex_id = (int)Graphics::Renderer::createTexture(tex->tex, w, h);
+    for (str p : path) {
+        ui8* t = stbi_load(p.c_str(), &w, &h, &ch, STBI_rgb_alpha);
+        tex->tex_id.push_back((int)Graphics::Renderer::createTexture(t, w, h));
+    }
 }
 #endif
 

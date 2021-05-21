@@ -300,6 +300,10 @@ EntityID Serialization::loadPlayer(Scene &s, Config &c) {
     EntityID eid = s.createEntity("player");
     Serialization::loadComponentsFromYAML(eid, "player", player, s, c);
     
+#ifdef PLAYER
+    s.addComponent<Component::Player>(eid);
+#endif
+    
     return eid;
 }
 
@@ -394,13 +398,17 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 s.removeEntity(eid);
                 return;
             }
+            tilemap->tiles = System::Tilemap::load(entity["tilemap"]["tiles"].as<str>());
             if (not entity["tilemap"]["res"]) {
                 log::error("You created a tilemap component for " + entity_name + " but it has no res for the texture");
                 s.removeEntity(eid);
                 return;
             }
-            tilemap->tiles = System::Tilemap::load(entity["tilemap"]["tiles"].as<str>());
-            Graphics::Texture::loadTexture(entity["tilemap"]["res"].as<str>(), tilemap);
+            if (not entity["tilemap"]["res"].IsScalar()) {
+                Graphics::Texture::loadTexture(entity["tilemap"]["res"].as<std::vector<str>>(), tilemap);
+            } else {
+                Graphics::Texture::loadTexture(std::vector<str>({entity["tilemap"]["res"].as<str>()}), tilemap);
+            }
             if (entity["tilemap"]["pos"])
                 tilemap->pos = entity["tilemap"]["pos"].as<Vec2>();
             if (entity["tilemap"]["tex_size"])
