@@ -244,7 +244,7 @@ void Serialization::removeYAML(str name, std::vector<str> key) {
     writeYAML(name, file_to_modify);
 }
 
-void Serialization::loadScene(str name, Scene &s, Config &c) {
+void Serialization::loadScene(str name, Scene *s, Config &c) {
     YAML::Node data;
     str path = "data/scenes/" + name;
     Serialization::loadYAML(path, data);
@@ -260,8 +260,8 @@ void Serialization::loadScene(str name, Scene &s, Config &c) {
         log::error("You tried to load the scene (" + name + ") but it has no valid \'scene\' data (name and size)");
         return;
     }
-    s.name = data["scene"]["name"].as<str>();
-    s.size = data["scene"]["size"].as<Vec2>();
+    s->name = data["scene"]["name"].as<str>();
+    s->size = data["scene"]["size"].as<Vec2>();
     //--------------------------------------
     
     
@@ -277,7 +277,7 @@ void Serialization::loadScene(str name, Scene &s, Config &c) {
         YAML::Node entity = i->second;
         
         //Create entity
-        EntityID eid = s.createEntity(entity_name);
+        EntityID eid = s->createEntity(entity_name);
         
         //Add components
         Serialization::loadComponentsFromYAML(eid, entity_name, entity, s, c);
@@ -285,7 +285,7 @@ void Serialization::loadScene(str name, Scene &s, Config &c) {
     //--------------------------------------
 }
 
-EntityID Serialization::loadPlayer(Scene &s, Config &c) {
+EntityID Serialization::loadPlayer(Scene *s, Config &c) {
     YAML::Node data;
     str path = "data/player";
     Serialization::loadYAML(path, data);
@@ -297,23 +297,23 @@ EntityID Serialization::loadPlayer(Scene &s, Config &c) {
     
     YAML::Node player = data["player"];
     
-    EntityID eid = s.createEntity("player");
+    EntityID eid = s->createEntity("player");
     Serialization::loadComponentsFromYAML(eid, "player", player, s, c);
     
 #ifdef PLAYER
-    s.addComponent<Component::Player>(eid);
+    s->addComponent<Component::Player>(eid);
 #endif
     
     return eid;
 }
 
-void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::Node &entity, Scene &s, Config &c) {
+void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::Node &entity, Scene *s, Config &c) {
 #ifdef TEXTURE
         if (entity["texture"]) {
-            Component::Texture* texture = s.addComponent<Component::Texture>(eid);
+            Component::Texture* texture = s->addComponent<Component::Texture>(eid);
             if (not entity["texture"]["res"]) {
                 log::error("You created a texture component for " + entity_name + " but it has no res for the texture");
-                s.removeEntity(eid);
+                s->removeEntity(eid);
                 return;
             }
             Graphics::Texture::loadTexture(entity["texture"]["res"].as<str>(), texture);
@@ -345,10 +345,10 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
 #endif
 #ifdef ANIMATION
         if (entity["animation"]) {
-            Component::Animation* animation = s.addComponent<Component::Animation>(eid);
+            Component::Animation* animation = s->addComponent<Component::Animation>(eid);
             if (not (entity["animation"]["frames"] and entity["animation"]["frames"].IsMap())) {
                 log::error("You created an animation component for " + entity_name + " but it has no frames");
-                s.removeEntity(eid);
+                s->removeEntity(eid);
                 return;
             }
             for(YAML::const_iterator i=entity["animation"]["frames"].begin(); i != entity["animation"]["frames"].end(); i++) {
@@ -370,7 +370,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
 #endif
 #ifdef ACTOR
         if (entity["actor"]) {
-            Component::Actor* actor = s.addComponent<Component::Actor>(eid);
+            Component::Actor* actor = s->addComponent<Component::Actor>(eid);
             if (entity["actor"]["controller"]) {
                 actor_move_func move = &System::Actor::move;
                 if (entity["actor"]["controller"].as<str>() == "player")
@@ -411,16 +411,16 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
 #endif
 #ifdef TILEMAP
         if (entity["tilemap"]) {
-            Component::Tilemap* tilemap = s.addComponent<Component::Tilemap>(eid);
+            Component::Tilemap* tilemap = s->addComponent<Component::Tilemap>(eid);
             if (not entity["tilemap"]["tiles"]) {
                 log::error("You created a tilemap component for " + entity_name + " but it has no tile attribute");
-                s.removeEntity(eid);
+                s->removeEntity(eid);
                 return;
             }
             tilemap->tiles = System::Tilemap::load(entity["tilemap"]["tiles"].as<str>());
             if (not entity["tilemap"]["res"]) {
                 log::error("You created a tilemap component for " + entity_name + " but it has no res for the texture");
-                s.removeEntity(eid);
+                s->removeEntity(eid);
                 return;
             }
             if (not entity["tilemap"]["res"].IsScalar()) {
@@ -441,7 +441,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
 #endif
 #ifdef COLLIDER
         if (entity["collider"]) {
-            Component::Collider* collider = s.addComponent<Component::Collider>(eid);
+            Component::Collider* collider = s->addComponent<Component::Collider>(eid);
             if (entity["collider"].IsMap()) {
                 if (entity["collider"]["transform"])
                     collider->transform = entity["collider"]["transform"].as<Rect2>();
@@ -456,10 +456,10 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             } else {
                 #ifdef TILEMAP
                 if (entity["collider"].as<str>() == "tile") {
-                    Component::Tilemap* tilemap = s.getComponent<Component::Tilemap>(eid);
+                    Component::Tilemap* tilemap = s->getComponent<Component::Tilemap>(eid);
                     if (not (entity["tilemap"]["pos"] and tilemap != nullptr)) {
                         log::error("You tried to add a tilemap collider for " + entity_name + ", but it doesn't have a tilemap component");
-                        s.removeEntity(eid);
+                        s->removeEntity(eid);
                         return;
                     }
                     collider->transform = Rect2(tilemap->pos, System::Tilemap::calculateSize(tilemap));
@@ -471,7 +471,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
 #endif
 #ifdef LIGHT
         if (entity["light"]) {
-            Component::Light* light = s.addComponent<Component::Light>(eid);
+            Component::Light* light = s->addComponent<Component::Light>(eid);
             if (entity["light"]["pos"])
                 light->pos = entity["light"]["pos"].as<Vec2>();
             if (entity["light"]["radius"])
@@ -480,7 +480,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
 #endif
 #ifdef CAMERA
         if (entity["camera"]) {
-            Component::Camera* camera = s.addComponent<Component::Camera>(eid);
+            Component::Camera* camera = s->addComponent<Component::Camera>(eid);
             if (entity["camera"]["pos"])
                 camera->pos = entity["camera"]["pos"].as<Vec2f>();
             if (entity["camera"]["bounds"]) {
@@ -488,7 +488,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                     camera->bounds = entity["camera"]["bounds"].as<Rect2>();
                 } else {
                     if (entity["camera"]["bounds"].as<str>() == "scene")
-                        camera->bounds = Rect2(s.size * 0.5f, s.size);
+                        camera->bounds = Rect2(s->size * 0.5f, s->size);
                     if (entity["camera"]["bounds"].as<str>() == "none")
                         camera->bounds = Rect2(0,0,0,0);
                 }
@@ -515,7 +515,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
 #endif
 #ifdef FIRE
     if (entity["fire"]) {
-        Component::Fire* fire = s.addComponent<Component::Fire>(eid);
+        Component::Fire* fire = s->addComponent<Component::Fire>(eid);
         if (entity["fire"]["transform"])
             fire->transform = entity["fire"]["transform"].as<Rect2>();
         if (entity["fire"]["offset"])
@@ -532,7 +532,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             fire->seed = (ui32)entity["fire"]["seed"].as<int>();
         if (not entity["fire"]["res"]) {
             log::error("You created a fire component for " + entity_name + " but it has no res for the texture");
-            s.removeEntity(eid);
+            s->removeEntity(eid);
             return;
         }
         if (entity["fire"]["layer"]) {
