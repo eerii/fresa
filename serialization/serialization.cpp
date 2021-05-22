@@ -388,6 +388,25 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 actor->friction_ground = entity["actor"]["friction_ground"].as<float>();
             if (entity["actor"]["has_gravity"])
                 actor->has_gravity = entity["actor"]["has_gravity"].as<bool>();
+            if (entity["actor"]["collision_mask"]) {
+                if (entity["actor"]["collision_mask"].IsScalar()) {
+                    if (entity["actor"]["collision_mask"].as<str>() == "ground")
+                        actor->collision_mask.set(Component::ColliderLayers::GROUND);
+                    if (entity["actor"]["collision_mask"].as<str>() == "actor")
+                        actor->collision_mask.set(Component::ColliderLayers::ACTORS);
+                    if (entity["actor"]["collision_mask"].as<str>() == "event")
+                        actor->collision_mask.set(Component::ColliderLayers::EVENT);
+                } else {
+                    for (str m : entity["actor"]["collision_mask"].as<std::vector<str>>()) {
+                        if (m == "ground")
+                            actor->collision_mask.set(Component::ColliderLayers::GROUND);
+                        if (m == "actor")
+                            actor->collision_mask.set(Component::ColliderLayers::ACTORS);
+                        if (m == "event")
+                            actor->collision_mask.set(Component::ColliderLayers::EVENT);
+                    }
+                }
+            }
         }
 #endif
 #ifdef TILEMAP
@@ -426,6 +445,14 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             if (entity["collider"].IsMap()) {
                 if (entity["collider"]["transform"])
                     collider->transform = entity["collider"]["transform"].as<Rect2>();
+                if (entity["collider"]["layer"]) {
+                    if (entity["collider"]["layer"].as<str>() == "actor")
+                        collider->layer = Component::ColliderLayers::ACTORS;
+                    if (entity["collider"]["layer"].as<str>() == "event")
+                        collider->layer = Component::ColliderLayers::EVENT;
+                } else {
+                    collider->layer = Component::ColliderLayers::GROUND;
+                }
             } else {
                 #ifdef TILEMAP
                 if (entity["collider"].as<str>() == "tile") {
@@ -436,6 +463,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                         return;
                     }
                     collider->transform = Rect2(tilemap->pos, System::Tilemap::calculateSize(tilemap));
+                    collider->layer = Component::ColliderLayers::GROUND;
                 }
                 #endif
             }
