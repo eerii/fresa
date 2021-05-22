@@ -12,6 +12,10 @@
 namespace Verse
 {
     struct Scene{
+        Scene() = default;
+        
+        ~Scene() { } //Add here any code when scene is destroyed
+        
         std::vector<EntityID> entities;
         std::vector<Signature> mask;
         std::vector<std::string> entity_names;

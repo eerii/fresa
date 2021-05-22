@@ -36,7 +36,6 @@ namespace Verse
         
         Scene* active_scene;
         Component::Camera* active_camera;
-        std::vector<Scene*> available_scenes;
         
         float gravity;
         Vec2f gravity_dir;
