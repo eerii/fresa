@@ -544,4 +544,16 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
         System::Fire::init(fire);
     }
 #endif
+#ifdef SCENE_TRANSITION
+    if (entity["scene_transition"]) {
+        Component::SceneTransition* transition = s->addComponent<Component::SceneTransition>(eid);
+        if (not entity["scene_transition"]["scene"]) {
+            log::error("You created a scene transition component for " + entity_name + " but it has no scene url");
+            s->removeEntity(eid);
+            return;
+        }
+        transition->scene_name = entity["scene_transition"]["scene"].as<str>();
+        transition->to_pos =  entity["scene_transition"]["pos"] ? entity["scene_transition"]["pos"].as<Vec2>() : Vec2(0,0);
+    }
+#endif
 }
