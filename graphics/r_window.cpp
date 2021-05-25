@@ -43,15 +43,9 @@ SDL_Window* Graphics::Window::createWindow(Config &c) {
 }
 
 void Graphics::Window::onResize(SDL_Event &e, Config &c) {
-    if (((float)e.window.data1 / (float)e.window.data2) >= ((float)c.resolution.x / (float)c.resolution.y)) {
-        //Longer in the X direction
-        c.render_scale = floor((float)e.window.data2 / (float)c.resolution.y);
-        
-    } else {
-        //Longer in the Y direction
-        c.render_scale = floor((float)e.window.data1 / (float)c.resolution.x);
-    }
-    
+    bool longer_x = ((float)e.window.data1 / (float)e.window.data2) >= ((float)c.resolution.x / (float)c.resolution.y);
+    c.render_scale = longer_x ? floor((float)e.window.data2 / (float)c.resolution.y) : floor((float)e.window.data1 / (float)c.resolution.x);
+
     c.window_size = Vec2(e.window.data1, e.window.data2);
     
     ImGuiIO& imgui_io = ImGui::GetIO();

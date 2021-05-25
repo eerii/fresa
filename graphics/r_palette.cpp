@@ -23,29 +23,37 @@ void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
     glBindTexture(GL_TEXTURE_2D, palette_tex);
     glUniform1i(glGetUniformLocation(pid, "palette"), 2);
     
-    if (previous_palette != c.palette_index) {
-        if (switch_palette_time == 0) {
-            switch_palette_time = Time::current;
-        } else {
-            int delay = int(Time::current - switch_palette_time);
-            
-            if (delay < TRANSITION_TIME) {
-                transition_percent = (float)delay / (float)TRANSITION_TIME;
-            } else {
-                switch_palette_time = 0; transition_percent = 0.0;
-                previous_palette = c.palette_index;
-            }
-        }
-    } else if (switch_palette_time != 0 or transition_percent != 0.0) {
-        switch_palette_time = 0; transition_percent = 0.0;
-    }
+    switchPalette(c);
+    
+    float p_i = (c.palette_index > -1.0f) ? (float)c.palette_index / (float)c.num_palettes : -1.0f;
+    glUniform1f(glGetUniformLocation(pid, "palette_index"), p_i);
     
     if (c.palette_index > -1.0f) {
-        glUniform1f(glGetUniformLocation(pid, "palette_index"), ((float)c.palette_index / (float)c.num_palettes));
         glUniform1f(glGetUniformLocation(pid, "previous_palette_index"), ((float)previous_palette / (float)c.num_palettes) + 0.001);
         glUniform1f(glGetUniformLocation(pid, "transition_percent"), transition_percent);
         glUniform1i(glGetUniformLocation(pid, "use_grayscale"), c.use_grayscale);
-    } else {
-        glUniform1f(glGetUniformLocation(pid, "palette_index"), -1.0f);
     }
+}
+
+void Verse::Graphics::Palette::switchPalette(Config &c) {
+    if (previous_palette == c.palette_index) {
+        switch_palette_time = 0;
+        transition_percent = 0.0;
+        return;
+    }
+    
+    if (switch_palette_time == 0) {
+        switch_palette_time = Time::current;
+        return;
+    }
+    
+    int delay = int(Time::current - switch_palette_time);
+    
+    if (delay < TRANSITION_TIME) {
+        transition_percent = (float)delay / (float)TRANSITION_TIME;
+        return;
+    }
+    
+    switch_palette_time = 0; transition_percent = 0.0;
+    previous_palette = c.palette_index;
 }

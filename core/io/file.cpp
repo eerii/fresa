@@ -17,9 +17,7 @@ void File::init() {
     CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
     char path[PATH_MAX];
     if (!CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8 *)path, PATH_MAX))
-    {
         log::error("Couldn't get file system representation!");
-    }
     CFRelease(resourcesURL);
     chdir(path);
     log::debug("Path: %s", path);
