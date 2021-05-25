@@ -171,7 +171,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     
     //Validate Programs
     for (ui8 p : shaders) {
-        if(p != shaders[S_EMPTY])
+        if (p != shaders[S_EMPTY])
             Graphics::Shader::validateProgram(p);
     }
     
@@ -273,7 +273,7 @@ void Graphics::Renderer::renderTexture(Config &c, ui32 &tex_id, glm::mat4 model,
     glUniform1f(loc_layer, (float)layer);
     
     //Matrices
-    if(c.active_camera == nullptr)
+    if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering texture)");
     glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     
@@ -305,7 +305,7 @@ void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices,
     
     //Matrices
     mat4 model = translate(mat4(1.0f), vec3(-1.0f, -1.0f, 0.0f));
-    if(c.active_camera == nullptr)
+    if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering tilemap)");
     glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     
@@ -337,7 +337,7 @@ void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_
     
     //Matrices
     mat4 model = matModel2D(dst.pos() - Vec2(1,1), dst.size());
-    if(c.active_camera == nullptr)
+    if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering fire)");
     glUniformMatrix4fv(mvp[S_FIRE], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     
@@ -405,7 +405,7 @@ void Graphics::Renderer::renderPost(Config &c) {
     //Light
     if (c.use_light) {
         std::vector<glm::vec4> light_sources = System::Light::getLight();
-        if(c.active_camera == nullptr)
+        if (c.active_camera == nullptr)
             log::error("No active camera! (Rendering light)");
         for (int i = 0; i < light_sources.size(); i++) {
             light_sources[i].x += (0.5 - (c.active_camera->pos.x / c.resolution.x));
@@ -414,10 +414,8 @@ void Graphics::Renderer::renderPost(Config &c) {
         glUniform4fv(glGetUniformLocation(shaders[S_POST], "light"), (int)(light_sources.size()), reinterpret_cast<GLfloat *>(light_sources.data()));
         glUniform1i(glGetUniformLocation(shaders[S_POST], "light_size"), (int)(light_sources.size()));
         glUniform1f(glGetUniformLocation(shaders[S_POST], "light_distortion"), (float)c.resolution.x / (float)c.resolution.y);
-        glUniform1i(glGetUniformLocation(shaders[S_POST], "use_light"), true);
-    } else {
-        glUniform1i(glGetUniformLocation(shaders[S_POST], "use_light"), false);
     }
+    glUniform1i(glGetUniformLocation(shaders[S_POST], "use_light"), c.use_light);
 #endif
     
     //Set texture
@@ -468,7 +466,7 @@ void Graphics::Renderer::renderCam(Config &c) {
     
     //Matrices
     mat4 model = matModel2D(Vec2(-c.render_scale, -c.render_scale), (c.resolution + Vec2(2,2)) * c.render_scale);
-    if(c.active_camera == nullptr)
+    if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering extra camera)");
     glUniformMatrix4fv(mvp[S_CAM], 1, GL_FALSE, glm::value_ptr(proj_cam * c.active_camera->m_extra * model));
     
@@ -561,35 +559,36 @@ void Graphics::Renderer::clear(Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClearColor(c.background_color[0], c.background_color[1], c.background_color[2], c.background_color[3]);
     glClear(GL_COLOR_BUFFER_BIT);
-        
-    if (previous_window_size.x != c.window_size.x or previous_window_size.y != c.window_size.y) {
-        previous_window_size = c.window_size;
-        
-        glBindFramebuffer(GL_FRAMEBUFFER, fb_cam);
-        
-        glBindTexture(GL_TEXTURE_2D, tex_cam);
-        
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_cam, 0);
-        
-        if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            log::error("Error creating Game Framebuffer: %d", glGetError());
-            SDL_Quit();
-            exit(-1);
-        }
-        
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        
-        proj_cam = ortho(0.0f, (float)(c.resolution.x * c.render_scale), 0.0f, (float)(c.resolution.y * c.render_scale));
-        proj_window = ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
-        
-#ifdef TILEMAP
-        System::Tilemap::init(c);
-#endif
+    
+    if (previous_window_size == c.window_size)
+        return;
+    
+    previous_window_size = c.window_size;
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, fb_cam);
+    
+    glBindTexture(GL_TEXTURE_2D, tex_cam);
+    
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_cam, 0);
+    
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        log::error("Error creating Game Framebuffer: %d", glGetError());
+        SDL_Quit();
+        exit(-1);
     }
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    proj_cam = ortho(0.0f, (float)(c.resolution.x * c.render_scale), 0.0f, (float)(c.resolution.y * c.render_scale));
+    proj_window = ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
+    
+#ifdef TILEMAP
+    System::Tilemap::init(c);
+#endif
     
     GLenum e(glGetError());
     while (e != GL_NO_ERROR) {
@@ -632,7 +631,7 @@ void Graphics::Renderer::createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2 
     
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
     
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         log::error("Error creating Game Framebuffer: %d", glGetError());
         SDL_Quit();
         exit(-1);
@@ -656,11 +655,8 @@ ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h, bool rgba) {
     glGenTextures(1, &tex_id);
     
     glBindTexture(GL_TEXTURE_2D, tex_id);
-    if (rgba) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex);
-    } else {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, tex);
-    }
+    (rgba) ? glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex) :
+             glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, tex);
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);

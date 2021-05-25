@@ -23,6 +23,7 @@ namespace Verse
         
         Vec2 size;
         str name;
+        std::vector<Vec2> spawn;
         
         EntityID createEntity();
         EntityID createEntity(std::string name);

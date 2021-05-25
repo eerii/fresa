@@ -72,11 +72,10 @@ ui8 Graphics::Shader::compileShader(const char* source, ui32 shaderType) {
             free(log);
         }
         glDeleteShader(id);
-        id = 0;
-    } else {
-        log::graphics("Shader Compiled Correctly, ID: %d", id);
+        return 0;
     }
     
+    log::graphics("Shader Compiled Correctly, ID: %d", id);
     return id;
 }
 

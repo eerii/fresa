@@ -18,8 +18,7 @@
 using namespace Verse;
 
 void Serialization::initYAML() {
-    //std::filesystem::create_directories("res/data/save");
-    //std::filesystem::create_directories("res/data/scenes");
+    
 }
 
 void Serialization::loadYAML(str name, YAML::Node &file) {
@@ -64,18 +63,12 @@ void Serialization::appendYAML(str name, str key, YAML::Node &file, bool overwri
     YAML::Node file_to_modify;
     loadYAML(name, file_to_modify);
     
-    if (file_to_modify[key]) {
-        //The entry already exists
-        if (overwrite) {
-            file_to_modify[key] = file;
-        } else {
-            log::warn("Attempted to write over existing YAML data with overwrite set to false (res/serialization/" + name + ".yaml). No changes were made.");
-        }
-    } else {
-        //The entry does not exist
-        file_to_modify[key] = file;
+    if (file_to_modify[key] and not overwrite) {
+        log::warn("Attempted to write over existing YAML data with overwrite set to false (res/serialization/" + name + ".yaml). No changes were made.");
+        return;
     }
     
+    file_to_modify[key] = file;
     writeYAML(name, file_to_modify);
 }
 
@@ -89,26 +82,25 @@ void Serialization::appendYAML(str name, std::vector<str> key, YAML::Node &file,
     loadYAML(name, file_to_modify);
     
     YAML::Node temp_node[key.size()];
-    if (file_to_modify[key[0]]) {
-        if (overwrite) {
-            temp_node[0] = file_to_modify[key[0]];
-        } else {
-            log::warn("Attempted to write over existing YAML data with overwrite set to false (res/serialization/" + name + ".yaml). No changes were made.");
-            return;
-        }
-    } else {
+    if (not file_to_modify[key[0]]) {
         file_to_modify[key[0]] = file;
         writeYAML(name, file_to_modify);
         return;
     }
+    if (file_to_modify[key[0]] and not overwrite) {
+        log::warn("Attempted to write over existing YAML data with overwrite set to false (res/serialization/" + name + ".yaml). No changes were made.");
+        return;
+    }
+    temp_node[0] = file_to_modify[key[0]];
     
     for (int i = 1; i <= key.size(); i++) {
-        if (temp_node[i-1].IsScalar()) {
-            temp_node[i-1].reset();
-        } else if (temp_node[i-1][key[i]]) {
+        if (temp_node[i-1][key[i]] and not temp_node[i-1].IsScalar()) {
             temp_node[i] = temp_node[i-1][key[i]];
             continue;
         }
+        
+        if (temp_node[i-1].IsScalar())
+            temp_node[i-1].reset();
         
         temp_node[key.size() - 1] = file;
         for (int j = (int)key.size() - 1; j > 0; j -= 1) {
@@ -229,11 +221,9 @@ void Serialization::removeYAML(str name, std::vector<str> key) {
     
     for (int i = 1; i < key.size(); i++) {
         try {
-            if (temp_node[i-1][key[i]]) {
-                temp_node[i] = temp_node[i-1][key[i]];
-            } else {
+            if (not temp_node[i-1][key[i]])
                 return;
-            }
+            temp_node[i] = temp_node[i-1][key[i]];
         } catch (const YAML::Exception &e) {
             log::error(e.what());
             return;
@@ -262,6 +252,20 @@ void Serialization::loadScene(str name, Scene *s, Config &c) {
     }
     s->name = data["scene"]["name"].as<str>();
     s->size = data["scene"]["size"].as<Vec2>();
+    
+    s->spawn = {};
+    if (data["scene"]["spawn"]) {
+        if (data["scene"]["spawn"].IsSequence()) {
+            for (Vec2 sp : data["scene"]["spawn"].as<std::vector<Vec2>>()) {
+                s->spawn.push_back(sp);
+            }
+        } else {
+            s->spawn.push_back(data["scene"]["spawn"].as<Vec2>());
+        }
+    } else {
+        s->spawn.push_back(Vec2(0,0));
+    }
+        
     //--------------------------------------
     
     
@@ -356,16 +360,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 std::vector<ui16> frames = i->second.as<std::vector<ui16>>();
                 animation->frames[animation_name] = frames;
             }
-            if (entity["animation"]["curr_key"]) {
-                animation->curr_key = entity["animation"]["curr_key"].as<str>();
-            } else {
-                animation->curr_key = animation->frames.begin()->first;
-            }
-            if (entity["animation"]["size"]) {
-                animation->size = entity["animation"]["size"].as<int>();
-            } else {
-                animation->size = animation->calculate_size();
-            }
+            animation->curr_key = (entity["animation"]["curr_key"]) ? entity["animation"]["curr_key"].as<str>() : animation->frames.begin()->first;
+            animation->size = (entity["animation"]["size"]) ? entity["animation"]["size"].as<int>() : animation->calculate_size();
         }
 #endif
 #ifdef ACTOR
@@ -423,20 +419,15 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 s->removeEntity(eid);
                 return;
             }
-            if (not entity["tilemap"]["res"].IsScalar()) {
-                Graphics::Texture::loadTexture(entity["tilemap"]["res"].as<std::vector<str>>(), tilemap);
-            } else {
-                Graphics::Texture::loadTexture(std::vector<str>({entity["tilemap"]["res"].as<str>()}), tilemap);
-            }
+            std::vector<str> tmap_tex = (entity["tilemap"]["res"].IsScalar()) ?
+                                         std::vector<str>({entity["tilemap"]["res"].as<str>()}) :
+                                         entity["tilemap"]["res"].as<std::vector<str>>();
+            Graphics::Texture::loadTexture(tmap_tex, tilemap);
             if (entity["tilemap"]["pos"])
                 tilemap->pos = entity["tilemap"]["pos"].as<Vec2>();
             if (entity["tilemap"]["tex_size"])
                 tilemap->tex_size = entity["tilemap"]["tex_size"].as<Vec2>();
-            if (entity["tilemap"]["layer"]) {
-                tilemap->layer = entity["tilemap"]["layer"].as<int>();
-            } else {
-                tilemap->layer = 0;
-            }
+            tilemap->layer = (entity["tilemap"]["layer"]) ? entity["tilemap"]["layer"].as<int>() : 0;
         }
 #endif
 #ifdef COLLIDER
@@ -445,13 +436,12 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             if (entity["collider"].IsMap()) {
                 if (entity["collider"]["transform"])
                     collider->transform = entity["collider"]["transform"].as<Rect2>();
+                collider->layer = Component::ColliderLayers::GROUND;
                 if (entity["collider"]["layer"]) {
                     if (entity["collider"]["layer"].as<str>() == "actor")
                         collider->layer = Component::ColliderLayers::ACTORS;
                     if (entity["collider"]["layer"].as<str>() == "event")
                         collider->layer = Component::ColliderLayers::EVENT;
-                } else {
-                    collider->layer = Component::ColliderLayers::GROUND;
                 }
             } else {
                 #ifdef TILEMAP
@@ -483,6 +473,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             Component::Camera* camera = s->addComponent<Component::Camera>(eid);
             if (entity["camera"]["pos"])
                 camera->pos = entity["camera"]["pos"].as<Vec2f>();
+            camera->bounds = Rect2(0,0,0,0);
             if (entity["camera"]["bounds"]) {
                 if (entity["camera"]["bounds"].IsMap()) {
                     camera->bounds = entity["camera"]["bounds"].as<Rect2>();
@@ -492,14 +483,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                     if (entity["camera"]["bounds"].as<str>() == "none")
                         camera->bounds = Rect2(0,0,0,0);
                 }
-            } else {
-                camera->bounds = Rect2(0,0,0,0);
             }
-            if (entity["camera"]["focus"]) {
-                camera->focus_size = entity["camera"]["focus"].as<Vec2>();
-            } else {
-                camera->focus_size = Vec2(0,0);
-            }
+            camera->focus_size = (entity["camera"]["focus"]) ? entity["camera"]["focus"].as<Vec2>() : Vec2(0,0);
             if (entity["camera"]["look_ahead"])
                 camera->look_ahead = entity["camera"]["look_ahead"].as<int>();
             if (entity["camera"]["la_speed"])
@@ -535,11 +520,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             s->removeEntity(eid);
             return;
         }
-        if (entity["fire"]["layer"]) {
-            fire->layer = entity["fire"]["layer"].as<int>();
-        } else {
-            fire->layer = 0;
-        }
+        fire->layer = (entity["fire"]["layer"]) ? entity["fire"]["layer"].as<int>() : 0;
         Graphics::Texture::loadTexture(entity["fire"]["res"].as<str>(), fire->flame_tex);
         System::Fire::init(fire);
     }

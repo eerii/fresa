@@ -9,4 +9,5 @@
 namespace Verse::Graphics::Palette
 {
     void render(Config &c, ui32 &palette_tex, ui8 &pid);
+    void switchPalette(Config &c);
 }

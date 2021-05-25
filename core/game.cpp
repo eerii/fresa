@@ -69,9 +69,8 @@ bool Game::update(Config &c) {
     
     //PREVENT RUNNING TOO FAST
     ui16 frame_ticks = (ui16)(time() - Time::current);
-    if (frame_ticks <= 1000.0 / (float)Graphics::getRefreshRate()) {
+    if (frame_ticks <= 1000.0 / (float)Graphics::getRefreshRate())
         SDL_Delay((1000.0 / (float)Graphics::getRefreshRate()) - frame_ticks);
-    }
     
     //FPS
     frames++;
