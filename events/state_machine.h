@@ -25,6 +25,10 @@ struct StateMachine {
     //All possible states
     std::tuple<States...> states;
     
+    void updateStates(States... p_states) {
+        states = std::make_tuple(std::move(p_states)...);
+    }
+    
     //Current state (we select the first one as the initial state)
     std::variant<States*...> curr_state { &std::get<0>(states) };
     
