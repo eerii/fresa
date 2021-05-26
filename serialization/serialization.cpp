@@ -369,8 +369,10 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             Component::Actor* actor = s->addComponent<Component::Actor>(eid);
             if (entity["actor"]["controller"]) {
                 actor_move_func move = &System::Actor::move;
-                if (entity["actor"]["controller"].as<str>() == "player")
+                if (entity["actor"]["controller"].as<str>() == "player") {
                     actor->controller = PLAYER_CONTROLLER;
+                    actor->damage = PLAYER_DAMAGE;
+                }
                 if (entity["actor"]["controller"].as<str>() == "free")
                     actor->controller = FREE_ACTOR_CONTROLLER;
             }
@@ -392,6 +394,10 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                         actor->collision_mask.set(Component::ColliderLayers::ACTORS);
                     if (entity["actor"]["collision_mask"].as<str>() == "event")
                         actor->collision_mask.set(Component::ColliderLayers::EVENT);
+                    if (entity["actor"]["collision_mask"].as<str>() == "scene")
+                        actor->collision_mask.set(Component::ColliderLayers::SCENE);
+                    if (entity["actor"]["collision_mask"].as<str>() == "water")
+                        actor->collision_mask.set(Component::ColliderLayers::WATER);
                 } else {
                     for (str m : entity["actor"]["collision_mask"].as<std::vector<str>>()) {
                         if (m == "ground")
@@ -400,6 +406,10 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                             actor->collision_mask.set(Component::ColliderLayers::ACTORS);
                         if (m == "event")
                             actor->collision_mask.set(Component::ColliderLayers::EVENT);
+                        if (m == "scene")
+                            actor->collision_mask.set(Component::ColliderLayers::SCENE);
+                        if (m == "water")
+                            actor->collision_mask.set(Component::ColliderLayers::WATER);
                     }
                 }
             }
@@ -442,6 +452,10 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                         collider->layer = Component::ColliderLayers::ACTORS;
                     if (entity["collider"]["layer"].as<str>() == "event")
                         collider->layer = Component::ColliderLayers::EVENT;
+                    if (entity["collider"]["layer"].as<str>() == "scene")
+                        collider->layer = Component::ColliderLayers::SCENE;
+                    if (entity["collider"]["layer"].as<str>() == "water")
+                        collider->layer = Component::ColliderLayers::WATER;
                 }
             } else {
                 #ifdef TILEMAP
