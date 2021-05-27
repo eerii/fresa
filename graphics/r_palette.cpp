@@ -13,7 +13,7 @@ using namespace Verse;
 
 namespace {
     ui16 previous_palette = 0;
-    ui64 switch_palette_time = 0;
+    ui32 switch_palette_time = 0;
     float transition_percent = 0.0;
 }
 
@@ -47,7 +47,7 @@ void Verse::Graphics::Palette::switchPalette(Config &c) {
         return;
     }
     
-    int delay = int(Time::current - switch_palette_time);
+    ui32 delay = Time::current - switch_palette_time;
     
     if (delay < TRANSITION_TIME) {
         transition_percent = (float)delay / (float)TRANSITION_TIME;

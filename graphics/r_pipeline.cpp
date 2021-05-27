@@ -47,7 +47,7 @@ void Graphics::init(Config &c) {
 
 
 void Graphics::render(Config &c) {
-    ui64 prev_time = time();
+    ui64 time_before_render = time_precise();
     
     //CLEAR
     glViewport(0, 0, c.resolution.x + 2, c.resolution.y + 2);
@@ -73,7 +73,7 @@ void Graphics::render(Config &c) {
     if (c.enable_gui)
         Gui::render();
     
-    c.render_time = (ui32)(time() - prev_time);
+    c.render_time = time_precise_difference(time_before_render);
     
     //PRESENT
     Renderer::present(window);

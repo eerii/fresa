@@ -5,7 +5,6 @@
 #include "r_renderer.h"
 
 #include "log.h"
-#include "time.h"
 
 #include "gui.h"
 #include "imgui_impl_sdl.h"

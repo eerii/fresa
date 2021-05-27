@@ -4,8 +4,6 @@
 
 #include "noise.h"
 
-#include "time.h"
-
 using namespace Verse;
 
 void Math::whiteNoise(ui16 size, ui8 dim, ui8* noise_data) {
