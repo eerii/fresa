@@ -7,6 +7,8 @@
 #include "input.h"
 #include "r_window.h"
 
+#include "log.h"
+
 using namespace Verse;
 
 bool Events::handleEvents(Config &c) {
@@ -38,6 +40,10 @@ bool Events::handleEvents(Config &c) {
             case SDL_WINDOWEVENT:
                 if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
                     Graphics::Window::onResize(event, c);
+                break;
+            case SDL_USEREVENT:
+                bool* done = reinterpret_cast<bool*>(event.user.data1);
+                *done = true;
                 break;
         }
     }

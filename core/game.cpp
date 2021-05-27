@@ -60,9 +60,10 @@ bool Game::update(Config &c) {
     
     //PHYSICS UPDATE
     c.physics_delta = TIMESTEP * 0.001f * c.game_speed;
+    ui64 time_before_physics = time_precise();
     if (not physicsUpdate(c))
         return false;
-    c.physics_time = (ui32)(time() - Time::current);
+    c.physics_time = time_precise_difference(time_before_physics);
     
     //RENDER UPDATE
     Graphics::render(c);

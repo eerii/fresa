@@ -5,15 +5,23 @@
 #pragma once
 
 #include "dtypes.h"
+#include <map>
 
 namespace Verse
 {
     struct Time {
-        static ui64 current;
-        static ui64 previous;
-        static ui64 delta;
+        static ui32 current;
+        static ui32 previous;
+        static ui32 delta;
+        static std::map<ui32, bool*> timers;
     };
 
-    ui64 time();
+    ui32 time();
+    ui64 time_precise();
+    float time_precise_difference(ui64 t1);
+    float time_precise_difference(ui64 t1, ui64 t2);
     
+    ui32 setTimer(ui32 ms);
+    bool checkTimer(ui32 timer);
+    void stopTimer(ui32 timer);
 }

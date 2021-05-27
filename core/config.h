@@ -22,8 +22,8 @@ namespace Verse
         
         float game_speed;
         ui16 fps;
-        ui32 physics_time;
-        ui32 render_time;
+        float physics_time;
+        float render_time;
         float physics_delta;
         
         bool use_grayscale;
