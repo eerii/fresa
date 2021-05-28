@@ -4,8 +4,6 @@
 
 #include "time.h"
 
-#include "log.h"
-
 using namespace Verse;
 
 namespace {

@@ -350,6 +350,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
 #ifdef ANIMATION
         if (entity["animation"]) {
             Component::Animation* animation = s->addComponent<Component::Animation>(eid);
+            ui16 default_fps = (entity["animation"]["default_fps"]) ? entity["animation"]["default_fps"].as<ui16>() : 3;
             if (not (entity["animation"]["frames"] and entity["animation"]["frames"].IsMap())) {
                 log::error("You created an animation component for " + entity_name + " but it has no frames");
                 s->removeEntity(eid);
@@ -357,11 +358,42 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             }
             for(YAML::const_iterator i=entity["animation"]["frames"].begin(); i != entity["animation"]["frames"].end(); i++) {
                 str animation_name = i->first.as<str>();
-                std::vector<ui16> frames = i->second.as<std::vector<ui16>>();
-                animation->frames[animation_name] = frames;
+                
+                if (i->second.IsSequence()) {
+                    animation->frames[animation_name].index = i->second.as<std::vector<ui16>>();
+                    
+                    animation->frames[animation_name].change_instantly = true;
+                    
+                    std::vector<ui16> ms(animation->frames[animation_name].index.size(), (ui16)round(1000.0f / (float)default_fps));
+                    animation->frames[animation_name].ms = ms;
+                    
+                    continue;
+                }
+                
+                if (i->second.IsMap()) {
+                    if (not (i->second["index"] and i->second["index"].IsSequence()))
+                        continue;
+                    animation->frames[animation_name].index = i->second["index"].as<std::vector<ui16>>();
+                    
+                    animation->frames[animation_name].change_instantly = i->second["change"] and i->second["change"].as<bool>();
+                    
+                    if (not i->second["fps"]) {
+                        std::vector<ui16> ms(animation->frames[animation_name].index.size(), (ui16)round(1000.0f / (float)default_fps));
+                        animation->frames[animation_name].ms = ms;
+                        continue;
+                    }
+                    if (i->second["fps"].IsScalar()) {
+                        std::vector<ui16> ms(animation->frames[animation_name].index.size(), (ui16)round(1000.0f / i->second["fps"].as<float>()));
+                        animation->frames[animation_name].ms = ms;
+                        continue;
+                    }
+                    std::vector<ui16> ms = i->second["fps"].as<std::vector<ui16>>();
+                    std::transform(ms.begin(), ms.end(), ms.begin(), [](ui16 &c){ return (ui16)round(1000.0f / (float)c); });
+                    animation->frames[animation_name].ms = ms;
+                }
             }
             animation->curr_key = (entity["animation"]["curr_key"]) ? entity["animation"]["curr_key"].as<str>() : animation->frames.begin()->first;
-            animation->size = (entity["animation"]["size"]) ? entity["animation"]["size"].as<int>() : animation->calculate_size();
+            animation->size = (entity["animation"]["size"]) ? entity["animation"]["size"].as<int>() : 1;
         }
 #endif
 #ifdef ACTOR
