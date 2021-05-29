@@ -5,7 +5,7 @@
 #include "game.h"
 
 #include "log.h"
-#include "time.h"
+#include "ftime.h"
 #include "input.h"
 #include "file.h"
 #include "events.h"

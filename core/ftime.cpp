@@ -2,7 +2,7 @@
 //by jose pazos perez
 //all rights reserved uwu
 
-#include "time.h"
+#include "ftime.h"
 
 using namespace Verse;
 

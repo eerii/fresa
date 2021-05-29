@@ -4,7 +4,7 @@
 
 #include "r_palette.h"
 
-#include "time.h"
+#include "ftime.h"
 #include "r_opengl.h"
 
 #define TRANSITION_TIME 500
