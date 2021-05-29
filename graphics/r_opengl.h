@@ -6,7 +6,11 @@
 
 #include "config.h"
 
-#ifdef __APPLE__ //MACOS
+#ifdef __EMSCRIPTEN__ //WEB
+
+    #include <GLES/gl3.h>
+
+#elif __APPLE__ //MACOS
 
     #define GL_SILENCE_DEPRECATION
 

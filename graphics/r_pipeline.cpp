@@ -5,7 +5,7 @@
 #include "r_pipeline.h"
 
 #include "log.h"
-#include "time.h"
+#include "ftime.h"
 
 #include "gui.h"
 

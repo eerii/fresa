@@ -247,7 +247,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //CATCH ERRORS
     GLenum e(glGetError());
     while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Textures: %d");
+       log::error("OpenGL Error during Renderer Creation: %d");
     }
 }
 //-----------------------------------------
