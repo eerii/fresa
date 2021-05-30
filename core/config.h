@@ -39,5 +39,7 @@ namespace Verse
         
         float gravity;
         Vec2f gravity_dir;
+        
+        bool player_loses_light;
     };
 }
