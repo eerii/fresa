@@ -98,9 +98,11 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
         SDL_Quit();
         exit(-1);
     }
+    glCheckError();
     
     //V-SYNC
     Graphics::Window::updateVsync(c);
+    glCheckError();
     
     //INFORMATION
     log::graphics("---");
@@ -120,6 +122,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
         log::error("Error initializing ImGui for SDL");
     if (not ImGui_ImplOpenGL3_Init())
         log::error("Error initializing ImGui for OpenGL");
+    glCheckError();
 #endif
     
     //SHADERS
@@ -144,6 +147,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     
     log::graphics("---");
     //-----------------------------------------
+    glCheckError();
     
     
     //FRAMEBUFFERS
@@ -157,6 +161,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //Phase 3: Smooth camera and size
     Renderer::createFramebuffer(c, fb_cam, tex_cam, c.resolution * c.render_scale);
     //-----------------------------------------
+    glCheckError();
     
     
     //VERTICES
@@ -214,6 +219,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     
     glBindVertexArray(0);
     //-----------------------------------------
+    glCheckError();
     
     //MATRICES
     //-----------------------------------------
@@ -229,23 +235,21 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     proj_cam = ortho(0.0f, (float)(c.resolution.x * c.render_scale), 0.0f, (float)(c.resolution.y * c.render_scale));
     proj_window = ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
     //-----------------------------------------
+    glCheckError();
 
     //LAYER LOCATION
     loc_layer = glGetUniformLocation(shaders[S_RENDER2D], "layer");
     loc_layer_fire = glGetUniformLocation(shaders[S_FIRE], "layer");
+    glCheckError();
     
     //BLEND ALPHA
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glCheckError();
     
     //PALETTE TEX
     Graphics::Texture::loadTexture("res/graphics/palette.png", palette_tex);
-    
-    //CATCH ERRORS
-    GLenum e(glGetError());
-    while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Renderer Creation: %d");
-    }
+    glCheckError();
 }
 //-----------------------------------------
 
@@ -257,13 +261,14 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
 void Graphics::Renderer::renderTexture(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
-    
     glUseProgram(shaders[S_RENDER2D]);
+    glCheckError();
     
     //Vertices
     glBindVertexArray(vao[V_TEX]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEX]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 16, vertices, GL_STATIC_DRAW);
+    glCheckError();
     
     //Layer
     glUniform1f(loc_layer, (float)layer);
@@ -272,6 +277,7 @@ void Graphics::Renderer::renderTexture(Config &c, ui32 &tex_id, glm::mat4 model,
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering texture)");
     glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glCheckError();
     
     //Draw
     glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -279,22 +285,20 @@ void Graphics::Renderer::renderTexture(Config &c, ui32 &tex_id, glm::mat4 model,
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    
-    GLenum e(glGetError());
-    while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Textures: %d");
-    }
+    glCheckError();
 }
 
 void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices, int size, int layer) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_RENDER2D]);
+    glCheckError();
     
     //Vertices
     glBindVertexArray(vao[V_TILE]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TILE]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 24 * size, vertices, GL_STATIC_DRAW);
+    glCheckError();
     
     //Layer
     glUniform1f(loc_layer, (float)layer);
@@ -304,6 +308,7 @@ void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices,
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering tilemap)");
     glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glCheckError();
     
     //Draw
     glBindTexture(GL_TEXTURE_2D, tex_id);
@@ -311,22 +316,20 @@ void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices,
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    
-    GLenum e(glGetError());
-    while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Tilemaps: %d");
-    }
+    glCheckError();
 }
 
 void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_tex, int layer) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_FIRE]);
+    glCheckError();
     
     //Vertices
     glBindVertexArray(vao[V_FIRE]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_FIRE]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glCheckError();
     
     //Layer
     glUniform1f(loc_layer_fire, (float)layer);
@@ -336,6 +339,7 @@ void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering fire)");
     glUniformMatrix4fv(mvp[S_FIRE], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glCheckError();
     
     //Textures
     glActiveTexture(GL_TEXTURE0);
@@ -344,39 +348,38 @@ void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, f_tex);
     glUniform1i(glGetUniformLocation(shaders[S_FIRE], "flame"), 1);
+    glCheckError();
     
     //Draw
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    
-    while (glGetError() != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Fire: %d");
-    }
+    glCheckError();
 }
 
 void Graphics::Renderer::render3D(Config &c, float *vertices, int size) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_RENDER3D]);
+    glCheckError();
     
-    //TODO: MATRICES
-    glUniformMatrix4fv(mvp[S_RENDER3D], 1, GL_FALSE, glm::value_ptr(mat4(1.0f)));
-    
+    //Vertices
     glBindVertexArray(vao[V_3D]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_3D]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * size, vertices, GL_STATIC_DRAW);
+    glCheckError();
     
+    //TODO: MATRICES
+    glUniformMatrix4fv(mvp[S_RENDER3D], 1, GL_FALSE, glm::value_ptr(mat4(1.0f)));
+    glCheckError();
+    
+    //Draw
     glDrawArrays(GL_TRIANGLES, 0, 3 * size);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    
-    GLenum e(glGetError());
-    while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering 3D: %d");
-    }
+    glCheckError();
 }
 //-----------------------------------------
 
@@ -389,6 +392,13 @@ void Graphics::Renderer::renderPost(Config &c) {
     //Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
     glUseProgram(shaders[S_POST]);
+    glCheckError();
+    
+    //Vertices
+    glBindVertexArray(vao[V_POST]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_POST]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glCheckError();
     
     //Palette
     Graphics::Palette::render(c, palette_tex, shaders[S_POST]);
@@ -415,24 +425,16 @@ void Graphics::Renderer::renderPost(Config &c) {
     glBindTexture(GL_TEXTURE_2D, tex_render);
     glUniform1i(glGetUniformLocation(shaders[S_POST], "tex"), 1);
     
-    //Vertices
-    glBindVertexArray(vao[V_POST]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_POST]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
     //Matrices
     glUniformMatrix4fv(mvp[S_POST], 1, GL_FALSE, glm::value_ptr(proj_post));
+    glCheckError();
     
     //Draw
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    
-    GLenum e(glGetError());
-    while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Post: %d");
-    }
+    glCheckError();
 }
 //-----------------------------------------
 
@@ -445,33 +447,32 @@ void Graphics::Renderer::renderCam(Config &c) {
     //Render Target: fb_cam
     glBindFramebuffer(GL_FRAMEBUFFER, fb_cam);
     glUseProgram(shaders[S_CAM]);
+    glCheckError();
+    
+    //Vertices
+    glBindVertexArray(vao[V_DRAW]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_DRAW]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glCheckError();
     
     //Set texture
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex_post);
     glUniform1i(glGetUniformLocation(shaders[S_CAM], "tex"), 0);
     
-    //Vertices
-    glBindVertexArray(vao[V_DRAW]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_DRAW]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
     //Matrices
     mat4 model = matModel2D(Vec2(-c.render_scale, -c.render_scale), (c.resolution + Vec2(2,2)) * c.render_scale);
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering extra camera)");
     glUniformMatrix4fv(mvp[S_CAM], 1, GL_FALSE, glm::value_ptr(proj_cam * c.active_camera->m_extra * model));
+    glCheckError();
     
     //Draw
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    
-    GLenum e(glGetError());
-    while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Cam: %d");
-    }
+    glCheckError();
 }
 //-----------------------------------------
 
@@ -484,6 +485,13 @@ void Graphics::Renderer::renderWindow(Config &c) {
     //Render Target: Window (fb 0)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(shaders[S_WINDOW]);
+    glCheckError();
+    
+    //Vertices
+    glBindVertexArray(vao[V_DRAW]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_DRAW]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glCheckError();
     
     //Palette for background
     Graphics::Palette::render(c, palette_tex, shaders[S_WINDOW]);
@@ -493,14 +501,10 @@ void Graphics::Renderer::renderWindow(Config &c) {
     glBindTexture(GL_TEXTURE_2D, tex_cam);
     glUniform1i(glGetUniformLocation(shaders[S_WINDOW], "tex"), 0);
     
-    //Vertices
-    glBindVertexArray(vao[V_DRAW]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_DRAW]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
     //Matrices
     mat4 model = matModel2D((c.window_size - c.resolution * c.render_scale) * 0.5f, c.resolution * c.render_scale);
     mat4 modelbg = matModel2D(Vec2(0,0), c.window_size);
+    glCheckError();
     
     //Draw Background
     glUniform1i(glGetUniformLocation(shaders[S_WINDOW], "is_background"), true);
@@ -514,11 +518,7 @@ void Graphics::Renderer::renderWindow(Config &c) {
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    
-    GLenum e(glGetError());
-    while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering to Screen: %d");
-    }
+    glCheckError();
 }
 //-----------------------------------------
 
@@ -530,52 +530,34 @@ void Graphics::Renderer::renderWindow(Config &c) {
 void Graphics::Renderer::renderTest(Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(shaders[S_CAM]);
-    while (glGetError() != GL_NO_ERROR) {
-        log::error("OpenGL Error during Test, Binding and Use Program: %d"); return;
-    }
+    glCheckError();
     
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, palette_tex);
     glUniform1i(glGetUniformLocation(shaders[S_CAM], "tex"), 0);
-    while (glGetError() != GL_NO_ERROR) {
-        log::error("OpenGL Error during Test, Passing Texture: %d"); return;
-    }
+    glCheckError();
     
     glBindVertexArray(vao[V_TEST]);
-    while (glGetError() != GL_NO_ERROR) {
-        log::error("OpenGL Error during Test, Bind VAO: %d"); return;
-    }
+    glCheckError();
     
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEST]);
-    while (glGetError() != GL_NO_ERROR) {
-        log::error("OpenGL Error during Test, Bind VBO: %d"); return;
-    }
+    glCheckError();
     
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    while (glGetError() != GL_NO_ERROR) {
-        log::error("OpenGL Error during Test, Enable Attribute pointer: %d"); return;
-    }
+    glCheckError();
     
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    while (glGetError() != GL_NO_ERROR) {
-        log::error("OpenGL Error during Test, Passing Buffer Data: %d"); return;
-    }
+    glCheckError();
     
     mat4 model = matModel2D(Vec2(0,0), c.window_size);
-    while (glGetError() != GL_NO_ERROR) {
-        log::error("OpenGL Error during Test, Creating Matrix: %d"); return;
-    }
+    glCheckError();
     
     glUniformMatrix4fv(mvp[S_CAM], 1, GL_FALSE, glm::value_ptr(proj_window * model));
-    while (glGetError() != GL_NO_ERROR) {
-        log::error("OpenGL Error during Test, Passing Matrix: %d"); return;
-    }
+    glCheckError();
     
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    while (glGetError() != GL_NO_ERROR) {
-        log::error("OpenGL Error during Test, Drawing Arrays: %d"); return;
-    }
+    glCheckError();
 }
 //-----------------------------------------
 
@@ -608,6 +590,7 @@ void Graphics::Renderer::clear(Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClearColor(c.background_color[0], c.background_color[1], c.background_color[2], c.background_color[3]);
     glClear(GL_COLOR_BUFFER_BIT);
+    glCheckError();
     
     if (previous_window_size == c.window_size)
         return;
@@ -617,7 +600,6 @@ void Graphics::Renderer::clear(Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, fb_cam);
     
     glBindTexture(GL_TEXTURE_2D, tex_cam);
-    
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -631,6 +613,7 @@ void Graphics::Renderer::clear(Config &c) {
     }
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glCheckError();
     
     proj_cam = ortho(0.0f, (float)(c.resolution.x * c.render_scale), 0.0f, (float)(c.resolution.y * c.render_scale));
     proj_window = ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
@@ -638,11 +621,7 @@ void Graphics::Renderer::clear(Config &c) {
 #ifdef TILEMAP
     System::Tilemap::init(c);
 #endif
-    
-    GLenum e(glGetError());
-    while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Clear: %d");
-    }
+    glCheckError();
 }
 //-----------------------------------------
 
@@ -687,6 +666,7 @@ void Graphics::Renderer::createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2 
         SDL_Quit();
         exit(-1);
     }
+    glCheckError();
 }
 
 void Graphics::Renderer::createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2 res) {
@@ -698,6 +678,7 @@ void Graphics::Renderer::createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, res.x, res.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, d_tex, 0);
+    glCheckError();
 }
 
 ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h, bool rgba) {

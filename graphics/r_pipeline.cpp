@@ -44,7 +44,6 @@ void Graphics::init(Config &c) {
     //CREATE A WINDOW
     window = Graphics::Window::createWindow(c);
     if(window == nullptr)
-      
         log::error("There was an error with the window pointer, check r_pipeline");
 #endif
     
@@ -92,6 +91,7 @@ void Graphics::render(Config &c) {
     
     //PRESENT
     Renderer::present(window);
+    glCheckError();
 }
 
 
@@ -99,6 +99,7 @@ void Graphics::destroy() {
     Renderer::destroy();
     if (window != nullptr)
         SDL_DestroyWindow(window);
+    glCheckError();
 }
 
 
