@@ -358,8 +358,6 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 if (i->second.IsSequence()) {
                     animation->frames[animation_name].index = i->second.as<std::vector<ui16>>();
                     
-                    animation->frames[animation_name].change_instantly = true;
-                    
                     std::vector<ui16> ms(animation->frames[animation_name].index.size(), (ui16)round(1000.0f / (float)default_fps));
                     animation->frames[animation_name].ms = ms;
                     
@@ -370,8 +368,6 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                     if (not (i->second["index"] and i->second["index"].IsSequence()))
                         continue;
                     animation->frames[animation_name].index = i->second["index"].as<std::vector<ui16>>();
-                    
-                    animation->frames[animation_name].change_instantly = i->second["change"] and i->second["change"].as<bool>();
                     
                     if (not i->second["fps"]) {
                         std::vector<ui16> ms(animation->frames[animation_name].index.size(), (ui16)round(1000.0f / (float)default_fps));
