@@ -6,11 +6,7 @@
 
 #include <memory>
 
-#ifdef __EMSCRIPTEN__
-#define LOG_LEVEL 5
-#else
 #define LOG_LEVEL 3
-#endif
 /*
  LOG LEVEL:
  1 - Errors

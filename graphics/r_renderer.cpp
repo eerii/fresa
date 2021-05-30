@@ -405,18 +405,8 @@ void Graphics::Renderer::renderPost(Config &c) {
     
 #ifdef LIGHT
     //Light
-    if (c.use_light) {
-        std::vector<glm::vec4> light_sources = System::Light::getLight();
-        if (c.active_camera == nullptr)
-            log::error("No active camera! (Rendering light)");
-        for (int i = 0; i < light_sources.size(); i++) {
-            light_sources[i].x += (0.5 - (c.active_camera->pos.x / c.resolution.x));
-            light_sources[i].y -= (0.5 - (c.active_camera->pos.y / c.resolution.y));
-        }
-        glUniform4fv(glGetUniformLocation(shaders[S_POST], "light"), (int)(light_sources.size()), reinterpret_cast<GLfloat *>(light_sources.data()));
-        glUniform1i(glGetUniformLocation(shaders[S_POST], "light_size"), (int)(light_sources.size()));
-        glUniform1f(glGetUniformLocation(shaders[S_POST], "light_distortion"), (float)c.resolution.x / (float)c.resolution.y);
-    }
+    if (c.use_light)
+        System::Light::render(c, shaders[S_POST]);
     glUniform1i(glGetUniformLocation(shaders[S_POST], "use_light"), c.use_light);
 #endif
     
