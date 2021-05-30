@@ -10,8 +10,6 @@
 
 namespace Verse::Serialization
 {
-    void initYAML();
-
     void loadYAML(str name, YAML::Node &file);
     void writeYAML(str name, YAML::Node &file);
     void destroyYAML(str name);

@@ -40,8 +40,8 @@ namespace Verse
         Vec2& operator /=(float p_f);
         Vec2& operator *=(float p_f);
         
-        bool operator ==(const Vec2& p_v);
-        bool operator !=(const Vec2& p_v);
+        bool operator ==(const Vec2& p_v) const;
+        bool operator !=(const Vec2& p_v) const;
         
         float length() const;
         float length2() const;
@@ -85,8 +85,8 @@ namespace Verse
         Vec2f& operator /=(float p_f);
         Vec2f& operator *=(float p_f);
         
-        bool operator ==(const Vec2f& p_v);
-        bool operator !=(const Vec2f& p_v);
+        bool operator ==(const Vec2f& p_v) const;
+        bool operator !=(const Vec2f& p_v) const;
         
         Vec2f normal() const;
         float length() const;

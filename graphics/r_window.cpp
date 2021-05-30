@@ -5,7 +5,7 @@
 #include "r_window.h"
 
 #include "log.h"
-#include "imgui.h"
+#include "gui.h"
 
 #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
 
@@ -48,14 +48,18 @@ void Graphics::Window::onResize(SDL_Event &e, Config &c) {
 
     c.window_size = Vec2(e.window.data1, e.window.data2);
     
+#ifndef DISABLE_GUI
     ImGuiIO& imgui_io = ImGui::GetIO();
     imgui_io.DisplaySize.x = static_cast<float>(e.window.data1);
     imgui_io.DisplaySize.y = static_cast<float>(e.window.data2);
+#endif
 }
 
 void Graphics::Window::updateVsync(Config &c) {
+#ifndef __EMSCRIPTEN__
     if (SDL_GL_SetSwapInterval(c.use_vsync ? 1 : 0)) {
         str text = c.use_vsync ? "Error enabling V-Sync: " : "Error disabling V-Sync: ";
         log::error(text, SDL_GetError());
     }
+#endif
 }

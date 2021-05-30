@@ -17,10 +17,6 @@
 
 using namespace Verse;
 
-void Serialization::initYAML() {
-    
-}
-
 void Serialization::loadYAML(str name, YAML::Node &file) {
     str path = "res/" + name + ".yaml";
     

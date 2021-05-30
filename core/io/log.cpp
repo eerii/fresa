@@ -6,7 +6,11 @@
 
 #include <memory>
 
+#ifdef __EMSCRIPTEN__
+#define LOG_LEVEL 5
+#else
 #define LOG_LEVEL 3
+#endif
 /*
  LOG LEVEL:
  1 - Errors
@@ -29,7 +33,7 @@ void log::info(str p_info, ...)
     vsnprintf(msg, sizeof(char) * lenght, p_info.c_str(), ap);
     va_end(ap);
 
-    std::clog << "[INFO] " << msg << std::endl;
+    std::cout << "[INFO] " << msg << std::endl;
 #endif
 }
 
@@ -42,7 +46,7 @@ void log::warn(str p_info, ...)
     vsnprintf(msg, sizeof(char) * lenght, p_info.c_str(), ap);
     va_end(ap);
 
-    std::clog << "[WARNING] " << msg << std::endl;
+    std::cout << "[WARNING] " << msg << std::endl;
 #endif
 }
 
@@ -68,7 +72,7 @@ void log::graphics(str p_info, ...)
     vsnprintf(msg, sizeof(char) * lenght, p_info.c_str(), ap);
     va_end(ap);
 
-    std::clog << "[GRAPHICS] " << msg << std::endl;
+    std::cout << "[GRAPHICS] " << msg << std::endl;
 #endif
 }
 
@@ -86,8 +90,8 @@ void log::debug(str p_info, ...)
 }
 
 void log::vec2(Vec2 p_vector, str p_name) {
-    std::clog << "[VECTOR] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
+    std::cout << "[VECTOR] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
 }
 void log::vec2(Vec2f p_vector, str p_name) {
-    std::clog << "[VECTOR] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
+    std::cout << "[VECTOR] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
 }

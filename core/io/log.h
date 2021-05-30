@@ -23,13 +23,13 @@ namespace Verse
     
         template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
         void num(T p_number, str p_name = "") {
-            std::clog << "[NUMBER]: " << p_name << ((p_name == "") ? "" : ": ") << std::to_string(p_number) << std::endl;
+            std::cout << "[NUMBER]: " << p_name << ((p_name == "") ? "" : ": ") << std::to_string(p_number) << std::endl;
         }
     
         //Disable if compiler doesn't support __PRETTY_FUNCTION__ (gcc and clang should)
         template <typename T>
         void debug_func(T&&) {
-            std::clog << "[DEBUG]: " << __PRETTY_FUNCTION__ << std::endl;
+            std::cout << "[DEBUG]: " << __PRETTY_FUNCTION__ << std::endl;
         }
     }
 }

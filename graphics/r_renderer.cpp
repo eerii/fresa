@@ -7,8 +7,10 @@
 #include "log.h"
 
 #include "gui.h"
+#ifndef DISABLE_GUI
 #include "imgui_impl_sdl.h"
 #include "imgui_impl_opengl3.h"
+#endif
 
 #include "r_opengl.h"
 #include "r_shader.h"
@@ -54,6 +56,7 @@ namespace {
         V_3D,
         V_POST,
         V_DRAW,
+        V_TEST,
         V_LAST
     };
     ui32 vao[V_LAST];
@@ -81,6 +84,8 @@ namespace {
 //CREATE
 //-----------------------------------------
 void Graphics::Renderer::create(Config &c, SDL_Window* window) {
+    log::debug("Creating renderer");
+    
     //CONTEXT
     context = SDL_GL_CreateContext(window);
     if (context == nullptr) {
@@ -94,16 +99,6 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
         exit(-1);
     }
     
-    //EXTENSIONS
-    #ifndef __APPLE__
-    //Initialize Extensions
-    if (!initGLExtensions()) {
-        log::error("Couldn't init GL extensions!");
-        SDL_Quit();
-        exit(-1);
-    }
-    #endif
-    
     //V-SYNC
     Graphics::Window::updateVsync(c);
     
@@ -115,6 +110,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     log::graphics("GLSL Version:    %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
     log::graphics("---");
     
+#ifndef DISABLE_GUI
     //IMGUI
     ImGuiContext* imgui_context = ImGui::CreateContext();
     if (imgui_context == nullptr)
@@ -124,6 +120,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
         log::error("Error initializing ImGui for SDL");
     if (not ImGui_ImplOpenGL3_Init())
         log::error("Error initializing ImGui for OpenGL");
+#endif
     
     //SHADERS
     //-----------------------------------------
@@ -317,7 +314,7 @@ void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices,
     
     GLenum e(glGetError());
     while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Textures: %d");
+       log::error("OpenGL Error during Rendering Tilemaps: %d");
     }
 }
 
@@ -341,15 +338,12 @@ void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_
     glUniformMatrix4fv(mvp[S_FIRE], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     
     //Textures
-    glActiveTexture(GL_TEXTURE2);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, p_tex);
-    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "pnoise"), 2);
-    /*glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, w_tex);
-    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "wnoise"), 3);*/
-    glActiveTexture(GL_TEXTURE4);
+    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "pnoise"), 0);
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, f_tex);
-    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "flame"), 4);
+    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "flame"), 1);
     
     //Draw
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -357,9 +351,8 @@ void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
     
-    GLenum e(glGetError());
-    while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Textures: %d");
+    while (glGetError() != GL_NO_ERROR) {
+       log::error("OpenGL Error during Rendering Fire: %d");
     }
 }
 
@@ -382,7 +375,7 @@ void Graphics::Renderer::render3D(Config &c, float *vertices, int size) {
     
     GLenum e(glGetError());
     while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Textures: %d");
+       log::error("OpenGL Error during Rendering 3D: %d");
     }
 }
 //-----------------------------------------
@@ -438,7 +431,7 @@ void Graphics::Renderer::renderPost(Config &c) {
     
     GLenum e(glGetError());
     while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Textures: %d");
+       log::error("OpenGL Error during Rendering Post: %d");
     }
 }
 //-----------------------------------------
@@ -477,7 +470,7 @@ void Graphics::Renderer::renderCam(Config &c) {
     
     GLenum e(glGetError());
     while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Textures: %d");
+       log::error("OpenGL Error during Rendering Cam: %d");
     }
 }
 //-----------------------------------------
@@ -524,7 +517,64 @@ void Graphics::Renderer::renderWindow(Config &c) {
     
     GLenum e(glGetError());
     while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Rendering Textures: %d");
+       log::error("OpenGL Error during Rendering to Screen: %d");
+    }
+}
+//-----------------------------------------
+
+
+
+
+//RENDER TEST
+//-----------------------------------------
+void Graphics::Renderer::renderTest(Config &c) {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glUseProgram(shaders[S_CAM]);
+    while (glGetError() != GL_NO_ERROR) {
+        log::error("OpenGL Error during Test, Binding and Use Program: %d"); return;
+    }
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, palette_tex);
+    glUniform1i(glGetUniformLocation(shaders[S_CAM], "tex"), 0);
+    while (glGetError() != GL_NO_ERROR) {
+        log::error("OpenGL Error during Test, Passing Texture: %d"); return;
+    }
+    
+    glBindVertexArray(vao[V_TEST]);
+    while (glGetError() != GL_NO_ERROR) {
+        log::error("OpenGL Error during Test, Bind VAO: %d"); return;
+    }
+    
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEST]);
+    while (glGetError() != GL_NO_ERROR) {
+        log::error("OpenGL Error during Test, Bind VBO: %d"); return;
+    }
+    
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    while (glGetError() != GL_NO_ERROR) {
+        log::error("OpenGL Error during Test, Enable Attribute pointer: %d"); return;
+    }
+    
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    while (glGetError() != GL_NO_ERROR) {
+        log::error("OpenGL Error during Test, Passing Buffer Data: %d"); return;
+    }
+    
+    mat4 model = matModel2D(Vec2(0,0), c.window_size);
+    while (glGetError() != GL_NO_ERROR) {
+        log::error("OpenGL Error during Test, Creating Matrix: %d"); return;
+    }
+    
+    glUniformMatrix4fv(mvp[S_CAM], 1, GL_FALSE, glm::value_ptr(proj_window * model));
+    while (glGetError() != GL_NO_ERROR) {
+        log::error("OpenGL Error during Test, Passing Matrix: %d"); return;
+    }
+    
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    while (glGetError() != GL_NO_ERROR) {
+        log::error("OpenGL Error during Test, Drawing Arrays: %d"); return;
     }
 }
 //-----------------------------------------
@@ -603,10 +653,12 @@ void Graphics::Renderer::clear(Config &c) {
 void Graphics::Renderer::destroy() {
     //OPENGL
     
+#ifndef DISABLE_GUI
     //IMGUI
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
+#endif
     
     //SDL
     SDL_GL_DeleteContext(context);
@@ -654,6 +706,7 @@ ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h, bool rgba) {
     glGenTextures(1, &tex_id);
     
     glBindTexture(GL_TEXTURE_2D, tex_id);
+    
     (rgba) ? glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex) :
              glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, tex);
     
