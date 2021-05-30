@@ -68,7 +68,11 @@ void Graphics::Texture::offsetWhiteNoise(int size, ui8* noise_data, ui32 &tex_id
 void Graphics::Texture::createPerlinNoise(Vec2 size, Vec2 offset, float freq, int octaves, ui32 seed, ui8* noise_data, ui32 &tex_id) {
     Math::perlinNoise(size, offset, freq, octaves, seed, noise_data);
     
+#ifndef __EMSCRIPTEN__
     tex_id = (ui32)Graphics::Renderer::createTexture(noise_data, size.x, size.y, false);
+#else
+    tex_id = (ui32)Graphics::Renderer::createTexture(noise_data, size.x, size.y, true);
+#endif
 }
 
 void Graphics::Texture::createGradient(int size, ui32 &tex_id) {

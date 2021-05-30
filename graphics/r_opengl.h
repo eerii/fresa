@@ -8,7 +8,7 @@
 
 #ifdef __EMSCRIPTEN__ //WEB
 
-    #include <GLES/gl3.h>
+    #include <GLES3/gl3.h>
 
 #elif __APPLE__ //MACOS
 

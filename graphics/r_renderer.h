@@ -24,6 +24,9 @@ namespace Verse::Graphics::Renderer
     void renderCam(Config &c);
     void renderWindow(Config &c);
 
+    void renderTest(Config &c);
+
+
     void present(SDL_Window* window);
     void clear(Config &c);
     

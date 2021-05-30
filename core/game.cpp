@@ -44,7 +44,9 @@ bool Game::init(Config &c) {
     //INITIALIZE GRAPHICS
     Graphics::init(c);
     
+#ifndef DISABLE_GUI
     Gui::init(c);
+#endif
     
     return true;
 }
@@ -93,9 +95,11 @@ bool Game::physicsUpdate(Config &c) {
         if (not Events::handleEvents(c))
             return false;
         
+#ifndef DISABLE_GUI
         //UPDATE GUI
         if(c.enable_gui)
             Gui::update(c);
+#endif
         
         //UPDATE SYSTEMS
         PHYSICS_UPDATE_SYSTEMS

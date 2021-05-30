@@ -23,8 +23,8 @@ Vec2& Vec2::operator -=(const Vec2& p_v) { x -= p_v.x; y -= p_v.y; return *this;
 Vec2& Vec2::operator /=(float p_f) { x = round((float)x / p_f); y = round((float)y / p_f); return *this; }
 Vec2& Vec2::operator *=(float p_f) { x = round((float)x * p_f); y = round((float)y * p_f); return *this; }
 
-bool Vec2::operator ==(const Vec2& p_v) { return x == p_v.x && y == p_v.y; }
-bool Vec2::operator !=(const Vec2& p_v) { return x != p_v.x || y != p_v.y; }
+bool Vec2::operator ==(const Vec2& p_v) const { return x == p_v.x && y == p_v.y; }
+bool Vec2::operator !=(const Vec2& p_v) const { return x != p_v.x || y != p_v.y; }
 
 float Vec2::length() const {
     return sqrtf(x * x + y * y);
@@ -84,8 +84,8 @@ Vec2f& Vec2f::operator -=(const Vec2f& p_v) { x -= p_v.x; y -= p_v.y; return *th
 Vec2f& Vec2f::operator /=(float p_f) { x /= p_f; y /= p_f; return *this; }
 Vec2f& Vec2f::operator *=(float p_f) { x *= p_f; y *= p_f; return *this; }
 
-bool Vec2f::operator ==(const Vec2f& p_v) { return x == p_v.x && y == p_v.y; }
-bool Vec2f::operator !=(const Vec2f& p_v) { return x != p_v.x || y != p_v.y; }
+bool Vec2f::operator ==(const Vec2f& p_v) const { return x == p_v.x && y == p_v.y; }
+bool Vec2f::operator !=(const Vec2f& p_v) const { return x != p_v.x || y != p_v.y; }
 
 Vec2f Vec2f::normal() const {
     if (x == 0 && y == 0)

@@ -23,19 +23,30 @@ namespace {
 }
 
 void Graphics::init(Config &c) {
+    log::debug("Initializing graphics");
     
-    //MODERN OPENGL
+#ifdef __EMSCRIPTEN__
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    
+    SDL_Renderer *renderer = NULL;
+    SDL_CreateWindowAndRenderer(c.window_size.x, c.window_size.y, SDL_WINDOW_OPENGL, &window, &renderer);
+#else
+    //OPENGL
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     #ifndef __APPLE__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-    #endif
+    #endif //__APPLE__
     
     //CREATE A WINDOW
     window = Graphics::Window::createWindow(c);
     if(window == nullptr)
+      
         log::error("There was an error with the window pointer, check r_pipeline");
+#endif
     
     //REFRESH RATE
     Graphics::calculateRefreshRate();
@@ -53,9 +64,11 @@ void Graphics::render(Config &c) {
     glViewport(0, 0, c.resolution.x + 2, c.resolution.y + 2);
     Renderer::clear(c);
     
+#ifndef DISABLE_GUI
     //PRERENDER GUI
     if (c.enable_gui)
         Gui::prerender(c, window);
+#endif
     
     //RENDER SYSTEMS
     glEnable(GL_DEPTH_TEST);
@@ -69,9 +82,11 @@ void Graphics::render(Config &c) {
     glViewport(0, 0, c.window_size.x, c.window_size.y);
     Renderer::renderWindow(c);
     
+#ifndef DISABLE_GUI
     //RENDER GUI
     if (c.enable_gui)
         Gui::render();
+#endif
     
     c.render_time = time_precise_difference(time_before_render);
     

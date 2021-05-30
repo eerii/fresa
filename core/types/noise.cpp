@@ -22,7 +22,14 @@ void Math::perlinNoise(Vec2 size, Vec2 offset, float freq, ui8 octaves, ui32 see
     
     for (ui32 y = 0; y <= size.y; y++) {
         for (ui32 x = 0; x < size.x; x++) {
+#ifndef __EMSCRIPTEN__
             noise_data[x + y*size.x] = (ui8)round(perlin.accumulatedOctaveNoise2D_0_1((float)(x + offset.y - offset.x) / fx, (float)(y + offset.y - offset.x) / fy, octaves) * 255.0f);
+#else
+            noise_data[(x + y*size.x)*4] = (ui8)round(perlin.accumulatedOctaveNoise2D_0_1((float)(x + offset.y - offset.x) / fx, (float)(y + offset.y - offset.x) / fy, octaves) * 255.0f);
+            noise_data[(x + y*size.x)*4 + 1] = noise_data[(x + y*size.x)*4];
+            noise_data[(x + y*size.x)*4 + 2] = noise_data[(x + y*size.x)*4];
+            noise_data[(x + y*size.x)*4 + 3] = 1.0f;
+#endif
         }
     }
 }

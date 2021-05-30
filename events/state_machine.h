@@ -11,7 +11,11 @@
 #include "state_types.h"
 #include "static_str.h"
 
+#ifndef __EMSCRIPTEN__
 #define CURR_STATE(SM) std::visit([](auto&&x)->decltype(auto) { return make_string(Types<typeof(*x)>()).c_str(); }, SM.curr_state)
+#else
+#define CURR_STATE(SM) ""
+#endif
 
 namespace Verse::State
 {
