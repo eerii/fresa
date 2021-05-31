@@ -522,11 +522,6 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                         camera->bounds = Rect2(0,0,0,0);
                 }
             }
-            camera->focus_size = (entity["camera"]["focus"]) ? entity["camera"]["focus"].as<Vec2>() : Vec2(0,0);
-            if (entity["camera"]["look_ahead"])
-                camera->look_ahead = entity["camera"]["look_ahead"].as<int>();
-            if (entity["camera"]["la_speed"])
-                camera->la_speed = entity["camera"]["la_speed"].as<int>();
             if (entity["camera"]["controller"]) {
                 if (entity["camera"]["controller"].as<str>() == "actor")
                     camera->controller = CAMERA_ACTOR_CONTROLLER;
