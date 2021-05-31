@@ -10,6 +10,8 @@
 
 #include "config.h"
 
+#define BORDER_WIDTH 2
+
 namespace Verse::Graphics::Renderer
 {
     void create(Config &c, SDL_Window* window);

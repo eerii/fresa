@@ -60,7 +60,7 @@ void Graphics::render(Config &c) {
     ui64 time_before_render = time_precise();
     
     //CLEAR
-    glViewport(0, 0, c.resolution.x + 2, c.resolution.y + 2);
+    glViewport(0, 0, c.resolution.x + 2*BORDER_WIDTH, c.resolution.y + 2*BORDER_WIDTH);
     Renderer::clear(c);
     
 #ifndef DISABLE_GUI
