@@ -153,10 +153,10 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //FRAMEBUFFERS
     //-----------------------------------------
     //Phase 1: Render to small texture
-    Renderer::createDepthFramebuffer(c, fb_render, tex_render, depth_tex_render, c.resolution + Vec2(2,2));
+    Renderer::createDepthFramebuffer(c, fb_render, tex_render, depth_tex_render, c.resolution + Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH));
     
     //Phase 2: Postprocessing effects
-    Renderer::createFramebuffer(c, fb_post, tex_post, c.resolution + Vec2(2,2));
+    Renderer::createFramebuffer(c, fb_post, tex_post, c.resolution + Vec2(2*BORDER_WIDTH ,2*BORDER_WIDTH));
     
     //Phase 3: Smooth camera and size
     Renderer::createFramebuffer(c, fb_cam, tex_cam, c.resolution * c.render_scale);
@@ -230,7 +230,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     mvp[S_CAM] = glGetUniformLocation(shaders[S_CAM], "mvp");
     mvp[S_WINDOW] = glGetUniformLocation(shaders[S_WINDOW], "mvp");
     
-    proj_render = ortho(0.0f, (float)c.resolution.x + 2, (float)c.resolution.y + 2, 0.0f, CLIPPING_NEAR, CLIPPING_FAR);
+    proj_render = ortho(0.0f, (float)c.resolution.x + 2*BORDER_WIDTH, (float)c.resolution.y + 2*BORDER_WIDTH, 0.0f, CLIPPING_NEAR, CLIPPING_FAR);
     proj_post = ortho(0.0f, 1.0f, 0.0f, 1.0f);
     proj_cam = ortho(0.0f, (float)(c.resolution.x * c.render_scale), 0.0f, (float)(c.resolution.y * c.render_scale));
     proj_window = ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
@@ -304,7 +304,7 @@ void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices,
     glUniform1f(loc_layer, (float)layer);
     
     //Matrices
-    mat4 model = translate(mat4(1.0f), vec3(-1.0f, -1.0f, 0.0f));
+    mat4 model = translate(mat4(1.0f), vec3(-BORDER_WIDTH, -BORDER_WIDTH, 0.0f));
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering tilemap)");
     glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
@@ -335,7 +335,7 @@ void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_
     glUniform1f(loc_layer_fire, (float)layer);
     
     //Matrices
-    mat4 model = matModel2D(dst.pos() - Vec2(1,1), dst.size());
+    mat4 model = matModel2D(dst.pos() - Vec2(BORDER_WIDTH, BORDER_WIDTH), dst.size());
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering fire)");
     glUniformMatrix4fv(mvp[S_FIRE], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
@@ -451,7 +451,7 @@ void Graphics::Renderer::renderCam(Config &c) {
     glUniform1i(glGetUniformLocation(shaders[S_CAM], "tex"), 0);
     
     //Matrices
-    mat4 model = matModel2D(Vec2(-c.render_scale, -c.render_scale), (c.resolution + Vec2(2,2)) * c.render_scale);
+    mat4 model = matModel2D(Vec2(-c.render_scale*BORDER_WIDTH, -c.render_scale*BORDER_WIDTH), (c.resolution + Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH)) * c.render_scale);
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering extra camera)");
     glUniformMatrix4fv(mvp[S_CAM], 1, GL_FALSE, glm::value_ptr(proj_cam * c.active_camera->m_extra * model));
