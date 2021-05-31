@@ -249,17 +249,17 @@ void Serialization::loadScene(str name, Scene *s, Config &c) {
     s->name = data["scene"]["name"].as<str>();
     s->size = data["scene"]["size"].as<Vec2>();
     
-    s->spawn = {};
+    s->checkpoints = {};
     if (data["scene"]["spawn"]) {
         if (data["scene"]["spawn"].IsSequence()) {
             for (Vec2 sp : data["scene"]["spawn"].as<std::vector<Vec2>>()) {
-                s->spawn.push_back(sp);
+                s->checkpoints.push_back(sp);
             }
         } else {
-            s->spawn.push_back(data["scene"]["spawn"].as<Vec2>());
+            s->checkpoints.push_back(data["scene"]["spawn"].as<Vec2>());
         }
     } else {
-        s->spawn.push_back(Vec2(0,0));
+        s->checkpoints.push_back(Vec2(0,0));
     }
         
     //--------------------------------------
@@ -422,6 +422,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                         actor->collision_mask.set(Component::ColliderLayers::SCENE);
                     if (entity["actor"]["collision_mask"].as<str>() == "water")
                         actor->collision_mask.set(Component::ColliderLayers::WATER);
+                    if (entity["actor"]["collision_mask"].as<str>() == "checkpoint")
+                        actor->collision_mask.set(Component::ColliderLayers::CHECKPOINT);
                 } else {
                     for (str m : entity["actor"]["collision_mask"].as<std::vector<str>>()) {
                         if (m == "ground")
@@ -434,6 +436,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                             actor->collision_mask.set(Component::ColliderLayers::SCENE);
                         if (m == "water")
                             actor->collision_mask.set(Component::ColliderLayers::WATER);
+                        if (m == "checkpoint")
+                            actor->collision_mask.set(Component::ColliderLayers::CHECKPOINT);
                     }
                 }
             }
@@ -480,6 +484,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                         collider->layer = Component::ColliderLayers::SCENE;
                     if (entity["collider"]["layer"].as<str>() == "water")
                         collider->layer = Component::ColliderLayers::WATER;
+                    if (entity["collider"]["layer"].as<str>() == "checkpoint")
+                        collider->layer = Component::ColliderLayers::CHECKPOINT;
                 }
             } else {
                 #ifdef TILEMAP
