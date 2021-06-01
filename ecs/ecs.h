@@ -45,5 +45,7 @@ namespace Verse::Component
     template <class T>
     ComponentID getID();
 
+    str getName(ComponentID cid);
+
     void registerComponents();
 }

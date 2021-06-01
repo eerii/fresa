@@ -34,6 +34,13 @@ void Scene::removeEntity(EntityID eid) {
     free_entities.push_back(Entity::getIndex(eid));
 }
 
+void Scene::removeComponent(EntityID eid, ComponentID cid) {
+    if (entities[Entity::getIndex(eid)] != eid)
+        return;
+    
+    mask[Entity::getIndex(eid)].reset(cid);
+}
+
 str Scene::getName(EntityID eid) {
     return entity_names[Entity::getIndex(eid)];
 }

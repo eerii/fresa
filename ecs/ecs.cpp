@@ -5,9 +5,14 @@
 #include "ecs.h"
 #include "log.h"
 
-#define logComponentID(x) log::debug("%s ID: %d", #x, Component::getID<Component::x>())
+#define logComponentID(x) log::debug("%s ID: %d", #x, Component::getID<Component::x>()); \
+                          names[Component::getID<Component::x>()] = #x;
 
 using namespace Verse;
+
+namespace {
+    str names[MAX_COMPONENTS];
+}
 
 //REGISTER COMPONENTS
 //-------------------------------------
@@ -23,3 +28,7 @@ void Component::registerComponents() {
     COMPONENTS
 }
 //-------------------------------------
+
+str Component::getName(ComponentID cid) {
+    return names[cid];
+}

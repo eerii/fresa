@@ -57,11 +57,10 @@ namespace Verse
         
         template<class T>
         void removeComponent(EntityID eid) {
-            if (entities[Entity::getIndex(eid)] != eid)
-                return;
-            
-            mask[Entity::getIndex(eid)].reset(Component::getID<T>());
+            removeComponent(eid, Component::getID<T>());
         }
+        
+        void removeComponent(EntityID eid, ComponentID cid);
         
         str getName(EntityID eid);
     };
