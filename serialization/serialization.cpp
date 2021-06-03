@@ -412,32 +412,17 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 actor->has_gravity = entity["actor"]["has_gravity"].as<bool>();
             if (entity["actor"]["collision_mask"]) {
                 if (entity["actor"]["collision_mask"].IsScalar()) {
-                    if (entity["actor"]["collision_mask"].as<str>() == "ground")
-                        actor->collision_mask.set(Component::ColliderLayers::GROUND);
-                    if (entity["actor"]["collision_mask"].as<str>() == "actor")
-                        actor->collision_mask.set(Component::ColliderLayers::ACTORS);
-                    if (entity["actor"]["collision_mask"].as<str>() == "event")
-                        actor->collision_mask.set(Component::ColliderLayers::EVENT);
-                    if (entity["actor"]["collision_mask"].as<str>() == "scene")
-                        actor->collision_mask.set(Component::ColliderLayers::SCENE);
-                    if (entity["actor"]["collision_mask"].as<str>() == "water")
-                        actor->collision_mask.set(Component::ColliderLayers::WATER);
-                    if (entity["actor"]["collision_mask"].as<str>() == "checkpoint")
-                        actor->collision_mask.set(Component::ColliderLayers::CHECKPOINT);
+                    auto it = std::find(Component::c_layers_name.begin(),
+                                        Component::c_layers_name.end(),
+                                        entity["actor"]["collision_mask"].as<str>());
+                    if (it != Component::c_layers_name.end())
+                        actor->collision_mask.set(std::distance(Component::c_layers_name.begin(), it));
                 } else {
                     for (str m : entity["actor"]["collision_mask"].as<std::vector<str>>()) {
-                        if (m == "ground")
-                            actor->collision_mask.set(Component::ColliderLayers::GROUND);
-                        if (m == "actor")
-                            actor->collision_mask.set(Component::ColliderLayers::ACTORS);
-                        if (m == "event")
-                            actor->collision_mask.set(Component::ColliderLayers::EVENT);
-                        if (m == "scene")
-                            actor->collision_mask.set(Component::ColliderLayers::SCENE);
-                        if (m == "water")
-                            actor->collision_mask.set(Component::ColliderLayers::WATER);
-                        if (m == "checkpoint")
-                            actor->collision_mask.set(Component::ColliderLayers::CHECKPOINT);
+                        auto it = std::find(Component::c_layers_name.begin(),
+                                            Component::c_layers_name.end(), m);
+                        if (it != Component::c_layers_name.end())
+                            actor->collision_mask.set(std::distance(Component::c_layers_name.begin(), it));
                     }
                 }
             }
@@ -476,16 +461,11 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                     collider->transform = entity["collider"]["transform"].as<Rect2>();
                 collider->layer = Component::ColliderLayers::GROUND;
                 if (entity["collider"]["layer"]) {
-                    if (entity["collider"]["layer"].as<str>() == "actor")
-                        collider->layer = Component::ColliderLayers::ACTORS;
-                    if (entity["collider"]["layer"].as<str>() == "event")
-                        collider->layer = Component::ColliderLayers::EVENT;
-                    if (entity["collider"]["layer"].as<str>() == "scene")
-                        collider->layer = Component::ColliderLayers::SCENE;
-                    if (entity["collider"]["layer"].as<str>() == "water")
-                        collider->layer = Component::ColliderLayers::WATER;
-                    if (entity["collider"]["layer"].as<str>() == "checkpoint")
-                        collider->layer = Component::ColliderLayers::CHECKPOINT;
+                    auto it = std::find(Component::c_layers_name.begin(),
+                                        Component::c_layers_name.end(),
+                                        entity["collider"]["layer"].as<str>());
+                    if (it != Component::c_layers_name.end())
+                        collider->layer = std::distance(Component::c_layers_name.begin(), it);
                 }
             } else {
                 #ifdef TILEMAP
