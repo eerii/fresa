@@ -38,6 +38,7 @@ namespace {
         S_CAM,
         S_WINDOW,
         S_FIRE,
+        S_DEBUG,
         S_LAST
     };
     ui8 shaders[S_LAST];
@@ -57,6 +58,7 @@ namespace {
         V_POST,
         V_DRAW,
         V_TEST,
+        V_DEBUG,
         V_LAST
     };
     ui32 vao[V_LAST];
@@ -67,6 +69,13 @@ namespace {
          1.0,  1.0,  1.0,  1.0,
          0.0,  0.0,  0.0,  0.0,
          1.0,  0.0,  1.0,  0.0,
+    };
+
+    float outlines[] = {
+        0.01, 0.01,
+        0.01, 0.99,
+        1.0, 0.99,
+        1.0, 0.01
     };
 
     //MATRICES
@@ -145,6 +154,9 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     shaders[S_FIRE] = Graphics::Shader::compileProgram("res/shaders/fire.vertex", "res/shaders/fire.frag");
     log::graphics("Program (Fire) ID: %d", shaders[S_FIRE]);
     
+    shaders[S_DEBUG] = Graphics::Shader::compileProgram("res/shaders/debug.vertex", "res/shaders/debug.frag");
+    log::graphics("Program (Debug) ID: %d", shaders[S_FIRE]);
+    
     log::graphics("---");
     //-----------------------------------------
     glCheckError();
@@ -217,6 +229,12 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     
+    //Debug
+    glBindVertexArray(vao[V_DEBUG]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_DEBUG]);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
     glBindVertexArray(0);
     //-----------------------------------------
     glCheckError();
@@ -229,6 +247,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     mvp[S_POST] = glGetUniformLocation(shaders[S_POST], "mvp");
     mvp[S_CAM] = glGetUniformLocation(shaders[S_CAM], "mvp");
     mvp[S_WINDOW] = glGetUniformLocation(shaders[S_WINDOW], "mvp");
+    mvp[S_DEBUG] = glGetUniformLocation(shaders[S_DEBUG], "mvp");
     
     proj_render = ortho(0.0f, (float)c.resolution.x + 2*BORDER_WIDTH, (float)c.resolution.y + 2*BORDER_WIDTH, 0.0f, CLIPPING_NEAR, CLIPPING_FAR);
     proj_post = ortho(0.0f, 1.0f, 0.0f, 1.0f);
@@ -515,7 +534,7 @@ void Graphics::Renderer::renderWindow(Config &c) {
 
 
 
-//RENDER TEST
+//OTHER RENDERERS
 //-----------------------------------------
 void Graphics::Renderer::renderTest(Config &c) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -547,6 +566,38 @@ void Graphics::Renderer::renderTest(Config &c) {
     glCheckError();
     
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glCheckError();
+}
+
+void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 &col, bool colliding) {
+    //Render Target: fb_post
+    glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
+    glUseProgram(shaders[S_DEBUG]);
+    glCheckError();
+    
+    //Vertices
+    glBindVertexArray(vao[V_DEBUG]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_DEBUG]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(outlines), outlines, GL_STATIC_DRAW);
+    glCheckError();
+    
+    //Color
+    vec3 color = vec3(0.32f, 0.89f, 0.60f);
+    if (colliding)
+        color = vec3(0.98f, 0.27f, 0.42f);
+    
+    glUniform3f(glGetUniformLocation(shaders[S_DEBUG], "c"), color.r, color.g, color.b);
+    
+    //Matrices
+    mat4 model = matModel2D(col.pos() - Vec2(BORDER_WIDTH, BORDER_WIDTH), col.size());
+    glUniformMatrix4fv(mvp[S_DEBUG], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glCheckError();
+    
+    //Draw
+    glDrawArrays(GL_LINE_LOOP, 0, 4);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindVertexArray(0);
     glCheckError();
 }
 //-----------------------------------------
