@@ -408,7 +408,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             if (entity["actor"]["acc_ground"])
                 actor->acc_ground = entity["actor"]["acc_ground"].as<int>();
             if (entity["actor"]["friction_ground"])
-                actor->friction_ground = entity["actor"]["friction_ground"].as<float>();
+                actor->friction_ground = entity["actor"]["friction_ground"].as<int>();
             if (entity["actor"]["has_gravity"])
                 actor->has_gravity = entity["actor"]["has_gravity"].as<bool>();
             if (entity["actor"]["collision_mask"]) {

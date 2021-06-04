@@ -76,6 +76,10 @@ void Graphics::render(Config &c) {
 
     //RENDER TO WINDOW
     Renderer::renderPost(c);
+    
+    if(c.render_collision_boxes)
+        System::Collider::render(c);
+    
     glViewport(0, 0, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale);
     Renderer::renderCam(c);
     glViewport(0, 0, c.window_size.x, c.window_size.y);

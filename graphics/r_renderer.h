@@ -27,7 +27,7 @@ namespace Verse::Graphics::Renderer
     void renderWindow(Config &c);
 
     void renderTest(Config &c);
-
+    void renderDebugCollider(Config &c, Rect2 &col, bool colliding);
 
     void present(SDL_Window* window);
     void clear(Config &c);
