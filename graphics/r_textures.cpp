@@ -4,7 +4,10 @@
 
 #include "r_textures.h"
 
+#include <filesystem>
+
 #include "noise.h"
+#include "log.h"
 
 #include "r_renderer.h"
 #include "r_opengl.h"
@@ -14,8 +17,18 @@
 
 using namespace Verse;
 
+bool checkPath(str path) {
+    std::filesystem::path f{path};
+    return std::filesystem::exists(f);
+}
+
 #ifdef TEXTURE
 void Graphics::Texture::loadTexture(str path, Component::Texture* tex) {
+    if (not checkPath(path)) {
+        log::error("The texture path does not exist!");
+        return;
+    }
+    
     int w, h, ch;
     tex->tex = stbi_load(path.c_str(), &w, &h, &ch, STBI_rgb_alpha);
     
@@ -27,6 +40,11 @@ void Graphics::Texture::loadTexture(str path, Component::Texture* tex) {
 void Graphics::Texture::loadTexture(std::vector<str> path, Component::Tilemap* tex) {
     int w, h, ch;
     for (str p : path) {
+        if (not checkPath(p)) {
+            log::error("The texture path does not exist!");
+            return;
+        }
+        
         ui8* t = stbi_load(p.c_str(), &w, &h, &ch, STBI_rgb_alpha);
         tex->tex_id.push_back((int)Graphics::Renderer::createTexture(t, w, h));
     }
@@ -34,6 +52,11 @@ void Graphics::Texture::loadTexture(std::vector<str> path, Component::Tilemap* t
 #endif
 
 void Graphics::Texture::loadTexture(str path, ui32 &tex_id) {
+    if (not checkPath(path)) {
+        log::error("The texture path does not exist!");
+        return;
+    }
+    
     int w, h, ch;
     ui8* tex = stbi_load(path.c_str(), &w, &h, &ch, STBI_rgb_alpha);
     

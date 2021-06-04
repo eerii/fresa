@@ -223,7 +223,7 @@
     DEFINE_KEY(RightControl, 228) \
     DEFINE_KEY(RightShift, 229) \
     DEFINE_KEY(RightAlt, 230) \
-    DEFINE_KEY(RightGui, 231)
+    DEFINE_KEY(RightGui, 231) \
 
 namespace Verse
 {

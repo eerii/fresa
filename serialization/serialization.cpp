@@ -316,7 +316,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 s->removeEntity(eid);
                 return;
             }
-            Graphics::Texture::loadTexture(entity["texture"]["res"].as<str>(), texture);
+            texture->res = entity["texture"]["res"].as<str>();
+            Graphics::Texture::loadTexture(texture->res, texture);
             if (entity["texture"]["transform"])
                 texture->transform = entity["texture"]["transform"].as<Rect2>();
             if (entity["texture"]["offset"]) {

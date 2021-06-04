@@ -5,6 +5,7 @@
 #include "events.h"
 
 #include "input.h"
+#include "gui.h"
 #include "r_window.h"
 
 #include "log.h"
@@ -18,8 +19,10 @@ bool Events::handleEvents(Config &c) {
             case SDL_QUIT:
                 return false;
             case SDL_KEYDOWN:
-                if (event.key.repeat == 0)
+                if (event.key.repeat == 0) {
                     Input::onKeyDown((Input::Key)event.key.keysym.scancode);
+                    Gui::addInputKey(event.key.keysym.sym);
+                }
                 break;
             case SDL_KEYUP:
                 if (event.key.repeat == 0)
