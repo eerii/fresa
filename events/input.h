@@ -275,9 +275,6 @@ namespace Verse
         // Call this when the Mouse moves relative to the window
         void onMouseMove(float x, float y);
 
-        // Call this when the Mouse moves relative to the screen
-        void onMouseScreenMove(float x, float y);
-
         // Call this when a Mouse Button is pressed
         void onMouseDown(ui8 button);
 
@@ -307,9 +304,6 @@ namespace Verse
 
         // Gets the Mouse Position
         Vec2f mouse();
-
-        // Gets the Mouse Position in Screen Coordinates
-        Vec2f mouseScreen();
     
         //Gets the Mouse Wheel
         int mouseWheel();
