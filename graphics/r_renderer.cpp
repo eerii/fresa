@@ -569,7 +569,7 @@ void Graphics::Renderer::renderTest(Config &c) {
     glCheckError();
 }
 
-void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 &col, bool colliding) {
+void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool colliding) {
     //Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
     glUseProgram(shaders[S_DEBUG]);

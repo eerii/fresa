@@ -45,12 +45,6 @@ void Input::onMouseMove(float x, float y) {
     g_next_state.mouse.position.y = y;
 }
 
-void Input::onMouseScreenMove(float x, float y)
-{
-    g_next_state.mouse.screen_position.x = x;
-    g_next_state.mouse.screen_position.y = y;
-}
-
 void Input::onMouseDown(ui8 button)
 {
     if (button >= 0 && button < max_mouse_buttons)
@@ -101,7 +95,6 @@ const InputState* Input::lastState() { return &g_last_state; }
 
 
 Vec2f Input::mouse() { return g_curr_state.mouse.position; }
-Vec2f Input::mouseScreen() { return g_curr_state.mouse.screen_position; }
 
 int Input::mouseWheel() { return g_curr_state.mouse.wheel; };
 

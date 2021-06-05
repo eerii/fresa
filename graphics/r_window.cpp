@@ -6,6 +6,7 @@
 
 #include "log.h"
 #include "gui.h"
+#include "r_renderer.h"
 
 #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
 
@@ -45,7 +46,7 @@ SDL_Window* Graphics::Window::createWindow(Config &c) {
 void Graphics::Window::onResize(SDL_Event &e, Config &c) {
     bool longer_x = ((float)e.window.data1 / (float)e.window.data2) >= ((float)c.resolution.x / (float)c.resolution.y);
     c.render_scale = longer_x ? floor((float)e.window.data2 / (float)c.resolution.y) : floor((float)e.window.data1 / (float)c.resolution.x);
-
+    
     c.window_size = Vec2(e.window.data1, e.window.data2);
     
 #ifndef DISABLE_GUI
@@ -62,4 +63,29 @@ void Graphics::Window::updateVsync(Config &c) {
         log::error(text, SDL_GetError());
     }
 #endif
+}
+
+Vec2 Graphics::Window::windowToScene(Config &c, Vec2f w_pos) {
+    Vec2 pixel_move = Vec2(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
+    
+    Vec2 s_pos = w_pos.to_int();
+    
+    s_pos -= (c.window_size - c.resolution * c.render_scale) * 0.5f;
+    s_pos /= (float)c.render_scale;
+    s_pos -= pixel_move - Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH);
+    
+    return s_pos;
+}
+
+
+
+Vec2f Graphics::Window::sceneToWindow(Config &c, Vec2 s_pos) {
+    Vec2 pixel_move = Vec2(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
+    
+    Vec2f w_pos = (s_pos + pixel_move - Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH)).to_float();
+    
+    w_pos *= c.render_scale;
+    w_pos += (c.window_size.to_float() - c.resolution.to_float() * c.render_scale) * 0.5f;
+    
+    return w_pos;
 }
