@@ -33,8 +33,11 @@ namespace Verse
         float background_color[4];
         
         bool render_collision_boxes;
-        bool tilemap_editor;
-        Component::Tilemap* current_tilemap_edit;
+        
+        bool tme_active;
+        Component::Tilemap* tme_curr_tmap;
+        EntityID tme_curr_id;
+        ui8 tme_curr_tile;
         
         Scene* active_scene;
         Component::Camera* active_camera;

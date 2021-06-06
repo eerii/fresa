@@ -15,7 +15,13 @@
 #include "system_list.h"
 #include "controller_list.h"
 
+#define PROJECT_DIR "***REMOVED***"
+
 using namespace Verse;
+
+namespace {
+    bool write_to_project = false;
+}
 
 void Serialization::loadYAML(str name, YAML::Node &file) {
     str path = "res/" + name + ".yaml";
@@ -37,6 +43,20 @@ void Serialization::loadYAML(str name, YAML::Node &file) {
 
 void Serialization::writeYAML(str name, YAML::Node &file) {
     str path = "res/" + name + ".yaml";
+#ifdef __APPLE__
+#ifdef DEBUG
+    if (write_to_project)
+        path = PROJECT_DIR + path;
+#endif
+#endif
+    
+    //Check if the file exists
+    std::filesystem::path f{path};
+    if (not std::filesystem::exists(f)) {
+        log::error("The file that you attempted to write (" + path + ") does not exist");
+        return;
+    }
+    
     std::ofstream fout(path);
     fout << file;
 }
@@ -78,30 +98,35 @@ void Serialization::appendYAML(str name, std::vector<str> key, YAML::Node &file,
     loadYAML(name, file_to_modify);
     
     YAML::Node temp_node[key.size()];
+    
     if (not file_to_modify[key[0]]) {
         file_to_modify[key[0]] = file;
         writeYAML(name, file_to_modify);
         return;
     }
+    
     if (file_to_modify[key[0]] and not overwrite) {
         log::warn("Attempted to write over existing YAML data with overwrite set to false (res/serialization/" + name + ".yaml). No changes were made.");
         return;
     }
+    
     temp_node[0] = file_to_modify[key[0]];
     
     for (int i = 1; i <= key.size(); i++) {
-        if (temp_node[i-1][key[i]] and not temp_node[i-1].IsScalar()) {
+        if (temp_node[i-1].IsMap() and temp_node[i-1][key[i]]) {
             temp_node[i] = temp_node[i-1][key[i]];
             continue;
         }
         
-        if (temp_node[i-1].IsScalar())
+        if (not temp_node[i-1].IsMap())
             temp_node[i-1].reset();
         
-        temp_node[key.size() - 1] = file;
-        for (int j = (int)key.size() - 1; j > 0; j -= 1) {
+        temp_node[i-1] = file;
+        
+        for (int j = i-1; j > 0; j -= 1) {
             temp_node[j-1][key[j]] = temp_node[j];
         }
+        
         file_to_modify[key[0]] = temp_node[0];
         writeYAML(name, file_to_modify);
         return;
@@ -118,6 +143,22 @@ void Serialization::appendYAML(str name, std::vector<str> key, str value, bool o
     YAML::Node n = YAML::Load(value);
     appendYAML(name, key, n, overwrite);
 }
+
+void Serialization::appendYAML(str name, str key, std::vector<str> vec, bool overwrite) {
+    str y = "";
+    for (str s : vec)
+        y += "  - " + s + "\n";
+    YAML::Node n = YAML::Load(y);
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, std::vector<str> vec, bool overwrite) {
+    str y = "";
+    for (str s : vec)
+        y += "  - " + s + "\n";
+    YAML::Node n = YAML::Load(y);
+    appendYAML(name, key, n, overwrite);
+}
 //----------------------
 
 void Serialization::appendYAML(str name, str key, int num, bool overwrite) {
@@ -127,6 +168,22 @@ void Serialization::appendYAML(str name, str key, int num, bool overwrite) {
 
 void Serialization::appendYAML(str name, std::vector<str> key, int num, bool overwrite) {
     YAML::Node n = YAML::Load(std::to_string(num));
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, str key, std::vector<int> vec, bool overwrite) {
+    str y = "";
+    for (int v : vec)
+        y += "  - " + std::to_string(v) + "\n";
+    YAML::Node n = YAML::Load(y);
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, std::vector<int> vec, bool overwrite) {
+    str y = "";
+    for (int v : vec)
+        y += "  - " + std::to_string(v) + "\n";
+    YAML::Node n = YAML::Load(y);
     appendYAML(name, key, n, overwrite);
 }
 
@@ -157,6 +214,22 @@ void Serialization::appendYAML(str name, str key, Vec2 vec, bool overwrite) {
 
 void Serialization::appendYAML(str name, std::vector<str> key, Vec2 vec, bool overwrite) {
     YAML::Node n = YAML::Load("[" + std::to_string(vec.x) + "," + std::to_string(vec.y) + "]");
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, str key, std::vector<Vec2> vec, bool overwrite) {
+    str y = "";
+    for (Vec2 v : vec)
+        y += "  - [" + std::to_string(v.x) + "," + std::to_string(v.y) + "]\n";
+    YAML::Node n = YAML::Load(y);
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, std::vector<Vec2> vec, bool overwrite) {
+    str y = "";
+    for (Vec2 v : vec)
+        y += "  - [" + std::to_string(v.x) + "," + std::to_string(v.y) + "]\n";
+    YAML::Node n = YAML::Load(y);
     appendYAML(name, key, n, overwrite);
 }
 
@@ -321,10 +394,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             if (entity["texture"]["transform"])
                 texture->transform = entity["texture"]["transform"].as<Rect2>();
             if (entity["texture"]["offset"]) {
-                if (entity["texture"]["offset"].IsMap()) {
-                    for(YAML::const_iterator i=entity["texture"]["offset"].begin(); i != entity["texture"]["offset"].end(); i++) {
-                        texture->offset.push_back(i->second.as<Vec2>());
-                    }
+                if (entity["texture"]["offset"].IsSequence()) {
+                    texture->offset = entity["texture"]["offset"].as<std::vector<Vec2>>();
                 } else {
                     texture->offset.push_back(entity["texture"]["offset"].as<Vec2>());
                 }
@@ -332,10 +403,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 texture->offset.push_back(Vec2(0,0));
             }
             if (entity["texture"]["layer"]) {
-                if (entity["texture"]["layer"].IsMap()) {
-                    for(YAML::const_iterator i=entity["texture"]["layer"].begin(); i != entity["texture"]["layer"].end(); i++) {
-                        texture->layer.push_back(i->second.as<int>());
-                    }
+                if (entity["texture"]["layer"].IsSequence()) {
+                    texture->layer = entity["texture"]["layer"].as<std::vector<int>>();
                 } else {
                     texture->layer.push_back(entity["texture"]["layer"].as<int>());
                 }
@@ -437,16 +506,17 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 s->removeEntity(eid);
                 return;
             }
-            tilemap->tiles = System::Tilemap::load(entity["tilemap"]["tiles"].as<str>());
+            tilemap->tile_res = entity["tilemap"]["tiles"].as<str>();
+            tilemap->tiles = System::Tilemap::load(tilemap->tile_res);
             if (not entity["tilemap"]["res"]) {
                 log::error("You created a tilemap component for " + entity_name + " but it has no res for the texture");
                 s->removeEntity(eid);
                 return;
             }
-            std::vector<str> tmap_tex = (entity["tilemap"]["res"].IsScalar()) ?
-                                         std::vector<str>({entity["tilemap"]["res"].as<str>()}) :
-                                         entity["tilemap"]["res"].as<std::vector<str>>();
-            Graphics::Texture::loadTexture(tmap_tex, tilemap);
+            tilemap->res = (entity["tilemap"]["res"].IsScalar()) ?
+                            std::vector<str>({entity["tilemap"]["res"].as<str>()}) :
+                            entity["tilemap"]["res"].as<std::vector<str>>();
+            Graphics::Texture::loadTexture(tilemap->res, tilemap);
             if (entity["tilemap"]["pos"])
                 tilemap->pos = entity["tilemap"]["pos"].as<Vec2>();
             if (entity["tilemap"]["tex_size"])
@@ -541,7 +611,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             return;
         }
         fire->layer = (entity["fire"]["layer"]) ? entity["fire"]["layer"].as<int>() : 0;
-        Graphics::Texture::loadTexture(entity["fire"]["res"].as<str>(), fire->flame_tex);
+        fire->flame_tex_res = entity["fire"]["res"].as<str>();
+        Graphics::Texture::loadTexture(fire->flame_tex_res, fire->flame_tex);
         System::Fire::init(fire);
     }
 #endif
@@ -557,4 +628,119 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
         transition->to_pos =  entity["scene_transition"]["pos"] ? entity["scene_transition"]["pos"].as<Vec2>() : Vec2(0,0);
     }
 #endif
+}
+
+void Serialization::saveScene(Scene *s, Config &c, bool to_proj) {
+    write_to_project = to_proj;
+    for (EntityID e : SceneView<>(*s)) {
+        if (s->getName(e) == "player")
+            return;
+        Serialization::saveComponentsToYAML(e, s, c);
+    }
+}
+
+void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
+    str path = "data/scenes/" + s->name;
+    std::vector<str> key = {"entities", s->getName(eid), "", ""};
+    //log::info("%s, %s, %s, %s", key[0].c_str(), key[1].c_str(), key[2].c_str(), key[3].c_str());
+    
+    Component::Collider* col = s->getComponent<Component::Collider>(eid);
+    Component::Texture* tex = s->getComponent<Component::Texture>(eid);
+    Component::Animation* anim = s->getComponent<Component::Animation>(eid);
+    Component::Tilemap* tile = s->getComponent<Component::Tilemap>(eid);
+    Component::Actor* actor = s->getComponent<Component::Actor>(eid);
+    Component::Light* light = s->getComponent<Component::Light>(eid);
+    Component::Camera* cam = s->getComponent<Component::Camera>(eid);
+    Component::Fire* fire = s->getComponent<Component::Fire>(eid);
+    Component::SceneTransition* trans = s->getComponent<Component::SceneTransition>(eid);
+    Component::Player* player = s->getComponent<Component::Player>(eid);
+    
+    if (col != nullptr) {
+        key[2] = "collider";
+        
+        if (tile == nullptr) {
+            key[3] = "transform";
+            appendYAML(path, key, col->transform, true);
+            
+            key[3] = "layer";
+            appendYAML(path, key, (str)Component::c_layers_name[col->layer], true);
+        } else {
+            std::vector<str> tile_key = {key[0], key[1], key[2]};
+            appendYAML(path, tile_key, "tile");
+        }
+    }
+    
+    if (tex != nullptr) {
+        key[2] = "texture";
+        
+        key[3] = "res";
+        appendYAML(path, key, (str)tex->res, true);
+        
+        key[3] = "transform";
+        appendYAML(path, key, tex->transform, true);
+        
+        key[3] = "layer";
+        if (tex->layer.size() == 1)
+            appendYAML(path, key, tex->layer[0], true);
+        else
+            appendYAML(path, key, tex->layer, true);
+        
+        key[3] = "offset";
+        if (tex->offset.size() == 1) {
+            if (tex->offset[0] != Vec2(0,0))
+                appendYAML(path, key, tex->offset[0], true);
+        } else {
+            appendYAML(path, key, tex->offset, true);
+        }
+    }
+    
+    if (anim != nullptr) {
+        //TODO: Animation
+    }
+    
+    if (tile != nullptr) {
+        key[2] = "tilemap";
+        
+        key[3] = "res";
+        if (tile->res.size() == 1)
+            appendYAML(path, key, (str)tile->res[0], true);
+        else
+            appendYAML(path, key, tile->res, true);
+        
+        key[3] = "tiles";
+        appendYAML(path, key, (str)tile->tile_res, true);
+        
+        key[3] = "pos";
+        appendYAML(path, key, tile->pos, true);
+        
+        key[3] = "tex_size";
+        appendYAML(path, key, tile->tex_size, true);
+        
+        key[3] = "layer";
+        appendYAML(path, key, tile->layer, true);
+    }
+    
+    if (actor != nullptr) {
+        key[2] = "actor";
+    }
+    
+    if (light != nullptr) {
+        key[2] = "light";
+    }
+    
+    if (cam != nullptr) {
+        key[2] = "camera";
+    }
+    
+    if (fire != nullptr) {
+        key[2] = "fire";
+    }
+    
+    if (trans != nullptr) {
+        key[2] = "scene_transition";
+    }
+    
+    if (player != nullptr) {
+        key[2] = "player";
+    }
 }
