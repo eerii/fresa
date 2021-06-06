@@ -19,14 +19,20 @@ namespace Verse::Serialization
 
     void appendYAML(str name, str key, str value, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, str value, bool overwrite=false);
+    void appendYAML(str name, str key, std::vector<str> vec, bool overwrite=false);
+    void appendYAML(str name, std::vector<str> key, std::vector<str> vec, bool overwrite=false);
     void appendYAML(str name, str key, int num, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, int num, bool overwrite=false);
+    void appendYAML(str name, str key, std::vector<int> vec, bool overwrite=false);
+    void appendYAML(str name, std::vector<str> key, std::vector<int> vec, bool overwrite=false);
     void appendYAML(str name, str key, float num, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, float num, bool overwrite=false);
     void appendYAML(str name, str key, bool b, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, bool b, bool overwrite=false);
     void appendYAML(str name, str key, Vec2 vec, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, Vec2 vec, bool overwrite=false);
+    void appendYAML(str name, str key, std::vector<Vec2> vec, bool overwrite=false);
+    void appendYAML(str name, std::vector<str> key, std::vector<Vec2> vec, bool overwrite=false);
     void appendYAML(str name, str key, Vec2f vec, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, Vec2f vec, bool overwrite=false);
     void appendYAML(str name, str key, Rect2 rect, bool overwrite=false);
@@ -40,6 +46,9 @@ namespace Verse::Serialization
     void loadComponentsFromYAML(EntityID eid, str entity_name, YAML::Node &entity, Scene *s, Config &c);
     void loadScene(str name, Scene *s, Config &c);
     EntityID loadPlayer(Scene *s, Config &c);
+
+    void saveComponentsToYAML(EntityID eid, Scene *s, Config &c);
+    void saveScene(Scene *s, Config &c, bool to_proj = false);
 }
 
 namespace YAML

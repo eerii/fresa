@@ -80,7 +80,7 @@ void Graphics::render(Config &c) {
     if(c.render_collision_boxes)
         System::Collider::render(c);
     
-    if(c.tilemap_editor)
+    if(c.tme_active)
         System::Tilemap::renderEditor(c);
     
     glViewport(0, 0, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale);

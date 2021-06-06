@@ -71,13 +71,6 @@ namespace {
          1.0,  0.0,  1.0,  0.0,
     };
 
-    float outlines[] = {
-        0.01, 0.01,
-        0.01, 0.99,
-        1.0, 0.99,
-        1.0, 0.01
-    };
-
     //MATRICES
     mat4 proj_render, proj_post, proj_cam, proj_window;
     ui8 mvp[S_LAST];
@@ -576,6 +569,18 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool collidin
     glCheckError();
     
     //Vertices
+    float outlines[] = {
+        0.0f, 0.0f,
+        0.0f, 1.0f,
+        1.0f, 1.0f,
+        1.0f, 0.0f
+    };
+    
+    float epsilon_x = 1.0f / (float)col.w;
+    outlines[0] += epsilon_x;
+    float epsilon_y = 1.0f / (float)col.h;
+    outlines[3] -= epsilon_y; outlines[5] -= epsilon_y;
+    
     glBindVertexArray(vao[V_DEBUG]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_DEBUG]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(outlines), outlines, GL_STATIC_DRAW);
