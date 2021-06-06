@@ -482,17 +482,15 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 actor->has_gravity = entity["actor"]["has_gravity"].as<bool>();
             if (entity["actor"]["collision_mask"]) {
                 if (entity["actor"]["collision_mask"].IsScalar()) {
-                    auto it = std::find(Component::c_layers_name.begin(),
-                                        Component::c_layers_name.end(),
+                    auto it = std::find(System::Collider::layers_name.begin(), System::Collider::layers_name.end(),
                                         entity["actor"]["collision_mask"].as<str>());
-                    if (it != Component::c_layers_name.end())
-                        actor->collision_mask.set(std::distance(Component::c_layers_name.begin(), it));
+                    if (it != System::Collider::layers_name.end())
+                        actor->collision_mask.set(std::distance(System::Collider::layers_name.begin(), it));
                 } else {
                     for (str m : entity["actor"]["collision_mask"].as<std::vector<str>>()) {
-                        auto it = std::find(Component::c_layers_name.begin(),
-                                            Component::c_layers_name.end(), m);
-                        if (it != Component::c_layers_name.end())
-                            actor->collision_mask.set(std::distance(Component::c_layers_name.begin(), it));
+                        auto it = std::find(System::Collider::layers_name.begin(), System::Collider::layers_name.end(), m);
+                        if (it != System::Collider::layers_name.end())
+                            actor->collision_mask.set(std::distance(System::Collider::layers_name.begin(), it));
                     }
                 }
             }
@@ -530,13 +528,13 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             if (entity["collider"].IsMap()) {
                 if (entity["collider"]["transform"])
                     collider->transform = entity["collider"]["transform"].as<Rect2>();
-                collider->layer = Component::ColliderLayers::GROUND;
+                collider->layer = System::Collider::Layers::Ground;
                 if (entity["collider"]["layer"]) {
-                    auto it = std::find(Component::c_layers_name.begin(),
-                                        Component::c_layers_name.end(),
+                    auto it = std::find(System::Collider::layers_name.begin(),
+                                        System::Collider::layers_name.end(),
                                         entity["collider"]["layer"].as<str>());
-                    if (it != Component::c_layers_name.end())
-                        collider->layer = std::distance(Component::c_layers_name.begin(), it);
+                    if (it != System::Collider::layers_name.end())
+                        collider->layer = std::distance(System::Collider::layers_name.begin(), it);
                 }
             } else {
                 #ifdef TILEMAP
@@ -548,7 +546,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                         return;
                     }
                     collider->transform = Rect2(tilemap->pos, System::Tilemap::calculateSize(tilemap));
-                    collider->layer = Component::ColliderLayers::GROUND;
+                    collider->layer = System::Collider::Layers::Ground;
                 }
                 #endif
             }
@@ -663,7 +661,7 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
             appendYAML(path, key, col->transform, true);
             
             key[3] = "layer";
-            appendYAML(path, key, (str)Component::c_layers_name[col->layer], true);
+            appendYAML(path, key, (str)System::Collider::layers_name[col->layer], true);
         } else {
             std::vector<str> tile_key = {key[0], key[1], key[2]};
             appendYAML(path, tile_key, "tile");
