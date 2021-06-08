@@ -12,10 +12,15 @@
 #include "static_str.h"
 
 #ifndef __EMSCRIPTEN__
-#define CURR_STATE(SM) std::visit([](auto&&x)->decltype(auto) { return make_string(Types<typeof(*x)>()).c_str(); }, SM.curr_state)
+#define CURR_STATE(SM) std::visit([](auto&&x) { \
+    using T = std::decay_t<decltype(*x)>; \
+    return make_string(Types<T>()).c_str(); \
+}, SM.curr_state)
 #else
 #define CURR_STATE(SM) ""
 #endif
+
+
 
 namespace Verse::State
 {

@@ -19,6 +19,7 @@ namespace Verse
         int render_scale;
         bool enable_gui;
         bool use_vsync;
+        bool use_subpixel_cam;
         
         float game_speed;
         ui16 fps;
