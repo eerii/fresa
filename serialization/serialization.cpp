@@ -469,15 +469,25 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 }
                 if (entity["actor"]["controller"].as<str>() == "free")
                     actor->controller = FREE_ACTOR_CONTROLLER;
+                if (entity["actor"]["controller"].as<str>() == "moving_platform")
+                    actor->controller = MOVING_PLATFORM_CONTROLLER;
             }
             if (entity["actor"]["max_move_speed"])
                 actor->max_move_speed = entity["actor"]["max_move_speed"].as<int>();
             if (entity["actor"]["max_fall_speed"])
                 actor->max_fall_speed = entity["actor"]["max_fall_speed"].as<int>();
+            if (entity["actor"]["max_move_speed"] and not entity["actor"]["max_fall_speed"])
+                actor->max_fall_speed = entity["actor"]["max_move_speed"].as<int>();
             if (entity["actor"]["acc_ground"])
                 actor->acc_ground = entity["actor"]["acc_ground"].as<int>();
             if (entity["actor"]["friction_ground"])
                 actor->friction_ground = entity["actor"]["friction_ground"].as<int>();
+            if (entity["actor"]["friction_air"])
+                actor->friction_air = entity["actor"]["friction_air"].as<int>();
+            if (entity["actor"]["friction_extra"])
+                actor->friction_extra = entity["actor"]["friction_extra"].as<int>();
+            if (entity["actor"]["friction_air"] and not entity["actor"]["friction_extra"])
+                actor->friction_extra = entity["actor"]["friction_air"].as<int>();
             if (entity["actor"]["has_gravity"])
                 actor->has_gravity = entity["actor"]["has_gravity"].as<bool>();
             if (entity["actor"]["collision_mask"]) {
@@ -493,6 +503,12 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                             actor->collision_mask.set(std::distance(System::Collider::layers_name.begin(), it));
                     }
                 }
+            }
+            if (entity["actor"]["patrol"]) {
+                if (entity["actor"]["patrol"].IsSequence())
+                    actor->patrol_points = entity["actor"]["patrol"].as<std::vector<Vec2>>();
+                if (entity["actor"]["patrol"].IsScalar())
+                    actor->patrol_points = {entity["actor"]["patrol"].as<Vec2>()};
             }
         }
 #endif
@@ -565,7 +581,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
         if (entity["camera"]) {
             Component::Camera* camera = s->addComponent<Component::Camera>(eid);
             if (entity["camera"]["pos"])
-                camera->pos = entity["camera"]["pos"].as<Vec2f>();
+                camera->pos = entity["camera"]["pos"].as<Vec2>();
             camera->bounds = Rect2(0,0,0,0);
             if (entity["camera"]["bounds"]) {
                 if (entity["camera"]["bounds"].IsMap()) {

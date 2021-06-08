@@ -20,6 +20,8 @@ namespace
     ui32 accumulator;
     ui16 fps_time;
     ui16 frames;
+
+    ui64 physics_time;
 }
 
 bool Game::init(Config &c) {
@@ -48,6 +50,8 @@ bool Game::init(Config &c) {
     Gui::init(c);
 #endif
     
+    physics_time = time_precise();
+    
     return true;
 }
 
@@ -62,10 +66,9 @@ bool Game::update(Config &c) {
     
     //PHYSICS UPDATE
     c.physics_delta = TIMESTEP * 0.001f * c.game_speed;
-    ui64 time_before_physics = time_precise();
     if (not physicsUpdate(c))
         return false;
-    c.physics_time = time_precise_difference(time_before_physics);
+   
     
     //RENDER UPDATE
     Graphics::render(c);
@@ -88,6 +91,7 @@ bool Game::update(Config &c) {
 }
 
 bool Game::physicsUpdate(Config &c) {
+    ui64 time_before_physics = time_precise();
     while (accumulator >= TIMESTEP) {
         accumulator -= TIMESTEP;
         
@@ -107,6 +111,7 @@ bool Game::physicsUpdate(Config &c) {
         //PREPARE FOR NEXT INPUT
         Input::frame();
     }
+    c.physics_time = time_precise_difference(time_before_physics);
     
     return true;
 }
