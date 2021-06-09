@@ -17,7 +17,7 @@ using namespace Verse;
 
 namespace
 {
-    ui32 accumulator;
+    double accumulator;
     ui16 fps_time;
     ui16 frames;
 
@@ -65,7 +65,7 @@ bool Game::update(Config &c) {
     }
     
     //PHYSICS UPDATE
-    c.physics_delta = TIMESTEP * 0.001f * c.game_speed;
+    c.physics_delta = TIMESTEP * c.timestep_modifier * 0.001f * c.game_speed;
     if (not physicsUpdate(c))
         return false;
    
@@ -74,13 +74,13 @@ bool Game::update(Config &c) {
     Graphics::render(c);
     
     //PREVENT RUNNING TOO FAST
-    ui16 frame_ticks = (ui16)(time() - Time::current);
+    ui16 frame_ticks = (ui16)time_precise_difference(Time::current);
     if (frame_ticks <= 1000.0 / (float)Graphics::getRefreshRate())
         SDL_Delay((1000.0 / (float)Graphics::getRefreshRate()) - frame_ticks);
     
     //FPS
     frames++;
-    fps_time += (ui16)(time() - Time::current);
+    fps_time += (ui16)time_precise_difference(Time::current);
     if (fps_time > 200) {
         c.fps = round((float)frames / (float)(fps_time * 0.001f));
         frames = 0;
@@ -92,8 +92,8 @@ bool Game::update(Config &c) {
 
 bool Game::physicsUpdate(Config &c) {
     ui64 time_before_physics = time_precise();
-    while (accumulator >= TIMESTEP) {
-        accumulator -= TIMESTEP;
+    while (accumulator >= TIMESTEP * c.timestep_modifier) {
+        accumulator -= TIMESTEP * c.timestep_modifier;
         
         //GET EVENTS
         if (not Events::handleEvents(c))
@@ -118,9 +118,11 @@ bool Game::physicsUpdate(Config &c) {
 
 void Game::timeFrame() {
     Time::previous = Time::current;
-    Time::current = time();
-    Time::delta = Time::current - Time::previous;
+    Time::current = time_precise();
+    Time::delta = time_precise_difference(Time::previous, Time::current);
     accumulator += Time::delta;
+    if (accumulator > 10000)
+        accumulator = 0;
 }
 
 void Game::stop() {

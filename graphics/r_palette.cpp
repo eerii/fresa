@@ -43,11 +43,11 @@ void Verse::Graphics::Palette::switchPalette(Config &c) {
     }
     
     if (switch_palette_time == 0) {
-        switch_palette_time = Time::current;
+        switch_palette_time = time();
         return;
     }
     
-    ui32 delay = Time::current - switch_palette_time;
+    ui32 delay = time() - switch_palette_time;
     
     if (delay < TRANSITION_TIME) {
         transition_percent = (float)delay / (float)TRANSITION_TIME;

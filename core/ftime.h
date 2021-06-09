@@ -18,9 +18,9 @@ namespace Verse
     };
 
     struct Time {
-        static ui32 current;
-        static ui32 previous;
-        static ui32 delta;
+        static ui64 current;
+        static ui64 previous;
+        static ui64 delta;
         static std::map<ui32, Timer> timers;
     };
 
