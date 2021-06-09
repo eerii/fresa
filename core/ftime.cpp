@@ -10,9 +10,9 @@ namespace {
     ui32 last_timer_id = 0;
 }
 
-ui32 Time::current = 0;
-ui32 Time::previous = 0;
-ui32 Time::delta = 0;
+ui64 Time::current = 0;
+ui64 Time::previous = 0;
+ui64 Time::delta = 0;
 std::map<ui32, Timer> Time::timers = {};
 
 ui32 Verse::time() {

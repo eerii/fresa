@@ -21,6 +21,7 @@ namespace Verse
         bool use_vsync;
         bool use_subpixel_cam;
         
+        float timestep_modifier;
         float game_speed;
         ui16 fps;
         float physics_time;
