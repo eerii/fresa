@@ -415,12 +415,10 @@ void Graphics::Renderer::renderPost(Config &c) {
     //Palette
     Graphics::Palette::render(c, palette_tex, shaders[S_POST]);
     
-#ifdef LIGHT
     //Light
     if (c.use_light)
         System::Light::render(c, shaders[S_POST]);
     glUniform1i(glGetUniformLocation(shaders[S_POST], "use_light"), c.use_light);
-#endif
     
     //Set texture
     glActiveTexture(GL_TEXTURE1);
@@ -664,9 +662,7 @@ void Graphics::Renderer::clear(Config &c) {
     proj_cam = ortho(0.0f, (float)(c.resolution.x * c.render_scale), 0.0f, (float)(c.resolution.y * c.render_scale));
     proj_window = ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
     
-#ifdef TILEMAP
     System::Tilemap::init(c);
-#endif
     glCheckError();
 }
 //-----------------------------------------
