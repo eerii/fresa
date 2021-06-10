@@ -466,6 +466,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
                 actor->controller = MOVING_PLATFORM_CONTROLLER;
             if (entity["actor"]["controller"].as<str>() == "falling_platform")
                 actor->controller = FALLING_PLATFORM_CONTROLLER;
+            if (entity["actor"]["controller"].as<str>() == "switch_platform")
+                actor->controller = SWITCH_PLATFORM_CONTROLLER;
         }
         if (entity["actor"]["max_move_speed"])
             actor->max_move_speed = entity["actor"]["max_move_speed"].as<int>();
