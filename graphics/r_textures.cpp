@@ -6,7 +6,7 @@
 
 #include <filesystem>
 
-#include "noise.h"
+#include "fmath.h"
 #include "log.h"
 
 #include "r_renderer.h"
@@ -59,8 +59,8 @@ void Graphics::Texture::loadTexture(str path, ui32 &tex_id) {
     tex_id = (ui32)Graphics::Renderer::createTexture(tex, w, h);
 }
 
-void Graphics::Texture::createPerlinNoise(Vec2 size, Vec2 offset, float freq, int octaves, ui32 seed, ui8* noise_data, ui32 &tex_id) {
-    Math::perlinNoise(size, offset, freq, octaves, seed, noise_data);
+void Graphics::Texture::createPerlinNoise(Vec2 size, Vec2 offset, float freq, int levels, ui8* noise_data, ui32 &tex_id) {
+    Math::perlinNoise(size, offset, freq, 4, noise_data);
     
 #ifndef __EMSCRIPTEN__
     tex_id = (ui32)Graphics::Renderer::createTexture(noise_data, size.x, size.y, false);

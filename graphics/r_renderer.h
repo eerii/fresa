@@ -18,7 +18,7 @@ namespace Verse::Graphics::Renderer
     
     void renderTexture(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer);
     void renderTilemap(Config &c, ui32 &tex_id, float* vertices, int size , int layer);
-    void renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_tex, int layer);
+    void renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &g_tex, ui32 &f_tex, int layer);
     void render3D(Config &c, float* vertices, int size);
 
     void render(Config &c);
