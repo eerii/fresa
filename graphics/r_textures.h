@@ -17,6 +17,6 @@ namespace Verse::Graphics::Texture
     void loadTexture(str path, Component::Texture* tex);
     void loadTexture(std::vector<str> path, Component::Tilemap* tex);
 
-    void createPerlinNoise(Vec2 size, Vec2 offset, float freq, int octaves, ui32 seed, ui8* noise_data, ui32 &tex_id);
+    void createPerlinNoise(Vec2 size, Vec2 offset, float freq, int levels, ui8* noise_data, ui32 &tex_id);
     void createGradient(int size, ui32 &tex_id);
 }

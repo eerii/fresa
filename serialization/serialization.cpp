@@ -594,10 +594,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::
             fire->fps = (ui8)entity["fire"]["fps"].as<int>();
         if (entity["fire"]["freq"])
             fire->freq = entity["fire"]["freq"].as<float>();
-        if (entity["fire"]["octaves"])
-            fire->octaves = (ui8)entity["fire"]["octaves"].as<int>();
-        if (entity["fire"]["seed"])
-            fire->seed = (ui32)entity["fire"]["seed"].as<int>();
+        if (entity["fire"]["levels"])
+            fire->levels = entity["fire"]["levels"].as<int>();
         if (not entity["fire"]["res"]) {
             log::error("You created a fire component for " + entity_name + " but it has no res for the texture");
             s->removeEntity(eid);
