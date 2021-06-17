@@ -353,7 +353,7 @@ void Serialization::loadScene(str name, Scene *s, Config &c) {
         EntityID eid = s->createEntity(entity_name);
         
         //Add components
-        Serialization::loadComponentsFromYAML(eid, entity_name, entity, s, c);
+        Serialization::loadComponentsFromYAML(eid, entity, s, c);
     }
     //--------------------------------------
 }
@@ -371,264 +371,41 @@ EntityID Serialization::loadPlayer(Scene *s, Config &c) {
     YAML::Node player = data["player"];
     
     EntityID eid = s->createEntity("player");
-    Serialization::loadComponentsFromYAML(eid, "player", player, s, c);
+    Serialization::loadComponentsFromYAML(eid, player, s, c);
     
     s->addComponent<Component::Player>(eid);
+    s->addComponent<Component::State>(eid);
     
     return eid;
 }
 
-void Serialization::loadComponentsFromYAML(EntityID eid, str entity_name, YAML::Node &entity, Scene *s, Config &c) {
-    if (entity["texture"]) {
-        Component::Texture* texture = s->addComponent<Component::Texture>(eid);
-        if (not entity["texture"]["res"]) {
-            log::error("You created a texture component for " + entity_name + " but it has no res for the texture");
-            s->removeEntity(eid);
-            return;
-        }
-        texture->res = entity["texture"]["res"].as<str>();
-        Graphics::Texture::loadTexture(texture->res, texture);
-        if (entity["texture"]["transform"])
-            texture->transform = entity["texture"]["transform"].as<Rect2>();
-        if (entity["texture"]["offset"]) {
-            if (entity["texture"]["offset"].IsSequence()) {
-                texture->offset = entity["texture"]["offset"].as<std::vector<Vec2>>();
-            } else {
-                texture->offset.push_back(entity["texture"]["offset"].as<Vec2>());
-            }
-        } else {
-            texture->offset.push_back(Vec2(0,0));
-        }
-        if (entity["texture"]["layer"]) {
-            if (entity["texture"]["layer"].IsSequence()) {
-                texture->layer = entity["texture"]["layer"].as<std::vector<int>>();
-            } else {
-                texture->layer.push_back(entity["texture"]["layer"].as<int>());
-            }
-        } else {
-            texture->layer.push_back(0);
-        }
-    }
-    if (entity["animation"]) {
-        Component::Animation* animation = s->addComponent<Component::Animation>(eid);
-        ui16 default_fps = (entity["animation"]["default_fps"]) ? entity["animation"]["default_fps"].as<ui16>() : 3;
-        if (not (entity["animation"]["frames"] and entity["animation"]["frames"].IsMap())) {
-            log::error("You created an animation component for " + entity_name + " but it has no frames");
-            s->removeEntity(eid);
-            return;
-        }
-        for(YAML::const_iterator i=entity["animation"]["frames"].begin(); i != entity["animation"]["frames"].end(); i++) {
-            str animation_name = i->first.as<str>();
-            
-            if (i->second.IsSequence()) {
-                animation->frames[animation_name].index = i->second.as<std::vector<ui16>>();
-                
-                std::vector<ui16> ms(animation->frames[animation_name].index.size(), (ui16)round(1000.0f / (float)default_fps));
-                animation->frames[animation_name].ms = ms;
-                
-                continue;
-            }
-            
-            if (i->second.IsMap()) {
-                if (not (i->second["index"] and i->second["index"].IsSequence()))
-                    continue;
-                animation->frames[animation_name].index = i->second["index"].as<std::vector<ui16>>();
-                
-                if (not i->second["fps"]) {
-                    std::vector<ui16> ms(animation->frames[animation_name].index.size(), (ui16)round(1000.0f / (float)default_fps));
-                    animation->frames[animation_name].ms = ms;
-                    continue;
-                }
-                if (i->second["fps"].IsScalar()) {
-                    std::vector<ui16> ms(animation->frames[animation_name].index.size(), (ui16)round(1000.0f / i->second["fps"].as<float>()));
-                    animation->frames[animation_name].ms = ms;
-                    continue;
-                }
-                std::vector<ui16> ms = i->second["fps"].as<std::vector<ui16>>();
-                std::transform(ms.begin(), ms.end(), ms.begin(), [](ui16 &c){ return (ui16)round(1000.0f / (float)c); });
-                animation->frames[animation_name].ms = ms;
-            }
-        }
-        animation->curr_key = (entity["animation"]["curr_key"]) ? entity["animation"]["curr_key"].as<str>() : animation->frames.begin()->first;
-        animation->size = (entity["animation"]["size"]) ? entity["animation"]["size"].as<int>() : 1;
-    }
-    if (entity["actor"]) {
-        Component::Actor* actor = s->addComponent<Component::Actor>(eid);
-        if (entity["actor"]["controller"]) {
-            actor_move_func move = &System::Actor::move;
-            if (entity["actor"]["controller"].as<str>() == "player") {
-                actor->controller = PLAYER_CONTROLLER;
-                actor->damage = PLAYER_DAMAGE;
-            }
-            if (entity["actor"]["controller"].as<str>() == "free")
-                actor->controller = FREE_ACTOR_CONTROLLER;
-            if (entity["actor"]["controller"].as<str>() == "moving_platform")
-                actor->controller = MOVING_PLATFORM_CONTROLLER;
-            if (entity["actor"]["controller"].as<str>() == "falling_platform")
-                actor->controller = FALLING_PLATFORM_CONTROLLER;
-            if (entity["actor"]["controller"].as<str>() == "switch_platform")
-                actor->controller = SWITCH_PLATFORM_CONTROLLER;
-        }
-        if (entity["actor"]["max_move_speed"])
-            actor->max_move_speed = entity["actor"]["max_move_speed"].as<int>();
-        if (entity["actor"]["max_fall_speed"])
-            actor->max_fall_speed = entity["actor"]["max_fall_speed"].as<int>();
-        if (entity["actor"]["max_move_speed"] and not entity["actor"]["max_fall_speed"])
-            actor->max_fall_speed = entity["actor"]["max_move_speed"].as<int>();
-        if (entity["actor"]["acc_ground"])
-            actor->acc_ground = entity["actor"]["acc_ground"].as<int>();
-        if (entity["actor"]["friction_ground"])
-            actor->friction_ground = entity["actor"]["friction_ground"].as<int>();
-        if (entity["actor"]["friction_air"])
-            actor->friction_air = entity["actor"]["friction_air"].as<int>();
-        if (entity["actor"]["friction_extra"])
-            actor->friction_extra = entity["actor"]["friction_extra"].as<int>();
-        if (entity["actor"]["friction_air"] and not entity["actor"]["friction_extra"])
-            actor->friction_extra = entity["actor"]["friction_air"].as<int>();
-        if (entity["actor"]["has_gravity"])
-            actor->has_gravity = entity["actor"]["has_gravity"].as<bool>();
-        if (entity["actor"]["collision_mask"]) {
-            if (entity["actor"]["collision_mask"].IsScalar()) {
-                auto it = std::find(System::Collider::layers_name.begin(), System::Collider::layers_name.end(),
-                                    entity["actor"]["collision_mask"].as<str>());
-                if (it != System::Collider::layers_name.end())
-                    actor->collision_mask.set(std::distance(System::Collider::layers_name.begin(), it));
-            } else {
-                for (str m : entity["actor"]["collision_mask"].as<std::vector<str>>()) {
-                    auto it = std::find(System::Collider::layers_name.begin(), System::Collider::layers_name.end(), m);
-                    if (it != System::Collider::layers_name.end())
-                        actor->collision_mask.set(std::distance(System::Collider::layers_name.begin(), it));
-                }
-            }
-        }
-    }
-    if (entity["tilemap"]) {
-        Component::Tilemap* tilemap = s->addComponent<Component::Tilemap>(eid);
-        if (not entity["tilemap"]["tiles"]) {
-            log::error("You created a tilemap component for " + entity_name + " but it has no tile attribute");
-            s->removeEntity(eid);
-            return;
-        }
-        tilemap->tile_res = entity["tilemap"]["tiles"].as<str>();
-        tilemap->tiles = System::Tilemap::load(tilemap->tile_res);
-        if (not entity["tilemap"]["res"]) {
-            log::error("You created a tilemap component for " + entity_name + " but it has no res for the texture");
-            s->removeEntity(eid);
-            return;
-        }
-        tilemap->res = (entity["tilemap"]["res"].IsScalar()) ?
-                        std::vector<str>({entity["tilemap"]["res"].as<str>()}) :
-                        entity["tilemap"]["res"].as<std::vector<str>>();
-        Graphics::Texture::loadTexture(tilemap->res, tilemap);
-        if (entity["tilemap"]["pos"])
-            tilemap->pos = entity["tilemap"]["pos"].as<Vec2>();
-        if (entity["tilemap"]["tex_size"])
-            tilemap->tex_size = entity["tilemap"]["tex_size"].as<Vec2>();
-        tilemap->layer = (entity["tilemap"]["layer"]) ? entity["tilemap"]["layer"].as<int>() : 0;
-    }
-    if (entity["collider"]) {
-        Component::Collider* collider = s->addComponent<Component::Collider>(eid);
-        if (entity["collider"].IsMap()) {
-            if (entity["collider"]["transform"])
-                collider->transform = entity["collider"]["transform"].as<Rect2>();
-            collider->layer = System::Collider::Layers::Ground;
-            if (entity["collider"]["layer"]) {
-                auto it = std::find(System::Collider::layers_name.begin(),
-                                    System::Collider::layers_name.end(),
-                                    entity["collider"]["layer"].as<str>());
-                if (it != System::Collider::layers_name.end())
-                    collider->layer = std::distance(System::Collider::layers_name.begin(), it);
-            }
-        } else {
-            if (entity["collider"].as<str>() == "tile") {
-                Component::Tilemap* tilemap = s->getComponent<Component::Tilemap>(eid);
-                if (not (entity["tilemap"]["pos"] and tilemap != nullptr)) {
-                    log::error("You tried to add a tilemap collider for " + entity_name + ", but it doesn't have a tilemap component");
-                    s->removeEntity(eid);
-                    return;
-                }
-                collider->transform = Rect2(tilemap->pos, System::Tilemap::calculateSize(tilemap));
-                collider->layer = System::Collider::Layers::Ground;
-            }
-        }
-    }
-    if (entity["light"]) {
-        Component::Light* light = s->addComponent<Component::Light>(eid);
-        if (entity["light"]["pos"])
-            light->pos = entity["light"]["pos"].as<Vec2>();
-        if (entity["light"]["radius"])
-            light->radius = entity["light"]["radius"].as<int>();
-    }
-    if (entity["camera"]) {
-        Component::Camera* camera = s->addComponent<Component::Camera>(eid);
-        if (entity["camera"]["pos"])
-            camera->pos = entity["camera"]["pos"].as<Vec2>();
-        camera->bounds = Rect2(0,0,0,0);
-        if (entity["camera"]["bounds"]) {
-            if (entity["camera"]["bounds"].IsMap()) {
-                camera->bounds = entity["camera"]["bounds"].as<Rect2>();
-            } else {
-                if (entity["camera"]["bounds"].as<str>() == "scene")
-                    camera->bounds = Rect2(s->size * 0.5f, s->size);
-                if (entity["camera"]["bounds"].as<str>() == "none")
-                    camera->bounds = Rect2(0,0,0,0);
-            }
-        }
-        if (entity["camera"]["controller"]) {
-            if (entity["camera"]["controller"].as<str>() == "actor")
-                camera->controller = CAMERA_ACTOR_CONTROLLER;
-            if (entity["camera"]["controller"].as<str>() == "free")
-                camera->controller = CAMERA_FREE_CONTROLLER;
-        }
-        System::Camera::init(camera);
-    }
-    if (entity["fire"]) {
-        Component::Fire* fire = s->addComponent<Component::Fire>(eid);
-        if (entity["fire"]["transform"])
-            fire->transform = entity["fire"]["transform"].as<Rect2>();
-        if (entity["fire"]["offset"])
-            fire->offset = entity["fire"]["offset"].as<Vec2>();
-        if (entity["fire"]["dir"])
-            fire->dir = entity["fire"]["dir"].as<Vec2>();
-        if (entity["fire"]["fps"])
-            fire->fps = (ui8)entity["fire"]["fps"].as<int>();
-        if (entity["fire"]["freq"])
-            fire->freq = entity["fire"]["freq"].as<float>();
-        if (entity["fire"]["levels"])
-            fire->levels = entity["fire"]["levels"].as<int>();
-        if (not entity["fire"]["res"]) {
-            log::error("You created a fire component for " + entity_name + " but it has no res for the texture");
-            s->removeEntity(eid);
-            return;
-        }
-        fire->layer = (entity["fire"]["layer"]) ? entity["fire"]["layer"].as<int>() : 0;
-        fire->flame_tex_res = entity["fire"]["res"].as<str>();
-        Graphics::Texture::loadTexture(fire->flame_tex_res, fire->flame_tex);
-        System::Fire::init(fire);
-    }
-    if (entity["scene_transition"]) {
-        Component::SceneTransition* transition = s->addComponent<Component::SceneTransition>(eid);
-        if (not entity["scene_transition"]["scene"]) {
-            log::error("You created a scene transition component for " + entity_name + " but it has no scene url");
-            s->removeEntity(eid);
-            return;
-        }
-        transition->scene_name = entity["scene_transition"]["scene"].as<str>();
-        transition->to_pos =  entity["scene_transition"]["pos"] ? entity["scene_transition"]["pos"].as<Vec2>() : Vec2(0,0);
-    }
-    if (entity["timer"]) {
-        Component::Timer* timer = s->addComponent<Component::Timer>(eid);
-        timer->ms = entity["timer"]["ms"].as<ui16>();
-    }
-    if (entity["patrol"]) {
-        Component::Patrol* patrol = s->addComponent<Component::Patrol>(eid);
-        if (entity["patrol"]["points"]) {
-            if (entity["patrol"]["points"].IsSequence())
-                patrol->points = entity["patrol"]["points"].as<std::vector<Vec2>>();
-            if (entity["patrol"]["points"].IsScalar())
-                patrol->points = {entity["patrol"]["points"].as<Vec2>()};
-        }
-    }
+void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Scene *s, Config &c) {
+    if (entity["texture"])
+        System::Texture::load(eid, entity, s, c);
+    if (entity["animation"])
+        System::Animation::load(eid, entity, s, c);
+    if (entity["tilemap"])
+        System::Tilemap::load(eid, entity, s, c);
+    if (entity["actor"])
+        System::Actor::load(eid, entity, s, c);
+    if (entity["collider"])
+        System::Collider::load(eid, entity, s, c);
+    if (entity["camera"])
+        System::Camera::load(eid, entity, s, c);
+    if (entity["light"])
+        System::Light::load(eid, entity, s, c);
+    if (entity["timer"])
+        System::Timer::load(eid, entity, s, c);
+    if (entity["patrol"])
+        System::Patrol::load(eid, entity, s, c);
+#ifdef USE_C_FIRE
+    if (entity["fire"])
+        System::Fire::load(eid, entity, s, c);
+#endif
+#ifdef USE_C_SCENE_TRANSITION
+    if (entity["scene_transition"])
+        System::SceneTransition::load(eid, entity, s, c);
+#endif
 }
 
 void Serialization::saveScene(Scene *s, Config &c, bool to_proj) {

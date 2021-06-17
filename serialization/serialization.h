@@ -43,7 +43,7 @@ namespace Verse::Serialization
     void removeYAML(str name, str key);
     void removeYAML(str name, std::vector<str> key);
 
-    void loadComponentsFromYAML(EntityID eid, str entity_name, YAML::Node &entity, Scene *s, Config &c);
+    void loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Scene *s, Config &c);
     void loadScene(str name, Scene *s, Config &c);
     EntityID loadPlayer(Scene *s, Config &c);
 
