@@ -97,10 +97,10 @@ namespace YAML
     struct convert<Verse::Rect2> {
       static Node encode(const Verse::Rect2& rhs) {
         Node node;
-        node.push_back(rhs.x);
-        node.push_back(rhs.y);
-        node.push_back(rhs.w);
-        node.push_back(rhs.h);
+        node.push_back(*rhs.x);
+        node.push_back(*rhs.y);
+        node.push_back(*rhs.w);
+        node.push_back(*rhs.h);
         return node;
       }
 
@@ -108,23 +108,20 @@ namespace YAML
         if(!node.IsSequence() || node.size() != 4) {
           return false;
         }
-
-        rhs.x = node[0].as<int>();
-        rhs.y = node[1].as<int>();
-        rhs.w = node[2].as<int>();
-        rhs.h = node[3].as<int>();
+          
+        rhs = Verse::Rect2(node[0].as<int>(), node[1].as<int>(), node[2].as<int>(), node[3].as<int>());
         return true;
-      }
+        }
     };
 
     template<>
     struct convert<Verse::Rect2f> {
       static Node encode(const Verse::Rect2f& rhs) {
         Node node;
-        node.push_back(rhs.x);
-        node.push_back(rhs.y);
-        node.push_back(rhs.w);
-        node.push_back(rhs.h);
+        node.push_back(*rhs.x);
+        node.push_back(*rhs.y);
+        node.push_back(*rhs.w);
+        node.push_back(*rhs.h);
         return node;
       }
 
@@ -133,10 +130,7 @@ namespace YAML
           return false;
         }
 
-        rhs.x = node[0].as<float>();
-        rhs.y = node[1].as<float>();
-        rhs.w = node[2].as<float>();
-        rhs.h = node[3].as<float>();
+        rhs = Verse::Rect2f(node[0].as<float>(), node[1].as<float>(), node[2].as<float>(), node[3].as<float>());
         return true;
       }
     };

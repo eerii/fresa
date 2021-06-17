@@ -97,9 +97,9 @@ void Gui::entities(Config &c) {
 void c_collider(Config &c, EntityID e) {
     Component::Collider* col = c.active_scene->getComponent<Component::Collider>(e);
     
-    Verse::Gui::draw_vec2(col->transform.x, col->transform.y, "pos", e);
+    Verse::Gui::draw_vec2(*col->transform.x, *col->transform.y, "pos", e);
     ImGui::TableNextRow();
-    Verse::Gui::draw_vec2(col->transform.w, col->transform.h, "size", e);
+    Verse::Gui::draw_vec2(*col->transform.w, *col->transform.h, "size", e);
     ImGui::TableNextRow();
     
     ImGui::TableSetColumnIndex(0);
@@ -130,9 +130,9 @@ void c_texture(Config &c, EntityID e) {
     
     ImGui::TableNextRow();
     
-    Verse::Gui::draw_vec2(tex->transform.x, tex->transform.y, "pos", e);
+    Verse::Gui::draw_vec2(*tex->transform.x, *tex->transform.y, "pos", e);
     ImGui::TableNextRow();
-    Verse::Gui::draw_vec2(tex->transform.w, tex->transform.h, "size", e);
+    Verse::Gui::draw_vec2(*tex->transform.w, *tex->transform.h, "size", e);
     ImGui::TableNextRow();
     
     ImGui::TableSetColumnIndex(0);
@@ -258,9 +258,9 @@ void c_camera(Config &c, EntityID e) {
 void c_fire(Config &c, EntityID e) {
     Component::Fire* fire = c.active_scene->getComponent<Component::Fire>(e);
     
-    Verse::Gui::draw_vec2(fire->transform.x, fire->transform.y, "pos", e);
+    Verse::Gui::draw_vec2(*fire->transform.x, *fire->transform.y, "pos", e);
     ImGui::TableNextRow();
-    Verse::Gui::draw_vec2(fire->transform.w, fire->transform.h, "size", e); //TODO: Change fire data size
+    Verse::Gui::draw_vec2(*fire->transform.w, *fire->transform.h, "size", e); //TODO: Change fire data size
     ImGui::TableNextRow();
     Verse::Gui::draw_vec2(fire->offset.x, fire->offset.y, "offset", e);
     ImGui::TableNextRow();

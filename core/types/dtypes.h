@@ -120,27 +120,41 @@ namespace Verse
 
     //RECT2 - 4D Vector
     struct Rect2 {
-        int x, y, w, h;
+        Vec2 pos;
+        Vec2 size;
+        int *x, *y, *w, *h;
         
         Rect2();
         Rect2(Vec2 pos, Vec2 size);
         Rect2(int pos_x, int pos_y, int size_x, int size_y);
         
-        Vec2 pos() const;
-        Vec2 size() const;
+        void link();
         
         Rect2f to_float() const;
         
         Rect2 operator +(const Vec2 p_pos) const;
         Rect2 operator -(const Vec2 p_pos) const;
+        Rect2 operator +(const Rect2 p_pos) const;
+        Rect2 operator -(const Rect2 p_pos) const;
+        
+        Rect2 operator *(const Vec2f p_v) const;
+        Rect2 operator /(const Vec2f p_v) const;
         Rect2 operator *(const float p_f) const;
         Rect2 operator /(const float p_f) const;
+        
         Rect2 operator -() const;
         
         Rect2& operator +=(const Vec2 p_pos);
         Rect2& operator -=(const Vec2 p_pos);
+        Rect2& operator +=(const Rect2 p_pos);
+        Rect2& operator -=(const Rect2 p_pos);
+        
+        Rect2& operator *=(const Vec2f p_v);
+        Rect2& operator /=(const Vec2f p_v);
         Rect2& operator *=(const float p_f);
         Rect2& operator /=(const float p_f);
+        
+        Rect2& operator =(const Rect2 p_rect);
         Rect2& operator =(const Vec2 p_pos);
         
         SDL_Rect toSDL();
@@ -148,27 +162,41 @@ namespace Verse
 
     //RECT2f - 4D Vector (float)
     struct Rect2f {
-        int x, y, w, h;
+        Vec2f pos;
+        Vec2f size;
+        float *x, *y, *w, *h;
         
         Rect2f();
         Rect2f(Vec2f pos, Vec2f size);
         Rect2f(float pos_x, float pos_y, float size_x, float size_y);
         
-        Vec2f pos() const;
-        Vec2f size() const;
+        void link();
         
         Rect2 to_int() const;
         
         Rect2f operator +(const Vec2f p_pos) const;
         Rect2f operator -(const Vec2f p_pos) const;
+        Rect2f operator +(const Rect2f p_pos) const;
+        Rect2f operator -(const Rect2f p_pos) const;
+        
+        Rect2f operator *(const Vec2f p_v) const;
+        Rect2f operator /(const Vec2f p_v) const;
         Rect2f operator *(const float p_f) const;
         Rect2f operator /(const float p_f) const;
+        
         Rect2f operator -() const;
         
         Rect2f& operator +=(const Vec2f p_pos);
         Rect2f& operator -=(const Vec2f p_pos);
+        Rect2f& operator +=(const Rect2f p_pos);
+        Rect2f& operator -=(const Rect2f p_pos);
+        
+        Rect2f& operator *=(const Vec2f p_v);
+        Rect2f& operator /=(const Vec2f p_v);
         Rect2f& operator *=(const float p_f);
         Rect2f& operator /=(const float p_f);
+        
+        Rect2f& operator =(const Rect2f p_rect);
         Rect2f& operator =(const Vec2f p_pos);
         
         SDL_Rect toSDL();
