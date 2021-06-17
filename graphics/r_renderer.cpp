@@ -347,7 +347,7 @@ void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &g_
     glUniform1f(loc_layer_fire, (float)layer);
     
     //Matrices
-    mat4 model = matModel2D(dst.pos() - Vec2(BORDER_WIDTH, BORDER_WIDTH), dst.size());
+    mat4 model = matModel2D(dst.pos - Vec2(BORDER_WIDTH, BORDER_WIDTH), dst.size);
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering fire)");
     glUniformMatrix4fv(mvp[S_FIRE], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
@@ -577,9 +577,9 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool collidin
         1.0f, 0.0f
     };
     
-    float epsilon_x = 1.0f / (float)col.w;
+    float epsilon_x = 1.0f / (float)*col.w;
     outlines[0] += epsilon_x;
-    float epsilon_y = 1.0f / (float)col.h;
+    float epsilon_y = 1.0f / (float)*col.h;
     outlines[3] -= epsilon_y; outlines[5] -= epsilon_y;
     
     glBindVertexArray(vao[V_DEBUG]);
@@ -595,7 +595,7 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool collidin
     glUniform3f(glGetUniformLocation(shaders[S_DEBUG], "c"), color.r, color.g, color.b);
     
     //Matrices
-    mat4 model = matModel2D(col.pos() - Vec2(BORDER_WIDTH, BORDER_WIDTH), col.size());
+    mat4 model = matModel2D(col.pos - Vec2(BORDER_WIDTH, BORDER_WIDTH), col.size);
     glUniformMatrix4fv(mvp[S_DEBUG], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     glCheckError();
     
@@ -745,10 +745,10 @@ ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h, bool rgba) {
 void Graphics::Renderer::prepareTilemap(Config &c, Rect2 &dst, std::array<float, 24> &vertices) {
     //TODO: CHANGE FOR MAT MULT
     for (int i = 0; i < 6; i++) {
-        vertices[4*i + 0] = (i % 2 == 1) ? dst.w : 0.0;
-        vertices[4*i + 0] += dst.x;
-        vertices[4*i + 1] = (i < 2 or i == 3) ? dst.h : 0.0;
-        vertices[4*i + 1] += dst.y;
+        vertices[4*i + 0] = (i % 2 == 1) ? *dst.w : 0.0;
+        vertices[4*i + 0] += *dst.x;
+        vertices[4*i + 1] = (i < 2 or i == 3) ? *dst.h : 0.0;
+        vertices[4*i + 1] += *dst.y;
     }
 }
 //-----------------------------------------
@@ -765,7 +765,7 @@ mat4 Graphics::Renderer::matModel2D(Vec2 pos, Vec2 size, float rotation) {
     return t * r * s;
 }
 mat4 Graphics::Renderer::matModel2D(Rect2 rect, float rotation) {
-    return Graphics::Renderer::matModel2D(rect.pos(), rect.size(), rotation);
+    return Graphics::Renderer::matModel2D(rect.pos, rect.size, rotation);
 }
 
 //-----------------------------------------

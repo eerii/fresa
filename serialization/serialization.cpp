@@ -234,12 +234,12 @@ void Serialization::appendYAML(str name, std::vector<str> key, std::vector<Vec2>
 }
 
 void Serialization::appendYAML(str name, str key, Rect2 rect, bool overwrite) {
-    YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
+    YAML::Node n = YAML::Load("[" + std::to_string(*rect.x) + "," + std::to_string(*rect.y) + "," + std::to_string(*rect.w) + "," + std::to_string(*rect.h) + "]");
     appendYAML(name, key, n, overwrite);
 }
 
 void Serialization::appendYAML(str name, std::vector<str> key, Rect2 rect, bool overwrite) {
-    YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
+    YAML::Node n = YAML::Load("[" + std::to_string(*rect.x) + "," + std::to_string(*rect.y) + "," + std::to_string(*rect.w) + "," + std::to_string(*rect.h) + "]");
     appendYAML(name, key, n, overwrite);
 }
 
@@ -254,12 +254,12 @@ void Serialization::appendYAML(str name, std::vector<str> key, Vec2f vec, bool o
 }
 
 void Serialization::appendYAML(str name, str key, Rect2f rect, bool overwrite) {
-    YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
+    YAML::Node n = YAML::Load("[" + std::to_string(*rect.x) + "," + std::to_string(*rect.y) + "," + std::to_string(*rect.w) + "," + std::to_string(*rect.h) + "]");
     appendYAML(name, key, n, overwrite);
 }
 
 void Serialization::appendYAML(str name, std::vector<str> key, Rect2f rect, bool overwrite) {
-    YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
+    YAML::Node n = YAML::Load("[" + std::to_string(*rect.x) + "," + std::to_string(*rect.y) + "," + std::to_string(*rect.w) + "," + std::to_string(*rect.h) + "]");
     appendYAML(name, key, n, overwrite);
 }
 

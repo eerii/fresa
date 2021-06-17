@@ -29,7 +29,7 @@ void Gui::tilemapEditor(Config &c) {
         
         Verse::Gui::draw_vec2(c.tme_curr_tmap->pos.x, c.tme_curr_tmap->pos.y, "pos", c.tme_curr_id, [&c]() {
             Component::Collider* col = c.active_scene->getComponent<Component::Collider>(c.tme_curr_id);
-            if (col->transform.pos() != c.tme_curr_tmap->pos) {
+            if (col->transform.pos != c.tme_curr_tmap->pos) {
                 col->transform = c.tme_curr_tmap->pos;
                 System::Tilemap::createVertices(c, c.tme_curr_tmap);
             }
@@ -72,8 +72,8 @@ void Gui::tilemapEditor(Config &c) {
             }
             
             Component::Collider* col = c.active_scene->getComponent<Component::Collider>(c.tme_curr_id);
-            col->transform.w = size.x * c.tme_curr_tmap->tex_size.x;
-            col->transform.h = size.y * c.tme_curr_tmap->tex_size.y;
+            col->transform.size.x = size.x * c.tme_curr_tmap->tex_size.x;
+            col->transform.size.y = size.y * c.tme_curr_tmap->tex_size.y;
             
             System::Tilemap::createVertices(c, c.tme_curr_tmap);
         });
