@@ -389,7 +389,9 @@ EntityID Serialization::loadPlayer(Scene *s, Config &c) {
     EntityID eid = s->createEntity("player");
     Serialization::loadComponentsFromYAML(eid, player, s, c);
     
+#ifdef USE_C_PLAYER
     s->addComponent<Component::Player>(eid);
+#endif
     s->addComponent<Component::State>(eid);
     
     return eid;
@@ -414,13 +416,11 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
         System::Timer::load(eid, entity, s, c);
     if (entity["patrol"])
         System::Patrol::load(eid, entity, s, c);
+    if (entity["scene_transition"])
+        System::SceneTransition::load(eid, entity, s, c);
 #ifdef USE_C_FIRE
     if (entity["fire"])
         System::Fire::load(eid, entity, s, c);
-#endif
-#ifdef USE_C_SCENE_TRANSITION
-    if (entity["scene_transition"])
-        System::SceneTransition::load(eid, entity, s, c);
 #endif
 }
 
@@ -445,9 +445,7 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     Component::Actor* actor = s->getComponent<Component::Actor>(eid);
     Component::Light* light = s->getComponent<Component::Light>(eid);
     Component::Camera* cam = s->getComponent<Component::Camera>(eid);
-    Component::Fire* fire = s->getComponent<Component::Fire>(eid);
     Component::SceneTransition* trans = s->getComponent<Component::SceneTransition>(eid);
-    Component::Player* player = s->getComponent<Component::Player>(eid);
     
     if (col != nullptr)
         System::Collider::save(col, path, key, tile != nullptr);
@@ -473,15 +471,21 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
         key[2] = "camera";
     }
     
-    if (fire != nullptr) {
-        key[2] = "fire";
-    }
-    
     if (trans != nullptr) {
         key[2] = "scene_transition";
     }
     
+#ifdef USE_C_FIRE
+    Component::Fire* fire = s->getComponent<Component::Fire>(eid);
+    if (fire != nullptr) {
+        key[2] = "fire";
+    }
+#endif
+    
+#ifdef USE_C_PLAYER
+    Component::Player* player = s->getComponent<Component::Player>(eid);
     if (player != nullptr) {
         key[2] = "player";
     }
+#endif
 }

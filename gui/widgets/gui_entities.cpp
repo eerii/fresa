@@ -156,7 +156,7 @@ void c_camera(Config &c, EntityID e) {
     //TODO: Controller, bounds
 }
 
-void c_fire(Config &c, EntityID e) {
+/*void c_fire(Config &c, EntityID e) {
     Component::Fire* fire = c.active_scene->getComponent<Component::Fire>(e);
     
     Verse::Gui::draw_vec2(*fire->transform.x, *fire->transform.y, "pos", e);
@@ -189,7 +189,7 @@ void c_fire(Config &c, EntityID e) {
     str res_label = "##res" + std::to_string(e);
     ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
     ImGui::InputText(res_label.c_str(), &fire->flame_tex_res);
-}
+}*/
 
 void c_scene_transition(Config &c, EntityID e) {
     Component::SceneTransition* trans = c.active_scene->getComponent<Component::SceneTransition>(e);
@@ -234,9 +234,13 @@ void components(Config &c, Signature mask, EntityID e) {
         c_funcs["light"] = System::Light::gui;
         c_funcs["timer"] = System::Timer::gui;
         c_funcs["patrol"] = System::Patrol::gui;
-        c_funcs["fire"] = System::Fire::gui;
         c_funcs["sceneTransition"] = System::SceneTransition::gui;
+#ifdef USE_C_FIRE
+        c_funcs["fire"] = System::Fire::gui;
+#endif
+#ifdef USE_C_PLAYER
         c_funcs["player"] = System::Player::gui;
+#endif
     }
     
     for (int i = 0; i < MAX_COMPONENTS; i++) {
