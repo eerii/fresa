@@ -15,7 +15,7 @@
 #include "system_list.h"
 #include "controller_list.h"
 
-#define PROJECT_DIR "***REMOVED***"
+#include "project_dir.h"
 
 using namespace Verse;
 
