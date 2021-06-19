@@ -14,80 +14,70 @@ namespace {
     Vec2 size;
 }
 
-void Gui::tilemapEditor(Config &c) {
-    ImGui::Begin("tilemap editor");
+void Gui::tilemapEditor(Config &c, EntityID eid) {
+    Component::Tilemap* tile = c.active_scene->getComponent<Component::Tilemap>(eid);
+    if (tile == nullptr)
+        return;
     
-    static ImGuiTableFlags flags = ImGuiTableFlags_PadOuterX | ImGuiTableFlags_RowBg;
+    Verse::Gui::draw_vec2(tile->pos.x, tile->pos.y, "pos", eid, [&c, &tile, eid]() {
+        Component::Collider* col = c.active_scene->getComponent<Component::Collider>(eid);
+        if (col->transform.pos != tile->pos) {
+            col->transform = tile->pos;
+            System::Tilemap::createVertices(c, tile);
+        }
+    });
+    ImGui::TableNextRow();
     
-    if (ImGui::BeginTable("tmap editor", 2, flags))
-    {
-        ImGui::TableSetupColumn("prop", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthStretch);
-        
-        ImGui::TableNextRow();
-        
-        
-        Verse::Gui::draw_vec2(c.tme_curr_tmap->pos.x, c.tme_curr_tmap->pos.y, "pos", c.tme_curr_id, [&c]() {
-            Component::Collider* col = c.active_scene->getComponent<Component::Collider>(c.tme_curr_id);
-            if (col->transform.pos != c.tme_curr_tmap->pos) {
-                col->transform = c.tme_curr_tmap->pos;
-                System::Tilemap::createVertices(c, c.tme_curr_tmap);
-            }
-        });
-        ImGui::TableNextRow();
-        
-        
-        Verse::Gui::draw_vec2(size.x, size.y, "size", c.tme_curr_id, [&c]() {
-            Vec2 prev_size = Vec2((int)c.tme_curr_tmap->tiles[0].size(), (int)c.tme_curr_tmap->tiles.size() - 1);
-            
-            //Delete X
-            while (size.x < prev_size.x) {
-                if (prev_size.x <= 1)
-                    break;
-                
-                for (int i = 0; i < c.tme_curr_tmap->tiles.size() - 1; i++) {
-                    c.tme_curr_tmap->tiles[i].pop_back();
-                }
-                prev_size.x--;
-            }
-            //Add X
-            while (size.x > prev_size.x) {
-                for (int i = 0; i < c.tme_curr_tmap->tiles.size() - 1; i++) {
-                    c.tme_curr_tmap->tiles[i].push_back(255);
-                }
-                prev_size.x++;
-            }
-            //Delete Y
-            while (size.y < prev_size.y + 1) {
-                if (prev_size.y <= 1)
-                    break;
-                
-                c.tme_curr_tmap->tiles.pop_back();
-                prev_size.y--;
-            }
-            //Add Y
-            while (size.y > prev_size.y) {
-                c.tme_curr_tmap->tiles.push_back(std::vector<ui8>(c.tme_curr_tmap->tiles[0].size(), 255));
-                prev_size.y++;
-            }
-            
-            Component::Collider* col = c.active_scene->getComponent<Component::Collider>(c.tme_curr_id);
-            col->transform.size.x = size.x * c.tme_curr_tmap->tex_size.x;
-            col->transform.size.y = size.y * c.tme_curr_tmap->tex_size.y;
-            
-            System::Tilemap::createVertices(c, c.tme_curr_tmap);
-        });
-        size = Vec2((int)c.tme_curr_tmap->tiles[0].size(), (int)c.tme_curr_tmap->tiles.size() - 1);
-        ImGui::TableNextRow();
-        
-        
-        Verse::Gui::draw_vec2(c.tme_curr_tmap->tex_size.x, c.tme_curr_tmap->tex_size.y, "tex size", c.tme_curr_id, [&c]() {
-            System::Tilemap::createVertices(c, c.tme_curr_tmap);
-        });
-        ImGui::TableNextRow();
-        
-        ImGui::EndTable();
-    }
     
-    ImGui::End();
+    Verse::Gui::draw_vec2(size.x, size.y, "size", eid, [&c, &tile, eid]() {
+        Vec2 prev_size = Vec2((int)tile->tiles[0].size(), (int)tile->tiles.size() - 1);
+        
+        //Delete X
+        while (size.x < prev_size.x) {
+            if (prev_size.x <= 1)
+                break;
+            
+            for (int i = 0; i < tile->tiles.size() - 1; i++) {
+                tile->tiles[i].pop_back();
+            }
+            prev_size.x--;
+        }
+        //Add X
+        while (size.x > prev_size.x) {
+            for (int i = 0; i < tile->tiles.size() - 1; i++) {
+                tile->tiles[i].push_back(255);
+            }
+            prev_size.x++;
+        }
+        //Delete Y
+        while (size.y < prev_size.y + 1) {
+            if (prev_size.y <= 1)
+                break;
+            
+            tile->tiles.pop_back();
+            prev_size.y--;
+        }
+        //Add Y
+        while (size.y > prev_size.y) {
+            tile->tiles.push_back(std::vector<ui8>(tile->tiles[0].size(), 255));
+            prev_size.y++;
+        }
+        
+        Component::Collider* col = c.active_scene->getComponent<Component::Collider>(eid);
+        col->transform.size.x = size.x * tile->tex_size.x;
+        col->transform.size.y = size.y * tile->tex_size.y;
+        
+        System::Tilemap::createVertices(c, tile);
+    });
+    size = Vec2((int)tile->tiles[0].size(), (int)tile->tiles.size() - 1);
+    ImGui::TableNextRow();
+    
+    
+    Verse::Gui::draw_vec2(tile->tex_size.x, tile->tex_size.y, "tex size", eid, [&c, &tile]() {
+        System::Tilemap::createVertices(c, tile);
+    });
+    ImGui::TableNextRow();
+    
+    Verse::Gui::draw_int(tile->layer, "layer", eid);
+    ImGui::TableNextRow();
 }

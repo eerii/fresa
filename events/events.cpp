@@ -21,7 +21,7 @@ bool Events::handleEvents(Config &c) {
             case SDL_KEYDOWN:
                 if (event.key.repeat == 0) {
                     Input::onKeyDown((Input::Key)event.key.keysym.scancode);
-#ifdef DISABLE_GUI
+#ifndef DISABLE_GUI
                     Gui::addInputKey(event.key.keysym.sym);
 #endif
                 }

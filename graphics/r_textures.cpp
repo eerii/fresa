@@ -35,6 +35,8 @@ void Graphics::Texture::loadTexture(str path, Component::Texture* tex) {
 }
 
 void Graphics::Texture::loadTexture(std::vector<str> path, Component::Tilemap* tex) {
+    tex->tex_id = {};
+    
     int w, h, ch;
     for (str p : path) {
         if (not checkPath(p)) {

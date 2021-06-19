@@ -7,9 +7,12 @@
 #include "gui.h"
 #include <functional>
 
+#ifndef DISABLE_GUI
+
 namespace Verse::Gui
 {
 
+[[maybe_unused]]
 static void draw_vec2(int &x, int &y, str label, EntityID eid = 0,
                       std::function<void()> callback = []() {return;}, float reset = 0.0f) {
     ImGuiStyle& style = ImGui::GetStyle();
@@ -149,3 +152,5 @@ static void draw_bool(bool &b, str label, EntityID eid = 0, std::function<void()
 }
 
 }
+
+#endif

@@ -8,5 +8,5 @@
 
 namespace Verse::Gui
 {
-    void tilemapEditor(Config &c);
+    void tilemapEditor(Config &c, EntityID eid);
 }
