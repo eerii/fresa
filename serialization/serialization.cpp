@@ -187,6 +187,22 @@ void Serialization::appendYAML(str name, std::vector<str> key, std::vector<int> 
     appendYAML(name, key, n, overwrite);
 }
 
+void Serialization::appendYAML(str name, str key, std::vector<ui16> vec, bool overwrite) {
+    str y = "";
+    for (ui16 v : vec)
+        y += "  - " + std::to_string(v) + "\n";
+    YAML::Node n = YAML::Load(y);
+    appendYAML(name, key, n, overwrite);
+}
+
+void Serialization::appendYAML(str name, std::vector<str> key, std::vector<ui16> vec, bool overwrite) {
+    str y = "";
+    for (ui16 v : vec)
+        y += "  - " + std::to_string(v) + "\n";
+    YAML::Node n = YAML::Load(y);
+    appendYAML(name, key, n, overwrite);
+}
+
 void Serialization::appendYAML(str name, str key, float num, bool overwrite) {
     YAML::Node n = YAML::Load(std::to_string(num));
     appendYAML(name, key, n, overwrite);
@@ -433,70 +449,17 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     Component::SceneTransition* trans = s->getComponent<Component::SceneTransition>(eid);
     Component::Player* player = s->getComponent<Component::Player>(eid);
     
-    if (col != nullptr) {
-        key[2] = "collider";
-        
-        if (tile == nullptr) {
-            key[3] = "transform";
-            appendYAML(path, key, col->transform, true);
-            
-            key[3] = "layer";
-            appendYAML(path, key, (str)System::Collider::layers_name[col->layer], true);
-        } else {
-            std::vector<str> tile_key = {key[0], key[1], key[2]};
-            appendYAML(path, tile_key, "tile");
-        }
-    }
+    if (col != nullptr)
+        System::Collider::save(col, path, key, tile != nullptr);
     
-    if (tex != nullptr) {
-        key[2] = "texture";
-        
-        key[3] = "res";
-        appendYAML(path, key, (str)tex->res, true);
-        
-        key[3] = "transform";
-        appendYAML(path, key, tex->transform, true);
-        
-        key[3] = "layer";
-        if (tex->layer.size() == 1)
-            appendYAML(path, key, tex->layer[0], true);
-        else
-            appendYAML(path, key, tex->layer, true);
-        
-        key[3] = "offset";
-        if (tex->offset.size() == 1) {
-            if (tex->offset[0] != Vec2(0,0))
-                appendYAML(path, key, tex->offset[0], true);
-        } else {
-            appendYAML(path, key, tex->offset, true);
-        }
-    }
+    if (tex != nullptr)
+        System::Texture::save(tex, path, key);
     
-    if (anim != nullptr) {
-        //TODO: Animation
-    }
+    if (anim != nullptr)
+        System::Animation::save(anim, path, key);
     
-    if (tile != nullptr) {
-        key[2] = "tilemap";
-        
-        key[3] = "res";
-        if (tile->res.size() == 1)
-            appendYAML(path, key, (str)tile->res[0], true);
-        else
-            appendYAML(path, key, tile->res, true);
-        
-        key[3] = "tiles";
-        appendYAML(path, key, (str)tile->tile_res, true);
-        
-        key[3] = "pos";
-        appendYAML(path, key, tile->pos, true);
-        
-        key[3] = "tex_size";
-        appendYAML(path, key, tile->tex_size, true);
-        
-        key[3] = "layer";
-        appendYAML(path, key, tile->layer, true);
-    }
+    if (tile != nullptr)
+        System::Tilemap::save(tile, path, key);
     
     if (actor != nullptr) {
         key[2] = "actor";

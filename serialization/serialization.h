@@ -25,6 +25,8 @@ namespace Verse::Serialization
     void appendYAML(str name, std::vector<str> key, int num, bool overwrite=false);
     void appendYAML(str name, str key, std::vector<int> vec, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, std::vector<int> vec, bool overwrite=false);
+    void appendYAML(str name, str key, std::vector<ui16> vec, bool overwrite=false);
+    void appendYAML(str name, std::vector<str> key, std::vector<ui16> vec, bool overwrite=false);
     void appendYAML(str name, str key, float num, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, float num, bool overwrite=false);
     void appendYAML(str name, str key, bool b, bool overwrite=false);

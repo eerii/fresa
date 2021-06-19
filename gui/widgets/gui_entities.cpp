@@ -9,7 +9,7 @@
 
 #include "log.h"
 #include "scene_list.h"
-#include "s_collider.h"
+#include "system_list.h"
 #include "serialization.h"
 
 using namespace Verse;
@@ -17,9 +17,6 @@ using namespace Verse;
 namespace {
     ui32 n = 0;
     std::map<str, std::function<void(Config&, EntityID)>> c_funcs;
-
-    Component::Camera* prev_cam;
-    Component::Camera* tile_cam;
 
     int scene_index = -1;
 }
@@ -92,102 +89,6 @@ void Gui::entities(Config &c) {
     }
     
     ImGui::End();
-}
-
-void c_collider(Config &c, EntityID e) {
-    Component::Collider* col = c.active_scene->getComponent<Component::Collider>(e);
-    
-    Verse::Gui::draw_vec2(*col->transform.x, *col->transform.y, "pos", e);
-    ImGui::TableNextRow();
-    Verse::Gui::draw_vec2(*col->transform.w, *col->transform.h, "size", e);
-    ImGui::TableNextRow();
-    
-    ImGui::TableSetColumnIndex(0);
-    ImGui::Text("layer");
-    
-    ImGui::TableSetColumnIndex(1);
-    str layer_label = "##collayer" + std::to_string(e);
-    ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
-    ImGui::Combo(layer_label.c_str(), col->layer, System::Collider::layers_name);
-}
-
-void c_texture(Config &c, EntityID e) {
-    Component::Texture* tex = c.active_scene->getComponent<Component::Texture>(e);
-    
-    ImGui::TableSetColumnIndex(0);
-    ImGui::Text("res");
-    
-    ImGui::TableSetColumnIndex(1);
-    float line_height = ImGui::GetStyle().FramePadding.y * 2.0f + ImGui::CalcTextSize("X").y;
-    ImVec2 button_size = { line_height + 3.0f, line_height };
-    if (ImGui::Button("L", button_size))
-        Graphics::Texture::loadTexture(tex->res, tex);
-    
-    ImGui::SameLine();
-    str res_label = "##res" + std::to_string(e);
-    ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
-    ImGui::InputText(res_label.c_str(), &tex->res);
-    
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_vec2(*tex->transform.x, *tex->transform.y, "pos", e);
-    ImGui::TableNextRow();
-    Verse::Gui::draw_vec2(*tex->transform.w, *tex->transform.h, "size", e);
-    ImGui::TableNextRow();
-    
-    ImGui::TableSetColumnIndex(0);
-    ImGui::AlignTextToFramePadding();
-    if (ImGui::TreeNode("layers")) {
-        ImGui::TableNextRow();
-        
-        for (int i = 0; i < tex->offset.size(); i++) {
-            str label = "offset " + std::to_string(i);
-            Verse::Gui::draw_vec2(tex->offset[i].x, tex->offset[i].y, label, e);
-            ImGui::TableNextRow();
-            
-            Verse::Gui::draw_int(tex->layer[i], "layer " + std::to_string(i), e);
-            ImGui::TableNextRow();
-        }
-        
-        ImGui::TreePop();
-    }
-}
-
-void c_animation(Config &c, EntityID e) {
-    //Component::Animation* anim = c.active_scene->getComponent<Component::Animation>(e);
-}
-
-void c_tilemap(Config &c, EntityID e) {
-    Component::Tilemap* tile = c.active_scene->getComponent<Component::Tilemap>(e);
-    
-    if (tile_cam == nullptr) {
-        for (EntityID e : SceneView<Component::Camera>(*c.active_scene)) {
-            if (c.active_scene->getName(e) != "free_camera")
-                continue;
-            tile_cam = c.active_scene->getComponent<Component::Camera>(e);
-        }
-    }
-    
-    ImGui::TableSetColumnIndex(0);
-    if (c.tme_active and c.tme_curr_tmap == tile) {
-        if (ImGui::SmallButton("save")) {
-            c.tme_active = false;
-            c.use_light = true;
-            c.tme_curr_tmap = nullptr;
-            c.tme_curr_id = 0;
-            c.active_camera = prev_cam;
-        }
-    } else {
-        if (ImGui::SmallButton("edit")) {
-            c.tme_active = true;
-            c.use_light = false;
-            c.tme_curr_tmap = tile;
-            c.tme_curr_id = e;
-            prev_cam = c.active_camera;
-            tile_cam->pos = prev_cam->pos;
-            c.active_camera = tile_cam;
-        }
-    }
 }
 
 void c_actor(Config &c, EntityID e) {
@@ -323,16 +224,19 @@ void c_player(Config &c, EntityID e) {
 
 void components(Config &c, Signature mask, EntityID e) {
     if (c_funcs.size() == 0) {
-        c_funcs["collider"] = c_collider;
-        c_funcs["texture"] = c_texture;
-        c_funcs["animation"] = c_animation;
-        c_funcs["tilemap"] = c_tilemap;
-        c_funcs["actor"] = c_actor;
-        c_funcs["light"] = c_light;
-        c_funcs["camera"] = c_camera;
-        c_funcs["fire"] = c_fire;
-        c_funcs["sceneTransition"] = c_scene_transition;
-        c_funcs["player"] = c_player;
+        c_funcs["collider"] = System::Collider::gui;
+        c_funcs["actor"] = System::Actor::gui;
+        c_funcs["state"] = System::State::gui;
+        c_funcs["texture"] = System::Texture::gui;
+        c_funcs["animation"] = System::Animation::gui;
+        c_funcs["tilemap"] = System::Tilemap::gui;
+        c_funcs["camera"] = System::Camera::gui;
+        c_funcs["light"] = System::Light::gui;
+        c_funcs["timer"] = System::Timer::gui;
+        c_funcs["patrol"] = System::Patrol::gui;
+        c_funcs["fire"] = System::Fire::gui;
+        c_funcs["sceneTransition"] = System::SceneTransition::gui;
+        c_funcs["player"] = System::Player::gui;
     }
     
     for (int i = 0; i < MAX_COMPONENTS; i++) {

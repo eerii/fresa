@@ -105,9 +105,6 @@ void Gui::prerender(Config &c, SDL_Window* window) {
     
     if (ActiveWindows::entities)
         Gui::entities(c);
-    
-    if (c.tme_active)
-        Gui::tilemapEditor(c);
 }
 
 void Gui::render() {
@@ -141,6 +138,11 @@ void Gui::addInputKey(SDL_Keycode k) {
             key_name[0] = std::tolower(key_name[0]);
         
         ImGui::GetIO().AddInputCharacter(key_name[0]);
+    }
+    
+    if (key_name.size() == 2 and key_name[0] == 'D') {
+        if (not Input::shift())
+            ImGui::GetIO().AddInputCharacter(key_name[1]);
     }
 }
 
