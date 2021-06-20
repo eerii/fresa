@@ -19,6 +19,7 @@ namespace Verse::Graphics::Renderer
     void renderTexture(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer);
     void renderTilemap(Config &c, ui32 &tex_id, float* vertices, int size , int layer);
     void renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &g_tex, ui32 &f_tex, int layer);
+    void renderText(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer);
     void render3D(Config &c, float* vertices, int size);
 
     void render(Config &c);
@@ -37,6 +38,7 @@ namespace Verse::Graphics::Renderer
     void createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2 res);
     void createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2 res);
     ui32 createTexture(ui8* tex, int w, int h, bool rgba = true);
+    void createTexture(ui8* tex, ui32 &tex_id, int w, int h, bool rgba = true);
     void prepareTilemap(Config &c, Rect2 &dst, std::array<float, 24> &vertices);
 
     glm::mat4 matModel2D(Vec2 pos, Vec2 size, float rotation = 0.0f);

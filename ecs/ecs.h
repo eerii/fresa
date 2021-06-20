@@ -21,7 +21,7 @@ namespace Verse
     const EntityID MAX_ENTITIES = 4096;
 
     typedef ui8 ComponentID;
-    const ComponentID MAX_COMPONENTS = 16;
+    const ComponentID MAX_COMPONENTS = 32;
 
     typedef std::bitset<MAX_COMPONENTS> Signature;
 }
