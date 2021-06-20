@@ -404,6 +404,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
         System::Animation::load(eid, entity, s, c);
     if (entity["tilemap"])
         System::Tilemap::load(eid, entity, s, c);
+    if (entity["text"])
+        System::Text::load(eid, entity, s, c);
     if (entity["actor"])
         System::Actor::load(eid, entity, s, c);
     if (entity["collider"])

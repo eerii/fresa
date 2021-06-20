@@ -81,6 +81,7 @@ namespace {
     ui32 palette_tex;
     Vec2 previous_window_size;
     ui8 loc_layer, loc_layer_fire, loc_layer_text;
+    ui8 loc_color_text, loc_same_color_text;
 }
 
 
@@ -265,6 +266,8 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     loc_layer = glGetUniformLocation(shaders[S_RENDER2D], "layer");
     loc_layer_text = glGetUniformLocation(shaders[S_TEXT], "layer");
     loc_layer_fire = glGetUniformLocation(shaders[S_FIRE], "layer");
+    loc_color_text = glGetUniformLocation(shaders[S_TEXT], "text_color");
+    loc_same_color_text = glGetUniformLocation(shaders[S_TEXT], "same_color");
     glCheckError();
     
     //BLEND ALPHA
@@ -410,7 +413,8 @@ void Graphics::Renderer::render3D(Config &c, float *vertices, int size) {
     glCheckError();
 }
 
-void Graphics::Renderer::renderText(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer) {
+void Graphics::Renderer::renderText(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer,
+                                    float r, float g, float b, bool same_color) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_TEXT]);
@@ -424,6 +428,10 @@ void Graphics::Renderer::renderText(Config &c, ui32 &tex_id, glm::mat4 model, fl
     
     //Layer
     glUniform1f(loc_layer_text, (float)layer);
+    
+    //Color
+    glUniform3f(loc_color_text, r, g, b);
+    glUniform1i(loc_same_color_text, same_color);
     
     //Matrices
     if (c.active_camera == nullptr)
