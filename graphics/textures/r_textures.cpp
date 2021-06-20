@@ -65,9 +65,9 @@ void Graphics::Texture::createPerlinNoise(Vec2 size, Vec2 offset, float freq, in
     Math::perlinNoise(size, offset, freq, levels, noise_data);
     
 #ifndef __EMSCRIPTEN__
-    tex_id = (ui32)Graphics::Renderer::createTexture(noise_data, size.x, size.y, false);
+    Graphics::Renderer::createTexture(noise_data, tex_id, size.x, size.y, false);
 #else
-    tex_id = (ui32)Graphics::Renderer::createTexture(noise_data, size.x, size.y, true);
+    Graphics::Renderer::createTexture(noise_data, tex_id, size.x, size.y, true);
 #endif
 }
 
@@ -79,5 +79,5 @@ void Graphics::Texture::createGradient(int size, ui32 &tex_id) {
         gradient[i] = (ui8)(step * i);
     }
     
-    tex_id = (ui32)Graphics::Renderer::createTexture(gradient, size, 1, false);
+    Graphics::Renderer::createTexture(gradient, tex_id, size, 1, false);
 }

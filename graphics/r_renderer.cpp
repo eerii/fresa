@@ -34,6 +34,7 @@ namespace {
         S_EMPTY = 0,
         S_RENDER2D,
         S_RENDER3D,
+        S_TEXT,
         S_POST,
         S_CAM,
         S_WINDOW,
@@ -55,6 +56,7 @@ namespace {
         V_TILE,
         V_FIRE,
         V_3D,
+        V_TEXT,
         V_POST,
         V_DRAW,
         V_TEST,
@@ -78,7 +80,7 @@ namespace {
     //MISC
     ui32 palette_tex;
     Vec2 previous_window_size;
-    ui8 loc_layer, loc_layer_fire;
+    ui8 loc_layer, loc_layer_fire, loc_layer_text;
 }
 
 
@@ -137,6 +139,9 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     
     shaders[S_POST] = Graphics::Shader::compileProgram("res/shaders/post.vertex", "res/shaders/post.frag");
     log::graphics("Program (Post) ID: %d", shaders[S_POST]);
+    
+    shaders[S_TEXT] = Graphics::Shader::compileProgram("res/shaders/text.vertex", "res/shaders/text.frag");
+    log::graphics("Program (Text) ID: %d", shaders[S_TEXT]);
     
     shaders[S_CAM] = Graphics::Shader::compileProgram("res/shaders/cam.vertex", "res/shaders/cam.frag");
     log::graphics("Program (Cam) ID: %d", shaders[S_CAM]);
@@ -210,6 +215,12 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     
+    //Phase 1d: Render text
+    glBindVertexArray(vao[V_TEXT]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEXT]);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
     //Phase 2: Post
     glBindVertexArray(vao[V_POST]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_POST]);
@@ -237,6 +248,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     mvp[S_RENDER2D] = glGetUniformLocation(shaders[S_RENDER2D], "mvp");
     mvp[S_RENDER3D] = glGetUniformLocation(shaders[S_RENDER3D], "mvp");
     mvp[S_FIRE] = glGetUniformLocation(shaders[S_FIRE], "mvp");
+    mvp[S_TEXT] = glGetUniformLocation(shaders[S_TEXT], "mvp");
     mvp[S_POST] = glGetUniformLocation(shaders[S_POST], "mvp");
     mvp[S_CAM] = glGetUniformLocation(shaders[S_CAM], "mvp");
     mvp[S_WINDOW] = glGetUniformLocation(shaders[S_WINDOW], "mvp");
@@ -251,6 +263,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
 
     //LAYER LOCATION
     loc_layer = glGetUniformLocation(shaders[S_RENDER2D], "layer");
+    loc_layer_text = glGetUniformLocation(shaders[S_TEXT], "layer");
     loc_layer_fire = glGetUniformLocation(shaders[S_FIRE], "layer");
     glCheckError();
     
@@ -391,6 +404,36 @@ void Graphics::Renderer::render3D(Config &c, float *vertices, int size) {
     
     //Draw
     glDrawArrays(GL_TRIANGLES, 0, 3 * size);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindVertexArray(0);
+    glCheckError();
+}
+
+void Graphics::Renderer::renderText(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer) {
+    //Render Target: fb_render
+    glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
+    glUseProgram(shaders[S_TEXT]);
+    glCheckError();
+    
+    //Vertices
+    glBindVertexArray(vao[V_TEXT]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEXT]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 16, vertices, GL_STATIC_DRAW);
+    glCheckError();
+    
+    //Layer
+    glUniform1f(loc_layer_text, (float)layer);
+    
+    //Matrices
+    if (c.active_camera == nullptr)
+        log::error("No active camera! (Rendering texture)");
+    glUniformMatrix4fv(mvp[S_TEXT], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glCheckError();
+    
+    //Draw
+    glBindTexture(GL_TEXTURE_2D, tex_id);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
@@ -740,6 +783,16 @@ ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h, bool rgba) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                   
     return tex_id;
+}
+
+void Graphics::Renderer::createTexture(ui8* tex, ui32 &tex_id, int w, int h, bool rgba) {
+    glBindTexture(GL_TEXTURE_2D, tex_id);
+    
+    (rgba) ? glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex) :
+             glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, tex);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 }
 
 void Graphics::Renderer::prepareTilemap(Config &c, Rect2 &dst, std::array<float, 24> &vertices) {
