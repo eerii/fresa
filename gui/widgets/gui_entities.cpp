@@ -129,15 +129,6 @@ void c_actor(Config &c, EntityID e) {
     }
 }
 
-void c_light(Config &c, EntityID e) {
-    Component::Light* light = c.active_scene->getComponent<Component::Light>(e);
-    
-    Verse::Gui::draw_vec2(light->pos.x, light->pos.y, "pos", e);
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_float(light->radius, "radius", e);
-}
-
 void c_camera(Config &c, EntityID e) {
     Component::Camera* cam = c.active_scene->getComponent<Component::Camera>(e);
     
@@ -155,41 +146,6 @@ void c_camera(Config &c, EntityID e) {
     
     //TODO: Controller, bounds
 }
-
-/*void c_fire(Config &c, EntityID e) {
-    Component::Fire* fire = c.active_scene->getComponent<Component::Fire>(e);
-    
-    Verse::Gui::draw_vec2(*fire->transform.x, *fire->transform.y, "pos", e);
-    ImGui::TableNextRow();
-    Verse::Gui::draw_vec2(*fire->transform.w, *fire->transform.h, "size", e); //TODO: Change fire data size
-    ImGui::TableNextRow();
-    Verse::Gui::draw_vec2(fire->offset.x, fire->offset.y, "offset", e);
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_float(fire->freq, "freq", e);
-    ImGui::TableNextRow();
-    Verse::Gui::draw_vec2(fire->dir.x, fire->dir.y, "dir", e);
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_int(fire->layer, "layer", e);
-    ImGui::TableNextRow();
-    Verse::Gui::draw_ui8(fire->fps, "fps", e);
-    ImGui::TableNextRow();
-    
-    ImGui::TableSetColumnIndex(0);
-    ImGui::Text("texture");
-    
-    ImGui::TableSetColumnIndex(1);
-    float line_height = ImGui::GetStyle().FramePadding.y * 2.0f + ImGui::CalcTextSize("X").y;
-    ImVec2 button_size = { line_height + 3.0f, line_height };
-    if (ImGui::Button("L", button_size))
-        Graphics::Texture::loadTexture(fire->flame_tex_res, fire->flame_tex);
-    
-    ImGui::SameLine();
-    str res_label = "##res" + std::to_string(e);
-    ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
-    ImGui::InputText(res_label.c_str(), &fire->flame_tex_res);
-}*/
 
 void c_scene_transition(Config &c, EntityID e) {
     Component::SceneTransition* trans = c.active_scene->getComponent<Component::SceneTransition>(e);
