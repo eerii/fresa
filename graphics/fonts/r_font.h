@@ -10,5 +10,5 @@
 namespace Verse::Graphics::Font
 {
     void load(FontInfo* font, str path);
-    void render(Component::Text* text, str word, Vec2 size, int line_height);
+    void render(Component::Text* text, Vec2 size, int line_height);
 }

@@ -34,7 +34,7 @@ void Graphics::Font::load(FontInfo* font, str path) {
     stbtt_InitFont(&font->info, font->data.data(), stbtt_GetFontOffsetForIndex(font->data.data(), 0));
 }
 
-void Graphics::Font::render(Component::Text* text, str word, Vec2 size, int line_height) {
+void Graphics::Font::render(Component::Text* text, Vec2 size, int line_height) {
     float scale = stbtt_ScaleForPixelHeight(&text->font->info, line_height);
     
     int ascent, descent, line_gap;
@@ -47,23 +47,23 @@ void Graphics::Font::render(Component::Text* text, str word, Vec2 size, int line
     
     int x = 0;
     
-    for (int i = 0; i < word.size(); i++) {
+    for (int i = 0; i < text->text.size(); i++) {
         int advance_width; int left_side_bearing;
-        stbtt_GetCodepointHMetrics(&text->font->info, word[i], &advance_width, &left_side_bearing);
+        stbtt_GetCodepointHMetrics(&text->font->info, text->text[i], &advance_width, &left_side_bearing);
         
         int c_x1, c_y1, c_x2, c_y2;
-        stbtt_GetCodepointBitmapBox(&text->font->info, word[i], scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
+        stbtt_GetCodepointBitmapBox(&text->font->info, text->text[i], scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
         
         int y = ascent + c_y1;
         
         int byte_offset = x + roundf(left_side_bearing * scale) + (y * size.x);
         stbtt_MakeCodepointBitmap(&text->font->info, text->bitmap.data() + byte_offset,
-                                  c_x2 - c_x1, c_y2 - c_y1, size.x, scale, scale, word[i]);
+                                  c_x2 - c_x1, c_y2 - c_y1, size.x, scale, scale, text->text[i]);
         
         x += roundf(advance_width * scale);
         
         int kern;
-        kern = stbtt_GetCodepointKernAdvance(&text->font->info, word[i], word[i + 1]);
+        kern = stbtt_GetCodepointKernAdvance(&text->font->info, text->text[i], text->text[i + 1]);
         x += roundf(kern * scale);
     }
     
