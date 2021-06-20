@@ -8,7 +8,6 @@
 #include "r_window.h"
 
 #include "log.h"
-#include "scene_list.h"
 #include "system_list.h"
 #include "serialization.h"
 
@@ -17,8 +16,6 @@ using namespace Verse;
 namespace {
     ui32 n = 0;
     std::map<str, std::function<void(Config&, EntityID)>> c_funcs;
-
-    int scene_index = -1;
 }
 
 void components(Config &c, Signature mask, EntityID e);
@@ -89,93 +86,6 @@ void Gui::entities(Config &c) {
     }
     
     ImGui::End();
-}
-
-void c_actor(Config &c, EntityID e) {
-    Component::Actor* actor = c.active_scene->getComponent<Component::Actor>(e);
-    
-    Verse::Gui::draw_vec2(actor->vel.x, actor->vel.y, "vel", e);
-    ImGui::TableNextRow();
-    Verse::Gui::draw_vec2(actor->remainder.x, actor->remainder.y, "remainder", e);
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_int(actor->max_move_speed, "max move speed", e);
-    ImGui::TableNextRow();
-    Verse::Gui::draw_int(actor->max_fall_speed, "max fall speed", e);
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_int(actor->acc_ground, "acc (ground)", e);
-    ImGui::TableNextRow();
-    Verse::Gui::draw_int(actor->friction_ground, "friction (ground)", e);
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_bool(actor->has_gravity, "gravity", e);
-    ImGui::TableNextRow();
-    
-    //TODO: Controller
-    
-    ImGui::TableSetColumnIndex(0);
-    ImGui::Text("collision mask");
-    ImGui::TableSetColumnIndex(1);
-    int i = 0;
-    for (str layer : System::Collider::layers_name) {
-        str layer_label = layer + "##" + std::to_string(e);
-        bool layer_active = actor->collision_mask[i];
-        
-        ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
-        if (ImGui::Selectable(layer_label.c_str(), layer_active))
-            (actor->collision_mask[i]) ? actor->collision_mask.reset(i) : actor->collision_mask.set(i);
-        i++;
-    }
-}
-
-void c_camera(Config &c, EntityID e) {
-    Component::Camera* cam = c.active_scene->getComponent<Component::Camera>(e);
-    
-    Verse::Gui::draw_vec2(cam->target_pos.x, cam->target_pos.y, "target pos", e);
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_vec2(cam->pos.x, cam->pos.y, "pos", e);
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_vec2(cam->vel.x, cam->vel.y, "vel", e);
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_vec2(cam->remainder.x, cam->remainder.y, "remainder", e);
-    ImGui::TableNextRow();
-    
-    //TODO: Controller, bounds
-}
-
-void c_scene_transition(Config &c, EntityID e) {
-    Component::SceneTransition* trans = c.active_scene->getComponent<Component::SceneTransition>(e);
-    
-    if (scene_index == -1) {
-        auto it = std::find(scenes.begin(), scenes.end(), trans->scene_name);
-        if (it != scenes.end())
-            scene_index = 0;
-        else
-            scene_index = (int)std::distance(scenes.begin(), it);
-    }
-    
-    ImGui::TableSetColumnIndex(0);
-    ImGui::Text("new scene");
-    
-    ImGui::TableSetColumnIndex(1);
-    str layer_label = "##scenetrans" + std::to_string(e);
-    ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
-    if (ImGui::Combo(layer_label.c_str(), &scene_index, scenes) and trans->scene_name != scenes[scene_index]) {
-        trans->scene_name = scenes[scene_index];
-        trans->to_scene = new Scene();
-        Serialization::loadScene(trans->scene_name, trans->to_scene, c);
-    }
-    ImGui::TableNextRow();
-    
-    Verse::Gui::draw_vec2(trans->to_pos.x, trans->to_pos.y, "new scene pos", e);
-}
-
-void c_player(Config &c, EntityID e) {
-    //Component::Player* player = c.active_scene->getComponent<Component::Player>(e);
 }
 
 void components(Config &c, Signature mask, EntityID e) {
