@@ -62,7 +62,7 @@ void Graphics::Texture::loadTexture(str path, ui32 &tex_id) {
 }
 
 void Graphics::Texture::createPerlinNoise(Vec2 size, Vec2 offset, float freq, int levels, ui8* noise_data, ui32 &tex_id) {
-    Math::perlinNoise(size, offset, freq, 4, noise_data);
+    Math::perlinNoise(size, offset, freq, levels, noise_data);
     
 #ifndef __EMSCRIPTEN__
     tex_id = (ui32)Graphics::Renderer::createTexture(noise_data, size.x, size.y, false);
