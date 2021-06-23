@@ -37,3 +37,10 @@ void Math::perlinNoise(Vec2 size, Vec2 offset, float freq, int levels, ui8 *nois
         }
     }
 }
+
+bool Math::checkAABB(Rect2 &a, Rect2 &b) {
+    return (*a.x < *b.x + *b.w) and
+           (*a.x + *a.w > *b.x) and
+           (*a.y < *b.y + *b.h) and
+           (*a.y + *a.h > *b.y);
+}
