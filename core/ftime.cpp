@@ -56,6 +56,13 @@ bool Verse::checkTimer(ui32 timer, float game_speed) {
     return done;
 }
 
+ui32 Verse::getTimerRemainder(ui32 timer) {
+    if (Time::timers.find(timer) == Time::timers.end())
+        return 0;
+    
+    return Time::timers[timer].duration - Time::timers[timer].current;
+}
+
 void Verse::stopTimer(ui32 timer) {
     Time::timers.erase(timer);
 }

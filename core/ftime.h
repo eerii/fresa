@@ -31,5 +31,6 @@ namespace Verse
     
     ui32 setTimer(ui32 ms);
     bool checkTimer(ui32 timer, float game_speed = 1.0f);
+    ui32 getTimerRemainder(ui32 timer);
     void stopTimer(ui32 timer);
 }
