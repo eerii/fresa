@@ -96,11 +96,12 @@ void components(Config &c, Signature mask, EntityID e) {
         c_funcs["texture"] = System::Texture::gui;
         c_funcs["animation"] = System::Animation::gui;
         c_funcs["tilemap"] = System::Tilemap::gui;
+        c_funcs["text"] = System::Text::gui;
         c_funcs["camera"] = System::Camera::gui;
         c_funcs["light"] = System::Light::gui;
         c_funcs["timer"] = System::Timer::gui;
         c_funcs["patrol"] = System::Patrol::gui;
-        c_funcs["sceneTransition"] = System::SceneTransition::gui;
+        c_funcs["scene_transition"] = System::SceneTransition::gui;
 #ifdef USE_C_FIRE
         c_funcs["fire"] = System::Fire::gui;
 #endif
@@ -109,17 +110,21 @@ void components(Config &c, Signature mask, EntityID e) {
 #endif
     }
     
-    for (int i = 0; i < MAX_COMPONENTS; i++) {
-        if (mask[i] == 0)
+    std::vector<str> unused_components = {" - none - "};
+    
+    for (int i = 0; i < component_names.size(); i++) {
+        str component_name = component_names[i];
+        
+        if (mask[i] == 0) {
+            unused_components.push_back(component_name);
             continue;
+        }
         
         ImGui::PushID(i);
         ImGui::TableNextRow();
         
         ImGui::TableSetColumnIndex(0);
         ImGui::AlignTextToFramePadding();
-        str component_name = Component::getName(i);
-        component_name[0] = std::tolower(component_name[0]);
         bool node_open = ImGui::TreeNode(component_name.c_str());
         
         ImGui::TableSetColumnIndex(1);
@@ -137,5 +142,24 @@ void components(Config &c, Signature mask, EntityID e) {
         }
         
         ImGui::PopID();
+    }
+    
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::Text("add component");
+    
+    ImGui::TableSetColumnIndex(1);
+    str add_label = "##addcomponent" + std::to_string(e);
+    ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
+    int curr = 0;
+    if (ImGui::Combo(add_label.c_str(), &curr, unused_components) and curr != 0) {
+        auto it = std::find(component_names.begin(), component_names.end(), unused_components[curr]);
+        if (it != component_names.end()) {
+            ComponentID cid = std::distance(component_names.begin(), it);
+            for_<std::variant_size_v<ComponentType>>([&](auto i) {
+                if (i.value == cid)
+                    c.active_scene->addComponent<std::variant_alternative_t<i.value, ComponentType>>(e);
+            });
+        }
     }
 }

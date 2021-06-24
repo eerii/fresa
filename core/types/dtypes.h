@@ -207,4 +207,18 @@ namespace Verse
     int sign(T val) {
         return (T(0) < val) - (val < T(0));
     }
+
+    //CONSTEXPR FOR
+    template<std::size_t N>
+    struct num { static const constexpr auto value = N; };
+
+    template <class F, std::size_t... Is>
+    void for_(F func, std::index_sequence<Is...>) {
+        (func(num<Is>{}), ...);
+    }
+
+    template <std::size_t N, typename F>
+    void for_(F func) {
+        for_(func, std::make_index_sequence<N>());
+    }
 }

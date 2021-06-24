@@ -9,9 +9,6 @@
 #include <bitset>
 
 #include "component_list.h"
-#ifndef COMPONENTS
-#define COMPONENTS log::error("No components defined, quitting..."); SDL_Quit();
-#endif
 
 #define INVALID_ENTITY Entity::createID(EntityIndex(-1), 0)
 
@@ -44,8 +41,6 @@ namespace Verse::Component
 
     template <class T>
     ComponentID getID();
-
-    str getName(ComponentID cid);
 
     void registerComponents();
 }

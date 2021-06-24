@@ -53,6 +53,8 @@ void Graphics::init(Config &c) {
     
     //RENDERER
     Renderer::create(c, window);
+    
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 }
 
 

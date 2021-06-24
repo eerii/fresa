@@ -34,8 +34,8 @@ void Graphics::Font::load(FontInfo* font, str path) {
     stbtt_InitFont(&font->info, font->data.data(), stbtt_GetFontOffsetForIndex(font->data.data(), 0));
 }
 
-void Graphics::Font::render(Component::Text* text, Vec2 size, int line_height) {
-    float scale = stbtt_ScaleForPixelHeight(&text->font->info, line_height);
+void Graphics::Font::render(Component::Text* text) {
+    float scale = stbtt_ScaleForPixelHeight(&text->font->info, text->line_height);
     
     int ascent, descent, line_gap;
     stbtt_GetFontVMetrics(&text->font->info, &ascent, &descent, &line_gap);
@@ -43,7 +43,7 @@ void Graphics::Font::render(Component::Text* text, Vec2 size, int line_height) {
     ascent = roundf(ascent * scale);
     descent = roundf(descent * scale);
     
-    text->bitmap = std::vector<ui8>(size.x * size.y, 0);
+    std::vector<ui8> bitmap(text->bitmap_size.x * text->bitmap_size.y);
     
     int x = 0;
     
@@ -56,9 +56,9 @@ void Graphics::Font::render(Component::Text* text, Vec2 size, int line_height) {
         
         int y = ascent + c_y1;
         
-        int byte_offset = x + roundf(left_side_bearing * scale) + (y * size.x);
-        stbtt_MakeCodepointBitmap(&text->font->info, text->bitmap.data() + byte_offset,
-                                  c_x2 - c_x1, c_y2 - c_y1, size.x, scale, scale, text->text[i]);
+        int byte_offset = x + roundf(left_side_bearing * scale) + (y * text->bitmap_size.x);
+        stbtt_MakeCodepointBitmap(&text->font->info, bitmap.data() + byte_offset,
+                                  c_x2 - c_x1, c_y2 - c_y1, text->bitmap_size.x, scale, scale, text->text[i]);
         
         x += roundf(advance_width * scale);
         
@@ -67,7 +67,5 @@ void Graphics::Font::render(Component::Text* text, Vec2 size, int line_height) {
         x += roundf(kern * scale);
     }
     
-    text->tex_id = Graphics::Renderer::createTexture(text->bitmap.data(), size.x, size.y, false);
-    text->bitmap_size = size;
-    text->line_height = line_height;
+    Graphics::Renderer::createTexture(bitmap.data(), text->tex_id, text->bitmap_size.x, text->bitmap_size.y, false);
 }
