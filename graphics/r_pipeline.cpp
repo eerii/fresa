@@ -82,8 +82,10 @@ void Graphics::render(Config &c) {
     if(c.render_collision_boxes)
         System::Collider::render(c);
     
+#ifndef DISABLE_GUI
     if(c.tme_active)
         System::Tilemap::renderEditor(c);
+#endif
     
     glViewport(0, 0, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale);
     Renderer::renderCam(c);

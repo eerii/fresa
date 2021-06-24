@@ -276,7 +276,10 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     glCheckError();
     
     //PALETTE TEX
-    Graphics::Texture::loadTexture("res/graphics/palette.png", palette_tex);
+    int w, h, ch;
+    ui8* tex = stbi_load("res/graphics/palette.png", &w, &h, &ch, STBI_rgb_alpha);
+    palette_tex = (ui32)Graphics::Renderer::createTexture(tex, w, h);
+    Palette::setPaletteInterval(w);
     glCheckError();
 }
 //-----------------------------------------
@@ -784,23 +787,21 @@ ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h, bool rgba) {
     
     glBindTexture(GL_TEXTURE_2D, tex_id);
     
-    (rgba) ? glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex) :
-             glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, tex);
+    if (rgba) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex);
+    }
+    else {
+#ifndef __EMSCRIPTEN__
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, tex);
+#else
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, tex);
+#endif
+    }
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                   
     return tex_id;
-}
-
-void Graphics::Renderer::createTexture(ui8* tex, ui32 &tex_id, int w, int h, bool rgba) {    
-    glBindTexture(GL_TEXTURE_2D, tex_id);
-    
-    (rgba) ? glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex) :
-             glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, tex);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 }
 
 void Graphics::Renderer::prepareTilemap(Config &c, Rect2 &dst, std::array<float, 24> &vertices) {
