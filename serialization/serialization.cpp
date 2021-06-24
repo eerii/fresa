@@ -424,6 +424,10 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
     if (entity["fire"])
         System::Fire::load(eid, entity, s, c);
 #endif
+#ifdef USE_C_PLAYER
+    if (entity["player"])
+        System::Player::load(eid, entity, s, c);
+#endif
 }
 
 void Serialization::saveScene(Scene *s, Config &c, bool to_proj) {
@@ -444,6 +448,7 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     Component::Texture* tex = s->getComponent<Component::Texture>(eid);
     Component::Animation* anim = s->getComponent<Component::Animation>(eid);
     Component::Tilemap* tile = s->getComponent<Component::Tilemap>(eid);
+    Component::Text* text = s->getComponent<Component::Text>(eid);
     Component::Actor* actor = s->getComponent<Component::Actor>(eid);
     Component::Light* light = s->getComponent<Component::Light>(eid);
     Component::Camera* cam = s->getComponent<Component::Camera>(eid);
@@ -460,6 +465,10 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     
     if (tile != nullptr)
         System::Tilemap::save(tile, path, key);
+    
+    if (text != nullptr) {
+        //System::Text::save(text, path, key);
+    }
     
     if (actor != nullptr) {
         key[2] = "actor";

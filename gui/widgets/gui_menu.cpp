@@ -66,9 +66,9 @@ void Gui::menu(Config &c) {
             ImGui::SliderInt("palette", &c.palette_index, -1, c.num_palettes - 1);
             ImGui::Checkbox("use light", &c.use_light);
             ImGui::Checkbox("use grayscale", &c.use_grayscale);
-            ImGui::Checkbox("player light", &c.player_loses_light);
+            //ImGui::Checkbox("player light", &c.player_loses_light);
             ImGui::Checkbox("collision boxes", &c.render_collision_boxes);
-            ImGui::Checkbox("subpixel camera", &c.use_subpixel_cam);
+            //ImGui::Checkbox("subpixel camera", &c.use_subpixel_cam);
             ImGui::EndMenu();
         }
         //---------------------------

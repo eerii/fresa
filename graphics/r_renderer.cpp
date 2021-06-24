@@ -793,7 +793,7 @@ ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h, bool rgba) {
     return tex_id;
 }
 
-void Graphics::Renderer::createTexture(ui8* tex, ui32 &tex_id, int w, int h, bool rgba) {
+void Graphics::Renderer::createTexture(ui8* tex, ui32 &tex_id, int w, int h, bool rgba) {    
     glBindTexture(GL_TEXTURE_2D, tex_id);
     
     (rgba) ? glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex) :

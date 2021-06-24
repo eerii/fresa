@@ -5,14 +5,7 @@
 #include "ecs.h"
 #include "log.h"
 
-#define logComponentID(x) log::debug("%s ID: %d", #x, Component::getID<Component::x>()); \
-                          names[Component::getID<Component::x>()] = #x;
-
 using namespace Verse;
-
-namespace {
-    str names[MAX_COMPONENTS];
-}
 
 //REGISTER COMPONENTS
 //-------------------------------------
@@ -25,10 +18,9 @@ ComponentID Component::getID() {
 }
 
 void Component::registerComponents() {
-    COMPONENTS
+    for_<std::variant_size_v<ComponentType>>([&](auto i) {
+        ComponentID cid = Component::getID<std::variant_alternative_t<i.value, ComponentType>>();
+        log::debug("%s, ID: %d", component_names[i.value].c_str(), cid);
+    });
 }
 //-------------------------------------
-
-str Component::getName(ComponentID cid) {
-    return names[cid];
-}
