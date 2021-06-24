@@ -64,20 +64,17 @@ void Graphics::Texture::loadTexture(str path, ui32 &tex_id) {
 void Graphics::Texture::createPerlinNoise(Vec2 size, Vec2 offset, float freq, int levels, ui8* noise_data, ui32 &tex_id) {
     Math::perlinNoise(size, offset, freq, levels, noise_data);
     
-#ifndef __EMSCRIPTEN__
-    Graphics::Renderer::createTexture(noise_data, tex_id, size.x, size.y, false);
-#else
-    Graphics::Renderer::createTexture(noise_data, tex_id, size.x, size.y, true);
-#endif
+    glDeleteTextures(1, &tex_id);
+    tex_id = Graphics::Renderer::createTexture(noise_data, size.x, size.y, false);
 }
 
 void Graphics::Texture::createGradient(int size, ui32 &tex_id) {
-    ui8 gradient[size];
     float step = 255.0f / (float)(size-1);
-    
+    ui8 gradient[size];
     for (int i = 0; i < size; i++) {
         gradient[i] = (ui8)(step * i);
     }
     
-    Graphics::Renderer::createTexture(gradient, tex_id, size, 1, false);
+    glDeleteTextures(1, &tex_id);
+    tex_id = Graphics::Renderer::createTexture(gradient, size, 1, false);
 }

@@ -14,7 +14,8 @@ using namespace Verse;
 namespace {
     ui16 previous_palette = 0;
     ui32 switch_palette_time = 0;
-    float transition_percent = 0.0;
+    float transition_percent = 0.0f;
+    float palette_interval = 1.0f;
 }
 
 void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
@@ -30,6 +31,7 @@ void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
     
     if (c.palette_index > -1.0f) {
         glUniform1f(glGetUniformLocation(pid, "previous_palette_index"), ((float)previous_palette / (float)c.num_palettes) + 0.001);
+        glUniform1f(glGetUniformLocation(pid, "palette_interval"), palette_interval);
         glUniform1f(glGetUniformLocation(pid, "transition_percent"), transition_percent);
         glUniform1i(glGetUniformLocation(pid, "use_grayscale"), c.use_grayscale);
     }
@@ -56,4 +58,10 @@ void Verse::Graphics::Palette::switchPalette(Config &c) {
     
     switch_palette_time = 0; transition_percent = 0.0;
     previous_palette = c.palette_index;
+}
+
+void Verse::Graphics::Palette::setPaletteInterval(int w) {
+    if (w == 0)
+        return;
+    palette_interval = 1.0f / (float)w;
 }
