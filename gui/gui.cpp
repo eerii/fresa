@@ -6,6 +6,7 @@
 
 #ifndef DISABLE_GUI
 
+#include "game.h"
 #include "input.h"
 
 #include "imgui_impl_sdl.h"
@@ -81,7 +82,7 @@ void Gui::init(Config &c) {
 void Gui::update(Config &c) {
     ImGuiIO& imgui_io = ImGui::GetIO();
     
-    imgui_io.DeltaTime = c.physics_delta;
+    imgui_io.DeltaTime = c.timestep * c.game_speed;
     
     Vec2f mouse_pos = Vec2f(Input::mouse().x, Input::mouse().y);
     

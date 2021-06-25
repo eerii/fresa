@@ -65,18 +65,16 @@ bool Game::update(Config &c) {
     }
     
     //PHYSICS UPDATE
-    c.physics_delta = TIMESTEP * c.timestep_modifier * 0.001f * c.game_speed;
     if (not physicsUpdate(c))
         return false;
    
-    
     //RENDER UPDATE
     Graphics::render(c);
     
-    //PREVENT RUNNING TOO FAST
-    ui16 frame_ticks = (ui16)time_precise_difference(Time::current);
+    //PREVENT RUNNING TOO FAST (Done with V-Sync)
+    /*ui16 frame_ticks = (ui16)time_precise_difference(Time::current);
     if (frame_ticks <= 1000.0 / (float)Graphics::getRefreshRate())
-        SDL_Delay((1000.0 / (float)Graphics::getRefreshRate()) - frame_ticks);
+        SDL_Delay((1000.0 / (float)Graphics::getRefreshRate()) - frame_ticks);*/
     
     //FPS
     frames++;
@@ -92,8 +90,10 @@ bool Game::update(Config &c) {
 
 bool Game::physicsUpdate(Config &c) {
     ui64 time_before_physics = time_precise();
-    while (accumulator >= TIMESTEP * c.timestep_modifier) {
-        accumulator -= TIMESTEP * c.timestep_modifier;
+    
+    while (accumulator >= c.timestep) {
+        accumulator -= c.timestep;
+        c.physics_delta = c.timestep * 0.001 * (double)c.game_speed;
         
         //GET EVENTS
         if (not Events::handleEvents(c))
@@ -111,6 +111,8 @@ bool Game::physicsUpdate(Config &c) {
         //PREPARE FOR NEXT INPUT
         Input::frame();
     }
+    
+    c.physics_interpolation = accumulator / c.timestep;
     c.physics_time = time_precise_difference(time_before_physics);
     
     return true;

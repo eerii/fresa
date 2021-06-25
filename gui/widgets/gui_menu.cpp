@@ -59,7 +59,9 @@ void Gui::menu(Config &c) {
         //---------------------------
         if (ImGui::BeginMenu("opcións")) {
             ImGui::Text("game");
-            ImGui::DragFloat("game speed", &c.game_speed, 0.1, 0.0, 4.0);
+            float speed = c.game_speed;
+            ImGui::DragFloat("game speed", &speed, 0.1, 0.0, 3.0);
+            c.game_speed = speed;
             
             ImGui::Text("");
             ImGui::Text("color");

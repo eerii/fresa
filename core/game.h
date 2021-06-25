@@ -8,8 +8,6 @@
 
 #include "config.h"
 
-#define TIMESTEP 10 //Update the simulation every 10ms (0.01s)
-
 namespace Verse::Game
 {
     bool init(Config &c);

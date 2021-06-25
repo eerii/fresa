@@ -483,9 +483,8 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     if (state != nullptr)
         System::State::save(state, path, key);
     
-    if (light != nullptr) {
-        key[2] = "light";
-    }
+    if (light != nullptr)
+        System::Light::save(light, path, key);
     
     if (cam != nullptr)
         System::Camera::save(cam, path, key, s);

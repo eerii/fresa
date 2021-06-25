@@ -350,7 +350,7 @@ void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices,
     glCheckError();
 }
 
-void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &g_tex, ui32 &f_tex, int layer) {
+void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_tex, int layer) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_FIRE]);
@@ -373,12 +373,9 @@ void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &g_
     glCheckError();
     
     //Textures
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, p_tex);
-    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "noise"), 0);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, g_tex);
-    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "gradient"), 1);
+    glBindTexture(GL_TEXTURE_2D, p_tex);
+    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "noise"), 1);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, f_tex);
     glUniform1i(glGetUniformLocation(shaders[S_FIRE], "flame"), 2);
