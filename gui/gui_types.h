@@ -20,6 +20,7 @@ static void draw_vec2(int &x, int &y, str label, EntityID eid = 0,
     ImGui::PushID(label.c_str());
     
     ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("%s", label.c_str());
     
     float line_height = style.FramePadding.y * 2.0f + ImGui::CalcTextSize("X").y;
@@ -58,6 +59,7 @@ static void draw_vec2(float &x, float &y, str label, EntityID eid = 0,
     ImGui::PushID(label.c_str());
     
     ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("%s", label.c_str());
     
     float line_height = style.FramePadding.y * 2.0f + ImGui::CalcTextSize("X").y;
@@ -93,6 +95,7 @@ static void draw_int(int &i, str label, EntityID eid = 0, std::function<void()> 
     ImGui::PushID(label.c_str());
     
     ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("%s", label.c_str());
     
     ImGui::TableSetColumnIndex(1);
@@ -109,6 +112,7 @@ static void draw_ui8(ui8 &i, str label, EntityID eid = 0, std::function<void()> 
     ImGui::PushID(label.c_str());
     
     ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("%s", label.c_str());
     
     ImGui::TableSetColumnIndex(1);
@@ -125,6 +129,7 @@ static void draw_float(float &f, str label, EntityID eid = 0, std::function<void
     ImGui::PushID(label.c_str());
     
     ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("%s", label.c_str());
     
     ImGui::TableSetColumnIndex(1);
@@ -141,6 +146,7 @@ static void draw_bool(bool &b, str label, EntityID eid = 0, std::function<void()
     ImGui::PushID(label.c_str());
     
     ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("%s", label.c_str());
     
     ImGui::TableSetColumnIndex(1);

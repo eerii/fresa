@@ -112,25 +112,28 @@ void Serialization::appendYAML(str name, std::vector<str> key, YAML::Node &file,
     
     temp_node[0] = file_to_modify[key[0]];
     
-    for (int i = 1; i <= key.size(); i++) {
+    int i;
+    for (i = 1; i <= key.size(); i++) {
         if (temp_node[i-1].IsMap() and temp_node[i-1][key[i]]) {
             temp_node[i] = temp_node[i-1][key[i]];
             continue;
+        } else {
+            break;
         }
-        
-        if (not temp_node[i-1].IsMap())
-            temp_node[i-1].reset();
-        
-        temp_node[i-1] = file;
-        
-        for (int j = i-1; j > 0; j -= 1) {
-            temp_node[j-1][key[j]] = temp_node[j];
-        }
-        
-        file_to_modify[key[0]] = temp_node[0];
-        writeYAML(name, file_to_modify);
-        return;
     }
+    
+    if (not temp_node[i-1].IsMap())
+        temp_node[i-1].reset();
+
+    temp_node[key.size()-1] = file;
+    
+    for (int j = (int)key.size()-1; j > 0; j --) {
+        temp_node[j-1][key[j]] = temp_node[j];
+    }
+    
+    file_to_modify[key[0]] = temp_node[0];
+    writeYAML(name, file_to_modify);
+    return;
 }
 
 //IMPORTANT: You need to specify (str) to call these functions, otherwise it will default to the other one
@@ -214,12 +217,12 @@ void Serialization::appendYAML(str name, std::vector<str> key, float num, bool o
 }
 
 void Serialization::appendYAML(str name, str key, bool b, bool overwrite) {
-    YAML::Node n = YAML::Load(std::to_string(b));
+    YAML::Node n = YAML::Load(b ? "true" : "false");
     appendYAML(name, key, n, overwrite);
 }
 
 void Serialization::appendYAML(str name, std::vector<str> key, bool b, bool overwrite) {
-    YAML::Node n = YAML::Load(std::to_string(b));
+    YAML::Node n = YAML::Load(b ? "true" : "false");
     appendYAML(name, key, n, overwrite);
 }
 
@@ -408,6 +411,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
         System::Text::load(eid, entity, s, c);
     if (entity["actor"])
         System::Actor::load(eid, entity, s, c);
+    if (entity["state"])
+        System::State::load(eid, entity, s, c);
     if (entity["collider"])
         System::Collider::load(eid, entity, s, c);
     if (entity["camera"])
@@ -450,9 +455,12 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     Component::Tilemap* tile = s->getComponent<Component::Tilemap>(eid);
     Component::Text* text = s->getComponent<Component::Text>(eid);
     Component::Actor* actor = s->getComponent<Component::Actor>(eid);
+    Component::State* state = s->getComponent<Component::State>(eid);
     Component::Light* light = s->getComponent<Component::Light>(eid);
     Component::Camera* cam = s->getComponent<Component::Camera>(eid);
     Component::SceneTransition* trans = s->getComponent<Component::SceneTransition>(eid);
+    //Timer
+    //Patrol
     
     if (col != nullptr)
         System::Collider::save(col, path, key, tile != nullptr);
@@ -466,21 +474,21 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     if (tile != nullptr)
         System::Tilemap::save(tile, path, key);
     
-    if (text != nullptr) {
-        //System::Text::save(text, path, key);
-    }
+    if (text != nullptr)
+        System::Text::save(text, path, key);
     
-    if (actor != nullptr) {
-        key[2] = "actor";
-    }
+    if (actor != nullptr)
+        System::Actor::save(actor, path, key);
+    
+    if (state != nullptr)
+        System::State::save(state, path, key);
     
     if (light != nullptr) {
         key[2] = "light";
     }
     
-    if (cam != nullptr) {
-        key[2] = "camera";
-    }
+    if (cam != nullptr)
+        System::Camera::save(cam, path, key, s);
     
     if (trans != nullptr) {
         key[2] = "scene_transition";
