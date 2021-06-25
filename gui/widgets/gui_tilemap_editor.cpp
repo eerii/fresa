@@ -21,10 +21,11 @@ void Gui::tilemapEditor(Config &c, EntityID eid) {
     
     Verse::Gui::draw_vec2(tile->pos.x, tile->pos.y, "pos", eid, [&c, &tile, eid]() {
         Component::Collider* col = c.active_scene->getComponent<Component::Collider>(eid);
-        if (col->transform.pos != tile->pos) {
+        if (col != nullptr and col->transform.pos != tile->pos) {
             col->transform = tile->pos;
-            System::Tilemap::createVertices(c, tile);
         }
+        
+        System::Tilemap::createVertices(c, tile);
     });
     ImGui::TableNextRow();
     
@@ -64,8 +65,8 @@ void Gui::tilemapEditor(Config &c, EntityID eid) {
         }
         
         Component::Collider* col = c.active_scene->getComponent<Component::Collider>(eid);
-        col->transform.size.x = size.x * tile->tex_size.x;
-        col->transform.size.y = size.y * tile->tex_size.y;
+        if (col != nullptr)
+            col->transform = Rect2(tile->pos, System::Tilemap::calculateSize(tile));
         
         System::Tilemap::createVertices(c, tile);
     });

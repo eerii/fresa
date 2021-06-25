@@ -10,11 +10,13 @@
 #include "log.h"
 #include "system_list.h"
 #include "serialization.h"
+#include "input.h"
 
 using namespace Verse;
 
 namespace {
     ui32 n = 0;
+    str add_entity = "";
     std::map<str, std::function<void(Config&, EntityID)>> c_funcs;
 }
 
@@ -23,14 +25,30 @@ void components(Config &c, Signature mask, EntityID e);
 void Gui::entities(Config &c) {
     ImGui::Begin("entities");
     
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("scene: %s", ((c.active_scene != nullptr) ? c.active_scene->name.c_str() : "NULL"));
+    ImGui::SameLine();
+    if (Input::shift()) {
+        if (ImGui::SmallButton("save in project"))
+            Serialization::saveScene(c.active_scene, c, true);
+    } else {
+        if (ImGui::SmallButton("save"))
+            Serialization::saveScene(c.active_scene, c);
+    }
+    
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("number of entities: %d", n);
     
-    if (ImGui::SmallButton("save (temp)"))
-        Serialization::saveScene(c.active_scene, c);
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("add entity:");
     ImGui::SameLine();
-    if (ImGui::SmallButton("save (project)"))
-        Serialization::saveScene(c.active_scene, c, true);
+    if (ImGui::SmallButton("+") and add_entity.size() > 0) {
+        c.active_scene->createEntity(add_entity);
+        add_entity = "";
+    }
+    ImGui::SameLine();
+    str input_label = "##addentity";
+    ImGui::InputText(input_label.c_str(), &add_entity);
     
     static ImGuiTableFlags flags = ImGuiTableFlags_PadOuterX | ImGuiTableFlags_RowBg;
     
@@ -60,13 +78,7 @@ void Gui::entities(Config &c) {
             ImGui::Text("id: [%d]", index);
             
             ImGui::SameLine();
-            str add_label = "add##" + std::to_string(e);
-            if (ImGui::SmallButton(add_label.c_str())) {
-                
-            }
-            
-            ImGui::SameLine();
-            str remove_label = "remove##" + std::to_string(e);
+            str remove_label = "remove##entity" + std::to_string(e);
             if (ImGui::SmallButton(remove_label.c_str())) {
                 c.active_scene->removeEntity(e);
             }
@@ -128,7 +140,7 @@ void components(Config &c, Signature mask, EntityID e) {
         bool node_open = ImGui::TreeNode(component_name.c_str());
         
         ImGui::TableSetColumnIndex(1);
-        str remove_component_label = "remove##" + std::to_string(e) + std::to_string(i);
+        str remove_component_label = "remove##component" + std::to_string(e) + std::to_string(i);
         if (ImGui::SmallButton(remove_component_label.c_str())) {
             c.active_scene->removeComponent(e, i);
         }
@@ -146,6 +158,7 @@ void components(Config &c, Signature mask, EntityID e) {
     
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("add component");
     
     ImGui::TableSetColumnIndex(1);
