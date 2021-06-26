@@ -11,6 +11,13 @@
 
 using namespace Verse;
 
+bool Math::checkAABB(Rect2 &a, Rect2 &b) {
+    return (*a.x < *b.x + *b.w) and
+           (*a.x + *a.w > *b.x) and
+           (*a.y < *b.y + *b.h) and
+           (*a.y + *a.h > *b.y);
+}
+
 void Math::perlinNoise(Vec2 size, Vec2 offset, float freq, int levels, ui8 *noise_data, bool reset) {
     float f = freq * 0.001f;
     
@@ -33,9 +40,29 @@ void Math::perlinNoise(Vec2 size, Vec2 offset, float freq, int levels, ui8 *nois
     }
 }
 
-bool Math::checkAABB(Rect2 &a, Rect2 &b) {
-    return (*a.x < *b.x + *b.w) and
-           (*a.x + *a.w > *b.x) and
-           (*a.y < *b.y + *b.h) and
-           (*a.y + *a.h > *b.y);
+float Math::smoothDamp(float current, float target, float &current_vel, float time, float max_speed, float delta_time) {
+    float smooth_time = std::max(0.0001f, time);
+    float omega = 2.0f / smooth_time;
+    
+    float x = omega * delta_time;
+    float exp = 1.0f / (1.0f + x + 0.48f * x * x + 0.235f * x * x * x);
+    float change = current - target;
+    
+    float max_change = max_speed * smooth_time;
+    change = std::clamp(change, -max_change, max_change);
+    if (abs(change) < 2.0f)
+        change = 0;
+    
+    float new_target = current - change;
+    
+    float temp = (current_vel + omega * change) * delta_time;
+    current_vel = (current_vel - omega * temp) * exp;
+    float output = new_target + (change + temp) * exp;
+    
+    if (target - current > 0.0F == output > target) {
+        output = target;
+        current_vel = (output - target) / delta_time;
+    }
+    
+    return output;
 }
