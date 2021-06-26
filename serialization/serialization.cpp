@@ -419,16 +419,14 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
         System::Camera::load(eid, entity, s, c);
     if (entity["light"])
         System::Light::load(eid, entity, s, c);
+    if (entity["noise"])
+        System::Noise::load(eid, entity, s, c);
     if (entity["timer"])
         System::Timer::load(eid, entity, s, c);
     if (entity["patrol"])
         System::Patrol::load(eid, entity, s, c);
     if (entity["scene_transition"])
         System::SceneTransition::load(eid, entity, s, c);
-#ifdef USE_C_FIRE
-    if (entity["fire"])
-        System::Fire::load(eid, entity, s, c);
-#endif
 #ifdef USE_C_PLAYER
     if (entity["player"])
         System::Player::load(eid, entity, s, c);
@@ -457,6 +455,7 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     Component::Actor* actor = s->getComponent<Component::Actor>(eid);
     Component::State* state = s->getComponent<Component::State>(eid);
     Component::Light* light = s->getComponent<Component::Light>(eid);
+    Component::Noise* noise = s->getComponent<Component::Noise>(eid);
     Component::Camera* cam = s->getComponent<Component::Camera>(eid);
     Component::SceneTransition* trans = s->getComponent<Component::SceneTransition>(eid);
     //Timer
@@ -486,19 +485,15 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     if (light != nullptr)
         System::Light::save(light, path, key);
     
+    if (noise != nullptr)
+        key[2] = "noise"; //System::Noise::save(noise, path, key);
+    
     if (cam != nullptr)
         System::Camera::save(cam, path, key, s);
     
     if (trans != nullptr) {
         key[2] = "scene_transition";
     }
-    
-#ifdef USE_C_FIRE
-    Component::Fire* fire = s->getComponent<Component::Fire>(eid);
-    if (fire != nullptr) {
-        key[2] = "fire";
-    }
-#endif
     
 #ifdef USE_C_PLAYER
     Component::Player* player = s->getComponent<Component::Player>(eid);

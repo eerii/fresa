@@ -38,7 +38,7 @@ namespace {
         S_POST,
         S_CAM,
         S_WINDOW,
-        S_FIRE,
+        S_NOISE,
         S_DEBUG,
         S_LAST
     };
@@ -54,7 +54,7 @@ namespace {
         V_EMPTY = 0,
         V_TEX,
         V_TILE,
-        V_FIRE,
+        V_NOISE,
         V_3D,
         V_TEXT,
         V_POST,
@@ -80,7 +80,7 @@ namespace {
     //MISC
     ui32 palette_tex;
     Vec2 previous_window_size;
-    ui8 loc_layer, loc_layer_fire, loc_layer_text;
+    ui8 loc_layer, loc_layer_noise, loc_layer_text;
     ui8 loc_color_text, loc_same_color_text;
 }
 
@@ -150,11 +150,11 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     shaders[S_WINDOW] = Graphics::Shader::compileProgram("res/shaders/window.vertex", "res/shaders/window.frag");
     log::graphics("Program (Window) ID: %d", shaders[S_WINDOW]);
     
-    shaders[S_FIRE] = Graphics::Shader::compileProgram("res/shaders/fire.vertex", "res/shaders/fire.frag");
-    log::graphics("Program (Fire) ID: %d", shaders[S_FIRE]);
+    shaders[S_NOISE] = Graphics::Shader::compileProgram("res/shaders/noise.vertex", "res/shaders/noise.frag");
+    log::graphics("Program (Noise) ID: %d", shaders[S_NOISE]);
     
     shaders[S_DEBUG] = Graphics::Shader::compileProgram("res/shaders/debug.vertex", "res/shaders/debug.frag");
-    log::graphics("Program (Debug) ID: %d", shaders[S_FIRE]);
+    log::graphics("Program (Debug) ID: %d", shaders[S_NOISE]);
     
     log::graphics("---");
     //-----------------------------------------
@@ -204,11 +204,14 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     
-    //Phase 1c: Render fire
-    glBindVertexArray(vao[V_FIRE]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_FIRE]);
+    //Phase 1c: Render noise
+    glBindVertexArray(vao[V_NOISE]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEX]);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_NOISE]);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
     
     //Phase 1d: Render 3D
     glBindVertexArray(vao[V_3D]);
@@ -248,7 +251,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //-----------------------------------------
     mvp[S_RENDER2D] = glGetUniformLocation(shaders[S_RENDER2D], "mvp");
     mvp[S_RENDER3D] = glGetUniformLocation(shaders[S_RENDER3D], "mvp");
-    mvp[S_FIRE] = glGetUniformLocation(shaders[S_FIRE], "mvp");
+    mvp[S_NOISE] = glGetUniformLocation(shaders[S_NOISE], "mvp");
     mvp[S_TEXT] = glGetUniformLocation(shaders[S_TEXT], "mvp");
     mvp[S_POST] = glGetUniformLocation(shaders[S_POST], "mvp");
     mvp[S_CAM] = glGetUniformLocation(shaders[S_CAM], "mvp");
@@ -265,7 +268,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //LAYER LOCATION
     loc_layer = glGetUniformLocation(shaders[S_RENDER2D], "layer");
     loc_layer_text = glGetUniformLocation(shaders[S_TEXT], "layer");
-    loc_layer_fire = glGetUniformLocation(shaders[S_FIRE], "layer");
+    loc_layer_noise = glGetUniformLocation(shaders[S_NOISE], "layer");
     loc_color_text = glGetUniformLocation(shaders[S_TEXT], "text_color");
     loc_same_color_text = glGetUniformLocation(shaders[S_TEXT], "same_color");
     glCheckError();
@@ -350,36 +353,36 @@ void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices,
     glCheckError();
 }
 
-void Graphics::Renderer::renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_tex, int layer) {
+void Graphics::Renderer::renderNoise(Config &c, ui32 &noise_tex, ui32 &mask_tex, glm::mat4 model, float* vertices, float* noise_vertices, int layer) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
-    glUseProgram(shaders[S_FIRE]);
+    glUseProgram(shaders[S_NOISE]);
     glCheckError();
     
     //Vertices
-    glBindVertexArray(vao[V_FIRE]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_FIRE]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindVertexArray(vao[V_NOISE]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEX]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 16, vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_NOISE]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 8, noise_vertices, GL_STATIC_DRAW);
     glCheckError();
     
     //Layer
-    glUniform1f(loc_layer_fire, (float)layer);
+    glUniform1f(loc_layer_noise, (float)layer);
     
     //Matrices
-    mat4 model = matModel2D(dst.pos - Vec2(BORDER_WIDTH, BORDER_WIDTH), dst.size);
     if (c.active_camera == nullptr)
-        log::error("No active camera! (Rendering fire)");
-    glUniformMatrix4fv(mvp[S_FIRE], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+        log::error("No active camera! (Rendering texture)");
+    glUniformMatrix4fv(mvp[S_NOISE], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     glCheckError();
     
     //Textures
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, p_tex);
-    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "noise"), 1);
+    glBindTexture(GL_TEXTURE_2D, noise_tex);
+    glUniform1i(glGetUniformLocation(shaders[S_NOISE], "noise"), 1);
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, f_tex);
-    glUniform1i(glGetUniformLocation(shaders[S_FIRE], "flame"), 2);
-    glCheckError();
+    glBindTexture(GL_TEXTURE_2D, mask_tex);
+    glUniform1i(glGetUniformLocation(shaders[S_NOISE], "mask"), 2);
     
     //Draw
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
