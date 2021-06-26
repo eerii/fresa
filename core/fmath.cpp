@@ -11,14 +11,14 @@
 
 using namespace Verse;
 
-void Math::perlinNoise(Vec2 size, Vec2 offset, float freq, int levels, ui8 *noise_data) {
+void Math::perlinNoise(Vec2 size, Vec2 offset, float freq, int levels, ui8 *noise_data, bool reset) {
     float f = freq * 0.001f;
     
     //TODO: Change to scrolling texture instead of rewrite
     
     for (ui32 y = 0; y < size.y; y++) {
         for (ui32 x = 0; x < size.x; x++) {
-            if (x + offset.x + (y + offset.y)*size.x < size.x * size.y - 1) {
+            if (not reset and x + offset.x + (y + offset.y)*size.x < size.x * size.y - 1) {
                 noise_data[x + y*size.x] = noise_data[x + offset.x + (y + offset.y)*size.x];
                 continue;
             }
