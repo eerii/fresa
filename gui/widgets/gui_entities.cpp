@@ -111,12 +111,10 @@ void components(Config &c, Signature mask, EntityID e) {
         c_funcs["text"] = System::Text::gui;
         c_funcs["camera"] = System::Camera::gui;
         c_funcs["light"] = System::Light::gui;
+        c_funcs["noise"] = System::Noise::gui;
         c_funcs["timer"] = System::Timer::gui;
         c_funcs["patrol"] = System::Patrol::gui;
         c_funcs["scene_transition"] = System::SceneTransition::gui;
-#ifdef USE_C_FIRE
-        c_funcs["fire"] = System::Fire::gui;
-#endif
 #ifdef USE_C_PLAYER
         c_funcs["player"] = System::Player::gui;
 #endif

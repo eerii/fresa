@@ -18,7 +18,7 @@ namespace Verse::Graphics::Renderer
     
     void renderTexture(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer);
     void renderTilemap(Config &c, ui32 &tex_id, float* vertices, int size , int layer);
-    void renderFire(Config &c, Rect2 &dst, ui32 &p_tex, ui32 &f_tex, int layer);
+    void renderNoise(Config &c, ui32 &noise_tex, ui32 &mask_tex, glm::mat4 model, float* vertices, float* noise_vertices, int layer);
     void renderText(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer,
                     float r = 1.0f, float g = 1.0f, float b = 1.0f, bool same_color = true);
     void render3D(Config &c, float* vertices, int size);
