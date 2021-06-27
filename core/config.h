@@ -19,7 +19,6 @@ namespace Verse
         int render_scale;
         bool enable_gui;
         bool use_vsync;
-        bool use_subpixel_cam;
         
         ui16 fps;
         float physics_time;
@@ -44,6 +43,10 @@ namespace Verse
         
         Scene* active_scene;
         Component::Camera* active_camera;
+        
+        bool enable_lookahead;
+        bool enable_smooth_panning;
+        bool use_subpixel_cam;
         
         float gravity;
         Vec2f gravity_dir;
