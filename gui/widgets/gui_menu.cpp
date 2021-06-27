@@ -63,14 +63,27 @@ void Gui::menu(Config &c) {
             ImGui::DragFloat("game speed", &speed, 0.1, 0.0, 3.0);
             c.game_speed = speed;
             
-            ImGui::Text("");
-            ImGui::Text("color");
+            ImGui::Checkbox("collision boxes", &c.render_collision_boxes);
+            ImGui::EndMenu();
+        }
+        //---------------------------
+        
+        //COLOR
+        //---------------------------
+        if (ImGui::BeginMenu("color")) {
             ImGui::SliderInt("palette", &c.palette_index, -1, c.num_palettes - 1);
             ImGui::Checkbox("use light", &c.use_light);
             ImGui::Checkbox("use grayscale", &c.use_grayscale);
-            //ImGui::Checkbox("player light", &c.player_loses_light);
-            ImGui::Checkbox("collision boxes", &c.render_collision_boxes);
-            //ImGui::Checkbox("subpixel camera", &c.use_subpixel_cam);
+            ImGui::EndMenu();
+        }
+        //---------------------------
+        
+        //CAMERA
+        //---------------------------
+        if (ImGui::BeginMenu("cámara")) {
+            ImGui::Checkbox("subpixel camera", &c.use_subpixel_cam);
+            ImGui::Checkbox("enable lookahead", &c.enable_lookahead);
+            ImGui::Checkbox("enable smooth panning", &c.enable_smooth_panning);
             ImGui::EndMenu();
         }
         //---------------------------
