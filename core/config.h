@@ -15,9 +15,11 @@ namespace Verse
         str version;
         
         Vec2 resolution;
+        
+        SDL_Window* window;
         Vec2 window_size;
-        int render_scale;
-        bool enable_gui;
+        ui16 render_scale;
+        ui16 refresh_rate;
         bool use_vsync;
         
         ui16 fps;
@@ -30,8 +32,8 @@ namespace Verse
         
         bool use_grayscale;
         bool use_light;
-        int palette_index;
-        int num_palettes;
+        ui16 palette_index;
+        ui16 num_palettes;
         float background_color[4];
         
         bool render_collision_boxes;
