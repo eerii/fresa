@@ -3,6 +3,11 @@
 //all rights reserved uwu
 
 #include "r_renderer.h"
+#include "r_opengl.h"
+
+#ifdef USE_OPENGL
+
+#include <glm/ext.hpp>
 
 #include "log.h"
 
@@ -12,9 +17,7 @@
 #include "imgui_impl_opengl3.h"
 #endif
 
-#include "r_opengl.h"
 #include "r_shader.h"
-#include "r_textures.h"
 #include "r_palette.h"
 #include "r_window.h"
 #include "system_list.h"
@@ -33,7 +36,6 @@ namespace {
     enum Shaders {
         S_EMPTY = 0,
         S_RENDER2D,
-        S_RENDER3D,
         S_TEXT,
         S_POST,
         S_CAM,
@@ -55,7 +57,6 @@ namespace {
         V_TEX,
         V_TILE,
         V_NOISE,
-        V_3D,
         V_TEXT,
         V_POST,
         V_DRAW,
@@ -135,9 +136,6 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     shaders[S_RENDER2D] = Graphics::Shader::compileProgram("res/shaders/render.vertex", "res/shaders/render.frag");
     log::graphics("Program (Render) ID: %d", shaders[S_RENDER2D]);
     
-    shaders[S_RENDER3D] = Graphics::Shader::compileProgram("res/shaders/render3d.vertex", "res/shaders/render3d.frag");
-    log::graphics("Program (Render 3D) ID: %d", shaders[S_RENDER3D]);
-    
     shaders[S_POST] = Graphics::Shader::compileProgram("res/shaders/post.vertex", "res/shaders/post.frag");
     log::graphics("Program (Post) ID: %d", shaders[S_POST]);
     
@@ -213,12 +211,6 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     
-    //Phase 1d: Render 3D
-    glBindVertexArray(vao[V_3D]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_3D]);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    
     //Phase 1d: Render text
     glBindVertexArray(vao[V_TEXT]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEXT]);
@@ -250,7 +242,6 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //MATRICES
     //-----------------------------------------
     mvp[S_RENDER2D] = glGetUniformLocation(shaders[S_RENDER2D], "mvp");
-    mvp[S_RENDER3D] = glGetUniformLocation(shaders[S_RENDER3D], "mvp");
     mvp[S_NOISE] = glGetUniformLocation(shaders[S_NOISE], "mvp");
     mvp[S_TEXT] = glGetUniformLocation(shaders[S_TEXT], "mvp");
     mvp[S_POST] = glGetUniformLocation(shaders[S_POST], "mvp");
@@ -281,8 +272,11 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //PALETTE TEX
     int w, h, ch;
     ui8* tex = stbi_load("res/graphics/palette.png", &w, &h, &ch, STBI_rgb_alpha);
-    palette_tex = (ui32)Graphics::Renderer::createTexture(tex, w, h);
+    palette_tex = (ui32)Graphics::Texture::createTexture(tex, w, h);
     Palette::setPaletteInterval(w);
+    glCheckError();
+    
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glCheckError();
 }
 //-----------------------------------------
@@ -292,7 +286,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
 //PHASE 1: RENDER TO SMALL TEXTURE
 //fb_render, tex_render (c.resolution) using shaders[S_RENDER2D] or shaders[S_RENDER3D]
 //-----------------------------------------
-void Graphics::Renderer::renderTexture(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer) {
+void Graphics::Renderer::renderTexture(Config &c, TextureData &data) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_RENDER2D]);
@@ -301,20 +295,20 @@ void Graphics::Renderer::renderTexture(Config &c, ui32 &tex_id, glm::mat4 model,
     //Vertices
     glBindVertexArray(vao[V_TEX]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEX]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 16, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.vertices.size(), data.vertices.data(), GL_STATIC_DRAW);
     glCheckError();
     
     //Layer
-    glUniform1f(loc_layer, (float)layer);
+    glUniform1f(loc_layer, (float)data.layer);
     
     //Matrices
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering texture)");
-    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * data.model));
     glCheckError();
     
     //Draw
-    glBindTexture(GL_TEXTURE_2D, tex_id);
+    glBindTexture(GL_TEXTURE_2D, data.gl_id);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -322,7 +316,7 @@ void Graphics::Renderer::renderTexture(Config &c, ui32 &tex_id, glm::mat4 model,
     glCheckError();
 }
 
-void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices, int size, int layer) {
+void Graphics::Renderer::renderTilemap(Config &c, TextureData &data) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_RENDER2D]);
@@ -331,22 +325,21 @@ void Graphics::Renderer::renderTilemap(Config &c, ui32 &tex_id, float *vertices,
     //Vertices
     glBindVertexArray(vao[V_TILE]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TILE]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 24 * size, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.vertices.size(), data.vertices.data(), GL_STATIC_DRAW);
     glCheckError();
     
     //Layer
-    glUniform1f(loc_layer, (float)layer);
+    glUniform1f(loc_layer, (float)data.layer);
     
     //Matrices
-    mat4 model = translate(mat4(1.0f), vec3(-BORDER_WIDTH, -BORDER_WIDTH, 0.0f));
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering tilemap)");
-    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glUniformMatrix4fv(mvp[S_RENDER2D], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * data.model));
     glCheckError();
     
     //Draw
-    glBindTexture(GL_TEXTURE_2D, tex_id);
-    glDrawArrays(GL_TRIANGLES, 0, 6 * size);
+    glBindTexture(GL_TEXTURE_2D, data.gl_id);
+    glDrawArrays(GL_TRIANGLES, 0, (int)(data.vertices.size() / 4));
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
@@ -386,30 +379,6 @@ void Graphics::Renderer::renderNoise(Config &c, ui32 &noise_tex, ui32 &mask_tex,
     
     //Draw
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindVertexArray(0);
-    glCheckError();
-}
-
-void Graphics::Renderer::render3D(Config &c, float *vertices, int size) {
-    //Render Target: fb_render
-    glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
-    glUseProgram(shaders[S_RENDER3D]);
-    glCheckError();
-    
-    //Vertices
-    glBindVertexArray(vao[V_3D]);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_3D]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * size, vertices, GL_STATIC_DRAW);
-    glCheckError();
-    
-    //TODO: MATRICES
-    glUniformMatrix4fv(mvp[S_RENDER3D], 1, GL_FALSE, glm::value_ptr(mat4(1.0f)));
-    glCheckError();
-    
-    //Draw
-    glDrawArrays(GL_TRIANGLES, 0, 3 * size);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
@@ -779,40 +748,6 @@ void Graphics::Renderer::createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, d_tex, 0);
     glCheckError();
 }
-
-ui32 Graphics::Renderer::createTexture(ui8* tex, int w, int h, bool rgba) {
-    ui32 tex_id;
-    
-    glGenTextures(1, &tex_id);
-    
-    glBindTexture(GL_TEXTURE_2D, tex_id);
-    
-    if (rgba) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex);
-    }
-    else {
-#ifndef __EMSCRIPTEN__
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, tex);
-#else
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, tex);
-#endif
-    }
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                  
-    return tex_id;
-}
-
-void Graphics::Renderer::prepareTilemap(Config &c, Rect2 &dst, std::array<float, 24> &vertices) {
-    //TODO: CHANGE FOR MAT MULT
-    for (int i = 0; i < 6; i++) {
-        vertices[4*i + 0] = (i % 2 == 1) ? *dst.w : 0.0;
-        vertices[4*i + 0] += *dst.x;
-        vertices[4*i + 1] = (i < 2 or i == 3) ? *dst.h : 0.0;
-        vertices[4*i + 1] += *dst.y;
-    }
-}
 //-----------------------------------------
 
 
@@ -831,3 +766,5 @@ mat4 Graphics::Renderer::matModel2D(Rect2 rect, float rotation) {
 }
 
 //-----------------------------------------
+
+#endif

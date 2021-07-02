@@ -10,7 +10,7 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype_fresa.h"
 
-#include "r_renderer.h"
+#include "r_textures.h"
 #include "log.h"
 
 using namespace Verse;
@@ -68,5 +68,5 @@ void Graphics::Font::render(Component::Text* text) {
     }
     
     glDeleteTextures(1, &text->tex_id);
-    text->tex_id = Graphics::Renderer::createTexture(bitmap.data(), text->bitmap_size.x, text->bitmap_size.y, false);
+    text->tex_id = Graphics::Texture::createTexture(bitmap.data(), text->bitmap_size.x, text->bitmap_size.y, false);
 }

@@ -78,7 +78,9 @@ void Gui::menu(Config &c) {
         //COLOR
         //---------------------------
         if (ImGui::BeginMenu("color")) {
-            ImGui::SliderInt("palette", &c.palette_index, -1, c.num_palettes - 1);
+            int palette_index = (c.palette_index < 1024) ? c.palette_index : -1;
+            ImGui::SliderInt("palette", &palette_index, -1, (int)c.num_palettes - 1);
+            c.palette_index = palette_index;
             ImGui::Checkbox("use light", &c.use_light);
             ImGui::Checkbox("use grayscale", &c.use_grayscale);
             ImGui::EndMenu();
@@ -91,8 +93,10 @@ void Gui::menu(Config &c) {
             ImGui::Checkbox("subpixel camera", &c.use_subpixel_cam);
             ImGui::Checkbox("enable lookahead", &c.enable_lookahead);
             ImGui::Checkbox("enable smooth panning", &c.enable_smooth_panning);
+            
             if (ImGui::Checkbox("use vsync", &c.use_vsync))
                 Graphics::Window::updateVsync(c);
+            
             ImGui::EndMenu();
         }
         //---------------------------
