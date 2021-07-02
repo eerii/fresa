@@ -14,4 +14,6 @@ namespace Verse::Graphics::Window
 
     Vec2f sceneToWindow(Config &c, Vec2 s_pos);
     Vec2 windowToScene(Config &c, Vec2f w_pos);
+
+    void calculateRefreshRate(Config &c);
 }

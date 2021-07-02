@@ -8,6 +8,7 @@
 #include "r_opengl.h"
 
 #define TRANSITION_TIME 500
+#define MAX_PALETTES 1024
 
 using namespace Verse;
 
@@ -26,10 +27,10 @@ void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
     
     switchPalette(c);
     
-    float p_i = (c.palette_index > -1.0f) ? (float)c.palette_index / (float)c.num_palettes : -1.0f;
+    float p_i = (c.palette_index < MAX_PALETTES) ? (float)c.palette_index / (float)c.num_palettes : -1.0f;
     glUniform1f(glGetUniformLocation(pid, "palette_index"), p_i);
     
-    if (c.palette_index > -1.0f) {
+    if ((float)c.palette_index > -1.0f) {
         glUniform1f(glGetUniformLocation(pid, "previous_palette_index"), ((float)previous_palette / (float)c.num_palettes) + 0.001);
         glUniform1f(glGetUniformLocation(pid, "palette_interval"), palette_interval);
         glUniform1f(glGetUniformLocation(pid, "transition_percent"), transition_percent);

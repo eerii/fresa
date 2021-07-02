@@ -17,12 +17,7 @@
 using namespace Verse;
 using namespace Graphics;
 
-namespace {
-    SDL_Window *window;
-    int refresh_rate = 60;
-}
-
-void Graphics::init(Config &c) {
+bool Graphics::init(Config &c) {
     log::debug("Initializing graphics");
     
 #ifdef __EMSCRIPTEN__
@@ -34,27 +29,35 @@ void Graphics::init(Config &c) {
     SDL_CreateWindowAndRenderer(c.window_size.x, c.window_size.y, SDL_WINDOW_OPENGL, &window, &renderer);
 #else
     //OPENGL
+    #ifdef USE_OPENGL
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     #ifndef __APPLE__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     #endif //__APPLE__
+    #endif
     
     //CREATE A WINDOW
-    window = Graphics::Window::createWindow(c);
-    if(window == nullptr)
+    c.window = Window::createWindow(c);
+    if(c.window == nullptr) {
         log::error("There was an error with the window pointer, check r_pipeline");
+        return false;
+    }
 #endif
     
     //REFRESH RATE
-    Graphics::calculateRefreshRate();
-    log::graphics("Refresh Rate: %d", refresh_rate);
+    Window::calculateRefreshRate(c);
+    log::graphics("Refresh Rate: %d", c.refresh_rate);
     
     //RENDERER
-    Renderer::create(c, window);
+    Renderer::create(c, c.window);
     
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+#ifndef DISABLE_GUI
+    Gui::init(c);
+#endif
+    
+    return true;
 }
 
 
@@ -67,8 +70,7 @@ void Graphics::render(Config &c) {
     
 #ifndef DISABLE_GUI
     //PRERENDER GUI
-    if (c.enable_gui)
-        Gui::prerender(c, window);
+    Gui::prerender(c, c.window);
 #endif
     
     //RENDER SYSTEMS
@@ -94,37 +96,18 @@ void Graphics::render(Config &c) {
     
 #ifndef DISABLE_GUI
     //RENDER GUI
-    if (c.enable_gui)
-        Gui::render();
+    Gui::render();
 #endif
     
     c.render_time = time_precise_difference(time_before_render);
     
     //PRESENT
-    Renderer::present(window);
+    Renderer::present(c.window);
     glCheckError();
 }
 
 
 void Graphics::destroy() {
     Renderer::destroy();
-    if (window != nullptr)
-        SDL_DestroyWindow(window);
     glCheckError();
-}
-
-
-void Graphics::calculateRefreshRate() {
-    int displayIndex = SDL_GetWindowDisplayIndex(window);
-    
-    SDL_DisplayMode mode;
-    if(SDL_GetDisplayMode(displayIndex, 0, &mode))
-        log::error("Error getting display mode: ", SDL_GetError());
-    
-    refresh_rate = mode.refresh_rate;
-}
-
-
-int Graphics::getRefreshRate() {
-    return refresh_rate;
 }
