@@ -8,14 +8,11 @@
 
 namespace Verse::Graphics
 {
-    void init(Config &c);
+    bool init(Config &c);
 
     void render(Config &c);
     void clear(Config &c);
     void display(Config &c);
 
     void destroy();
-
-    void calculateRefreshRate();
-    int getRefreshRate();
 }

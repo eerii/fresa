@@ -7,8 +7,6 @@
 #include <SDL2/SDL.h>
 #include <string>
 
-#define USE_OPENGL
-
 namespace Verse
 {
     //UNSIGNED INT
