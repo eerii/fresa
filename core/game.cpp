@@ -43,16 +43,10 @@ bool Game::init(Config &c) {
         return false;
     }
     
-    //INITIALIZE GRAPHICS
-    Graphics::init(c);
-    
-#ifndef DISABLE_GUI
-    Gui::init(c);
-#endif
-    
     physics_time = time_precise();
     
-    return true;
+    //INITIALIZE GRAPHICS
+    return Graphics::init(c);
 }
 
 bool Game::update(Config &c) {
@@ -101,8 +95,7 @@ bool Game::physicsUpdate(Config &c) {
         
 #ifndef DISABLE_GUI
         //UPDATE GUI
-        if(c.enable_gui)
-            Gui::update(c);
+        Gui::update(c);
 #endif
         
         //UPDATE SYSTEMS
