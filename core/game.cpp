@@ -18,10 +18,8 @@ using namespace Verse;
 namespace
 {
     double accumulator;
-    ui16 fps_time;
+    ui32 fps_time;
     ui16 frames;
-
-    ui64 physics_time;
 }
 
 bool Game::init(Config &c) {
@@ -50,8 +48,6 @@ bool Game::init(Config &c) {
     Gui::init(c);
 #endif
     
-    physics_time = time_precise();
-    
     return true;
 }
 
@@ -71,16 +67,16 @@ bool Game::update(Config &c) {
     //RENDER UPDATE
     Graphics::render(c);
     
-    //PREVENT RUNNING TOO FAST (Done with V-Sync)
-    /*ui16 frame_ticks = (ui16)time_precise_difference(Time::current);
-    if (frame_ticks <= 1000.0 / (float)Graphics::getRefreshRate())
-        SDL_Delay((1000.0 / (float)Graphics::getRefreshRate()) - frame_ticks);*/
+    //PREVENT RUNNING TOO FAST
+    if (c.use_vsync and Time::delta <= 1000 / (float)Graphics::getRefreshRate())
+        SDL_Delay((1000.0 / (float)Graphics::getRefreshRate()) - Time::delta);
     
     //FPS
+    
     frames++;
-    fps_time += (ui16)time_precise_difference(Time::current);
-    if (fps_time > 200) {
-        c.fps = round((float)frames / (float)(fps_time * 0.001f));
+    fps_time += Time::delta;
+    if (fps_time > 500) {
+        c.fps = floor((float)frames / (float)(fps_time * 0.001f));
         frames = 0;
         fps_time = 0;
     }
@@ -89,9 +85,9 @@ bool Game::update(Config &c) {
 }
 
 bool Game::physicsUpdate(Config &c) {
-    ui64 time_before_physics = time_precise();
-    
     while (accumulator >= c.timestep) {
+        ui64 time_before_physics = time_precise();
+        
         accumulator -= c.timestep;
         c.physics_delta = c.timestep * 0.001 * (double)c.game_speed;
         
@@ -110,10 +106,11 @@ bool Game::physicsUpdate(Config &c) {
         
         //PREPARE FOR NEXT INPUT
         Input::frame();
+        
+        c.physics_time = time_precise_difference(time_before_physics);
     }
     
     c.physics_interpolation = accumulator / c.timestep;
-    c.physics_time = time_precise_difference(time_before_physics);
     
     return true;
 }
