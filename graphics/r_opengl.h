@@ -6,6 +6,8 @@
 
 #include "config.h"
 
+#ifdef USE_OPENGL
+
 #ifdef __EMSCRIPTEN__ //WEB
 
     #include <GLES3/gl3.h>
@@ -22,7 +24,7 @@
     #include <SDL2/SDL_opengl.h>
     #include <SDL2/SDL_opengl_glext.h>
 
-#endif //!__APPLE__
+#endif
 
 #include <iostream>
 #include <string>
@@ -55,3 +57,5 @@ namespace Verse
     }
 
 }
+
+#endif

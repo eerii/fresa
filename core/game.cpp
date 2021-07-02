@@ -42,13 +42,7 @@ bool Game::init(Config &c) {
     }
     
     //INITIALIZE GRAPHICS
-    Graphics::init(c);
-    
-#ifndef DISABLE_GUI
-    Gui::init(c);
-#endif
-    
-    return true;
+    return Graphics::init(c);
 }
 
 bool Game::update(Config &c) {
@@ -68,8 +62,8 @@ bool Game::update(Config &c) {
     Graphics::render(c);
     
     //PREVENT RUNNING TOO FAST
-    if (c.use_vsync and Time::delta <= 1000 / (float)Graphics::getRefreshRate())
-        SDL_Delay((1000.0 / (float)Graphics::getRefreshRate()) - Time::delta);
+    if (c.use_vsync and Time::delta <= 1000 / (float)c.refresh_rate)
+        SDL_Delay((1000.0 / (float)c.refresh_rate) - Time::delta);
     
     //FPS
     
@@ -97,8 +91,7 @@ bool Game::physicsUpdate(Config &c) {
         
 #ifndef DISABLE_GUI
         //UPDATE GUI
-        if(c.enable_gui)
-            Gui::update(c);
+        Gui::update(c);
 #endif
         
         //UPDATE SYSTEMS

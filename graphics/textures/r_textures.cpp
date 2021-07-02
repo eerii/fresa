@@ -31,7 +31,7 @@ void Graphics::Texture::loadTexture(str path, Component::Texture* tex) {
     int w, h, ch;
     tex->tex = stbi_load(path.c_str(), &w, &h, &ch, STBI_rgb_alpha);
     
-    tex->tex_id = (int)Graphics::Renderer::createTexture(tex->tex, w, h);
+    tex->tex_id = (int)createTexture(tex->tex, w, h);
 }
 
 void Graphics::Texture::loadTexture(std::vector<str> path, Component::Tilemap* tex) {
@@ -45,7 +45,7 @@ void Graphics::Texture::loadTexture(std::vector<str> path, Component::Tilemap* t
         }
         
         ui8* t = stbi_load(p.c_str(), &w, &h, &ch, STBI_rgb_alpha);
-        tex->tex_id.push_back((int)Graphics::Renderer::createTexture(t, w, h));
+        tex->tex_id.push_back((int)createTexture(t, w, h));
     }
 }
 
@@ -58,14 +58,40 @@ void Graphics::Texture::loadTexture(str path, ui32 &tex_id) {
     int w, h, ch;
     ui8* tex = stbi_load(path.c_str(), &w, &h, &ch, STBI_rgb_alpha);
     
-    tex_id = (ui32)Graphics::Renderer::createTexture(tex, w, h);
+    tex_id = (ui32)createTexture(tex, w, h);
 }
+
+
+ui32 Graphics::Texture::createTexture(ui8* tex, int w, int h, bool rgba) {
+    ui32 tex_id;
+    
+    glGenTextures(1, &tex_id);
+    
+    glBindTexture(GL_TEXTURE_2D, tex_id);
+    
+    if (rgba) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex);
+    }
+    else {
+#ifndef __EMSCRIPTEN__
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, tex);
+#else
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, tex);
+#endif
+    }
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                  
+    return tex_id;
+}
+
 
 void Graphics::Texture::createPerlinNoise(Vec2 size, Vec2 offset, float freq, int levels, ui8* noise_data, ui32 &tex_id) {
     Math::perlinNoise(size, offset, freq, levels, noise_data);
     
     glDeleteTextures(1, &tex_id);
-    tex_id = Graphics::Renderer::createTexture(noise_data, size.x, size.y, false);
+    tex_id = createTexture(noise_data, size.x, size.y, false);
 }
 
 void Graphics::Texture::createGradient(int size, ui32 &tex_id) {
@@ -76,5 +102,5 @@ void Graphics::Texture::createGradient(int size, ui32 &tex_id) {
     }
     
     glDeleteTextures(1, &tex_id);
-    tex_id = Graphics::Renderer::createTexture(gradient, size, 1, false);
+    tex_id = createTexture(gradient, size, 1, false);
 }
