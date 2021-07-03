@@ -13,7 +13,7 @@
 
 namespace Verse::Graphics::Renderer
 {
-    void create(Config &c, SDL_Window* window);
+    void create(Config &c);
     
     void renderTexture(Config &c, TextureData &data);
     void renderTilemap(Config &c, TextureData &data);

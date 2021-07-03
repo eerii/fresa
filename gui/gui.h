@@ -19,7 +19,7 @@
 #if defined USE_OPENGL
 #include "imgui_impl_opengl3.h"
 #elif defined USE_VULKAN
-//#include "imgui_impl_vulkan.h"
+#include "imgui_impl_vulkan.h"
 #endif
 
 namespace Verse::Gui

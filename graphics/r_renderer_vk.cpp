@@ -5,7 +5,7 @@
 #ifdef USE_VULKAN
 
 #include "r_renderer.h"
-#include "r_vulkan.h"
+#include "r_vulkan_functions.h"
 
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
@@ -16,9 +16,12 @@ using namespace Verse;
 using namespace Graphics;
 using namespace glm;
 
+namespace {
+    Vulkan vulkan;
+}
 
-void Graphics::Renderer::create(Config &c, SDL_Window* window) {
-    
+void Graphics::Renderer::create(Config &c) {
+    VK::initVulkan(&vulkan, c);
 }
 
 
@@ -80,7 +83,7 @@ void Graphics::Renderer::clear(Config &c) {
 
 
 void Graphics::Renderer::destroy() {
-    
+    vkDestroyInstance(vulkan.instance, nullptr);
 }
 
 

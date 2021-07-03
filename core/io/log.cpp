@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#define LOG_LEVEL 3
+#define LOG_LEVEL 4
 /*
  LOG LEVEL:
  1 - Errors

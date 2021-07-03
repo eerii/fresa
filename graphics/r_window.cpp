@@ -13,14 +13,17 @@
 
 #if defined USE_VULKAN
     #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN
+    #define RENDERER_NAME "Vulkan"
 #elif defined USE_OPENGL
     #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
+    #define RENDERER_NAME "OpenGL"
 #endif
 
 using namespace Verse;
 
 SDL_Window* Graphics::Window::createWindow(Config &c) {
-    SDL_Window* window = SDL_CreateWindow((c.name + " - Version " + c.version).c_str(),
+    str version = std::to_string(c.version[0]) + "." + std::to_string(c.version[1]) + "." + std::to_string(c.version[2]);
+    SDL_Window* window = SDL_CreateWindow((c.name + " - " + RENDERER_NAME + " - Version " + version).c_str(),
                               SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                               c.window_size.x, c.window_size.y, W_FLAGS);
     
