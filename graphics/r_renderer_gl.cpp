@@ -85,17 +85,17 @@ namespace {
 
 //CREATE
 //-----------------------------------------
-void Graphics::Renderer::create(Config &c, SDL_Window* window) {
+void Graphics::Renderer::create(Config &c) {
     log::debug("Creating renderer");
     
     //CONTEXT
-    context = SDL_GL_CreateContext(window);
+    context = SDL_GL_CreateContext(c.window);
     if (context == nullptr) {
         log::error("Error creating OpenGL Context: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
     }
-    if (SDL_GL_MakeCurrent(window, context)) {
+    if (SDL_GL_MakeCurrent(c.window, context)) {
         log::error("Error making OpenGL Context current: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
@@ -120,7 +120,7 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     if (imgui_context == nullptr)
         log::error("Error creating ImGui context: ", SDL_GetError());
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    if (not ImGui_ImplSDL2_InitForOpenGL(window, context))
+    if (not ImGui_ImplSDL2_InitForOpenGL(c.window, context))
         log::error("Error initializing ImGui for SDL");
     if (not ImGui_ImplOpenGL3_Init())
         log::error("Error initializing ImGui for OpenGL");

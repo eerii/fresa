@@ -52,7 +52,7 @@ bool Graphics::init(Config &c) {
     log::graphics("Refresh Rate: %d", c.refresh_rate);
     
     //RENDERER
-    Renderer::create(c, c.window);
+    Renderer::create(c);
     
 #ifndef DISABLE_GUI
     Gui::init(c);

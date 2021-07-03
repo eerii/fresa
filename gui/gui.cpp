@@ -95,7 +95,7 @@ void Gui::prerender(Config &c, SDL_Window* window) {
 #if defined USE_OPENGL
     ImGui_ImplOpenGL3_NewFrame();
 #elif defined USE_VULKAN
-    //ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplVulkan_NewFrame();
 #endif
     ImGui_ImplSDL2_NewFrame(window);
     ImGui::NewFrame();

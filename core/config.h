@@ -12,7 +12,7 @@ namespace Verse
 {
     struct Config {
         str name;
-        str version;
+        ui8 version[3];
         
         Vec2 resolution;
         
