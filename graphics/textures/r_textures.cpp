@@ -11,6 +11,7 @@
 
 #include "r_renderer.h"
 #include "r_opengl.h"
+#include "r_vulkan.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -59,8 +60,9 @@ void Graphics::Texture::createTexture(ui8* tex, TextureData &data, bool rgba) {
     createTexture(tex, data, data.w, data.h, rgba);
 }
 
-void Graphics::Texture::createTexture(ui8* tex, TextureData &data, int w, int h, bool rgba) {
 #if defined USE_OPENGL
+
+void Graphics::Texture::createTexture(ui8* tex, TextureData &data, int w, int h, bool rgba) {
     ui32 tex_id;
     
     glGenTextures(1, &tex_id);
@@ -82,11 +84,15 @@ void Graphics::Texture::createTexture(ui8* tex, TextureData &data, int w, int h,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                   
     data.gl_id = tex_id;
-#elif defined USE_VULKAN
-    
-#endif
 }
 
+#elif defined USE_VULKAN
+
+void Graphics::Texture::createTexture(ui8* tex, TextureData &data, int w, int h, bool rgba) {
+    log::warn("Texture creation not implemented yet (r_textures)");
+}
+
+#endif
 
 void Graphics::Texture::createPerlinNoise(ui8* noise_data, TextureData &tex_data, Vec2 size, Vec2 offset, float freq, int levels) {
     Math::perlinNoise(size, offset, freq, levels, noise_data);

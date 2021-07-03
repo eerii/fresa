@@ -10,6 +10,7 @@
 #include "gui.h"
 
 #include "r_opengl.h"
+#include "r_vulkan.h"
 #include "r_window.h"
 #include "r_renderer.h"
 #include "system_list.h"
@@ -65,7 +66,6 @@ void Graphics::render(Config &c) {
     ui64 time_before_render = time_precise();
     
     //CLEAR
-    glViewport(0, 0, c.resolution.x + 2*BORDER_WIDTH, c.resolution.y + 2*BORDER_WIDTH);
     Renderer::clear(c);
     
 #ifndef DISABLE_GUI
@@ -74,9 +74,9 @@ void Graphics::render(Config &c) {
 #endif
     
     //RENDER SYSTEMS
-    glEnable(GL_DEPTH_TEST);
+    Renderer::toggleDepthTest(true);
     RENDER_SYSTEMS
-    glDisable(GL_DEPTH_TEST);
+    Renderer::toggleDepthTest(false);
 
     //RENDER TO WINDOW
     Renderer::renderPost(c);
@@ -89,9 +89,8 @@ void Graphics::render(Config &c) {
         System::Tilemap::renderEditor(c);
 #endif
     
-    glViewport(0, 0, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale);
     Renderer::renderCam(c);
-    glViewport(0, 0, c.window_size.x, c.window_size.y);
+    
     Renderer::renderWindow(c);
     
 #ifndef DISABLE_GUI
@@ -103,11 +102,9 @@ void Graphics::render(Config &c) {
     
     //PRESENT
     Renderer::present(c.window);
-    glCheckError();
 }
 
 
 void Graphics::destroy() {
     Renderer::destroy();
-    glCheckError();
 }
