@@ -272,7 +272,9 @@ void Graphics::Renderer::create(Config &c, SDL_Window* window) {
     //PALETTE TEX
     int w, h, ch;
     ui8* tex = stbi_load("res/graphics/palette.png", &w, &h, &ch, STBI_rgb_alpha);
-    palette_tex = (ui32)Graphics::Texture::createTexture(tex, w, h);
+    TextureData palette_data;
+    Graphics::Texture::createTexture(tex, palette_data, w, h);
+    palette_tex = palette_data.gl_id; //TODO: CHANGE THIS
     Palette::setPaletteInterval(w);
     glCheckError();
     
@@ -346,7 +348,7 @@ void Graphics::Renderer::renderTilemap(Config &c, TextureData &data) {
     glCheckError();
 }
 
-void Graphics::Renderer::renderNoise(Config &c, ui32 &noise_tex, ui32 &mask_tex, glm::mat4 model, float* vertices, float* noise_vertices, int layer) {
+void Graphics::Renderer::renderNoise(Config &c, TextureData &mask_data, TextureData &noise_data) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_NOISE]);
@@ -355,26 +357,26 @@ void Graphics::Renderer::renderNoise(Config &c, ui32 &noise_tex, ui32 &mask_tex,
     //Vertices
     glBindVertexArray(vao[V_NOISE]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEX]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 16, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * mask_data.vertices.size(), mask_data.vertices.data(), GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_NOISE]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 8, noise_vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * noise_data.vertices.size(), noise_data.vertices.data(), GL_STATIC_DRAW);
     glCheckError();
     
     //Layer
-    glUniform1f(loc_layer_noise, (float)layer);
+    glUniform1f(loc_layer_noise, (float)mask_data.layer);
     
     //Matrices
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering texture)");
-    glUniformMatrix4fv(mvp[S_NOISE], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glUniformMatrix4fv(mvp[S_NOISE], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * mask_data.model));
     glCheckError();
     
     //Textures
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, noise_tex);
+    glBindTexture(GL_TEXTURE_2D, noise_data.gl_id);
     glUniform1i(glGetUniformLocation(shaders[S_NOISE], "noise"), 1);
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, mask_tex);
+    glBindTexture(GL_TEXTURE_2D, mask_data.gl_id);
     glUniform1i(glGetUniformLocation(shaders[S_NOISE], "mask"), 2);
     
     //Draw
@@ -385,8 +387,7 @@ void Graphics::Renderer::renderNoise(Config &c, ui32 &noise_tex, ui32 &mask_tex,
     glCheckError();
 }
 
-void Graphics::Renderer::renderText(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer,
-                                    float r, float g, float b, bool same_color) {
+void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float g, float b, bool same_color) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(shaders[S_TEXT]);
@@ -395,11 +396,11 @@ void Graphics::Renderer::renderText(Config &c, ui32 &tex_id, glm::mat4 model, fl
     //Vertices
     glBindVertexArray(vao[V_TEXT]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_TEXT]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 16, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.vertices.size(), data.vertices.data(), GL_STATIC_DRAW);
     glCheckError();
     
     //Layer
-    glUniform1f(loc_layer_text, (float)layer);
+    glUniform1f(loc_layer_text, (float)data.layer);
     
     //Color
     glUniform3f(loc_color_text, r, g, b);
@@ -408,11 +409,11 @@ void Graphics::Renderer::renderText(Config &c, ui32 &tex_id, glm::mat4 model, fl
     //Matrices
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering texture)");
-    glUniformMatrix4fv(mvp[S_TEXT], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glUniformMatrix4fv(mvp[S_TEXT], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * data.model));
     glCheckError();
     
     //Draw
-    glBindTexture(GL_TEXTURE_2D, tex_id);
+    glBindTexture(GL_TEXTURE_2D, data.gl_id);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

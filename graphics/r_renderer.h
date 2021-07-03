@@ -17,10 +17,8 @@ namespace Verse::Graphics::Renderer
     
     void renderTexture(Config &c, TextureData &data);
     void renderTilemap(Config &c, TextureData &data);
-    void renderNoise(Config &c, ui32 &noise_tex, ui32 &mask_tex, glm::mat4 model, float* vertices, float* noise_vertices, int layer);
-    void renderText(Config &c, ui32 &tex_id, glm::mat4 model, float* vertices, int layer,
-                    float r = 1.0f, float g = 1.0f, float b = 1.0f, bool same_color = true);
-    void render3D(Config &c, float* vertices, int size);
+    void renderNoise(Config &c, TextureData &mask_data, TextureData &noise_data);
+    void renderText(Config &c, TextureData &data, float r = 1.0f, float g = 1.0f, float b = 1.0f, bool same_color = true);
 
     void render(Config &c);
     void renderPost(Config &c);

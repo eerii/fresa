@@ -14,5 +14,9 @@ using namespace Graphics;
 using namespace glm;
 
 
+void Graphics::Renderer::create(Config &c, SDL_Window* window) {
+    
+}
+
 
 #endif

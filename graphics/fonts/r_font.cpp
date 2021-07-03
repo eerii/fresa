@@ -67,6 +67,5 @@ void Graphics::Font::render(Component::Text* text) {
         x += roundf(kern * scale);
     }
     
-    glDeleteTextures(1, &text->tex_id);
-    text->tex_id = Graphics::Texture::createTexture(bitmap.data(), text->bitmap_size.x, text->bitmap_size.y, false);
+    Graphics::Texture::createTexture(bitmap.data(), text->tex_data, text->bitmap_size.x, text->bitmap_size.y, false);
 }
