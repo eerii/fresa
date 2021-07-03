@@ -10,12 +10,17 @@
 
 #ifndef DISABLE_GUI
 
-#include "imgui.h"
-#include "imgui_stdlib.h"
-
 #include "config.h"
 
-#include <vector>
+#include "imgui.h"
+#include "imgui_stdlib.h"
+#include "imgui_impl_sdl.h"
+
+#if defined USE_OPENGL
+#include "imgui_impl_opengl3.h"
+#elif defined USE_VULKAN
+//#include "imgui_impl_vulkan.h"
+#endif
 
 namespace Verse::Gui
 {

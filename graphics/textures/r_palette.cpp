@@ -4,8 +4,10 @@
 
 #include "r_palette.h"
 
+#include "log.h"
 #include "ftime.h"
 #include "r_opengl.h"
+#include "r_vulkan.h"
 
 #define TRANSITION_TIME 500
 #define MAX_PALETTES 1024
@@ -18,6 +20,8 @@ namespace {
     float transition_percent = 0.0f;
     float palette_interval = 1.0f;
 }
+
+#if defined USE_OPENGL
 
 void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
     glUseProgram(pid);
@@ -37,6 +41,14 @@ void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
         glUniform1i(glGetUniformLocation(pid, "use_grayscale"), c.use_grayscale);
     }
 }
+
+#elif defined USE_VULKAN
+
+void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
+    log::warn("Texture creation not implemented yet (r_textures)");
+}
+
+#endif
 
 void Verse::Graphics::Palette::switchPalette(Config &c) {
     if (previous_palette == c.palette_index) {

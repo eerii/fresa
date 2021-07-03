@@ -9,9 +9,6 @@
 #include "game.h"
 #include "input.h"
 
-#include "imgui_impl_sdl.h"
-#include "imgui_impl_opengl3.h"
-
 #include "gui_menu.h"
 #include "gui_entities.h"
 #include "gui_tilemap_editor.h"
@@ -95,7 +92,11 @@ void Gui::update(Config &c) {
 }
 
 void Gui::prerender(Config &c, SDL_Window* window) {
+#if defined USE_OPENGL
     ImGui_ImplOpenGL3_NewFrame();
+#elif defined USE_VULKAN
+    //ImGui_ImplVulkan_NewFrame();
+#endif
     ImGui_ImplSDL2_NewFrame(window);
     ImGui::NewFrame();
     
@@ -110,7 +111,12 @@ void Gui::prerender(Config &c, SDL_Window* window) {
 
 void Gui::render() {
     ImGui::Render();
+    
+#if defined USE_OPENGL
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#elif defined USE_VULKAN
+    //ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData()); TODO: MAKE THIS WORK
+#endif
 }
 
 void Gui::addInputKey(SDL_Keycode k) {

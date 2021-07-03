@@ -2,6 +2,8 @@
 //by jose pazos perez
 //all rights reserved uwu
 
+#ifdef USE_OPENGL
+
 #include "r_shader.h"
 
 #include <fstream>
@@ -131,3 +133,5 @@ void Graphics::Shader::validateProgram(ui8 pid) {
         return;
     }
 }
+
+#endif

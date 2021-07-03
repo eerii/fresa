@@ -2,20 +2,16 @@
 //by jose pazos perez
 //all rights reserved uwu
 
+#ifdef USE_OPENGL
+
 #include "r_renderer.h"
 #include "r_opengl.h"
-
-#ifdef USE_OPENGL
 
 #include <glm/ext.hpp>
 
 #include "log.h"
 
 #include "gui.h"
-#ifndef DISABLE_GUI
-#include "imgui_impl_sdl.h"
-#include "imgui_impl_opengl3.h"
-#endif
 
 #include "r_shader.h"
 #include "r_palette.h"
@@ -443,8 +439,13 @@ void Graphics::Renderer::renderPost(Config &c) {
     Graphics::Palette::render(c, palette_tex, shaders[S_POST]);
     
     //Light
-    if (c.use_light)
-        System::Light::render(c, shaders[S_POST]);
+    if (c.use_light) {
+        std::vector<glm::vec4> light_data = System::Light::render(c, shaders[S_POST]);
+        glUniform4fv(glGetUniformLocation(shaders[S_POST], "light"), (int)(light_data.size()), reinterpret_cast<GLfloat *>(light_data.data()));
+        glUniform1i(glGetUniformLocation(shaders[S_POST], "light_size"), (int)(light_data.size()));
+        glUniform1f(glGetUniformLocation(shaders[S_POST], "light_distortion"),
+                                         (float)(c.resolution.x + 2*BORDER_WIDTH) / (float)(c.resolution.y + 2*BORDER_WIDTH));
+    }
     glUniform1i(glGetUniformLocation(shaders[S_POST], "use_light"), c.use_light);
     
     //Set texture
@@ -471,6 +472,8 @@ void Graphics::Renderer::renderPost(Config &c) {
 //fb_cam, tex_cam (c.resolution * c.render_scale) using shaders[S_CAM]
 //-----------------------------------------
 void Graphics::Renderer::renderCam(Config &c) {
+    glViewport(0, 0, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale);
+    
     //Render Target: fb_cam
     glBindFramebuffer(GL_FRAMEBUFFER, fb_cam);
     glUseProgram(shaders[S_CAM]);
@@ -509,6 +512,8 @@ void Graphics::Renderer::renderCam(Config &c) {
 //directly to window (c.window_size) using shaders[S_WINDOW]
 //-----------------------------------------
 void Graphics::Renderer::renderWindow(Config &c) {
+    glViewport(0, 0, c.window_size.x, c.window_size.y);
+    
     //Render Target: Window (fb 0)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(shaders[S_WINDOW]);
@@ -646,6 +651,8 @@ void Graphics::Renderer::present(SDL_Window* window) {
 //CLEAR
 //-----------------------------------------
 void Graphics::Renderer::clear(Config &c) {
+    glViewport(0, 0, c.resolution.x + 2*BORDER_WIDTH, c.resolution.y + 2*BORDER_WIDTH);
+    
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glClearColor(c.background_color[0], c.background_color[1], c.background_color[2], c.background_color[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -748,6 +755,13 @@ void Graphics::Renderer::createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, 
     
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, d_tex, 0);
     glCheckError();
+}
+
+void Graphics::Renderer::toggleDepthTest(bool enable) {
+    if (enable)
+        glEnable(GL_DEPTH_TEST);
+    else
+        glDisable(GL_DEPTH_TEST);
 }
 //-----------------------------------------
 
