@@ -10,6 +10,7 @@
 #pragma once
 
 #include "dtypes.h"
+#include "r_shaderdata.h"
 
 namespace Verse::Graphics::Shader
 {
