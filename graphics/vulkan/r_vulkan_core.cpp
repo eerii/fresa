@@ -7,6 +7,7 @@
 #include "r_vulkan_core.h"
 
 #include <map>
+#include <set>
 
 using namespace Verse;
 using namespace Graphics;
@@ -49,10 +50,8 @@ namespace Verse::Graphics
                     break;
                 }
             }
-            if (not layer_exists) {
+            if (not layer_exists)
                 log::error("Attempted to use a validation layer but it is not supported (%s)", val);
-                SDL_Quit();
-            }
         }
         
         VkApplicationInfo app_info = {};
@@ -89,9 +88,8 @@ namespace Verse::Graphics
         VK::QueueFamilyIndices queue_indices = getQueueFamilies(physical_device);
         if (queue_indices.compute_queue_family_index.has_value())
             score += 16;
-        //TODO: SURFACE QUEUE VALIDATION
-        /*if (not queue_indices.present_queue_family_index.has_value())
-            return 0;*/
+        if (not queue_indices.present_queue_family_index.has_value())
+            return 0;
         if (not queue_indices.graphics_queue_family_index.has_value())
             return 0;
         
@@ -102,10 +100,8 @@ namespace Verse::Graphics
         ui32 device_count = 0;
         vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
         
-        if (device_count == 0) {
+        if (device_count == 0)
             log::error("There are no GPUs with Vulkan Support!");
-            SDL_Quit();
-        }
         
         std::vector<VkPhysicalDevice> devices(device_count);
         vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
@@ -126,10 +122,8 @@ namespace Verse::Graphics
         
         log::graphics("");
         
-        if (physical_device == VK_NULL_HANDLE) {
+        if (physical_device == VK_NULL_HANDLE)
             log::error("No GPU passed the Vulkan Physical Device Requirements.");
-            SDL_Quit();
-        }
     }
 
     VK::QueueFamilyIndices Vulkan::getQueueFamilies(VkPhysicalDevice physical_device) {
@@ -141,21 +135,26 @@ namespace Verse::Graphics
         
         VK::QueueFamilyIndices indices;
         
-        int i = 0;
-        for (VkQueueFamilyProperties family : queue_family_list) {
-            if (indices.graphics_queue_family_index.has_value() and not indices.compute_queue_family_index.has_value() and (family.queueFlags & VK_QUEUE_COMPUTE_BIT))
-                indices.compute_queue_family_index = i;
-            
-            if (not indices.graphics_queue_family_index.has_value() and (family.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+        for (int i = 0; i < queue_family_list.size(); i++) {
+            if (not indices.graphics_queue_family_index.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
                 indices.graphics_queue_family_index = i;
+                continue;
+            }
             
-            //TODO: SURFACE QUEUE VALIDATION
-            /*VkBool32 present_support = false;
+            if (not indices.compute_queue_family_index.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
+                indices.compute_queue_family_index = i;
+                continue;
+            }
+            
+            VkBool32 present_support = false;
             vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &present_support);
-            if(present_support)
-                indices.present_queue_family_index = i;*/
+            if(present_support) {
+                indices.present_queue_family_index = i;
+                continue;
+            }
             
-            i++;
+            if (indices.all())
+                break;
         }
         
         return indices;
@@ -167,34 +166,26 @@ namespace Verse::Graphics
     
     void Vulkan::createDevice() {
         std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
-        float priority_first = 1.0f;
-        float priority_second = 0.5f;
         
-        if (queue_families.graphics_queue_family_index.has_value()) {
+        std::set<ui32> unique_queue_families = {};
+        if (queue_families.graphics_queue_family_index.has_value())
+            unique_queue_families.insert(queue_families.graphics_queue_family_index.value());
+        if (queue_families.present_queue_family_index.has_value())
+            unique_queue_families.insert(queue_families.present_queue_family_index.value());
+        if (queue_families.compute_queue_family_index.has_value())
+            unique_queue_families.insert(queue_families.compute_queue_family_index.value());
+        
+        int i = 0;
+        std::vector<float> priorities = { 1.0f, 1.0f, 0.5f };
+        
+        for (ui32 family : unique_queue_families) {
             VkDeviceQueueCreateInfo queue_graphics_info = {};
             queue_graphics_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queue_graphics_info.queueFamilyIndex = queue_families.graphics_queue_family_index.value();
+            queue_graphics_info.queueFamilyIndex = family;
             queue_graphics_info.queueCount = 1;
-            queue_graphics_info.pQueuePriorities = &priority_first;
+            queue_graphics_info.pQueuePriorities = &priorities[i];
             queue_create_infos.push_back(queue_graphics_info);
-        }
-        
-        if (queue_families.compute_queue_family_index.has_value()) {
-            VkDeviceQueueCreateInfo queue_compute_info = {};
-            queue_compute_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queue_compute_info.queueFamilyIndex = queue_families.compute_queue_family_index.value();
-            queue_compute_info.queueCount = 1;
-            queue_compute_info.pQueuePriorities = &priority_second;
-            queue_create_infos.push_back(queue_compute_info);
-        }
-        
-        if (queue_families.present_queue_family_index.has_value()) {
-            VkDeviceQueueCreateInfo queue_present_info = {};
-            queue_present_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queue_present_info.queueFamilyIndex = queue_families.present_queue_family_index.value();
-            queue_present_info.queueCount = 1;
-            queue_present_info.pQueuePriorities = &priority_first;
-            queue_create_infos.push_back(queue_present_info);
+            i++;
         }
         
         //Device required features
@@ -223,6 +214,11 @@ namespace Verse::Graphics
             vkGetDeviceQueue(device, queue_families.compute_queue_family_index.value(), 0, &compute_queue);
         if (queue_families.present_queue_family_index.has_value())
             vkGetDeviceQueue(device, queue_families.present_queue_family_index.value(), 0, &present_queue);
+    }
+
+    void Vulkan::createSurface(Config &c) {
+        if (not SDL_Vulkan_CreateSurface(c.window, instance, &surface))
+            log::error("Error while creating a Vulkan Surface (from createSurface): %s", SDL_GetError());
     }
 }
 

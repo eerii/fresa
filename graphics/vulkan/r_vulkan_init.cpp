@@ -13,6 +13,8 @@ void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
     vulkan->createInstance(c);
     vulkan->createDebug();
     
+    vulkan->createSurface(c);
+    
     vulkan->selectPhysicalDevice();
     vulkan->selectQueueFamily();
     vulkan->createDevice();
