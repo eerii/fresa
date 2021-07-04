@@ -84,6 +84,8 @@ void Graphics::Renderer::clear(Config &c) {
 
 void Graphics::Renderer::destroy() {
     vkDestroyDevice(vulkan.device, nullptr);
+    
+    vkDestroySurfaceKHR(vulkan.instance, vulkan.surface, nullptr);
     vkDestroyInstance(vulkan.instance, nullptr);
 }
 

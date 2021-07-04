@@ -22,6 +22,9 @@ namespace Verse::Graphics
             std::optional<ui32> graphics_queue_family_index;
             std::optional<ui32> present_queue_family_index;
             std::optional<ui32> compute_queue_family_index;
+            
+            bool all() { return (graphics_queue_family_index.has_value() and present_queue_family_index.has_value() and
+                                 compute_queue_family_index.has_value()); };
         };
     }
 
@@ -47,7 +50,7 @@ namespace Verse::Graphics
         void createDevice();
         
         VkSurfaceKHR surface;
-        void createSurface();
+        void createSurface(Config &c);
         
         VkDebugReportCallbackEXT debug_callback;
         void createDebug();

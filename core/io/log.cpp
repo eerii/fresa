@@ -56,6 +56,8 @@ void log::error(str p_info, ...)
     va_end(ap);
 
     std::cerr << "[ERROR] " << msg << std::endl;
+    
+    throw std::runtime_error(msg);
 #endif
 }
 
