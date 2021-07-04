@@ -9,8 +9,22 @@
 #include "r_vulkan.h"
 #include "config.h"
 
+#include <optional>
+
 namespace Verse::Graphics
 {
+    struct Vulkan;
+
+    namespace VK {
+        void initVulkan(Vulkan *vulkan, Config &c);
+
+        struct QueueFamilyIndices {
+            std::optional<ui32> graphics_queue_family_index;
+            std::optional<ui32> present_queue_family_index;
+            std::optional<ui32> compute_queue_family_index;
+        };
+    }
+
     struct Vulkan {
         //CORE
         //----------------------------------------
@@ -18,17 +32,18 @@ namespace Verse::Graphics
         std::vector<VkExtensionProperties> instance_extensions;
         void createInstance(Config &c);
         
-        VkPhysicalDevice physical_devices;
+        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+        ui16 ratePhysicalDevice(VkPhysicalDevice physical_device);
         void selectPhysicalDevice();
-        
-        VkDevice device;
-        void createDevice();
         
         VkQueue graphics_queue;
         VkQueue present_queue;
-        ui32 graphics_queue_family_index;
-        ui32 present_queue_family_index;
+        VkQueue compute_queue;
+        VK::QueueFamilyIndices getQueueFamilies(VkPhysicalDevice physical_device);
         void selectQueueFamily();
+        
+        VkDevice device;
+        void createDevice();
         
         VkSurfaceKHR surface;
         void createSurface();
@@ -91,10 +106,6 @@ namespace Verse::Graphics
         ui32 findMemoryType(ui32 type_filter, VkMemoryPropertyFlags properties);
         //----------------------------------------
     };
-
-    namespace VK {
-        void initVulkan(Vulkan *vulkan, Config &c);
-    }
 }
 
 #endif
