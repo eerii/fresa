@@ -40,6 +40,7 @@ namespace Verse::Graphics
         VkQueue present_queue;
         VkQueue compute_queue;
         VK::QueueFamilyIndices getQueueFamilies(VkPhysicalDevice physical_device);
+        VK::QueueFamilyIndices queue_families;
         void selectQueueFamily();
         
         VkDevice device;

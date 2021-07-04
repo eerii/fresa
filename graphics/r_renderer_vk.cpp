@@ -83,6 +83,7 @@ void Graphics::Renderer::clear(Config &c) {
 
 
 void Graphics::Renderer::destroy() {
+    vkDestroyDevice(vulkan.device, nullptr);
     vkDestroyInstance(vulkan.instance, nullptr);
 }
 
