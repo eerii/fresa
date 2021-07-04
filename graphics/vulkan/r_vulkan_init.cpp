@@ -12,6 +12,9 @@ using namespace Graphics;
 void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
     vulkan->createInstance(c);
     vulkan->createDebug();
+    
+    vulkan->selectPhysicalDevice();
+    vulkan->selectQueueFamily();
 }
 
 #endif
