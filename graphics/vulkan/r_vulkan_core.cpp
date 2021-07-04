@@ -86,6 +86,15 @@ namespace Verse::Graphics
         if (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
             score += 256;
         
+        VK::QueueFamilyIndices queue_indices = getQueueFamilies(physical_device);
+        if (queue_indices.compute_queue_family_index.has_value())
+            score += 16;
+        //TODO: SURFACE QUEUE VALIDATION
+        /*if (not queue_indices.present_queue_family_index.has_value())
+            return 0;*/
+        if (not queue_indices.graphics_queue_family_index.has_value())
+            return 0;
+        
         return score;
     }
 
@@ -134,13 +143,17 @@ namespace Verse::Graphics
         
         int i = 0;
         for (VkQueueFamilyProperties family : queue_family_list) {
-            if (family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-                indices.graphics_queue_family_index = i;
-
-            if (family.queueFlags & VK_QUEUE_COMPUTE_BIT)
+            if (indices.graphics_queue_family_index.has_value() and not indices.compute_queue_family_index.has_value() and (family.queueFlags & VK_QUEUE_COMPUTE_BIT))
                 indices.compute_queue_family_index = i;
             
-            //TODO: SURFACE PRESENT
+            if (not indices.graphics_queue_family_index.has_value() and (family.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+                indices.graphics_queue_family_index = i;
+            
+            //TODO: SURFACE QUEUE VALIDATION
+            /*VkBool32 present_support = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &present_support);
+            if(present_support)
+                indices.present_queue_family_index = i;*/
             
             i++;
         }
@@ -149,11 +162,68 @@ namespace Verse::Graphics
     }
 
     void Vulkan::selectQueueFamily() {
-        
-        
-        
+        queue_families = getQueueFamilies(physical_device);
     }
     
+    void Vulkan::createDevice() {
+        std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
+        float priority_first = 1.0f;
+        float priority_second = 0.5f;
+        
+        if (queue_families.graphics_queue_family_index.has_value()) {
+            VkDeviceQueueCreateInfo queue_graphics_info = {};
+            queue_graphics_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queue_graphics_info.queueFamilyIndex = queue_families.graphics_queue_family_index.value();
+            queue_graphics_info.queueCount = 1;
+            queue_graphics_info.pQueuePriorities = &priority_first;
+            queue_create_infos.push_back(queue_graphics_info);
+        }
+        
+        if (queue_families.compute_queue_family_index.has_value()) {
+            VkDeviceQueueCreateInfo queue_compute_info = {};
+            queue_compute_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queue_compute_info.queueFamilyIndex = queue_families.compute_queue_family_index.value();
+            queue_compute_info.queueCount = 1;
+            queue_compute_info.pQueuePriorities = &priority_second;
+            queue_create_infos.push_back(queue_compute_info);
+        }
+        
+        if (queue_families.present_queue_family_index.has_value()) {
+            VkDeviceQueueCreateInfo queue_present_info = {};
+            queue_present_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queue_present_info.queueFamilyIndex = queue_families.present_queue_family_index.value();
+            queue_present_info.queueCount = 1;
+            queue_present_info.pQueuePriorities = &priority_first;
+            queue_create_infos.push_back(queue_present_info);
+        }
+        
+        //Device required features
+        VkPhysicalDeviceFeatures device_features = {};
+        
+        //Device required extensions
+        const std::vector<const char*> device_extensions = { "VK_KHR_portability_subset", VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+        
+        VkDeviceCreateInfo device_create_info = {};
+        
+        device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        device_create_info.queueCreateInfoCount = (int)queue_create_infos.size();
+        device_create_info.pQueueCreateInfos = queue_create_infos.data();
+        device_create_info.enabledExtensionCount = (int)device_extensions.size();
+        device_create_info.ppEnabledExtensionNames = device_extensions.data();
+        device_create_info.pEnabledFeatures = &device_features;
+        
+        device_create_info.enabledLayerCount = (int)validation_layers.size();
+        device_create_info.ppEnabledLayerNames = validation_layers.data();
+        
+        vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
+        
+        if (queue_families.graphics_queue_family_index.has_value())
+            vkGetDeviceQueue(device, queue_families.graphics_queue_family_index.value(), 0, &graphics_queue);
+        if (queue_families.compute_queue_family_index.has_value())
+            vkGetDeviceQueue(device, queue_families.compute_queue_family_index.value(), 0, &compute_queue);
+        if (queue_families.present_queue_family_index.has_value())
+            vkGetDeviceQueue(device, queue_families.present_queue_family_index.value(), 0, &present_queue);
+    }
 }
 
 #endif

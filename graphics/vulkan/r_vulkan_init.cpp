@@ -15,6 +15,7 @@ void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
     
     vulkan->selectPhysicalDevice();
     vulkan->selectQueueFamily();
+    vulkan->createDevice();
 }
 
 #endif
