@@ -18,6 +18,8 @@ void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
     vulkan->selectPhysicalDevice();
     vulkan->selectQueueFamily();
     vulkan->createDevice();
+    
+    vulkan->createSwapchain(c);
 }
 
 #endif
