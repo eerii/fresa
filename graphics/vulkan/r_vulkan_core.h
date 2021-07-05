@@ -26,6 +26,12 @@ namespace Verse::Graphics
             bool all() { return (graphics_queue_family_index.has_value() and present_queue_family_index.has_value() and
                                  compute_queue_family_index.has_value()); };
         };
+    
+        struct SwapchainSupportDetails {
+            VkSurfaceCapabilitiesKHR capabilities;
+            std::vector<VkSurfaceFormatKHR> formats;
+            std::vector<VkPresentModeKHR> present_modes;
+        };
     }
 
     struct Vulkan {
@@ -42,8 +48,10 @@ namespace Verse::Graphics
         VkQueue graphics_queue;
         VkQueue present_queue;
         VkQueue compute_queue;
+        
         VK::QueueFamilyIndices getQueueFamilies(VkPhysicalDevice physical_device);
         VK::QueueFamilyIndices queue_families;
+        
         void selectQueueFamily();
         
         VkDevice device;
@@ -58,15 +66,17 @@ namespace Verse::Graphics
         
         //SCREEN
         //----------------------------------------
-        VkSwapchainKHR swapchain;
-        
-        VkSurfaceCapabilitiesKHR surface_capabilities;
-        VkSurfaceFormatKHR surface_format;
-        VkExtent2D swapchain_size;
+        VK::SwapchainSupportDetails getSwapchainSupport(VkPhysicalDevice physical_device);
+        VkSurfaceFormatKHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
+        VkPresentModeKHR selectSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
+        VkExtent2D selectSwapExtent(Config &c, const VkSurfaceCapabilitiesKHR& capabilities);
         
         std::vector<VkImage> swapchain_images;
-        ui32 swapchain_image_count;
-        bool createSwapchain(bool resize);
+        VkFormat swapchain_format;
+        VkExtent2D swapchain_extent;
+        
+        VkSwapchainKHR swapchain;
+        void createSwapchain(Config &c);
         
         std::vector<VkImageView> swapchain_image_views;
         void createImageViews();
