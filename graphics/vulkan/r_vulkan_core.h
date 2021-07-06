@@ -32,6 +32,20 @@ namespace Verse::Graphics
             std::vector<VkSurfaceFormatKHR> formats;
             std::vector<VkPresentModeKHR> present_modes;
         };
+    
+        struct RenderingCreateInfo {
+            VkPipelineVertexInputStateCreateInfo vertex_input;
+            VkPipelineInputAssemblyStateCreateInfo input_assembly;
+            VkPipelineRasterizationStateCreateInfo rasterizer;
+            VkPipelineMultisampleStateCreateInfo multisampling;
+            VkPipelineDepthStencilStateCreateInfo depth_stencil;
+            VkPipelineColorBlendAttachmentState color_blend_attachment;
+            VkPipelineColorBlendStateCreateInfo color_blend_state;
+            
+            VkPipelineViewportStateCreateInfo viewport_state;
+            VkViewport viewport;
+            VkRect2D scissor;
+        };
     }
 
     struct Vulkan {
@@ -85,6 +99,26 @@ namespace Verse::Graphics
         
         //PIPELINE
         //----------------------------------------
+        VkRenderPass render_pass;
+        void createRenderPass();
+        VkSubpassDescription createRenderSubpass();
+        
+        VK::RenderingCreateInfo rendering_create_info;
+        void prepareRenderInfoVertexInput();
+        void prepareRenderInfoInputAssembly();
+        void prepareRenderInfoViewportState();
+        void prepareRenderInfoRasterizer();
+        void prepareRenderInfoMultisampling();
+        void prepareRenderInfoDepthStencil();
+        void prepareRenderInfoColorBlendAttachment();
+        void prepareRenderInfoColorBlendState();
+        void prepareRenderInfoPipelineLayout();
+        void prepareRenderInfo();
+        
+        VkPipelineLayout pipeline_layout;
+        void createPipelineLayout();
+        
+        VkPipeline pipeline;
         void createGraphicsPipeline();
         //----------------------------------------
         

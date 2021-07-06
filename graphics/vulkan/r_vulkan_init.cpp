@@ -22,6 +22,7 @@ void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
     vulkan->createSwapchain(c);
     vulkan->createImageViews();
     
+    vulkan->createRenderPass();
     vulkan->createGraphicsPipeline();
 }
 
