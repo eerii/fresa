@@ -20,6 +20,7 @@ void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
     vulkan->createDevice();
     
     vulkan->createSwapchain(c);
+    vulkan->createImageViews();
 }
 
 #endif

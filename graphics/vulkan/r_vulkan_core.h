@@ -35,7 +35,7 @@ namespace Verse::Graphics
     }
 
     struct Vulkan {
-        //CORE
+        //DEVICE
         //----------------------------------------
         VkInstance instance;
         std::vector<VkExtensionProperties> instance_extensions;
@@ -64,7 +64,7 @@ namespace Verse::Graphics
         void createDebug();
         //----------------------------------------
         
-        //SCREEN
+        //SWAPCHAIN
         //----------------------------------------
         VK::SwapchainSupportDetails getSwapchainSupport(VkPhysicalDevice physical_device);
         VkSurfaceFormatKHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
@@ -80,44 +80,17 @@ namespace Verse::Graphics
         
         std::vector<VkImageView> swapchain_image_views;
         void createImageViews();
-        
-        VkFormat depth_format;
-        VkImage depth_image;
-        VkDeviceMemory depth_image_memory;
-        VkImageView depth_image_view;
-        void setupDepthStencil();
-        
-        VkRenderPass render_pass;
-        void createRenderPass();
-
-        std::vector<VkFramebuffer> swapchain_framebuffers;
-        void createFramebuffers();
+        VkImageView createImageView(VkImage image, VkImageAspectFlags aspect_flags);
         //----------------------------------------
         
-        //IMAGES
+        //PIPELINE
         //----------------------------------------
-        VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags);
-        void createImage(ui32 width, ui32 height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-                         VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
+        void createGraphicsPipeline();
         //----------------------------------------
         
-        //OTHER
+        //CLEANUP
         //----------------------------------------
-        VkCommandPool command_pool;
-        void createCommandPool();
-
-        std::vector<VkCommandBuffer> command_buffers;
-        void createCommandBuffers();
-
-        VkSemaphore image_available_semaphore;
-        VkSemaphore rendering_finished_semaphore;
-        void createSemaphore(VkSemaphore *semaphore);
-        void createSemaphores();
-
-        std::vector<VkFence> fences;
-        void create_fences();
-        
-        ui32 findMemoryType(ui32 type_filter, VkMemoryPropertyFlags properties);
+        void destroy();
         //----------------------------------------
     };
 }
