@@ -14,7 +14,7 @@
 
 using namespace Verse;
 
-ui8 Graphics::Shader::compileShader(const char* source, ui32 shaderType) {
+ui8 Graphics::Shader::compileShaderGL(const char* source, ui32 shaderType) {
     //CREATE SHADER FROM SOURCE
     ui8 id = glCreateShader(shaderType);
     glShaderSource(id, 1, &source, NULL);
@@ -44,7 +44,7 @@ ui8 Graphics::Shader::compileShader(const char* source, ui32 shaderType) {
     return id;
 }
 
-ui8 Graphics::Shader::compileProgram(str vertex_file, str fragment_file) {
+ui8 Graphics::Shader::compileProgramGL(str vertex_file, str fragment_file) {
     ui8 pid = 0;
     ui8 vertex_shader, fragment_shader;
 
@@ -62,7 +62,7 @@ ui8 Graphics::Shader::compileProgram(str vertex_file, str fragment_file) {
     std::string version("410 core");
     source.replace(source.find(version), version.size(), "300 es");
 #endif
-    vertex_shader = compileShader(source.c_str(), GL_VERTEX_SHADER);
+    vertex_shader = compileShaderGL(source.c_str(), GL_VERTEX_SHADER);
     
     //COMPILE FRAGMENT SHADER
     f=std::ifstream(fragment_file.c_str());
@@ -71,7 +71,7 @@ ui8 Graphics::Shader::compileProgram(str vertex_file, str fragment_file) {
 #ifdef __EMSCRIPTEN__
     source.replace(source.find(version), version.size(), "300 es\nprecision highp float;");
 #endif
-    fragment_shader = compileShader(source.c_str(), GL_FRAGMENT_SHADER);
+    fragment_shader = compileShaderGL(source.c_str(), GL_FRAGMENT_SHADER);
 
     //ATTACH TO PROGRAM
     if(vertex_shader && fragment_shader) {
@@ -112,7 +112,7 @@ ui8 Graphics::Shader::compileProgram(str vertex_file, str fragment_file) {
     return pid;
 }
 
-void Graphics::Shader::validateProgram(ui8 pid) {
+void Graphics::Shader::validateProgramGL(ui8 pid) {
     glValidateProgram(pid);
     
     int program_valid = GL_FALSE;

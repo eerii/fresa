@@ -9,6 +9,8 @@
 #include <map>
 #include <set>
 
+#include "r_shader.h"
+
 using namespace Verse;
 using namespace Graphics;
 
@@ -78,7 +80,8 @@ void Vulkan::createInstance(Config &c) {
     instance_create_info.enabledExtensionCount = (int)extension_names.size();
     instance_create_info.ppEnabledExtensionNames = extension_names.data();
     
-    vkCreateInstance(&instance_create_info, nullptr, &instance);
+    if (vkCreateInstance(&instance_create_info, nullptr, &instance)!= VK_SUCCESS)
+        log::error("Error creating Vulkan Instance");
 }
 
 ui16 Vulkan::ratePhysicalDevice(VkPhysicalDevice physical_device) {
@@ -232,7 +235,8 @@ void Vulkan::createDevice() {
     device_create_info.enabledLayerCount = (int)validation_layers.size();
     device_create_info.ppEnabledLayerNames = validation_layers.data();
     
-    vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
+    if (vkCreateDevice(physical_device, &device_create_info, nullptr, &device)!= VK_SUCCESS)
+        log::error("Error creating Vulkan Logical Device");
     
     if (queue_families.graphics_queue_family_index.has_value())
         vkGetDeviceQueue(device, queue_families.graphics_queue_family_index.value(), 0, &graphics_queue);
@@ -353,7 +357,8 @@ void Vulkan::createSwapchain(Config &c) {
     create_info.clipped = VK_TRUE;
     create_info.oldSwapchain = VK_NULL_HANDLE; //TODO: Allow recreation of swapchains
     
-    vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain);
+    if (vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain)!= VK_SUCCESS)
+        log::error("Error creating Vulkan Swapchain");
     
     vkGetSwapchainImagesKHR(device, swapchain, &image_count, nullptr);
     swapchain_images.resize(image_count);
@@ -388,7 +393,8 @@ VkImageView Vulkan::createImageView(VkImage image, VkImageAspectFlags aspect_fla
     create_info.subresourceRange.layerCount = 1;
     
     VkImageView image_view;
-    vkCreateImageView(device, &create_info, nullptr, &image_view);
+    if (vkCreateImageView(device, &create_info, nullptr, &image_view)!= VK_SUCCESS)
+        log::error("Error creating Vulkan Image View");
     
     return image_view;
 }
@@ -401,7 +407,14 @@ VkImageView Vulkan::createImageView(VkImage image, VkImageAspectFlags aspect_fla
 //----------------------------------------
 
 void Vulkan::createGraphicsPipeline() {
+    std::vector<char> vert_shader_code = Graphics::Shader::readSPIRV("res/shaders/test/vert.spv");
+    std::vector<char> frag_shader_code = Graphics::Shader::readSPIRV("res/shaders/test/frag.spv");
     
+    VkShaderModule vert_shader_module = Graphics::Shader::createShaderModule(vert_shader_code, device);
+    VkShaderModule frag_shader_module = Graphics::Shader::createShaderModule(frag_shader_code, device);
+    
+    vkDestroyShaderModule(device, vert_shader_module, nullptr);
+    vkDestroyShaderModule(device, frag_shader_module, nullptr);
 }
 
 

@@ -129,25 +129,25 @@ void Graphics::Renderer::create(Config &c) {
     
     //SHADERS
     //-----------------------------------------
-    shaders[S_RENDER2D] = Graphics::Shader::compileProgram("res/shaders/render.vertex", "res/shaders/render.frag");
+    shaders[S_RENDER2D] = Graphics::Shader::compileProgramGL("res/shaders/render.vertex", "res/shaders/render.frag");
     log::graphics("Program (Render) ID: %d", shaders[S_RENDER2D]);
     
-    shaders[S_POST] = Graphics::Shader::compileProgram("res/shaders/post.vertex", "res/shaders/post.frag");
+    shaders[S_POST] = Graphics::Shader::compileProgramGL("res/shaders/post.vertex", "res/shaders/post.frag");
     log::graphics("Program (Post) ID: %d", shaders[S_POST]);
     
-    shaders[S_TEXT] = Graphics::Shader::compileProgram("res/shaders/text.vertex", "res/shaders/text.frag");
+    shaders[S_TEXT] = Graphics::Shader::compileProgramGL("res/shaders/text.vertex", "res/shaders/text.frag");
     log::graphics("Program (Text) ID: %d", shaders[S_TEXT]);
     
-    shaders[S_CAM] = Graphics::Shader::compileProgram("res/shaders/cam.vertex", "res/shaders/cam.frag");
+    shaders[S_CAM] = Graphics::Shader::compileProgramGL("res/shaders/cam.vertex", "res/shaders/cam.frag");
     log::graphics("Program (Cam) ID: %d", shaders[S_CAM]);
     
-    shaders[S_WINDOW] = Graphics::Shader::compileProgram("res/shaders/window.vertex", "res/shaders/window.frag");
+    shaders[S_WINDOW] = Graphics::Shader::compileProgramGL("res/shaders/window.vertex", "res/shaders/window.frag");
     log::graphics("Program (Window) ID: %d", shaders[S_WINDOW]);
     
-    shaders[S_NOISE] = Graphics::Shader::compileProgram("res/shaders/noise.vertex", "res/shaders/noise.frag");
+    shaders[S_NOISE] = Graphics::Shader::compileProgramGL("res/shaders/noise.vertex", "res/shaders/noise.frag");
     log::graphics("Program (Noise) ID: %d", shaders[S_NOISE]);
     
-    shaders[S_DEBUG] = Graphics::Shader::compileProgram("res/shaders/debug.vertex", "res/shaders/debug.frag");
+    shaders[S_DEBUG] = Graphics::Shader::compileProgramGL("res/shaders/debug.vertex", "res/shaders/debug.frag");
     log::graphics("Program (Debug) ID: %d", shaders[S_NOISE]);
     
     log::graphics("---");
@@ -178,7 +178,7 @@ void Graphics::Renderer::create(Config &c) {
     //Validate Programs
     for (ui8 p : shaders) {
         if (p != shaders[S_EMPTY])
-            Graphics::Shader::validateProgram(p);
+            Graphics::Shader::validateProgramGL(p);
     }
     
     //VBOs
