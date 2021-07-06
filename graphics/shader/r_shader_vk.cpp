@@ -61,7 +61,7 @@ std::vector<VkPipelineShaderStageCreateInfo> Graphics::Shader::createShaderStage
         VkPipelineShaderStageCreateInfo frag_stage_info = {};
         
         frag_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        frag_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        frag_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
         frag_stage_info.module = stages.frag.value();
         frag_stage_info.pName = "main";
         
@@ -72,7 +72,7 @@ std::vector<VkPipelineShaderStageCreateInfo> Graphics::Shader::createShaderStage
         VkPipelineShaderStageCreateInfo compute_stage_info = {};
         
         compute_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        compute_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        compute_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
         compute_stage_info.module = stages.compute.value();
         compute_stage_info.pName = "main";
         
@@ -83,7 +83,7 @@ std::vector<VkPipelineShaderStageCreateInfo> Graphics::Shader::createShaderStage
         VkPipelineShaderStageCreateInfo geometry_stage_info = {};
         
         geometry_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        geometry_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        geometry_stage_info.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
         geometry_stage_info.module = stages.geometry.value();
         geometry_stage_info.pName = "main";
         
