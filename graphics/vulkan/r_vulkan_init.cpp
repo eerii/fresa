@@ -24,6 +24,10 @@ void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
     
     vulkan->createRenderPass();
     vulkan->createGraphicsPipeline();
+    
+    vulkan->createFramebuffers();
+    vulkan->createCommandPools();
+    vulkan->createCommandBuffers();
 }
 
 #endif
