@@ -122,6 +122,19 @@ namespace Verse::Graphics
         void createGraphicsPipeline();
         //----------------------------------------
         
+        //RENDERING
+        //----------------------------------------
+        std::vector<VkFramebuffer> swapchain_framebuffers;
+        void createFramebuffers();
+        
+        VkCommandPool command_pool;
+        void createCommandPools();
+        
+        std::vector<VkCommandBuffer> command_buffers;
+        void createCommandBuffers();
+        void recordCommandBuffer(VkCommandBuffer &buffer, VkFramebuffer &framebuffer);
+        //----------------------------------------
+        
         //CLEANUP
         //----------------------------------------
         void destroy();

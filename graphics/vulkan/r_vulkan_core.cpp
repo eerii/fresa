@@ -36,7 +36,7 @@ void Vulkan::createInstance(Config &c) {
     SDL_Vulkan_GetInstanceExtensions(c.window, &extension_count, nullptr);
     std::vector<const char *> extension_names(extension_count);
     SDL_Vulkan_GetInstanceExtensions(c.window, &extension_count, extension_names.data());
-    log::graphics("Vulkan extensions needed: %d", extension_count);
+    log::graphics("Vulkan requested Instance Extensions: %d", extension_count);
     for (const char* ext : extension_names)
         log::graphics(" - %s", ext);
     
@@ -46,8 +46,8 @@ void Vulkan::createInstance(Config &c) {
     vkEnumerateInstanceLayerProperties(&validation_layer_count, nullptr);
     std::vector<VkLayerProperties> available_validation_layers(validation_layer_count);
     vkEnumerateInstanceLayerProperties(&validation_layer_count, available_validation_layers.data());
-    log::graphics("Vulkan validation layers supported: %d", validation_layer_count);
-    for (const auto &layer : available_validation_layers)
+    log::graphics("Vulkan supported Validation Layers: %d", validation_layer_count);
+    for (VkLayerProperties layer : available_validation_layers)
         log::graphics(" - %s", layer.layerName);
     
     log::graphics("");
@@ -135,9 +135,14 @@ void Vulkan::selectPhysicalDevice() {
     if (device_count == 0)
         log::error("There are no GPUs with Vulkan Support!");
     
+    log::graphics("Vulkan required Device Extensions: %d", required_device_extensions.size());
+    for (const char* ext : required_device_extensions)
+        log::graphics(" - %s", ext);
+    log::graphics("");
+    
     std::vector<VkPhysicalDevice> devices(device_count);
     vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
-    log::graphics("Vulkan physical devices: %d", device_count);
+    log::graphics("Vulkan Physical Devices: %d", device_count);
     
     std::multimap<VkPhysicalDevice, ui16> candidates;
     for (VkPhysicalDevice dev : devices)
@@ -238,12 +243,20 @@ void Vulkan::createDevice() {
     if (vkCreateDevice(physical_device, &device_create_info, nullptr, &device)!= VK_SUCCESS)
         log::error("Error creating Vulkan Logical Device");
     
-    if (queue_families.graphics_queue_family_index.has_value())
+    log::graphics("Vulkan Queue Families: %d", unique_queue_families.size());
+    if (queue_families.graphics_queue_family_index.has_value()) {
         vkGetDeviceQueue(device, queue_families.graphics_queue_family_index.value(), 0, &graphics_queue);
-    if (queue_families.compute_queue_family_index.has_value())
-        vkGetDeviceQueue(device, queue_families.compute_queue_family_index.value(), 0, &compute_queue);
-    if (queue_families.present_queue_family_index.has_value())
+        log::graphics(" - Graphics (%d)", queue_families.graphics_queue_family_index.value());
+    }
+    if (queue_families.present_queue_family_index.has_value()) {
         vkGetDeviceQueue(device, queue_families.present_queue_family_index.value(), 0, &present_queue);
+        log::graphics(" - Present (%d)", queue_families.present_queue_family_index.value());
+    }
+    if (queue_families.compute_queue_family_index.has_value()) {
+        vkGetDeviceQueue(device, queue_families.compute_queue_family_index.value(), 0, &compute_queue);
+        log::graphics(" - Compute (%d)", queue_families.compute_queue_family_index.value());
+    }
+    log::graphics("");
 }
 
 void Vulkan::createSurface(Config &c) {
@@ -358,7 +371,9 @@ void Vulkan::createSwapchain(Config &c) {
     create_info.oldSwapchain = VK_NULL_HANDLE; //TODO: Allow recreation of swapchains
     
     if (vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain)!= VK_SUCCESS)
-        log::error("Error creating Vulkan Swapchain");
+        log::error("Error creating the Vulkan Swapchain");
+    
+    log::graphics("Created the Vulkan Swapchain");
     
     vkGetSwapchainImagesKHR(device, swapchain, &image_count, nullptr);
     swapchain_images.resize(image_count);
@@ -370,6 +385,8 @@ void Vulkan::createImageViews() {
     
     for (int i = 0; i < swapchain_images.size(); i++)
         swapchain_image_views[i] = createImageView(swapchain_images[i], VK_IMAGE_ASPECT_COLOR_BIT);
+    
+    log::graphics("Created all Vulkan Image Views");
 }
 
 VkImageView Vulkan::createImageView(VkImage image, VkImageAspectFlags aspect_flags) {
@@ -394,7 +411,7 @@ VkImageView Vulkan::createImageView(VkImage image, VkImageAspectFlags aspect_fla
     
     VkImageView image_view;
     if (vkCreateImageView(device, &create_info, nullptr, &image_view)!= VK_SUCCESS)
-        log::error("Error creating Vulkan Image View");
+        log::error("Error creating a Vulkan Image View");
     
     return image_view;
 }
@@ -434,6 +451,8 @@ void Vulkan::createRenderPass() {
     
     if (vkCreateRenderPass(device, &create_info, nullptr, &render_pass) != VK_SUCCESS)
         log::error("Error creating a Vulkan Render Pass");
+    
+    log::graphics("Created all Vulkan Render Passes");
 }
 
 VkSubpassDescription Vulkan::createRenderSubpass() {
@@ -583,7 +602,9 @@ void Vulkan::createPipelineLayout() {
     create_info.pPushConstantRanges = nullptr;
     
     if (vkCreatePipelineLayout(device, &create_info, nullptr, &pipeline_layout) != VK_SUCCESS)
-        log::error("Error creating a Vulkan Pipeline Layout");
+        log::error("Error creating the Vulkan Pipeline Layout");
+    
+    log::graphics("Created the Vulkan Pipeline Layout");
 }
 
 void Vulkan::createGraphicsPipeline() {
@@ -624,10 +645,102 @@ void Vulkan::createGraphicsPipeline() {
     create_info.basePipelineIndex = -1;
     
     if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline) != VK_SUCCESS)
-        log::error("Error while creating a Vulkan Graphics Pipeline");
+        log::error("Error while creating the Vulkan Graphics Pipeline");
+    
+    log::graphics("Created the Vulkan Graphics Pipeline");
     
     vkDestroyShaderModule(device, stages.vert.value(), nullptr);
     vkDestroyShaderModule(device, stages.frag.value(), nullptr);
+}
+
+//----------------------------------------
+
+
+
+//RENDERING
+//----------------------------------------
+
+void Vulkan::createFramebuffers() {
+    swapchain_framebuffers.resize(swapchain_image_views.size());
+    
+    for (int i = 0; i < swapchain_framebuffers.size(); i++) {
+        VkFramebufferCreateInfo create_info = {};
+        create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        create_info.renderPass = render_pass;
+        create_info.attachmentCount = 1;
+        create_info.pAttachments = &swapchain_image_views[i];
+        create_info.width = swapchain_extent.width;
+        create_info.height = swapchain_extent.height;
+        create_info.layers = 1;
+        
+        if (vkCreateFramebuffer(device, &create_info, nullptr, &swapchain_framebuffers[i]) != VK_SUCCESS)
+            log::error("Failed to create a Vulkan Framebuffer");
+    }
+    
+    log::graphics("Created all Vulkan Framebuffers");
+}
+
+void Vulkan::createCommandPools() {
+    VkCommandPoolCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    create_info.queueFamilyIndex = queue_families.graphics_queue_family_index.value(); //This is the command pool for graphics
+    create_info.flags = 0;
+    
+    if (vkCreateCommandPool(device, &create_info, nullptr, &command_pool) != VK_SUCCESS)
+        log::error("Failed to create the Vulkan Graphics Command Pool");
+    
+    log::graphics("Created all Vulkan Command Pools");
+}
+
+void Vulkan::createCommandBuffers() {
+    command_buffers.resize(swapchain_framebuffers.size());
+    
+    VkCommandBufferAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.commandPool = command_pool;
+    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocate_info.commandBufferCount = (ui32)command_buffers.size();
+    
+    if (vkAllocateCommandBuffers(device, &allocate_info, command_buffers.data()) != VK_SUCCESS)
+        log::error("Failed to allocate a Vulkan Command Buffer");
+    
+    for (int i = 0; i < command_buffers.size(); i++) {
+        VkCommandBufferBeginInfo begin_info = {};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = 0;
+        begin_info.pInheritanceInfo = nullptr;
+        
+        if (vkBeginCommandBuffer(command_buffers[i], &begin_info) != VK_SUCCESS)
+            log::error("Failed to create a Vulkan Command Buffer");
+        
+        recordCommandBuffer(command_buffers[i], swapchain_framebuffers[i]);
+        
+        if (vkEndCommandBuffer(command_buffers[i]) != VK_SUCCESS)
+            log::error("Failed to end recording on a Vulkan Command Buffer");
+    }
+    
+    log::graphics("Created all Vulkan Command Buffers");
+}
+
+void Vulkan::recordCommandBuffer(VkCommandBuffer &command_buffer, VkFramebuffer &framebuffer) {
+    VkClearValue clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
+    
+    VkRenderPassBeginInfo render_pass_info = {};
+    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_info.renderPass = render_pass;
+    render_pass_info.framebuffer = framebuffer;
+    render_pass_info.renderArea.offset = {0, 0};
+    render_pass_info.renderArea.extent = swapchain_extent;
+    render_pass_info.clearValueCount = 1;
+    render_pass_info.pClearValues = &clear_color;
+    
+    vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    
+    vkCmdDraw(command_buffer, 3, 1, 0, 0);
+    
+    vkCmdEndRenderPass(command_buffer);
 }
 
 //----------------------------------------
@@ -638,6 +751,11 @@ void Vulkan::createGraphicsPipeline() {
 //----------------------------------------
 
 void Vulkan::destroy() {
+    vkDestroyCommandPool(device, command_pool, nullptr);
+    
+    for (VkFramebuffer fb : swapchain_framebuffers)
+        vkDestroyFramebuffer(device, fb, nullptr);
+    
     vkDestroyRenderPass(device, render_pass, nullptr);
     vkDestroyPipeline(device, pipeline, nullptr);
     vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
