@@ -785,11 +785,21 @@ void Vulkan::createSyncObjects() {
     log::graphics("Created all Vulkan Semaphores");
 }
 
-void Vulkan::renderFrame() {
+void Vulkan::renderFrame(Config &c) {
     vkWaitForFences(device, 1, &fences_in_flight[current_frame], VK_TRUE, UINT64_MAX);
     
+    VkResult result;
     ui32 image_index;
-    vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, semaphores_image_available[current_frame], VK_NULL_HANDLE, &image_index);
+    result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, semaphores_image_available[current_frame], VK_NULL_HANDLE, &image_index);
+    
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapchain(c);
+        return;
+    }
+    if (result != VK_SUCCESS and result != VK_SUBOPTIMAL_KHR) {
+        log::error("Failed to acquire Swapchain Image");
+    }
+    
     
     if (fences_images_in_flight[image_index] != VK_NULL_HANDLE)
         vkWaitForFences(device, 1, &fences_images_in_flight[image_index], VK_TRUE, UINT64_MAX);
@@ -798,6 +808,7 @@ void Vulkan::renderFrame() {
     VkSemaphore wait_semaphores[] = { semaphores_image_available[current_frame] };
     VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     VkSemaphore signal_semaphores[] = { semaphores_render_finished[current_frame] };
+    
     
     VkSubmitInfo submit_info = {};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -812,10 +823,12 @@ void Vulkan::renderFrame() {
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
     
+    
     vkResetFences(device, 1, &fences_in_flight[current_frame]);
     
     if (vkQueueSubmit(graphics_queue, 1, &submit_info, fences_in_flight[current_frame]) != VK_SUCCESS)
         log::error("Failed to submit Draw Command Buffer");
+    
     
     VkPresentInfoKHR present_info = {};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -829,9 +842,38 @@ void Vulkan::renderFrame() {
     present_info.pImageIndices = &image_index;
     present_info.pResults = nullptr;
     
-    vkQueuePresentKHR(present_queue, &present_info);
+    
+    result = vkQueuePresentKHR(present_queue, &present_info);
+    
+    if (result == VK_ERROR_OUT_OF_DATE_KHR or result == VK_SUBOPTIMAL_KHR)
+        recreateSwapchain(c);
+    else if (result != VK_SUCCESS)
+        log::error("Failed to present Swapchain Image");
+    
     
     current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+//----------------------------------------
+
+
+
+//RECREATE SWAPCHAIN
+//----------------------------------------
+
+void Vulkan::recreateSwapchain(Config &c) {
+    vkDeviceWaitIdle(device);
+    
+    destroySwapchain();
+    
+    createSwapchain(c);
+    createImageViews();
+    
+    createRenderPass();
+    createGraphicsPipeline();
+    
+    createFramebuffers();
+    createCommandBuffers();
 }
 
 //----------------------------------------
@@ -841,8 +883,26 @@ void Vulkan::renderFrame() {
 //CLEANUP
 //----------------------------------------
 
+void Vulkan::destroySwapchain() {
+    for (VkFramebuffer fb : swapchain_framebuffers)
+        vkDestroyFramebuffer(device, fb, nullptr);
+    
+    vkFreeCommandBuffers(device, command_pool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+    
+    vkDestroyPipeline(device, pipeline, nullptr);
+    vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
+    vkDestroyRenderPass(device, render_pass, nullptr);
+    
+    for (VkImageView view : swapchain_image_views)
+        vkDestroyImageView(device, view, nullptr);
+    
+    vkDestroySwapchainKHR(device, swapchain, nullptr);
+}
+
 void Vulkan::destroy() {
     vkDeviceWaitIdle(device);
+    
+    destroySwapchain();
     
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, semaphores_image_available[i], nullptr);
@@ -852,17 +912,6 @@ void Vulkan::destroy() {
     
     vkDestroyCommandPool(device, command_pool, nullptr);
     
-    for (VkFramebuffer fb : swapchain_framebuffers)
-        vkDestroyFramebuffer(device, fb, nullptr);
-    
-    vkDestroyRenderPass(device, render_pass, nullptr);
-    vkDestroyPipeline(device, pipeline, nullptr);
-    vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
-    
-    for (VkImageView view : swapchain_image_views)
-        vkDestroyImageView(device, view, nullptr);
-    
-    vkDestroySwapchainKHR(device, swapchain, nullptr);
     vkDestroyDevice(device, nullptr);
     
     vkDestroySurfaceKHR(instance, surface, nullptr);

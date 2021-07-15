@@ -143,11 +143,17 @@ namespace Verse::Graphics
         void createSyncObjects();
         
         ui8 current_frame = 0;
-        void renderFrame();
+        void renderFrame(Config &c);
+        //----------------------------------------
+        
+        //RECREATE SWAPCHAIN
+        //----------------------------------------
+        void recreateSwapchain(Config &c);
         //----------------------------------------
         
         //CLEANUP
         //----------------------------------------
+        void destroySwapchain();
         void destroy();
         //----------------------------------------
     };

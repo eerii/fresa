@@ -32,6 +32,8 @@ namespace Verse::Graphics::Renderer
     
     void destroy();
 
+    void onResize(Config &c);
+
     void createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2 res);
     void createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2 res);
 
