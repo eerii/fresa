@@ -724,6 +724,10 @@ void Graphics::Renderer::destroy() {
 
 //HELPERS
 //-----------------------------------------
+void Graphics::Renderer::onResize(Config &c) {
+    
+}
+
 void Graphics::Renderer::createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2 res) {
     glGenFramebuffers(1, &fb);
     glBindFramebuffer(GL_FRAMEBUFFER, fb);

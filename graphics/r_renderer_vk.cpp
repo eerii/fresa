@@ -58,7 +58,7 @@ void Graphics::Renderer::renderWindow(Config &c) {
 
 
 void Graphics::Renderer::renderTest(Config &c) {
-    vulkan.renderFrame();
+    vulkan.renderFrame(c);
 }
 
 void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool colliding) {
@@ -79,6 +79,12 @@ void Graphics::Renderer::clear(Config &c) {
 
 void Graphics::Renderer::destroy() {
     vulkan.destroy();
+}
+
+
+
+void Graphics::Renderer::onResize(Config &c) {
+    vulkan.recreateSwapchain(c);
 }
 
 

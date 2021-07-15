@@ -47,6 +47,8 @@ void Graphics::Window::onResize(SDL_Event &e, Config &c) {
     imgui_io.DisplaySize.x = static_cast<float>(e.window.data1);
     imgui_io.DisplaySize.y = static_cast<float>(e.window.data2);
 #endif
+    
+    Graphics::Renderer::onResize(c);
 }
 
 void Graphics::Window::updateVsync(Config &c) {
