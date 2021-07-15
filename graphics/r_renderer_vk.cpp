@@ -7,7 +7,6 @@
 #include "r_renderer.h"
 #include "r_vulkan_core.h"
 
-#include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
 #include "log.h"
@@ -18,6 +17,12 @@ using namespace glm;
 
 namespace {
     Vulkan vulkan;
+
+    const std::vector<Graphics::Vertex> vertices = {
+        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    };
 }
 
 void Graphics::Renderer::create(Config &c) {

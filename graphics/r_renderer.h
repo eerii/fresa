@@ -7,6 +7,7 @@
 #include <array>
 
 #include "config.h"
+#include "r_vertex.h"
 #include "r_textures.h"
 
 #define BORDER_WIDTH 2

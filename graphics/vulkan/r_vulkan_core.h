@@ -8,6 +8,7 @@
 
 #include "r_vulkan.h"
 #include "config.h"
+#include "r_vertex.h"
 
 #include <optional>
 
@@ -47,6 +48,9 @@ namespace Verse::Graphics
             VkPipelineViewportStateCreateInfo viewport_state;
             VkViewport viewport;
             VkRect2D scissor;
+            
+            VkVertexInputBindingDescription vertex_input_binding_description;
+            std::array<VkVertexInputAttributeDescription, 2> vertex_input_attribute_descriptions;
         };
     }
 
@@ -128,6 +132,11 @@ namespace Verse::Graphics
         //----------------------------------------
         std::vector<VkFramebuffer> swapchain_framebuffers;
         void createFramebuffers();
+        
+        VkBuffer vertex_buffer;
+        VkDeviceMemory vertex_buffer_memory;
+        void createVertexBuffer(const std::vector<Graphics::Vertex> &vertices);
+        ui32 getMemoryType(ui32 filter, VkMemoryPropertyFlags properties);
         
         VkCommandPool command_pool;
         void createCommandPools();
