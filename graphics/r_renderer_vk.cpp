@@ -5,7 +5,7 @@
 #ifdef USE_VULKAN
 
 #include "r_renderer.h"
-#include "r_vulkan_functions.h"
+#include "r_vulkan_core.h"
 
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
@@ -43,11 +43,6 @@ void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float
 }
 
 
-
-void Graphics::Renderer::render(Config &c) {
-    
-}
-
 void Graphics::Renderer::renderPost(Config &c) {
     
 }
@@ -63,7 +58,7 @@ void Graphics::Renderer::renderWindow(Config &c) {
 
 
 void Graphics::Renderer::renderTest(Config &c) {
-    
+    vulkan.renderFrame();
 }
 
 void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool colliding) {

@@ -28,6 +28,8 @@ void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
     vulkan->createFramebuffers();
     vulkan->createCommandPools();
     vulkan->createCommandBuffers();
+    
+    vulkan->createSyncObjects();
 }
 
 #endif

@@ -20,7 +20,6 @@ namespace Verse::Graphics::Renderer
     void renderNoise(Config &c, TextureData &mask_data, TextureData &noise_data);
     void renderText(Config &c, TextureData &data, float r = 1.0f, float g = 1.0f, float b = 1.0f, bool same_color = true);
 
-    void render(Config &c);
     void renderPost(Config &c);
     void renderCam(Config &c);
     void renderWindow(Config &c);

@@ -98,6 +98,10 @@ void Graphics::render(Config &c) {
     Gui::render();
 #endif
     
+#ifdef USE_VULKAN
+    Renderer::renderTest(c);
+#endif
+    
     c.render_time = time_precise_difference(time_before_render);
     
     //PRESENT

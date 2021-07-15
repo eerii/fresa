@@ -11,6 +11,8 @@
 
 #include <optional>
 
+#define MAX_FRAMES_IN_FLIGHT 2
+
 namespace Verse::Graphics
 {
     struct Vulkan;
@@ -133,6 +135,15 @@ namespace Verse::Graphics
         std::vector<VkCommandBuffer> command_buffers;
         void createCommandBuffers();
         void recordCommandBuffer(VkCommandBuffer &buffer, VkFramebuffer &framebuffer);
+        
+        std::vector<VkSemaphore> semaphores_image_available;
+        std::vector<VkSemaphore> semaphores_render_finished;
+        std::vector<VkFence> fences_in_flight;
+        std::vector<VkFence> fences_images_in_flight;
+        void createSyncObjects();
+        
+        ui8 current_frame = 0;
+        void renderFrame();
         //----------------------------------------
         
         //CLEANUP
