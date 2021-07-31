@@ -6,7 +6,10 @@
 
 #include <memory>
 
-#define LOG_LEVEL 4
+#ifndef LOG_LEVEL
+#define LOG_LEVEL 2
+#endif
+
 /*
  LOG LEVEL:
  1 - Errors
@@ -29,7 +32,7 @@ void log::info(str p_info, ...)
     vsnprintf(msg, sizeof(char) * lenght, p_info.c_str(), ap);
     va_end(ap);
 
-    std::cout << "[INFO] " << msg << std::endl;
+    std::cout << "[ INFO ] " << msg << std::endl;
 #endif
 }
 
@@ -42,7 +45,7 @@ void log::warn(str p_info, ...)
     vsnprintf(msg, sizeof(char) * lenght, p_info.c_str(), ap);
     va_end(ap);
 
-    std::cout << "[WARNING] " << msg << std::endl;
+    std::cout << "[ WARNING ] " << msg << std::endl;
 #endif
 }
 
@@ -55,7 +58,7 @@ void log::error(str p_info, ...)
     vsnprintf(msg, sizeof(char) * lenght, p_info.c_str(), ap);
     va_end(ap);
 
-    std::cerr << "[ERROR] " << msg << std::endl;
+    std::cerr << "[ ERROR ] " << msg << std::endl;
     
     throw std::runtime_error(msg);
 #endif
@@ -70,7 +73,7 @@ void log::graphics(str p_info, ...)
     vsnprintf(msg, sizeof(char) * lenght, p_info.c_str(), ap);
     va_end(ap);
 
-    std::cout << "[GRAPHICS] " << msg << std::endl;
+    std::cout << "[ GRAPHICS ] " << msg << std::endl;
 #endif
 }
 
@@ -83,13 +86,13 @@ void log::debug(str p_info, ...)
     vsnprintf(msg, sizeof(char) * lenght, p_info.c_str(), ap);
     va_end(ap);
 
-    std::cout << "[DEBUG] " << msg << std::endl;
+    std::cout << "[ DEBUG ] " << msg << std::endl;
 #endif
 }
 
 void log::vec2(Vec2 p_vector, str p_name) {
-    std::cout << "[VECTOR] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
+    std::cout << "[ VECTOR ] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
 }
 void log::vec2(Vec2f p_vector, str p_name) {
-    std::cout << "[VECTOR] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
+    std::cout << "[ VECTOR ] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
 }

@@ -128,15 +128,21 @@ namespace Verse::Graphics
         void createGraphicsPipeline();
         //----------------------------------------
         
+        //BUFFERS
+        //----------------------------------------
+        void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory);
+        void createVertexBuffer(const std::vector<Graphics::Vertex> &vertices);
+        
+        ui32 getMemoryType(ui32 filter, VkMemoryPropertyFlags properties);
+        
+        VkBuffer vertex_buffer;
+        VkDeviceMemory vertex_buffer_memory;
+        //----------------------------------------
+        
         //RENDERING
         //----------------------------------------
         std::vector<VkFramebuffer> swapchain_framebuffers;
         void createFramebuffers();
-        
-        VkBuffer vertex_buffer;
-        VkDeviceMemory vertex_buffer_memory;
-        void createVertexBuffer(const std::vector<Graphics::Vertex> &vertices);
-        ui32 getMemoryType(ui32 filter, VkMemoryPropertyFlags properties);
         
         VkCommandPool command_pool;
         void createCommandPools();

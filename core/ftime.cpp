@@ -12,7 +12,7 @@ namespace {
 
 ui64 Time::current = 0;
 ui64 Time::previous = 0;
-ui64 Time::delta = 0;
+double Time::delta = 0;
 std::map<ui32, Timer> Time::timers = {};
 
 ui32 Verse::time() {
@@ -23,12 +23,12 @@ ui64 Verse::time_precise() {
     return SDL_GetPerformanceCounter();
 }
 
-float Verse::time_precise_difference(ui64 t1) {
-    return ((time_precise() - t1) / (float)SDL_GetPerformanceFrequency()) * 1000.0f;
+double Verse::time_precise_difference(ui64 t1) {
+    return ((double)(time_precise() - t1) / (double)SDL_GetPerformanceFrequency()) * 1000.0;
 }
 
-float Verse::time_precise_difference(ui64 t1, ui64 t2) {
-    return ((t2 - t1) / (float)SDL_GetPerformanceFrequency()) * 1000.0f;
+double Verse::time_precise_difference(ui64 t1, ui64 t2) {
+    return ((double)(t2 - t1) / (double)SDL_GetPerformanceFrequency()) * 1000.0;
 }
 
 ui32 Verse::setTimer(ui32 ms) {
