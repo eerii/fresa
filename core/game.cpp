@@ -18,8 +18,8 @@ using namespace Verse;
 namespace
 {
     double accumulator;
-    ui32 fps_time;
-    ui16 frames;
+    double fps_time;
+    ui32 frames;
 }
 
 bool Game::init(Config &c) {
@@ -46,7 +46,7 @@ bool Game::init(Config &c) {
 }
 
 bool Game::update(Config &c) {
-    timeFrame();
+    timeFrame(c);
     
     //CHECK SCENE
     if (c.active_scene == nullptr) {
@@ -62,18 +62,8 @@ bool Game::update(Config &c) {
     Graphics::render(c);
     
     //PREVENT RUNNING TOO FAST
-    if (c.use_vsync and Time::delta <= 1000 / (float)c.refresh_rate)
-        SDL_Delay((1000.0 / (float)c.refresh_rate) - Time::delta);
-    
-    //FPS
-    
-    frames++;
-    fps_time += Time::delta;
-    if (fps_time > 500) {
-        c.fps = floor((float)frames / (float)(fps_time * 0.001f));
-        frames = 0;
-        fps_time = 0;
-    }
+    if (c.use_vsync and Time::delta <= 1000.0 / (double)c.refresh_rate)
+        SDL_Delay((1000.0 / (double)c.refresh_rate) - Time::delta);
     
     return true;
 }
@@ -108,13 +98,23 @@ bool Game::physicsUpdate(Config &c) {
     return true;
 }
 
-void Game::timeFrame() {
+void Game::timeFrame(Config &c) {
     Time::previous = Time::current;
     Time::current = time_precise();
     Time::delta = time_precise_difference(Time::previous, Time::current);
+    
     accumulator += Time::delta;
     if (accumulator > 10000)
         accumulator = 0;
+    
+    frames++;
+    fps_time += Time::delta;
+    
+    if (fps_time > 1000.0) {
+        c.fps = floor((1000.0 * frames) / fps_time);
+        frames = 0;
+        fps_time = 0;
+    }
 }
 
 void Game::stop() {
