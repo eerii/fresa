@@ -2,6 +2,8 @@
 //by jose pazos perez
 //all rights reserved uwu
 
+//fresa, version 0.2
+
 #pragma once
 
 #include "dtypes.h"
