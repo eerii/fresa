@@ -626,8 +626,8 @@ void Vulkan::createPipelineLayout() {
 }
 
 void Vulkan::createGraphicsPipeline() {
-    std::vector<char> vert_shader_code = Graphics::Shader::readSPIRV("res/shaders/test/vert.spv");
-    std::vector<char> frag_shader_code = Graphics::Shader::readSPIRV("res/shaders/test/frag.spv");
+    std::vector<char> vert_shader_code = Graphics::Shader::readSPIRV("res/shaders/fractal/vert.spv");
+    std::vector<char> frag_shader_code = Graphics::Shader::readSPIRV("res/shaders/fractal/frag.spv");
     
     Graphics::Shader::ShaderStages stages;
     stages.vert = Graphics::Shader::createShaderModule(vert_shader_code, device);
@@ -816,7 +816,7 @@ void Vulkan::recordCommandBuffer(VkCommandBuffer &command_buffer, VkFramebuffer 
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
     
-    vkCmdDraw(command_buffer, 4, 1, 0, 0); //TODO: CHANGE FOR VERTEX SIZE
+    vkCmdDraw(command_buffer, 6, 1, 0, 0); //TODO: CHANGE FOR VERTEX SIZE
     
     vkCmdEndRenderPass(command_buffer);
 }

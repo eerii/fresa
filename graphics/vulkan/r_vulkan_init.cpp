@@ -12,9 +12,12 @@ using namespace Graphics;
 namespace {
     //TODO: TEMPORAL, DELETE
     const std::vector<Graphics::Vertex> vertices = {
-        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+        {{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},
+        {{1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+        {{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},
+        {{1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
     };
 }
 
