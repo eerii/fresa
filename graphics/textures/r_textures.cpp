@@ -2,6 +2,9 @@
 //by jose pazos perez
 //all rights reserved uwu
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include "r_textures.h"
 
 #include <filesystem>
@@ -12,9 +15,6 @@
 #include "r_renderer.h"
 #include "r_opengl.h"
 #include "r_vulkan.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 
 using namespace Verse;
 

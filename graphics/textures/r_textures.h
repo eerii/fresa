@@ -10,6 +10,7 @@
 #include "r_texturedata.h"
 
 #include "stb_image.h"
+#include "stb_image_write.h"
 
 namespace Verse::Graphics::Texture
 {
