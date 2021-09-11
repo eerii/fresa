@@ -17,7 +17,7 @@ using namespace Verse;
 
 struct ImVec3 { float x, y, z; ImVec3(float _x = 0.0f, float _y = 0.0f, float _z = 0.0f) { x = _x; y = _y; z = _z; } };
 
-bool Gui::ActiveWindows::entities = true;
+bool Gui::ActiveWindows::entities = false;
 bool Gui::ActiveWindows::test = false;
 
 void Gui::init(Config &c) {

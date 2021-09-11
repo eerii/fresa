@@ -401,20 +401,20 @@ EntityID Serialization::loadPlayer(Scene *s, Config &c) {
 }
 
 void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Scene *s, Config &c) {
+    if (entity["tilemap"])
+        System::Tilemap::load(eid, entity, s, c);
+    if (entity["collider"])
+        System::Collider::load(eid, entity, s, c);
     if (entity["texture"])
         System::Texture::load(eid, entity, s, c);
     if (entity["animation"])
         System::Animation::load(eid, entity, s, c);
-    if (entity["tilemap"])
-        System::Tilemap::load(eid, entity, s, c);
     if (entity["text"])
         System::Text::load(eid, entity, s, c);
     if (entity["actor"])
         System::Actor::load(eid, entity, s, c);
     if (entity["state"])
         System::State::load(eid, entity, s, c);
-    if (entity["collider"])
-        System::Collider::load(eid, entity, s, c);
     if (entity["camera"])
         System::Camera::load(eid, entity, s, c);
     if (entity["light"])
