@@ -8,7 +8,6 @@
 
 namespace Verse
 {
-    //TODO: Convert into Sparse Set
     struct ComponentPool {
         ui8* pool_data{ nullptr };
         size_t element_size{ 0 };
