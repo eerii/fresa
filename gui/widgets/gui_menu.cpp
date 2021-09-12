@@ -6,6 +6,7 @@
 
 #include "serialization.h"
 #include "scene_list.h"
+#include "ftime.h"
 
 #include "r_window.h"
 #include "s_tilemap.h"
