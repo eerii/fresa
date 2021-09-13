@@ -8,6 +8,7 @@
 
 #include "dtypes.h"
 #include "scene.h"
+#include "component_list.h"
 #include <vector>
 
 namespace Verse

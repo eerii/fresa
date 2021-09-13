@@ -8,8 +8,6 @@
 
 #include <bitset>
 
-#include "component_list.h"
-
 #define INVALID_ENTITY Entity::createID(EntityIndex(-1), 0)
 
 namespace Verse

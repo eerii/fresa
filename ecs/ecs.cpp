@@ -5,6 +5,8 @@
 #include "ecs.h"
 #include "log.h"
 
+#include "component_list.h"
+
 using namespace Verse;
 
 //REGISTER COMPONENTS
