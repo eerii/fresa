@@ -79,6 +79,8 @@ void Graphics::render(Config &c) {
     Renderer::toggleDepthTest(false);
 
     //RENDER TO WINDOW
+    if (c.use_light or c.show_light)
+        Renderer::renderLight(c);
     Renderer::renderPost(c);
     
     if(c.render_collision_boxes)

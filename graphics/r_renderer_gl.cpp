@@ -33,6 +33,7 @@ namespace {
         S_EMPTY = 0,
         S_RENDER2D,
         S_TEXT,
+        S_LIGHT,
         S_POST,
         S_CAM,
         S_WINDOW,
@@ -43,8 +44,8 @@ namespace {
     ui8 shaders[S_LAST];
 
     //FRAMEBUFFERS
-    ui32 fb_render, fb_post, fb_cam;
-    ui32 tex_render, tex_post, tex_cam;
+    ui32 fb_render, fb_light, fb_post, fb_cam;
+    ui32 tex_render, tex_light, tex_post, tex_cam;
     ui32 depth_tex_render;
 
     //VERTICES
@@ -54,6 +55,7 @@ namespace {
         V_TILE,
         V_NOISE,
         V_TEXT,
+        V_LIGHT,
         V_POST,
         V_DRAW,
         V_TEST,
@@ -132,6 +134,9 @@ void Graphics::Renderer::create(Config &c) {
     shaders[S_RENDER2D] = Graphics::Shader::compileProgramGL("res/shaders/render.vertex", "res/shaders/render.frag");
     log::graphics("Program (Render) ID: %d", shaders[S_RENDER2D]);
     
+    shaders[S_LIGHT] = Graphics::Shader::compileProgramGL("res/shaders/light.vertex", "res/shaders/light.frag");
+    log::graphics("Program (Light) ID: %d", shaders[S_LIGHT]);
+    
     shaders[S_POST] = Graphics::Shader::compileProgramGL("res/shaders/post.vertex", "res/shaders/post.frag");
     log::graphics("Program (Post) ID: %d", shaders[S_POST]);
     
@@ -161,6 +166,7 @@ void Graphics::Renderer::create(Config &c) {
     Renderer::createDepthFramebuffer(c, fb_render, tex_render, depth_tex_render, c.resolution + Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH));
     
     //Phase 2: Postprocessing effects
+    Renderer::createFramebuffer(c, fb_light, tex_light, c.resolution + Vec2(2*BORDER_WIDTH ,2*BORDER_WIDTH));
     Renderer::createFramebuffer(c, fb_post, tex_post, c.resolution + Vec2(2*BORDER_WIDTH ,2*BORDER_WIDTH));
     
     //Phase 3: Smooth camera and size
@@ -214,6 +220,11 @@ void Graphics::Renderer::create(Config &c) {
     glEnableVertexAttribArray(0);
     
     //Phase 2: Post
+    glBindVertexArray(vao[V_LIGHT]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_LIGHT]);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
     glBindVertexArray(vao[V_POST]);
     glBindBuffer(GL_ARRAY_BUFFER, vbo[V_POST]);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
@@ -240,6 +251,7 @@ void Graphics::Renderer::create(Config &c) {
     mvp[S_RENDER2D] = glGetUniformLocation(shaders[S_RENDER2D], "mvp");
     mvp[S_NOISE] = glGetUniformLocation(shaders[S_NOISE], "mvp");
     mvp[S_TEXT] = glGetUniformLocation(shaders[S_TEXT], "mvp");
+    mvp[S_LIGHT] = glGetUniformLocation(shaders[S_LIGHT], "mvp");
     mvp[S_POST] = glGetUniformLocation(shaders[S_POST], "mvp");
     mvp[S_CAM] = glGetUniformLocation(shaders[S_CAM], "mvp");
     mvp[S_WINDOW] = glGetUniformLocation(shaders[S_WINDOW], "mvp");
@@ -423,6 +435,39 @@ void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float
 //PHASE 2: POSTPROCESSING
 //fb_post, tex_post (c.resolution) using shaders[S_POST]
 //-----------------------------------------
+void Graphics::Renderer::renderLight(Config &c) {
+    //Render Target: fb_render
+    glBindFramebuffer(GL_FRAMEBUFFER, fb_light);
+    glUseProgram(shaders[S_LIGHT]);
+    glCheckError();
+    
+    //Vertices
+    glBindVertexArray(vao[V_LIGHT]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_LIGHT]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glCheckError();
+    
+    //Light
+    std::vector<glm::vec4> light_data = System::Light::render(c, shaders[S_LIGHT]);
+    glUniform4fv(glGetUniformLocation(shaders[S_LIGHT], "light"), (int)(light_data.size()), reinterpret_cast<GLfloat *>(light_data.data()));
+    glUniform1i(glGetUniformLocation(shaders[S_LIGHT], "light_size"), (int)(light_data.size()));
+    glUniform1f(glGetUniformLocation(shaders[S_LIGHT], "light_distortion"),
+                                     (float)(c.resolution.x + 2*BORDER_WIDTH) / (float)(c.resolution.y + 2*BORDER_WIDTH));
+    
+    //Matrices
+    if (c.active_camera == nullptr)
+        log::error("No active camera! (Rendering texture)");
+    glUniformMatrix4fv(mvp[S_LIGHT], 1, GL_FALSE, glm::value_ptr(proj_post));
+    glCheckError();
+    
+    //Draw
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindVertexArray(0);
+    glCheckError();
+}
+
 void Graphics::Renderer::renderPost(Config &c) {
     //Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
@@ -439,19 +484,16 @@ void Graphics::Renderer::renderPost(Config &c) {
     Graphics::Palette::render(c, palette_tex, shaders[S_POST]);
     
     //Light
-    if (c.use_light) {
-        std::vector<glm::vec4> light_data = System::Light::render(c, shaders[S_POST]);
-        glUniform4fv(glGetUniformLocation(shaders[S_POST], "light"), (int)(light_data.size()), reinterpret_cast<GLfloat *>(light_data.data()));
-        glUniform1i(glGetUniformLocation(shaders[S_POST], "light_size"), (int)(light_data.size()));
-        glUniform1f(glGetUniformLocation(shaders[S_POST], "light_distortion"),
-                                         (float)(c.resolution.x + 2*BORDER_WIDTH) / (float)(c.resolution.y + 2*BORDER_WIDTH));
-    }
     glUniform1i(glGetUniformLocation(shaders[S_POST], "use_light"), c.use_light);
+    glUniform1i(glGetUniformLocation(shaders[S_POST], "show_light"), c.show_light);
     
     //Set texture
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, tex_render);
     glUniform1i(glGetUniformLocation(shaders[S_POST], "tex"), 1);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, tex_light);
+    glUniform1i(glGetUniformLocation(shaders[S_POST], "light_tex"), 4);
     
     //Matrices
     glUniformMatrix4fv(mvp[S_POST], 1, GL_FALSE, glm::value_ptr(proj_post));
