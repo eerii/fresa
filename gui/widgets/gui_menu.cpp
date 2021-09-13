@@ -84,6 +84,7 @@ void Gui::menu(Config &c) {
             ImGui::SliderInt("palette", &palette_index, -1, (int)c.num_palettes - 1);
             c.palette_index = palette_index;
             ImGui::Checkbox("use light", &c.use_light);
+            ImGui::Checkbox("show light sources", &c.show_light);
             ImGui::Checkbox("use grayscale", &c.use_grayscale);
             ImGui::EndMenu();
         }

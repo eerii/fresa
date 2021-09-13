@@ -35,6 +35,7 @@ namespace Verse
         
         bool use_grayscale;
         bool use_light;
+        bool show_light;
         ui16 palette_index;
         ui16 num_palettes;
         float background_color[4];
