@@ -427,6 +427,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
         System::Patrol::load(eid, entity, s, c);
     if (entity["scene_transition"])
         System::SceneTransition::load(eid, entity, s, c);
+    if (entity["state"])
+        System::State::load(eid, entity, s, c);
 #ifdef USE_C_PLAYER
     if (entity["player"])
         System::Player::load(eid, entity, s, c);
