@@ -405,6 +405,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
         System::Tilemap::load(eid, entity, s, c);
     if (entity["collider"])
         System::Collider::load(eid, entity, s, c);
+    if (entity["circle_collider"])
+        System::Collider::load_circle(eid, entity, s, c);
     if (entity["texture"])
         System::Texture::load(eid, entity, s, c);
     if (entity["animation"])
@@ -450,6 +452,7 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     //log::info("%s, %s, %s, %s", key[0].c_str(), key[1].c_str(), key[2].c_str(), key[3].c_str());
     
     Component::Collider* col = s->getComponent<Component::Collider>(eid);
+    Component::CircleCollider* col_circle = s->getComponent<Component::CircleCollider>(eid);
     Component::Texture* tex = s->getComponent<Component::Texture>(eid);
     Component::Animation* anim = s->getComponent<Component::Animation>(eid);
     Component::Tilemap* tile = s->getComponent<Component::Tilemap>(eid);
@@ -465,6 +468,9 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     
     if (col != nullptr)
         System::Collider::save(col, path, key, tile != nullptr);
+    
+    if (col_circle != nullptr)
+        System::Collider::save_circle(col_circle, path, key);
     
     if (tex != nullptr)
         System::Texture::save(tex, path, key);

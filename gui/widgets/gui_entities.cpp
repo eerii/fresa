@@ -103,6 +103,7 @@ void Gui::entities(Config &c) {
 void components(Config &c, Signature mask, EntityID e) {
     if (c_funcs.size() == 0) {
         c_funcs["collider"] = System::Collider::gui;
+        c_funcs["circle_collider"] = System::Collider::gui_circle;
         c_funcs["actor"] = System::Actor::gui;
         c_funcs["state"] = System::State::gui;
         c_funcs["texture"] = System::Texture::gui;

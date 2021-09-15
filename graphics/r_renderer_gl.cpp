@@ -677,6 +677,46 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool collidin
     glBindVertexArray(0);
     glCheckError();
 }
+
+void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2 pos, ui16 radius, bool colliding) {
+    //Render Target: fb_post
+    glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
+    glUseProgram(shaders[S_DEBUG]);
+    glCheckError();
+    
+    //Vertices
+    std::vector<vec2> vertices;
+    int sides = (radius > 0) ? ((radius < 256) ? radius : 256) : 1;
+    
+    for (int a = 0; a < 360; a += 360 / sides) {
+        float heading = a * 3.141592 / 180;
+        vertices.push_back(vec2(cos(heading) * radius, sin(heading) * radius));
+    }
+    
+    glBindVertexArray(vao[V_DEBUG]);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo[V_DEBUG]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vec2) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+    glCheckError();
+    
+    //Color
+    vec3 color = vec3(0.32f, 0.89f, 0.60f);
+    if (colliding)
+        color = vec3(0.98f, 0.27f, 0.42f);
+    
+    glUniform3f(glGetUniformLocation(shaders[S_DEBUG], "c"), color.r, color.g, color.b);
+    
+    //Matrices
+    mat4 model = matModel2D(pos - Vec2(BORDER_WIDTH, BORDER_WIDTH), Vec2(1,1));
+    glUniformMatrix4fv(mvp[S_DEBUG], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glCheckError();
+    
+    //Draw
+    glDrawArrays(GL_LINE_LOOP, 0, (int)vertices.size());
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindVertexArray(0);
+    glCheckError();
+}
 //-----------------------------------------
 
 
