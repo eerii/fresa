@@ -125,6 +125,23 @@ static void draw_ui8(ui8 &i, str label, EntityID eid = 0, std::function<void()> 
 }
 
 [[maybe_unused]]
+static void draw_ui16(ui16 &i, str label, EntityID eid = 0, std::function<void()> callback = []() {return;}) {
+    ImGui::PushID(label.c_str());
+    
+    ImGui::TableSetColumnIndex(0);
+    ImGui::AlignTextToFramePadding();
+    ImGui::Text("%s", label.c_str());
+    
+    ImGui::TableSetColumnIndex(1);
+    str i_label = "##" + label + std::to_string(eid);
+    ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
+    if (ImGui::DragInt(i_label.c_str(), reinterpret_cast<int*>(&i), 1, 0, 255))
+        callback();
+    
+    ImGui::PopID();
+}
+
+[[maybe_unused]]
 static void draw_float(float &f, str label, EntityID eid = 0, std::function<void()> callback = []() {return;}) {
     ImGui::PushID(label.c_str());
     

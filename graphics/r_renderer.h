@@ -28,6 +28,7 @@ namespace Verse::Graphics::Renderer
 
     void renderTest(Config &c);
     void renderDebugCollider(Config &c, Rect2 col, bool colliding);
+    void renderDebugColliderCircle(Config &c, Vec2 pos, ui16 radius, bool colliding);
 
     void present(SDL_Window* window);
     void clear(Config &c);
