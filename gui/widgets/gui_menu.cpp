@@ -73,6 +73,7 @@ void Gui::menu(Config &c) {
             c.game_speed = speed;
             
             ImGui::Checkbox("collision boxes", &c.render_collision_boxes);
+            ImGui::Checkbox("player loses light", &c.player_loses_light);
             ImGui::EndMenu();
         }
         //---------------------------
