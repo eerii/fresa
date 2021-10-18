@@ -42,6 +42,10 @@ void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float
 }
 
 
+void Graphics::Renderer::renderLight(Config &c) {
+    
+}
+
 void Graphics::Renderer::renderPost(Config &c) {
     
 }
@@ -64,6 +68,9 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool collidin
     
 }
 
+void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2 pos, ui16 radius, bool colliding) {
+    
+}
 
 
 void Graphics::Renderer::present(SDL_Window *window) {

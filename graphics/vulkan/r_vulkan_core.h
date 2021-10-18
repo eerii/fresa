@@ -132,11 +132,17 @@ namespace Verse::Graphics
         //----------------------------------------
         void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory);
         void createVertexBuffer(const std::vector<Graphics::Vertex> &vertices);
+        void createIndexBuffer(const std::vector<ui16> &indices);
+        
+        void copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
         
         ui32 getMemoryType(ui32 filter, VkMemoryPropertyFlags properties);
         
         VkBuffer vertex_buffer;
         VkDeviceMemory vertex_buffer_memory;
+        VkBuffer index_buffer;
+        VkDeviceMemory index_buffer_memory;
+        ui32 index_buffer_size;
         //----------------------------------------
         
         //RENDERING
@@ -145,6 +151,7 @@ namespace Verse::Graphics
         void createFramebuffers();
         
         VkCommandPool command_pool;
+        VkCommandPool temp_command_pool;
         void createCommandPools();
         
         std::vector<VkCommandBuffer> command_buffers;

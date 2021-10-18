@@ -306,10 +306,13 @@ VkPresentModeKHR Vulkan::selectSwapPresentMode(const std::vector<VkPresentModeKH
     //Mailbox: Triple buffering, the program replaces the last images of the queue, less latency but more power consumption
     
     for (VkPresentModeKHR mode : available_present_modes) {
-        if (mode == VK_PRESENT_MODE_MAILBOX_KHR)
+        if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            log::graphics("Present Mode: Mailbox");
             return VK_PRESENT_MODE_MAILBOX_KHR;
+        }
     }
     
+    log::graphics("Present Mode: Fifo");
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
@@ -573,7 +576,21 @@ void Vulkan::prepareRenderInfoMultisampling() {
 void Vulkan::prepareRenderInfoDepthStencil() {
     rendering_create_info.depth_stencil = {};
     
-    //TODO: Enable this
+    rendering_create_info.depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    
+    rendering_create_info.depth_stencil.depthTestEnable = VK_TRUE;
+    rendering_create_info.depth_stencil.depthWriteEnable = VK_TRUE;
+    
+    rendering_create_info.depth_stencil.depthBoundsTestEnable = VK_FALSE;
+    rendering_create_info.depth_stencil.stencilTestEnable = VK_FALSE;
+    
+    rendering_create_info.depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    
+    rendering_create_info.depth_stencil.minDepthBounds = 0.0f;
+    rendering_create_info.depth_stencil.maxDepthBounds = 1.0f;
+    
+    rendering_create_info.depth_stencil.front = {};
+    rendering_create_info.depth_stencil.back = {};
 }
 
 void Vulkan::prepareRenderInfoColorBlendAttachment() {
@@ -613,7 +630,7 @@ void Vulkan::createPipelineLayout() {
     VkPipelineLayoutCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     
-    create_info.setLayoutCount = 0;
+    create_info.setLayoutCount = 0; 
     create_info.pSetLayouts = nullptr;
     
     create_info.pushConstantRangeCount = 0;
@@ -626,8 +643,8 @@ void Vulkan::createPipelineLayout() {
 }
 
 void Vulkan::createGraphicsPipeline() {
-    std::vector<char> vert_shader_code = Graphics::Shader::readSPIRV("res/shaders/fractal/vert.spv");
-    std::vector<char> frag_shader_code = Graphics::Shader::readSPIRV("res/shaders/fractal/frag.spv");
+    std::vector<char> vert_shader_code = Graphics::Shader::readSPIRV("res/shaders/test/test.vert.spv");
+    std::vector<char> frag_shader_code = Graphics::Shader::readSPIRV("res/shaders/test/test.frag.spv");
     
     Graphics::Shader::ShaderStages stages;
     stages.vert = Graphics::Shader::createShaderModule(vert_shader_code, device);
@@ -649,9 +666,9 @@ void Vulkan::createGraphicsPipeline() {
     create_info.pViewportState = &rendering_create_info.viewport_state;
     create_info.pRasterizationState = &rendering_create_info.rasterizer;
     create_info.pMultisampleState = &rendering_create_info.multisampling;
-    create_info.pDepthStencilState = nullptr; //Add this
+    create_info.pDepthStencilState = &rendering_create_info.depth_stencil;
     create_info.pColorBlendState = &rendering_create_info.color_blend_state;
-    create_info.pDynamicState = nullptr; //And this
+    create_info.pDynamicState = nullptr;
     create_info.pTessellationState = nullptr;
     
     create_info.layout = pipeline_layout;
@@ -675,7 +692,7 @@ void Vulkan::createGraphicsPipeline() {
 
 
 
-//RENDERING
+//BUFFERS
 //----------------------------------------
 
 void Vulkan::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &memory) {
@@ -696,6 +713,7 @@ void Vulkan::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryP
     allocate_info.allocationSize = memory_requirements.size;
     allocate_info.memoryTypeIndex = getMemoryType(memory_requirements.memoryTypeBits, properties);
     
+    //vkAllocate is discouraged for many components, see https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
     if (vkAllocateMemory(device, &allocate_info, nullptr, &memory) != VK_SUCCESS)
         log::error("Failed to allocate Buffer Memory");
     
@@ -704,14 +722,86 @@ void Vulkan::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryP
 
 void Vulkan::createVertexBuffer(const std::vector<Graphics::Vertex> &vertices) {
     VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
-    VkBufferUsageFlags buffer_usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    VkMemoryPropertyFlags buffer_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    createBuffer(buffer_size, buffer_usage, buffer_properties, vertex_buffer, vertex_buffer_memory);
+    
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_buffer_memory;
+    
+    VkBufferUsageFlags staging_buffer_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    VkMemoryPropertyFlags staging_buffer_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    createBuffer(buffer_size, staging_buffer_usage, staging_buffer_properties, staging_buffer, staging_buffer_memory);
     
     void* data;
-    vkMapMemory(device, vertex_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, vertices.data(), (size_t)buffer_size);
-    vkUnmapMemory(device, vertex_buffer_memory);
+    vkMapMemory(device, staging_buffer_memory, 0, buffer_size, 0, &data);
+    memcpy(data, vertices.data(), (size_t) buffer_size);
+    vkUnmapMemory(device, staging_buffer_memory);
+    
+    VkBufferUsageFlags buffer_usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    VkMemoryPropertyFlags buffer_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    createBuffer(buffer_size, buffer_usage, buffer_properties, vertex_buffer, vertex_buffer_memory);
+    
+    copyBuffer(staging_buffer, vertex_buffer, buffer_size);
+    
+    vkDestroyBuffer(device, staging_buffer, nullptr);
+    vkFreeMemory(device, staging_buffer_memory, nullptr);
+}
+
+void Vulkan::createIndexBuffer(const std::vector<ui16> &indices) {
+    VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
+    index_buffer_size = (ui32)buffer_size;
+    
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_buffer_memory;
+    
+    VkBufferUsageFlags staging_buffer_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    VkMemoryPropertyFlags staging_buffer_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    createBuffer(buffer_size, staging_buffer_usage, staging_buffer_properties, staging_buffer, staging_buffer_memory);
+    
+    void* data;
+    vkMapMemory(device, staging_buffer_memory, 0, buffer_size, 0, &data);
+    memcpy(data, indices.data(), (size_t) buffer_size);
+    vkUnmapMemory(device, staging_buffer_memory);
+    
+    VkBufferUsageFlags buffer_usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    VkMemoryPropertyFlags buffer_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    createBuffer(buffer_size, buffer_usage, buffer_properties, index_buffer, index_buffer_memory);
+    
+    copyBuffer(staging_buffer, index_buffer, buffer_size);
+    
+    vkDestroyBuffer(device, staging_buffer, nullptr);
+    vkFreeMemory(device, staging_buffer_memory, nullptr);
+}
+
+void Vulkan::copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+    VkCommandBufferAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.commandPool = temp_command_pool;
+    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocate_info.commandBufferCount = 1;
+    
+    VkCommandBuffer command_buffer;
+    vkAllocateCommandBuffers(device, &allocate_info, &command_buffer);
+    
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+    
+    VkBufferCopy copy_region{};
+    copy_region.srcOffset = 0;
+    copy_region.dstOffset = 0;
+    copy_region.size = size;
+    vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
+    
+    vkEndCommandBuffer(command_buffer);
+    
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffer;
+    vkQueueSubmit(graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphics_queue);
+    
+    vkFreeCommandBuffers(device, temp_command_pool, 1, &command_buffer);
 }
 
 ui32 Vulkan::getMemoryType(ui32 filter, VkMemoryPropertyFlags properties) {
@@ -755,6 +845,8 @@ void Vulkan::createFramebuffers() {
 }
 
 void Vulkan::createCommandPools() {
+    //Main command pool
+    
     VkCommandPoolCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     create_info.queueFamilyIndex = queue_families.graphics_queue_family_index.value(); //This is the command pool for graphics
@@ -762,6 +854,16 @@ void Vulkan::createCommandPools() {
     
     if (vkCreateCommandPool(device, &create_info, nullptr, &command_pool) != VK_SUCCESS)
         log::error("Failed to create the Vulkan Graphics Command Pool");
+    
+    //Temporary command pool for short lived objects
+    
+    VkCommandPoolCreateInfo temp_create_info = {};
+    temp_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    temp_create_info.queueFamilyIndex = queue_families.graphics_queue_family_index.value();
+    temp_create_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    
+    if (vkCreateCommandPool(device, &create_info, nullptr, &temp_command_pool) != VK_SUCCESS)
+        log::error("Failed to create the Vulkan Graphics Temporary Command Pool");
     
     log::graphics("Created all Vulkan Command Pools");
 }
@@ -797,7 +899,9 @@ void Vulkan::createCommandBuffers() {
 }
 
 void Vulkan::recordCommandBuffer(VkCommandBuffer &command_buffer, VkFramebuffer &framebuffer) {
-    VkClearValue clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
+    std::array<VkClearValue, 2> clear_values{};
+    clear_values[0].color = {0.02f, 0.02f, 0.02f, 1.0f};
+    clear_values[1].depthStencil = {1.0f, 0};
     
     VkRenderPassBeginInfo render_pass_info = {};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -805,8 +909,8 @@ void Vulkan::recordCommandBuffer(VkCommandBuffer &command_buffer, VkFramebuffer 
     render_pass_info.framebuffer = framebuffer;
     render_pass_info.renderArea.offset = {0, 0};
     render_pass_info.renderArea.extent = swapchain_extent;
-    render_pass_info.clearValueCount = 1;
-    render_pass_info.pClearValues = &clear_color;
+    render_pass_info.clearValueCount = 2;
+    render_pass_info.pClearValues = clear_values.data();
     
     vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
     
@@ -816,7 +920,9 @@ void Vulkan::recordCommandBuffer(VkCommandBuffer &command_buffer, VkFramebuffer 
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
     
-    vkCmdDraw(command_buffer, 6, 1, 0, 0); //TODO: CHANGE FOR VERTEX SIZE
+    vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT16);
+    
+    vkCmdDrawIndexed(command_buffer, index_buffer_size, 1, 0, 0, 0);
     
     vkCmdEndRenderPass(command_buffer);
 }
@@ -970,6 +1076,9 @@ void Vulkan::destroy() {
     vkDestroyBuffer(device, vertex_buffer, nullptr);
     vkFreeMemory(device, vertex_buffer_memory, nullptr);
     
+    vkDestroyBuffer(device, index_buffer, nullptr);
+    vkFreeMemory(device, index_buffer_memory, nullptr);
+    
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, semaphores_image_available[i], nullptr);
         vkDestroySemaphore(device, semaphores_render_finished[i], nullptr);
@@ -977,6 +1086,7 @@ void Vulkan::destroy() {
     }
     
     vkDestroyCommandPool(device, command_pool, nullptr);
+    vkDestroyCommandPool(device, temp_command_pool, nullptr);
     
     vkDestroyDevice(device, nullptr);
     
