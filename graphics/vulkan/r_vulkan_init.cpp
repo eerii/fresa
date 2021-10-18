@@ -12,12 +12,20 @@ using namespace Graphics;
 namespace {
     //TODO: TEMPORAL, DELETE
     const std::vector<Graphics::Vertex> vertices = {
-        {{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 1.0f}},
+        /*{{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},
         {{1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
         {{1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
         {{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},
         {{1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+        {{-1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},*/
+    };
+
+    const std::vector<ui16> indices = {
+        0, 1, 2, 2, 3, 0
     };
 }
 
@@ -40,6 +48,7 @@ void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
     vulkan->createFramebuffers();
     vulkan->createCommandPools();
     vulkan->createVertexBuffer(vertices);
+    vulkan->createIndexBuffer(indices);
     vulkan->createCommandBuffers();
     
     vulkan->createSyncObjects();

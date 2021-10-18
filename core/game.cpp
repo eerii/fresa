@@ -59,7 +59,8 @@ bool Game::update(Config &c) {
         return false;
    
     //RENDER UPDATE
-    Graphics::render(c);
+    if (c.window_size.x != 0 and c.window_size.y != 0)
+        Graphics::render(c);
     
     //PREVENT RUNNING TOO FAST
     if (c.use_vsync and Time::delta <= 1000.0 / (double)c.refresh_rate)
