@@ -747,7 +747,7 @@ void Vulkan::createVertexBuffer(const std::vector<Graphics::Vertex> &vertices) {
 
 void Vulkan::createIndexBuffer(const std::vector<ui16> &indices) {
     VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
-    index_buffer_size = (ui32)buffer_size;
+    index_buffer_size = (ui32)indices.size();
     
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
