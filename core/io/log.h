@@ -5,7 +5,6 @@
 #pragma once
 
 #include "dtypes.h"
-#include "reflection.h"
 
 #include <iostream>
 
@@ -34,12 +33,8 @@ namespace Verse
         }
     
         template<typename T>
-        void reflection(T val)
-        {
-            Verse::tuple_for_each(Reflection<T>::layout(),[&](auto&& x) {
-                auto [name, ptr] = x;
-                std::cout << name << ": " << val.*ptr << std::endl;
-            });
+        void reflection(T &p_refl) {
+            std::cout << p_refl << std::endl;
         }
     }
 }
