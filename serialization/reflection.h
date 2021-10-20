@@ -13,6 +13,7 @@
 #include <array>
 #include <tuple>
 #include <ostream>
+#include <string_view>
 
 #define Serialize(Type, ...) \
 \
@@ -20,7 +21,8 @@ inline decltype(auto) members() const { return std::tie(__VA_ARGS__); } \
 inline decltype(auto) members() { return std::tie(__VA_ARGS__); } \
 \
 static constexpr std::array<char, ::Verse::Reflection::Impl::str_size(#__VA_ARGS__)> member_name_data = [](){ \
-    std::array<char, ::Verse::Reflection::Impl::str_size(#__VA_ARGS__)> chars{'\0'}; size_t _idx = 0; \
+    std::array<char, ::Verse::Reflection::Impl::str_size(#__VA_ARGS__)> chars{'\0'}; \
+    size_t _idx = 0; \
     constexpr auto* ini(#__VA_ARGS__); \
     for (char const* _c = ini; *_c; ++_c, ++_idx) \
         if(*_c != ',' && *_c != ' ') \
@@ -44,7 +46,7 @@ friend bool operator!=(const Type& lhs, const OT& rhs) { return !(lhs == rhs); }
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_smaller, OT>, int> = 0> \
 friend bool operator< (const OT& lhs, const OT& rhs) { return ::Verse::Reflection::less(lhs, rhs); } \
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_print, OT>, int> = 0> \
-friend std::ostream& operator<<(std::ostream& os, const OT& t) { ::Verse::Reflection::print(os, t); return os; }
+friend std::ostream& operator<<(std::ostream& os, const OT& t) { ::Verse::Reflection::printYAML<1>(os, t); return os; }
 
 namespace Verse
 {
@@ -81,8 +83,8 @@ namespace Verse
                 return nargs;
             }
         
-            constexpr size_t str_size(char const* c, size_t strSize = 1) {
-                for (; *c; ++c) ++strSize; return strSize;
+            constexpr size_t str_size(char const* c, size_t str_size = 1) {
+                for (; *c; ++c) ++str_size; return str_size;
             }
         }
     
@@ -110,9 +112,6 @@ namespace Verse
         template<class T> using t_equal = decltype(std::declval<T>() == std::declval<T>());
         template<class T> using t_nequal = decltype(std::declval<T>() != std::declval<T>());
     
-        /*template<class T> using t_custom_save = decltype(std::declval<T>().save(std::declval<BinaryArchive&>()));
-         template<class T> using t_free_save = decltype(std::declval<const T&>() << std::declval<BinaryArchive&>());*/
-    
         //Tuple less operator
         template<typename T>
         constexpr inline bool less(const T& lhs, const T& rhs);
@@ -129,52 +128,96 @@ namespace Verse
         constexpr inline bool less(const T& lhs, const T& rhs) {
             if constexpr (is_reflectable<T>)
                 return less(lhs.members(), rhs.members());
-            else if constexpr (is_tuple<T>)
+            if constexpr (is_tuple<T>)
                 return less(lhs, rhs, std::make_index_sequence<std::tuple_size_v<T>>());
-            else if constexpr (is_container<T> && !is_detected<t_smaller, T>) {
+            if constexpr (is_container<T> && !is_detected<t_smaller, T>) {
                 if (lhs.size() != rhs.size())
                     return lhs.size() < rhs.size();
                 return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
             }
-            else if constexpr (std::is_enum_v<T>)
+            if constexpr (std::is_enum_v<T>)
                 return static_cast<std::underlying_type_t<T>>(lhs) < static_cast<std::underlying_type_t<T>>(rhs);
-            else
-                return lhs < rhs;
+            return lhs < rhs;
         }
     
-        //Recursively print JSON (TODO: CHANGE)
-        template<typename T>
-        constexpr inline decltype(auto) print(std::ostream& os, T&& val) {
+        //Recursively print YAML
+        template<std::size_t L>
+        constexpr inline decltype(auto) printYAMLlevel(std::ostream& os) {
+            for (std::size_t i = 0; i < 2*L; i++)
+                os << ' ';
+            return "";
+        }
+    
+        template<std::size_t L, typename T>
+        constexpr inline decltype(auto) printYAML(std::ostream& os, T&& val) {
             using V = std::decay_t<T>;
-            if constexpr (std::is_constructible_v<std::string, T> || std::is_same_v<V, char>)
+            
+            if constexpr (std::is_constructible_v<std::string, T> || std::is_same_v<V, char>) {
                 os << "\"" << val << "\"";
-            else if constexpr (is_container<V>) {
+            } else if constexpr (is_container<V>) {
                 size_t i = 0;
                 os << "[";
                 for (auto& elem : val)
-                    os << (i++ == 0 ? "" : ",") << ::Verse::Reflection::print(os, elem);
+                    os << (i++ == 0 ? "" : ",") << ::Verse::Reflection::printYAML<L>(os, elem);
                 os << "]";
-            }
-            else if constexpr (is_reflectable<V> && !is_detected<t_print, V>) {
+            } else if constexpr (is_reflectable<V> && !is_detected<t_print, V>) {
                 auto p_mem = [&](auto& ... member) {
                     size_t i = 0;
-                    (((os << (i != 0 ? ", " : "") << '\"'), os << V::member_names[i++] << "\" : " << ::Verse::Reflection::print(os, member)), ...);
+                    ((os << (i != 0 ? "\n" : ""),
+                      printYAMLlevel<L>(os),
+                      os << V::member_names[i++] << " : " << ::Verse::Reflection::printYAML<L+1>(os, member)
+                      ), ...);
+                };
+                if (L < 2) //Hide struct names for now, see what to do later
+                    os << V::type_name << " : ";
+                os << "\n";
+                std::apply(p_mem, val.members());
+            } else if constexpr (std::is_enum_v<V> && !is_detected<t_print, V>) {
+                os << ::Verse::Reflection::printYAML<L>(os, static_cast<std::underlying_type_t<V>>(val));
+            } else if constexpr (is_tuple<V> && !is_detected<t_print, V>) {
+                std::apply([&](auto& ... t) {
+                    int i = 0; os << "{"; (((i++ != 0 ? os << ", " : os), ::Verse::Reflection::printYAML<L>(os, t)), ...); os << "}";
+                }, val);
+            } else if constexpr (is_pointer_like<V>) {
+                os << (val ? (os << (::Verse::Reflection::printYAML<L>(os, *val)), "") : "null");
+            } else {
+                os << val;
+            }
+            
+            return "";
+        }
+    
+        //Recursively print JSON
+        template<typename T>
+        constexpr inline decltype(auto) printJSON(std::ostream& os, T&& val) {
+            using V = std::decay_t<T>;
+            
+            if constexpr (std::is_constructible_v<std::string, T> || std::is_same_v<V, char>) {
+                os << "\"" << val << "\"";
+            } else if constexpr (is_container<V>) {
+                size_t i = 0;
+                os << "[";
+                for (auto& elem : val)
+                    os << (i++ == 0 ? "" : ",") << ::Verse::Reflection::printJSON(os, elem);
+                os << "]";
+            } else if constexpr (is_reflectable<V> && !is_detected<t_print, V>) {
+                auto p_mem = [&](auto& ... member) {
+                    size_t i = 0;
+                    (((os << (i != 0 ? ", " : "") << '\"'), os << V::member_names[i++] << "\" : " << ::Verse::Reflection::printJSON(os, member)), ...);
                 };
                 os << "{ \"" << V::type_name << "\": {"; std::apply(p_mem, val.members()); os << "}}";
-            }
-            else if constexpr (std::is_enum_v<V> && !is_detected<t_print, V>) {
-                os << ::Verse::Reflection::print(os, static_cast<std::underlying_type_t<V>>(val));
-            }
-            else if constexpr (is_tuple<V> && !is_detected<t_print, V>) {
+            } else if constexpr (std::is_enum_v<V> && !is_detected<t_print, V>) {
+                os << ::Verse::Reflection::printJSON(os, static_cast<std::underlying_type_t<V>>(val));
+            } else if constexpr (is_tuple<V> && !is_detected<t_print, V>) {
                 std::apply([&](auto& ... t) {
-                    int i = 0; os << "{"; (((i++ != 0 ? os << ", " : os), ::Verse::Reflection::print(os, t)), ...); os << "}";
+                    int i = 0; os << "{"; (((i++ != 0 ? os << ", " : os), ::Verse::Reflection::printJSON(os, t)), ...); os << "}";
                 }, val);
-            }
-            else if constexpr (is_pointer_like<V>) {
-                os << (val ? (os << (::Verse::Reflection::print(os, *val)), "") : "null");
-            }
-            else
+            } else if constexpr (is_pointer_like<V>) {
+                os << (val ? (os << (::Verse::Reflection::printJSON(os, *val)), "") : "null");
+            } else {
                 os << val;
+            }
+            
             return "";
         }
     
