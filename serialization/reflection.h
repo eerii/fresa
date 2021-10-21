@@ -140,9 +140,26 @@ namespace Verse
             return lhs < rhs;
         }
     
+        //Recursively loop through each component
+        template<std::size_t L = 0, typename Callable, typename T>
+        constexpr void forEach(T &&t, Callable &&f) {
+            using V = std::decay_t<T>;
+            
+            if constexpr(is_reflectable<V>) {
+                auto apply_to = [&](auto& ... m) {
+                    (forEach<L+1>(m, f), ...);
+                };
+                
+                std::apply(apply_to, t.members());
+            }
+            
+            f(t, L);
+        }
+        
+    
         //Recursively print YAML
         template<std::size_t L>
-        constexpr inline decltype(auto) printYAMLlevel(std::ostream& os) {
+        constexpr inline decltype(auto) getLevelSeparator(std::ostream& os) {
             for (std::size_t i = 0; i < 2*L; i++)
                 os << ' ';
             return "";
@@ -158,14 +175,14 @@ namespace Verse
                 size_t i = 0;
                 os << "[";
                 for (auto& elem : val)
-                    os << (i++ == 0 ? "" : ",") << ::Verse::Reflection::printYAML<L>(os, elem);
+                    os << (i++ == 0 ? "" : ",") << printYAML<L>(os, elem);
                 os << "]";
             } else if constexpr (is_reflectable<V> && !is_detected<t_print, V>) {
                 auto p_mem = [&](auto& ... member) {
                     size_t i = 0;
                     ((os << (i != 0 ? "\n" : ""),
-                      printYAMLlevel<L>(os),
-                      os << V::member_names[i++] << " : " << ::Verse::Reflection::printYAML<L+1>(os, member)
+                      getLevelSeparator<L>(os),
+                      os << V::member_names[i++] << " : " << printYAML<L+1>(os, member)
                       ), ...);
                 };
                 if (L < 2) //Hide struct names for now, see what to do later
@@ -173,13 +190,13 @@ namespace Verse
                 os << "\n";
                 std::apply(p_mem, val.members());
             } else if constexpr (std::is_enum_v<V> && !is_detected<t_print, V>) {
-                os << ::Verse::Reflection::printYAML<L>(os, static_cast<std::underlying_type_t<V>>(val));
+                os << printYAML<L>(os, static_cast<std::underlying_type_t<V>>(val));
             } else if constexpr (is_tuple<V> && !is_detected<t_print, V>) {
                 std::apply([&](auto& ... t) {
-                    int i = 0; os << "{"; (((i++ != 0 ? os << ", " : os), ::Verse::Reflection::printYAML<L>(os, t)), ...); os << "}";
+                    int i = 0; os << "{"; (((i++ != 0 ? os << ", " : os), printYAML<L>(os, t)), ...); os << "}";
                 }, val);
             } else if constexpr (is_pointer_like<V>) {
-                os << (val ? (os << (::Verse::Reflection::printYAML<L>(os, *val)), "") : "null");
+                os << (val ? (os << (printYAML<L>(os, *val)), "") : "null");
             } else {
                 os << val;
             }
