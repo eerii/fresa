@@ -52,6 +52,13 @@ namespace Verse::Graphics
             VkVertexInputBindingDescription vertex_input_binding_description;
             std::array<VkVertexInputAttributeDescription, 2> vertex_input_attribute_descriptions;
         };
+    
+        //TODO: CHANGE THIS
+        struct UniformBufferObject {
+            glm::mat4 model;
+            glm::mat4 view;
+            glm::mat4 proj;
+        };
     }
 
     struct Vulkan {
@@ -121,6 +128,9 @@ namespace Verse::Graphics
         void prepareRenderInfoPipelineLayout();
         void prepareRenderInfo();
         
+        VkDescriptorSetLayout descriptor_set_layout;
+        void createDescriptorSetLayout();
+        
         VkPipelineLayout pipeline_layout;
         void createPipelineLayout();
         
@@ -143,6 +153,16 @@ namespace Verse::Graphics
         VkBuffer index_buffer;
         VkDeviceMemory index_buffer_memory;
         ui32 index_buffer_size;
+        
+        
+        void createUniformBuffers();
+        void createDescriptorPool();
+        void createDescriptorSets();
+        
+        std::vector<VkBuffer> uniform_buffers;
+        std::vector<VkDeviceMemory> uniform_buffers_memory;
+        VkDescriptorPool descriptor_pool;
+        std::vector<VkDescriptorSet> descriptor_sets;
         //----------------------------------------
         
         //RENDERING
@@ -156,7 +176,7 @@ namespace Verse::Graphics
         
         std::vector<VkCommandBuffer> command_buffers;
         void createCommandBuffers();
-        void recordCommandBuffer(VkCommandBuffer &buffer, VkFramebuffer &framebuffer);
+        void recordCommandBuffer(VkCommandBuffer &buffer, VkFramebuffer &framebuffer, VkDescriptorSet &descriptor_set);
         
         std::vector<VkSemaphore> semaphores_image_available;
         std::vector<VkSemaphore> semaphores_render_finished;
@@ -166,6 +186,8 @@ namespace Verse::Graphics
         
         ui8 current_frame = 0;
         void renderFrame(Config &c);
+        
+        void updateUniformBuffer(ui32 current_image);
         //----------------------------------------
         
         //RECREATE SWAPCHAIN

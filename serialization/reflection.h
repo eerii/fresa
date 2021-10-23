@@ -14,6 +14,7 @@
 #include <tuple>
 #include <ostream>
 #include <string_view>
+#include "ecs.h"
 
 #define Serialize(Type, ...) \
 \
@@ -47,6 +48,17 @@ template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Refl
 friend bool operator< (const OT& lhs, const OT& rhs) { return ::Verse::Reflection::less(lhs, rhs); } \
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_print, OT>, int> = 0> \
 friend std::ostream& operator<<(std::ostream& os, const OT& t) { ::Verse::Reflection::printYAML<1>(os, t); return os; }
+
+#define RegisterComponent(Type, name) \
+\
+static constexpr const char* component_name = #name; \
+\
+//log::debug("%s ID: %d", #Type, Component::getID<Component::Type>()); \
+
+
+//TODO: This function can register components using ecs.cpp getID, and also save the name for later usage in the actual type (reflection)
+//I need to make ecs.cpp not include component_list and fix it up a bit
+//Check the component id numbering system as this way it can be random, see how to fix that
 
 namespace Verse
 {
@@ -142,18 +154,19 @@ namespace Verse
     
         //Recursively loop through each component
         template<std::size_t L = 0, typename Callable, typename T>
-        constexpr void forEach(T &&t, Callable &&f) {
+        constexpr void forEach(T &&t, Callable &&f, const char* name = "") {
             using V = std::decay_t<T>;
             
             if constexpr(is_reflectable<V>) {
                 auto apply_to = [&](auto& ... m) {
-                    (forEach<L+1>(m, f), ...);
+                    std::size_t i = 0;
+                    (forEach<L+1>(m, f, V::member_names[i++]), ...);
                 };
                 
                 std::apply(apply_to, t.members());
             }
             
-            f(t, L);
+            f(t, L, name);
         }
         
     

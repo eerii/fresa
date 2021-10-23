@@ -27,12 +27,6 @@ namespace {
     const std::vector<ui16> indices = {
         0, 1, 2, 2, 3, 0
     };
-
-    struct UniformBufferObject {
-        glm::mat4 model;
-        glm::mat4 view;
-        glm::mat4 proj;
-    };
 }
 
 void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
@@ -49,12 +43,18 @@ void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
     vulkan->createImageViews();
     
     vulkan->createRenderPass();
+    vulkan->createDescriptorSetLayout();
     vulkan->createGraphicsPipeline();
     
     vulkan->createFramebuffers();
     vulkan->createCommandPools();
     vulkan->createVertexBuffer(vertices);
     vulkan->createIndexBuffer(indices);
+    
+    vulkan->createUniformBuffers();
+    vulkan->createDescriptorPool();
+    vulkan->createDescriptorSets();
+    
     vulkan->createCommandBuffers();
     
     vulkan->createSyncObjects();
