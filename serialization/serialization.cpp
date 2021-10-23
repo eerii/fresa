@@ -392,9 +392,7 @@ EntityID Serialization::loadPlayer(Scene *s, Config &c) {
     EntityID eid = s->createEntity("player");
     Serialization::loadComponentsFromYAML(eid, player, s, c);
     
-#ifdef USE_C_PLAYER
     s->addComponent<Component::Player>(eid);
-#endif
     s->addComponent<Component::State>(eid);
     
     return eid;
@@ -431,10 +429,8 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
         System::SceneTransition::load(eid, entity, s, c);
     if (entity["state"])
         System::State::load(eid, entity, s, c);
-#ifdef USE_C_PLAYER
     if (entity["player"])
         System::Player::load(eid, entity, s, c);
-#endif
 }
 
 void Serialization::saveScene(Scene *s, Config &c, bool to_proj) {
@@ -502,11 +498,8 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     if (trans != nullptr) {
         key[2] = "scene_transition";
     }
-    
-#ifdef USE_C_PLAYER
     Component::Player* player = s->getComponent<Component::Player>(eid);
     if (player != nullptr) {
         key[2] = "player";
     }
-#endif
 }

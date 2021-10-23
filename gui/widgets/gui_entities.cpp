@@ -116,9 +116,7 @@ void components(Config &c, Signature mask, EntityID e) {
         c_funcs["timer"] = System::Timer::gui;
         c_funcs["patrol"] = System::Patrol::gui;
         c_funcs["scene_transition"] = System::SceneTransition::gui;
-#ifdef USE_C_PLAYER
         c_funcs["player"] = System::Player::gui;
-#endif
     }
     
     std::vector<str> unused_components = {" - none - "};
@@ -168,10 +166,11 @@ void components(Config &c, Signature mask, EntityID e) {
         auto it = std::find(component_names.begin(), component_names.end(), unused_components[curr]);
         if (it != component_names.end()) {
             ComponentID cid = std::distance(component_names.begin(), it);
-            for_<std::variant_size_v<ComponentType>>([&](auto i) {
+            //TODO: FIX GUI COMPONENTS
+            /*for_<std::variant_size_v<ComponentType>>([&](auto i) {
                 if (i.value == cid)
                     c.active_scene->addComponent<std::variant_alternative_t<i.value, ComponentType>>(e);
-            });
+            });*/
         }
     }
 }
