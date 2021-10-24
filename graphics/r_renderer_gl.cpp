@@ -121,6 +121,7 @@ void Graphics::Renderer::create(Config &c) {
     ImGuiContext* imgui_context = ImGui::CreateContext();
     if (imgui_context == nullptr)
         log::error("Error creating ImGui context: ", SDL_GetError());
+    ImPlot::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     if (not ImGui_ImplSDL2_InitForOpenGL(c.window, context))
         log::error("Error initializing ImGui for SDL");
@@ -794,6 +795,7 @@ void Graphics::Renderer::destroy() {
     //IMGUI
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
+    ImPlot::DestroyContext();
     ImGui::DestroyContext();
 #endif
     

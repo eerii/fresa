@@ -12,6 +12,7 @@
 #include "gui_menu.h"
 #include "gui_entities.h"
 #include "gui_tilemap_editor.h"
+#include "gui_performance.h"
 
 using namespace Verse;
 
@@ -19,6 +20,7 @@ struct ImVec3 { float x, y, z; ImVec3(float _x = 0.0f, float _y = 0.0f, float _z
 
 bool Gui::ActiveWindows::entities = false;
 bool Gui::ActiveWindows::test = false;
+bool Gui::ActiveWindows::performance = false;
 
 void Gui::init(Config &c) {
     ImGuiIO& imgui_io = ImGui::GetIO();
@@ -107,6 +109,9 @@ void Gui::prerender(Config &c, SDL_Window* window) {
     
     if (ActiveWindows::entities)
         Gui::entities(c);
+    
+    if (ActiveWindows::performance)
+        Gui::performance(c);
 }
 
 void Gui::render() {

@@ -7,62 +7,71 @@
 using namespace Verse;
 
 namespace {
-    ui32 last_timer_id = 0;
+    TimerID last_timer_id = 0;
 }
 
-ui64 Time::current = 0;
-ui64 Time::previous = 0;
-double Time::delta = 0;
-std::map<ui32, Timer> Time::timers = {};
+Clock::time_point Time::current = {};
+Clock::time_point Time::previous = {};
+Duration Time::delta = {};
 
-ui32 Verse::time() {
-    return SDL_GetTicks();
+Clock::time_point Time::current_render = {};
+Clock::time_point Time::previous_render = {};
+Duration Time::delta_render = {};
+
+std::map<TimerID, Timer> Time::timers = {};
+
+Clock::time_point Verse::time() {
+    return Clock::now();
 }
 
-ui64 Verse::time_precise() {
-    return SDL_GetPerformanceCounter();
-}
-
-double Verse::time_precise_difference(ui64 t1) {
-    return ((double)(time_precise() - t1) / (double)SDL_GetPerformanceFrequency()) * 1000.0;
-}
-
-double Verse::time_precise_difference(ui64 t1, ui64 t2) {
-    return ((double)(t2 - t1) / (double)SDL_GetPerformanceFrequency()) * 1000.0;
-}
-
-ui32 Verse::setTimer(ui32 ms) {
-    ui32 timer_id = last_timer_id + 1;
+TimerID Verse::setTimer(ui32 ms) {
+    TimerID timer_id = last_timer_id + 1;
+    
     while (Time::timers.find(timer_id) != Time::timers.end())
-        timer_id += 1;
+        timer_id++;
     last_timer_id = timer_id;
     
-    Time::timers[timer_id] = Timer(ms, time());
+    Time::timers[timer_id] = Timer(std::chrono::milliseconds(ms), time());
+    
     return timer_id;
 }
 
-bool Verse::checkTimer(ui32 timer, float game_speed) {
+bool Verse::checkTimer(TimerID timer, float game_speed) {
     if (Time::timers.find(timer) == Time::timers.end())
         return false;
     
-    ui32 curr = time();
-    Time::timers[timer].current += (float)(curr - Time::timers[timer].previous) * game_speed;
-    Time::timers[timer].previous = curr;
+    Clock::time_point current = time();
+    Duration delta = current - Time::timers[timer].start;
     
-    bool done = Time::timers[timer].current >= Time::timers[timer].duration;
+    bool done = delta >= Time::timers[timer].duration;
     if (done)
         Time::timers.erase(timer);
     
     return done;
 }
 
-ui32 Verse::getTimerRemainder(ui32 timer) {
+Duration Verse::getTimerRemainder(TimerID timer) {
     if (Time::timers.find(timer) == Time::timers.end())
-        return 0;
+        return Duration(0);
     
-    return Time::timers[timer].duration - Time::timers[timer].current;
+    Clock::time_point current = time();
+    Duration delta = current - Time::timers[timer].start;
+    
+    return Time::timers[timer].duration - delta;
 }
 
-void Verse::stopTimer(ui32 timer) {
+void Verse::stopTimer(TimerID timer) {
     Time::timers.erase(timer);
+}
+
+double Verse::ns(Duration duration) {
+    return duration.count();
+}
+
+double Verse::ms(Duration duration) {
+    return duration.count() * 1.0e-6;
+}
+
+double Verse::sec(Duration duration) {
+    return duration.count() * 1.0e-9;
 }

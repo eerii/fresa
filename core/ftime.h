@@ -6,31 +6,42 @@
 
 #include "dtypes.h"
 #include <map>
+#include <chrono>
 
 namespace Verse
 {
+    using Clock = std::chrono::steady_clock;
+    using Duration = std::chrono::nanoseconds;
+    using TimerID = ui32;
+
     struct Timer {
-        float current = 0;
-        ui32 previous;
-        ui32 duration;
+        Clock::time_point start;
+        Duration duration;
+        
         Timer() = default;
-        Timer(ui32 p_d, ui32 p_p) : duration(p_d), previous(p_p) {};
+        Timer(Duration p_d, Clock::time_point p_s) : duration(p_d), start(p_s) {};
     };
 
     struct Time {
-        static ui64 current;
-        static ui64 previous;
-        static double delta;
-        static std::map<ui32, Timer> timers;
+        static Clock::time_point current;
+        static Clock::time_point previous;
+        static Duration delta;
+        
+        static Clock::time_point current_render;
+        static Clock::time_point previous_render;
+        static Duration delta_render;
+        
+        static std::map<TimerID, Timer> timers;
     };
 
-    ui32 time();
-    ui64 time_precise();
-    double time_precise_difference(ui64 t1);
-    double time_precise_difference(ui64 t1, ui64 t2);
+    Clock::time_point time();
     
-    ui32 setTimer(ui32 ms);
-    bool checkTimer(ui32 timer, float game_speed = 1.0f);
-    ui32 getTimerRemainder(ui32 timer);
-    void stopTimer(ui32 timer);
+    TimerID setTimer(ui32 ms);
+    bool checkTimer(TimerID timer, float game_speed = 1.0f);
+    Duration getTimerRemainder(TimerID timer);
+    void stopTimer(TimerID timer);
+
+    double ns(Duration duration);
+    double ms(Duration duration);
+    double sec(Duration duration);
 }

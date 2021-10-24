@@ -71,7 +71,7 @@ void Input::onMouseWheel(int p)
 
 void Input::onKeyDown(Key key)
 {
-    int i = (int)key;
+    int i = static_cast<int>(key);
     if (i >= 0 && i < max_keyboard_keys)
     {
         g_next_state.keyboard.down[i] = true;
@@ -81,7 +81,7 @@ void Input::onKeyDown(Key key)
 
 void Input::onKeyUp(Key key)
 {
-    int i = (int)key;
+    int i = static_cast<int>(key);
     if (i >= 0 && i < max_keyboard_keys)
     {
         g_next_state.keyboard.down[i] = false;
@@ -111,15 +111,15 @@ bool Input::released(ui8 button) {
 
 
 bool Input::pressed(Key key) {
-    int i = (int)key;
+    int i = static_cast<int>(key);
     return i > 0 && i < max_keyboard_keys && g_curr_state.keyboard.pressed[i];
 }
 bool Input::down(Key key) {
-    int i = (int)key;
+    int i = static_cast<int>(key);
     return i > 0 && i < max_keyboard_keys && g_curr_state.keyboard.down[i];
 }
 bool Input::released(Key key) {
-    int i = (int)key;
+    int i = static_cast<int>(key);
     return i > 0 && i < max_keyboard_keys && g_curr_state.keyboard.released[i];
 }
 

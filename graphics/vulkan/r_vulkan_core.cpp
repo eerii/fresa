@@ -846,7 +846,7 @@ void Vulkan::createUniformBuffers() {
     VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     VkMemoryPropertyFlags memory_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     
-    for (size_t i = 0; i < swapchain_images.size(); i++)
+    for (int i = 0; i < swapchain_images.size(); i++)
         createBuffer(buffer_size, usage_flags, memory_flags, uniform_buffers[i], uniform_buffers_memory[i]);
     
     log::graphics("Created Vulkan Uniform Buffers");
@@ -884,7 +884,7 @@ void Vulkan::createDescriptorSets() {
     
     log::graphics("Allocated Vulkan Descriptor Sets");
     
-    for (size_t i = 0; i < swapchain_images.size(); i++) {
+    for (int i = 0; i < swapchain_images.size(); i++) {
         VkDescriptorBufferInfo buffer_info{};
         buffer_info.buffer = uniform_buffers[i];
         buffer_info.offset = 0;
@@ -1184,7 +1184,7 @@ void Vulkan::destroySwapchain() {
     
     vkDestroySwapchainKHR(device, swapchain, nullptr);
     
-    for (size_t i = 0; i < swapchain_images.size(); i++) {
+    for (int i = 0; i < swapchain_images.size(); i++) {
         vkDestroyBuffer(device, uniform_buffers[i], nullptr);
         vkFreeMemory(device, uniform_buffers_memory[i], nullptr);
     }

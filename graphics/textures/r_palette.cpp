@@ -51,7 +51,7 @@ void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
 #endif
 
 void Verse::Graphics::Palette::switchPalette(Config &c) {
-    if (previous_palette == c.palette_index) {
+    /*if (previous_palette == c.palette_index) {
         switch_palette_time = 0;
         transition_percent = 0.0;
         return;
@@ -62,12 +62,12 @@ void Verse::Graphics::Palette::switchPalette(Config &c) {
         return;
     }
     
-    ui32 delay = time() - switch_palette_time;
+    ui32 delay = (time() - switch_palette_time).count();
     
     if (delay < TRANSITION_TIME) {
         transition_percent = (float)delay / (float)TRANSITION_TIME;
         return;
-    }
+    }*/
     
     switch_palette_time = 0; transition_percent = 0.0;
     previous_palette = c.palette_index;

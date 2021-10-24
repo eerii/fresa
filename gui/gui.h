@@ -15,6 +15,7 @@
 #include "imgui.h"
 #include "imgui_stdlib.h"
 #include "imgui_impl_sdl.h"
+#include "implot.h"
 
 #if defined USE_OPENGL
 #include "imgui_impl_opengl3.h"
@@ -27,6 +28,7 @@ namespace Verse::Gui
     struct ActiveWindows {
         static bool entities;
         static bool test;
+        static bool performance;
     };
 
     void init(Config &c);
