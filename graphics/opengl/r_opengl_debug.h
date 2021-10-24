@@ -4,28 +4,6 @@
 
 #pragma once
 
-#include "config.h"
-
-#ifdef USE_OPENGL
-
-#ifdef __EMSCRIPTEN__ //WEB
-
-    #include <GLES3/gl3.h>
-
-#elif __APPLE__ //MACOS
-
-    #define GL_SILENCE_DEPRECATION
-
-    #include <OpenGL/OpenGL.h>
-    #include <OpenGL/gl3.h>
-
-#else //OTHERS (Not tested)
-
-    #include <SDL2/SDL_opengl.h>
-    #include <SDL2/SDL_opengl_glext.h>
-
-#endif
-
 #include <iostream>
 #include <string>
 
@@ -57,5 +35,3 @@ namespace Verse
     }
 
 }
-
-#endif
