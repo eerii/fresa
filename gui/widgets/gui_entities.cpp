@@ -121,8 +121,8 @@ void components(Config &c, Signature mask, EntityID e) {
     
     std::vector<str> unused_components = {" - none - "};
     
-    for (int i = 0; i < component_names.size(); i++) {
-        str component_name = component_names[i];
+    for (int i = 0; i < Component::component_names.size(); i++) {
+        str component_name = Component::component_names[i];
         
         if (mask[i] == 0) {
             unused_components.push_back(component_name);
@@ -163,8 +163,8 @@ void components(Config &c, Signature mask, EntityID e) {
     ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
     int curr = 0;
     if (ImGui::Combo(add_label.c_str(), &curr, unused_components) and curr != 0) {
-        auto it = std::find(component_names.begin(), component_names.end(), unused_components[curr]);
-        if (it != component_names.end()) {
+        auto it = std::find(Component::component_names.begin(), Component::component_names.end(), unused_components[curr]);
+        if (it != Component::component_names.end()) {
             //ComponentID cid = std::distance(component_names.begin(), it);
             //TODO: FIX GUI COMPONENTS
             /*for_<std::variant_size_v<ComponentType>>([&](auto i) {

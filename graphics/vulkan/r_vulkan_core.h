@@ -153,16 +153,6 @@ namespace Verse::Graphics
         VkBuffer index_buffer;
         VkDeviceMemory index_buffer_memory;
         ui32 index_buffer_size;
-        
-        
-        void createUniformBuffers();
-        void createDescriptorPool();
-        void createDescriptorSets();
-        
-        std::vector<VkBuffer> uniform_buffers;
-        std::vector<VkDeviceMemory> uniform_buffers_memory;
-        VkDescriptorPool descriptor_pool;
-        std::vector<VkDescriptorSet> descriptor_sets;
         //----------------------------------------
         
         //RENDERING
@@ -186,6 +176,18 @@ namespace Verse::Graphics
         
         ui8 current_frame = 0;
         void renderFrame(Config &c);
+        //----------------------------------------
+        
+        //UNIFORMS
+        //----------------------------------------
+        void createUniformBuffers();
+        void createDescriptorPool();
+        void createDescriptorSets();
+        
+        std::vector<VkBuffer> uniform_buffers;
+        std::vector<VkDeviceMemory> uniform_buffers_memory;
+        VkDescriptorPool descriptor_pool;
+        std::vector<VkDescriptorSet> descriptor_sets;
         
         void updateUniformBuffer(ui32 current_image);
         //----------------------------------------
