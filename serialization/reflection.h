@@ -49,12 +49,6 @@ friend bool operator< (const OT& lhs, const OT& rhs) { return ::Verse::Reflectio
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_print, OT>, int> = 0> \
 friend std::ostream& operator<<(std::ostream& os, const OT& t) { ::Verse::Reflection::printYAML<1>(os, t); return os; }
 
-#define RegisterComponent(Type, name) \
-\
-static constexpr const char* component_name = #name; \
-\
-//log::debug("%s ID: %d", #Type, Component::getID<Component::Type>()); \
-
 
 //TODO: This function can register components using ecs.cpp getID, and also save the name for later usage in the actual type (reflection)
 //I need to make ecs.cpp not include component_list and fix it up a bit
@@ -123,6 +117,8 @@ namespace Verse
         template<class T> using t_smaller = decltype(std::declval<T>() < std::declval<T>());
         template<class T> using t_equal = decltype(std::declval<T>() == std::declval<T>());
         template<class T> using t_nequal = decltype(std::declval<T>() != std::declval<T>());
+    
+        template<class T> using t_component = decltype(std::declval<T>().component_name);
     
         //Tuple less operator
         template<typename T>

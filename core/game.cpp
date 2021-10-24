@@ -82,7 +82,7 @@ bool Game::physicsUpdate(Config &c) {
 #endif
         
         //UPDATE SYSTEMS
-        PHYSICS_UPDATE_SYSTEMS
+        System::physicsUpdateSystems(c);
         
         //PREPARE FOR NEXT INPUT
         Input::frame();
