@@ -9,8 +9,8 @@
 
 #include "gui.h"
 
-#include "r_opengl.h"
-#include "r_vulkan.h"
+#include "r_opengl_core.h"
+#include "r_vulkan_core.h"
 #include "r_window.h"
 #include "r_renderer.h"
 #include "system_list.h"
@@ -21,39 +21,30 @@ using namespace Graphics;
 bool Graphics::init(Config &c) {
     log::debug("Initializing graphics");
     
-#ifdef __EMSCRIPTEN__
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-    
-    SDL_Renderer *renderer = NULL;
-    SDL_CreateWindowAndRenderer(c.window_size.x, c.window_size.y, SDL_WINDOW_OPENGL, &window, &renderer);
-#else
-    //OPENGL
-    #ifdef USE_OPENGL
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    #ifndef __APPLE__
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-    #endif //__APPLE__
+    //OpenGL Configuration
+#ifdef USE_OPENGL
+    #ifdef __EMSCRIPTEN__
+        GL::configWebGL();
+    #else
+        GL::configOpenGL();
     #endif
-    
-    //CREATE A WINDOW
+#endif
+ 
+    //Window Creation
     c.window = Window::createWindow(c);
     if(c.window == nullptr) {
         log::error("There was an error with the window pointer, check r_pipeline");
         return false;
     }
-#endif
     
-    //REFRESH RATE
+    //Refresh Rate
     Window::calculateRefreshRate(c);
     log::graphics("Refresh Rate: %d", c.refresh_rate);
     
-    //RENDERER
+    //Renderer Creation
     Renderer::create(c);
     
+    //GUI
 #ifndef DISABLE_GUI
     Gui::init(c);
 #endif

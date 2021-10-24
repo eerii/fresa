@@ -5,7 +5,7 @@
 #ifdef USE_OPENGL
 
 #include "r_renderer.h"
-#include "r_opengl.h"
+#include "r_opengl_core.h"
 
 #include <glm/ext.hpp>
 
@@ -26,7 +26,7 @@ using namespace Graphics;
 using namespace glm;
 
 namespace {
-    SDL_GLContext context;
+    OpenGL gl;
 
     //SHADERS (Program IDs)
     enum Shaders {
@@ -90,23 +90,7 @@ namespace {
 void Graphics::Renderer::create(Config &c) {
     log::debug("Creating renderer");
     
-    //CONTEXT
-    context = SDL_GL_CreateContext(c.window);
-    if (context == nullptr) {
-        log::error("Error creating OpenGL Context: %s", SDL_GetError());
-        SDL_Quit();
-        exit(-1);
-    }
-    if (SDL_GL_MakeCurrent(c.window, context)) {
-        log::error("Error making OpenGL Context current: %s", SDL_GetError());
-        SDL_Quit();
-        exit(-1);
-    }
-    glCheckError();
-    
-    //V-SYNC
-    Graphics::Window::updateVsync(c);
-    glCheckError();
+    GL::initOpenGL(&gl, c);
     
     //INFORMATION
     log::graphics("---");
@@ -116,19 +100,6 @@ void Graphics::Renderer::create(Config &c) {
     log::graphics("GLSL Version:    %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
     log::graphics("---");
     
-#ifndef DISABLE_GUI
-    //IMGUI
-    ImGuiContext* imgui_context = ImGui::CreateContext();
-    if (imgui_context == nullptr)
-        log::error("Error creating ImGui context: ", SDL_GetError());
-    ImPlot::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    if (not ImGui_ImplSDL2_InitForOpenGL(c.window, context))
-        log::error("Error initializing ImGui for SDL");
-    if (not ImGui_ImplOpenGL3_Init())
-        log::error("Error initializing ImGui for OpenGL");
-    glCheckError();
-#endif
     
     //SHADERS
     //-----------------------------------------
@@ -800,7 +771,7 @@ void Graphics::Renderer::destroy() {
 #endif
     
     //SDL
-    SDL_GL_DeleteContext(context);
+    SDL_GL_DeleteContext(gl.context);
 }
 //-----------------------------------------
 
