@@ -63,7 +63,7 @@ bool Graphics::init(Config &c) {
 
 
 void Graphics::render(Config &c) {
-    ui64 time_before_render = time_precise();
+    Clock::time_point time_before_render = time();
     
     //CLEAR
     Renderer::clear(c);
@@ -104,7 +104,7 @@ void Graphics::render(Config &c) {
     Renderer::renderTest(c);
 #endif
     
-    c.render_time = time_precise_difference(time_before_render);
+    c.render_time = ns(time() - time_before_render);
     
     //PRESENT
     Renderer::present(c.window);

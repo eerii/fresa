@@ -62,19 +62,15 @@ bool Game::update(Config &c) {
     if (c.window_size.x != 0 and c.window_size.y != 0)
         Graphics::render(c);
     
-    //PREVENT RUNNING TOO FAST
-    if (c.use_vsync and Time::delta <= 1000.0 / (double)c.refresh_rate)
-        SDL_Delay((1000.0 / (double)c.refresh_rate) - Time::delta);
-    
     return true;
 }
 
 bool Game::physicsUpdate(Config &c) {
-    while (accumulator >= c.timestep) {
-        ui64 time_before_physics = time_precise();
+    while (accumulator >= c.timestep * 1.0e6) {
+        Clock::time_point time_before_physics = time();
         
-        accumulator -= c.timestep;
-        c.physics_delta = c.timestep * 0.001 * (double)c.game_speed;
+        accumulator -= c.timestep * 1.0e6;
+        c.physics_delta = c.timestep * 1.0e-3 * (double)c.game_speed;
         
         //GET EVENTS
         if (not Events::handleEvents(c))
@@ -91,7 +87,7 @@ bool Game::physicsUpdate(Config &c) {
         //PREPARE FOR NEXT INPUT
         Input::frame();
         
-        c.physics_time = time_precise_difference(time_before_physics);
+        c.physics_time = ns(time() - time_before_physics);
     }
     
     c.physics_interpolation = accumulator / c.timestep;
@@ -101,18 +97,18 @@ bool Game::physicsUpdate(Config &c) {
 
 void Game::timeFrame(Config &c) {
     Time::previous = Time::current;
-    Time::current = time_precise();
-    Time::delta = time_precise_difference(Time::previous, Time::current);
+    Time::current = time();
+    Time::delta = Time::current - Time::previous;
     
-    accumulator += Time::delta;
-    if (accumulator > 10000)
+    accumulator += ns(Time::delta);
+    if (accumulator > 1.0e10)
         accumulator = 0;
     
     frames++;
-    fps_time += Time::delta;
+    fps_time += ns(Time::delta);
     
-    if (fps_time > 1000.0) {
-        c.fps = floor((1000.0 * frames) / fps_time);
+    if (fps_time > 1.0e9) {
+        c.fps = floor((1.0e9 * frames) / fps_time);
         frames = 0;
         fps_time = 0;
     }

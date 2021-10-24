@@ -14,13 +14,6 @@
 
 using namespace Verse;
 
-namespace {
-    float mean_physics_time, mean_render_time;
-    float physics_accumulator, render_accumulator;
-    ui32 time_passed;
-    ui16 frames;
-}
-
 void Gui::menu(Config &c) {
     ImGuiStyle& style = ImGui::GetStyle();
     
@@ -109,6 +102,7 @@ void Gui::menu(Config &c) {
         //---------------------------
         if (ImGui::BeginMenu("utilidades")) {
             ImGui::Checkbox("entities", &ActiveWindows::entities);
+            ImGui::Checkbox("performance", &ActiveWindows::performance);
             ImGui::Checkbox("test", &ActiveWindows::test);
             
             ImGui::EndMenu();
@@ -123,27 +117,8 @@ void Gui::menu(Config &c) {
         
         ImGui::SameLine();
         ImGui::SetCursorPos(ImVec2(ImGui::GetIO().DisplaySize.x - size.x, 0));
-
-        frames++;
-        time_passed += Time::delta;
-        physics_accumulator += c.physics_time;
-        render_accumulator += c.render_time;
-        if (time_passed > 200) {
-            mean_physics_time = (float)physics_accumulator / (float)(frames);
-            mean_render_time = (float)render_accumulator / (float)(frames);
-            physics_accumulator = 0;
-            render_accumulator = 0;
-            time_passed = 0;
-            frames = 0;
-        }
         
-        if (ImGui::BeginMenu(fps_menu.c_str())) {
-            
-            ImGui::Text("physics time: %f ms", mean_physics_time);
-            ImGui::Text("render time: %f ms", mean_render_time);
-            
-            ImGui::EndMenu();
-        }
+        ImGui::Text("%s", fps_menu.c_str());
         //---------------------------
         
         ImGui::EndMainMenuBar();

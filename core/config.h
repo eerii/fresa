@@ -26,8 +26,8 @@ namespace Verse
         bool use_vsync;
         
         ui16 fps;
-        float physics_time;
-        float render_time;
+        double physics_time;
+        double render_time;
         double timestep;
         double physics_delta;
         double physics_interpolation;
