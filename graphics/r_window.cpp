@@ -22,6 +22,11 @@
 using namespace Verse;
 
 SDL_Window* Graphics::Window::createWindow(Config &c) {
+#ifdef __EMSCRIPTEN__
+    SDL_Renderer* renderer = nullptr;
+    SDL_Window* window = nullptr;
+    SDL_CreateWindowAndRenderer(c.window_size.x, c.window_size.y, SDL_WINDOW_OPENGL, &window, &renderer);
+#else
     str version = std::to_string(c.version[0]) + "." + std::to_string(c.version[1]) + "." + std::to_string(c.version[2]);
     SDL_Window* window = SDL_CreateWindow((c.name + " - " + RENDERER_NAME + " - Version " + version).c_str(),
                               SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -32,7 +37,7 @@ SDL_Window* Graphics::Window::createWindow(Config &c) {
     
     SDL_SetWindowResizable(window, SDL_TRUE);
     SDL_SetWindowMinimumSize(window, 256, 180);
-    
+#endif
     return window;
 }
 
@@ -60,6 +65,7 @@ void Graphics::Window::updateVsync(Config &c) {
 #endif
 }
 
+
 Vec2 Graphics::Window::windowToScene(Config &c, Vec2f w_pos) {
     Vec2 pixel_move = Vec2(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
     
@@ -71,7 +77,6 @@ Vec2 Graphics::Window::windowToScene(Config &c, Vec2f w_pos) {
     
     return s_pos;
 }
-
 
 
 Vec2f Graphics::Window::sceneToWindow(Config &c, Vec2 s_pos) {
