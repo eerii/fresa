@@ -20,25 +20,9 @@ ComponentID Component::getID() {
 }
 
 void Component::registerComponents() {
-    /*for_<std::variant_size_v<ComponentType>>([&](auto i) {
+    for_<std::variant_size_v<ComponentType>>([&](auto i) {
         ComponentID cid = Component::getID<std::variant_alternative_t<i.value, ComponentType>>();
         log::debug("%s, ID: %d", component_names[i.value].c_str(), cid);
-    });*/
-    getID<Component::Collider>;
-    getID<Component::CircleCollider>;
-    getID<Component::Actor>;
-    getID<Component::State>;
-    getID<Component::Texture>;
-    getID<Component::Animation>;
-    getID<Component::Tilemap>;
-    getID<Component::Text>;
-    getID<Component::Camera>;
-    getID<Component::Light>;
-    getID<Component::Noise>;
-    getID<Component::Timer>;
-    getID<Component::Patrol>;
-    getID<Component::SceneTransition>;
-    getID<Component::Dialogue>;
-    getID<Component::Player>;
+    });
 }
 //-------------------------------------

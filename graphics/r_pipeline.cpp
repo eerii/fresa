@@ -75,7 +75,7 @@ void Graphics::render(Config &c) {
     
     //RENDER SYSTEMS
     Renderer::toggleDepthTest(true);
-    RENDER_SYSTEMS
+    System::renderUpdateSystems(c);
     Renderer::toggleDepthTest(false);
 
     //RENDER TO WINDOW
