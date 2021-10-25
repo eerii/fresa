@@ -7,6 +7,7 @@
 #ifdef USE_OPENGL
 
 #include "r_opengl.h"
+#include "r_shaderdata.h"
 #include "gui.h"
 
 namespace Verse::Graphics
@@ -24,6 +25,9 @@ namespace Verse::Graphics
     struct OpenGL {
         SDL_GLContext context;
         void createContext(Config &c);
+        
+        std::map<str, ShaderData> shaders;
+        std::map<str, std::vector<str>> shader_locations;
         
         #ifndef DISABLE_GUI
         ImGuiContext* imgui_context;

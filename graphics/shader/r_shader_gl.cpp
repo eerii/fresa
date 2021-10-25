@@ -48,7 +48,7 @@ ui8 Graphics::Shader::compileProgramGL(str vertex_file, str fragment_file) {
     ui8 pid = 0;
     ui8 vertex_shader, fragment_shader;
 
-    pid = glCreateProgram();
+    pid = (ui8)glCreateProgram();
     if (pid == 0) {
         log::error("Program creation failed");
         return 0;
@@ -118,18 +118,18 @@ void Graphics::Shader::validateProgramGL(ui8 pid) {
     int program_valid = GL_FALSE;
     glGetProgramiv(pid, GL_VALIDATE_STATUS, &program_valid);
     if(program_valid != GL_TRUE) {
-        log::error("Program Validation Error, ID: %d", pid);
-        
         int log_len;
         glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &log_len);
         if (log_len > 0) {
             char* log = (char*)malloc(log_len * sizeof(char));
             glGetProgramInfoLog(pid, log_len, &log_len, log);
             
-            log::error("Program compile log: %s", log);
+            std::cout << "[ERROR]: Program compile log: " << log << std::endl;
             free(log);
         }
         glDeleteProgram(pid);
+        
+        log::error("Program Validation Error, ID: %d", pid);
         return;
     }
 }
