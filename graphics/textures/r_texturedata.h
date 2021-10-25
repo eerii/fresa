@@ -9,15 +9,17 @@
 
 namespace Verse::Graphics
 {
-
     struct TextureData {
         std::vector<float> vertices;
         glm::mat4 model;
         
-        ui32 gl_id;
-        
         int layer;
         ui16 w, h;
+        
+    #if defined USE_OPENGL
+        ui32 gl_id;
+    #elif defined USE_VULKAN
+            
+    #endif
     };
-
 }

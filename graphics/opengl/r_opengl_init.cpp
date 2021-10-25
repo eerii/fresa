@@ -26,9 +26,12 @@ void GL::configWebGL() {
 
 void GL::initOpenGL(OpenGL *gl, Config &c) {
     gl->createContext(c);
+    
     #ifndef DISABLE_GUI
     gl->initImGUI(c);
     #endif
+    
+    gl->createShaderData();
 }
 
 #endif

@@ -13,7 +13,7 @@
 
 #include "gui.h"
 
-#include "r_shaderdata.h"
+#include "r_shader.h"
 #include "r_palette.h"
 #include "r_window.h"
 #include "system_list.h"
@@ -73,45 +73,6 @@ void Graphics::Renderer::create(Config &c) {
     log::debug("Creating renderer");
     
     GL::initOpenGL(&gl, c);
-    
-    //INFORMATION
-    log::graphics("---");
-    log::graphics("Vendor:          %s", glGetString(GL_VENDOR));
-    log::graphics("Renderer:        %s", glGetString(GL_RENDERER));
-    log::graphics("OpenGL Version:  %s", glGetString(GL_VERSION));
-    log::graphics("GLSL Version:    %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
-    log::graphics("---");
-    
-    
-    //SHADERS
-    //-----------------------------------------
-    gl.shaders["render"] = ShaderData("res/shaders/render.vertex", "res/shaders/render.frag");
-    gl.shaders["light"] = ShaderData("res/shaders/light.vertex", "res/shaders/light.frag");
-    gl.shaders["post"] = ShaderData("res/shaders/post.vertex", "res/shaders/post.frag");
-    gl.shaders["text"] = ShaderData("res/shaders/text.vertex", "res/shaders/text.frag");
-    gl.shaders["cam"] = ShaderData("res/shaders/cam.vertex", "res/shaders/cam.frag");
-    gl.shaders["window"] = ShaderData("res/shaders/window.vertex", "res/shaders/window.frag");
-    gl.shaders["noise"] = ShaderData("res/shaders/noise.vertex", "res/shaders/noise.frag");
-    gl.shaders["debug"] = ShaderData("res/shaders/debug.vertex", "res/shaders/debug.frag");
-    
-    gl.shader_locations["render"] = {"mvp", "layer"};
-    gl.shader_locations["light"] = {"mvp", "light", "light_size", "light_distortion"};
-    gl.shader_locations["post"] = {"mvp", "use_light", "show_light", "tex", "light_tex"};
-    gl.shader_locations["text"] = {"mvp", "layer", "text_color", "same_color"};
-    gl.shader_locations["cam"] = {"mvp", "tex"};
-    gl.shader_locations["window"] = {"mvp", "tex", "is_background"};
-    gl.shader_locations["noise"] = {"mvp", "layer", "noise", "mask"};
-    gl.shader_locations["debug"] = {"mvp", "c"};
-    
-    for (auto &[key, s] : gl.shaders) {
-        s.compile(gl.shader_locations[key]);
-        log::graphics("Program (%s) ID: %d", key.c_str(), s.pid);
-    }
-    
-    log::graphics("---");
-    glCheckError();
-    //-----------------------------------------
-    
     
     //FRAMEBUFFERS
     //-----------------------------------------
