@@ -10,7 +10,6 @@
 #include <streambuf>
 
 #include "log.h"
-#include "r_opengl.h"
 
 using namespace Verse;
 
@@ -112,7 +111,18 @@ ui8 Graphics::Shader::compileProgramGL(str vertex_file, str fragment_file) {
     return pid;
 }
 
-void Graphics::Shader::validateProgramGL(ui8 pid) {
+void Verse::Graphics::ShaderData::compile(std::vector<str> loc) {
+    if (vertex_file.size() == 0 or frag_file.size() == 0)
+        log::error("Tried to compile a shader without vertex or fragment file");
+    
+    pid = Shader::compileProgramGL(vertex_file, frag_file);
+    
+    for (str l : loc)
+        locations[l] = glGetUniformLocation(pid, l.c_str());
+    glCheckError();
+}
+
+void Verse::Graphics::ShaderData::validate() {
     glValidateProgram(pid);
     
     int program_valid = GL_FALSE;
