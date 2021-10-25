@@ -5,7 +5,6 @@
 #pragma once
 
 #include "dtypes.h"
-#include "r_shaderdata.h"
 #include <glm/glm.hpp>
 
 namespace Verse::Graphics
@@ -16,8 +15,6 @@ namespace Verse::Graphics
         glm::mat4 model;
         
         ui32 gl_id;
-        
-        ShaderData* shader;
         
         int layer;
         ui16 w, h;

@@ -10,7 +10,6 @@
 #pragma once
 
 #include "dtypes.h"
-#include "r_shaderdata.h"
 
 #ifdef USE_VULKAN
 #include "r_vulkan.h"
