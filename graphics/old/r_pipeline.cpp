@@ -40,7 +40,7 @@ bool Graphics::init(Config &c) {
     c.refresh_rate = win.refresh_rate;
     
     //Initialize graphics API
-    API::init(&api, win);
+    api = API::create(win);
     
     //Renderer Creation
     Renderer::create(&api, c);

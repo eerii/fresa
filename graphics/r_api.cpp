@@ -15,10 +15,12 @@ void API::configure() {
     #endif
 }
 
-void API::init(GraphicsAPI *api, WindowData &win) {
+GraphicsAPI API::create(WindowData &win) {
+    GraphicsAPI api;
     #if defined USE_VULKAN
-        VK::initVulkan(api, win);
+        api = VK::createVulkan(win);
     #elif defined USE_OPENGL
-        GL::initOpenGL(api, win);
+        api = GL::createOpenGL(win);
     #endif
+    return api;
 }
