@@ -66,7 +66,7 @@ void Graphics::Window::updateVsync(Config &c) {
 }
 
 
-Vec2<int> Graphics::Window::windowToScene(Config &c, Vec2<float> w_pos) {
+Vec2<> Graphics::Window::windowToScene(Config &c, Vec2<float> w_pos) {
     Vec2 pixel_move = Vec2(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
     
     Vec2 s_pos = w_pos.to<int>();
@@ -79,8 +79,8 @@ Vec2<int> Graphics::Window::windowToScene(Config &c, Vec2<float> w_pos) {
 }
 
 
-Vec2<float> Graphics::Window::sceneToWindow(Config &c, Vec2<int> s_pos) {
-    Vec2<int> pixel_move = Vec2<int>(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
+Vec2<float> Graphics::Window::sceneToWindow(Config &c, Vec2<> s_pos) {
+    Vec2<> pixel_move = Vec2<>(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
     
     Vec2<float> w_pos = (s_pos + pixel_move - Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH)).to<float>();
     

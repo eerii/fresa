@@ -94,7 +94,7 @@ void Graphics::Texture::createTexture(ui8* tex, TextureData &data, int w, int h,
 
 #endif
 
-void Graphics::Texture::createPerlinNoise(ui8* noise_data, TextureData &tex_data, Vec2<int> size, Vec2<int> offset, float freq, int levels) {
+void Graphics::Texture::createPerlinNoise(ui8* noise_data, TextureData &tex_data, Vec2<> size, Vec2<> offset, float freq, int levels) {
     Math::perlinNoise(size, offset, freq, levels, noise_data);
     createTexture(noise_data, tex_data, size.x, size.y, false);
 }

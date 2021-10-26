@@ -64,11 +64,11 @@ void Graphics::Renderer::renderTest(Config &c) {
     vulkan.renderFrame(c);
 }
 
-void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<int> col, bool colliding) {
+void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<> col, bool colliding) {
     
 }
 
-void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2<int> pos, ui16 radius, bool colliding) {
+void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2<> pos, ui16 radius, bool colliding) {
     
 }
 
@@ -101,13 +101,13 @@ void Graphics::Renderer::toggleDepthTest(bool enable) {
 
 
 
-glm::mat4 Graphics::Renderer::matModel2D(Vec2<int> pos, Vec2<int> size, float rotation) {
+glm::mat4 Graphics::Renderer::matModel2D(Vec2<> pos, Vec2<> size, float rotation) {
     return glm::mat4(0);
 }
 
 
 
-glm::mat4 Graphics::Renderer::matModel2D(Rect2<int> rect, float rotation) {
+glm::mat4 Graphics::Renderer::matModel2D(Rect2<> rect, float rotation) {
     return glm::mat4(0);
 }
 

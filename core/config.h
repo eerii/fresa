@@ -22,10 +22,10 @@ namespace Verse
 namespace Verse
 {
     struct Config {
-        Vec2<int> resolution;
+        Vec2<> resolution;
         
         SDL_Window* window;
-        Vec2<int> window_size;
+        Vec2<> window_size;
         ui16 render_scale;
         ui16 refresh_rate;
         bool use_vsync;
