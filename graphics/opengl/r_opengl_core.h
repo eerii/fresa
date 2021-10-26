@@ -19,7 +19,6 @@ namespace Verse::Graphics
     namespace GL
     {
         void configOpenGL();
-    
         OpenGL createOpenGL(WindowData &win);
     }
 

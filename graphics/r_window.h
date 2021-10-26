@@ -9,7 +9,7 @@
 
 namespace Verse::Graphics::Window
 {
-    WindowData create(int size_x, int size_y, str name);
+    WindowData create(Vec2<> size, str name);
     ui16 getRefreshRate(WindowData &win);
 
     void onResize(SDL_Event &e, Config &c);

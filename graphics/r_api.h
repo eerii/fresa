@@ -14,4 +14,6 @@ namespace Verse::Graphics::API
 {
     void configure();
     GraphicsAPI create(WindowData &win);
+
+    void renderTest(WindowData &win, RenderData &render);
 }

@@ -18,7 +18,7 @@ namespace Verse::Graphics
     struct RenderData {
         GraphicsAPI api;
         Vec2<> resolution;
-        ui16 render_scale;
-        bool use_vsync;
+        ui16 scale;
+        bool vsync;
     };
 }
