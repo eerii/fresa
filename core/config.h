@@ -13,9 +13,10 @@
 
 namespace Verse
 {
-    struct Info {
+    struct Conf {
         static str name;
         static ui8 version[3];
+        static Vec2<> window_size;
     };
 }
 

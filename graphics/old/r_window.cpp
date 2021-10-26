@@ -20,25 +20,44 @@
 #endif
 
 using namespace Verse;
+using namespace Graphics;
 
-SDL_Window* Graphics::Window::createWindow(Config &c) {
+WindowInfo Graphics::Window::createWindow(int size_x, int size_y, str name) {
+    WindowInfo win_info;
+    
 #ifdef __EMSCRIPTEN__
     SDL_Renderer* renderer = nullptr;
-    SDL_Window* window = nullptr;
-    SDL_CreateWindowAndRenderer(c.window_size.x, c.window_size.y, SDL_WINDOW_OPENGL, &window, &renderer);
-#else
-    str version = std::to_string(Info::version[0]) + "." + std::to_string(Info::version[1]) + "." + std::to_string(Info::version[2]);
-    SDL_Window* window = SDL_CreateWindow((Info::name + " - " + RENDERER_NAME + " - Version " + version).c_str(),
-                              SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                              c.window_size.x, c.window_size.y, W_FLAGS);
+    SDL_CreateWindowAndRenderer(size_x, size_y, SDL_WINDOW_OPENGL, &win_info.window, &renderer);
     
-    if (window == nullptr)
+    if (win_info.window == nullptr or renderer == nullptr)
+        log::error("Failed to create a Window and a Renderer", SDL_GetError());
+#else
+    win_info.window = SDL_CreateWindow((name + " - " + RENDERER_NAME).c_str(),
+                                       SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size_x, size_y, W_FLAGS);
+    
+    if (win_info.window == nullptr)
         log::error("Failed to create a Window", SDL_GetError());
     
-    SDL_SetWindowResizable(window, SDL_TRUE);
-    SDL_SetWindowMinimumSize(window, 256, 180);
+    SDL_SetWindowResizable(win_info.window, SDL_TRUE);
+    SDL_SetWindowMinimumSize(win_info.window, 256, 180);
 #endif
-    return window;
+    
+    win_info.size = Vec2(size_x, size_y);
+    win_info.refresh_rate = getRefreshRate(win_info);
+    
+    log::graphics("Refresh Rate: %d", win_info.refresh_rate);
+    
+    return win_info;
+}
+
+ui16 Graphics::Window::getRefreshRate(WindowInfo &win_info) {
+    int displayIndex = SDL_GetWindowDisplayIndex(win_info.window);
+    
+    SDL_DisplayMode mode;
+    if(SDL_GetDisplayMode(displayIndex, 0, &mode))
+        log::error("Error getting display mode: ", SDL_GetError());
+    
+    return (ui16)mode.refresh_rate;
 }
 
 void Graphics::Window::onResize(SDL_Event &e, Config &c) {
@@ -56,10 +75,10 @@ void Graphics::Window::onResize(SDL_Event &e, Config &c) {
     Graphics::Renderer::onResize(c);
 }
 
-void Graphics::Window::updateVsync(Config &c) {
+void Graphics::Window::updateVsync(bool use_vsync) {
 #ifndef __EMSCRIPTEN__
-    if (SDL_GL_SetSwapInterval(c.use_vsync ? 1 : 0)) {
-        str text = c.use_vsync ? "Error enabling V-Sync: " : "Error disabling V-Sync: ";
+    if (SDL_GL_SetSwapInterval(use_vsync)) {
+        str text = use_vsync ? "Error enabling V-Sync: " : "Error disabling V-Sync: ";
         log::error(text, SDL_GetError());
     }
 #endif
@@ -88,15 +107,4 @@ Vec2<float> Graphics::Window::sceneToWindow(Config &c, Vec2<> s_pos) {
     w_pos += (c.window_size.to<float>() - c.resolution.to<float>() * c.render_scale) * 0.5f;
     
     return w_pos;
-}
-
-
-void Graphics::Window::calculateRefreshRate(Config &c) {
-    int displayIndex = SDL_GetWindowDisplayIndex(c.window);
-    
-    SDL_DisplayMode mode;
-    if(SDL_GetDisplayMode(displayIndex, 0, &mode))
-        log::error("Error getting display mode: ", SDL_GetError());
-    
-    c.refresh_rate = (ui16)mode.refresh_rate;
 }

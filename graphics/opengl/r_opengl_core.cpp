@@ -22,7 +22,7 @@ void OpenGL::createContext(Config &c) {
         SDL_Quit();
         exit(-1);
     }
-    Window::updateVsync(c);
+    Window::updateVsync(true);
     glCheckError();
     
     log::graphics("---");

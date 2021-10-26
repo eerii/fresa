@@ -21,7 +21,7 @@ void Gui::menu(Config &c) {
         //LUME
         //---------------------------
         if (ImGui::BeginMenu("[ lume ]")) {
-            str version = std::to_string(Info::version[0]) + "." + std::to_string(Info::version[1]) + "." + std::to_string(Info::version[2]);
+            str version = std::to_string(Conf::version[0]) + "." + std::to_string(Conf::version[1]) + "." + std::to_string(Conf::version[2]);
             ImGui::Text("version: %s", version.c_str());
             ImGui::Text("res: %d x %d (x%d)", c.resolution.x, c.resolution.y, c.render_scale);
             
@@ -92,7 +92,7 @@ void Gui::menu(Config &c) {
             ImGui::Checkbox("enable smooth panning", &c.enable_smooth_panning);
             
             if (ImGui::Checkbox("use vsync", &c.use_vsync))
-                Graphics::Window::updateVsync(c);
+                Graphics::Window::updateVsync(c.use_vsync);
             
             ImGui::EndMenu();
         }
