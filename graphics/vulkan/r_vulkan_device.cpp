@@ -60,10 +60,10 @@ void Vulkan::createInstance(Config &c) {
     
     VkApplicationInfo app_info{};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = c.name.c_str();
-    app_info.applicationVersion = VK_MAKE_VERSION(c.version[0], c.version[1], c.version[2]);
+    app_info.pApplicationName = Info::name.c_str();
+    app_info.applicationVersion = VK_MAKE_VERSION(Info::version[0], Info::version[1], Info::version[2]);
     app_info.pEngineName = "Fresa";
-    app_info.engineVersion = VK_MAKE_VERSION(c.version[0], c.version[1], c.version[2]);
+    app_info.engineVersion = VK_MAKE_VERSION(Info::version[0], Info::version[1], Info::version[2]);
     app_info.apiVersion = VK_API_VERSION_1_1;
     
     VkInstanceCreateInfo instance_create_info{};

@@ -27,8 +27,8 @@ SDL_Window* Graphics::Window::createWindow(Config &c) {
     SDL_Window* window = nullptr;
     SDL_CreateWindowAndRenderer(c.window_size.x, c.window_size.y, SDL_WINDOW_OPENGL, &window, &renderer);
 #else
-    str version = std::to_string(c.version[0]) + "." + std::to_string(c.version[1]) + "." + std::to_string(c.version[2]);
-    SDL_Window* window = SDL_CreateWindow((c.name + " - " + RENDERER_NAME + " - Version " + version).c_str(),
+    str version = std::to_string(Info::version[0]) + "." + std::to_string(Info::version[1]) + "." + std::to_string(Info::version[2]);
+    SDL_Window* window = SDL_CreateWindow((Info::name + " - " + RENDERER_NAME + " - Version " + version).c_str(),
                               SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                               c.window_size.x, c.window_size.y, W_FLAGS);
     
@@ -66,10 +66,10 @@ void Graphics::Window::updateVsync(Config &c) {
 }
 
 
-Vec2 Graphics::Window::windowToScene(Config &c, Vec2f w_pos) {
+Vec2<int> Graphics::Window::windowToScene(Config &c, Vec2<float> w_pos) {
     Vec2 pixel_move = Vec2(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
     
-    Vec2 s_pos = w_pos.to_int();
+    Vec2 s_pos = w_pos.to<int>();
     
     s_pos -= (c.window_size - c.resolution * c.render_scale) * 0.5f;
     s_pos /= (float)c.render_scale;
@@ -79,13 +79,13 @@ Vec2 Graphics::Window::windowToScene(Config &c, Vec2f w_pos) {
 }
 
 
-Vec2f Graphics::Window::sceneToWindow(Config &c, Vec2 s_pos) {
-    Vec2 pixel_move = Vec2(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
+Vec2<float> Graphics::Window::sceneToWindow(Config &c, Vec2<int> s_pos) {
+    Vec2<int> pixel_move = Vec2<int>(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
     
-    Vec2f w_pos = (s_pos + pixel_move - Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH)).to_float();
+    Vec2<float> w_pos = (s_pos + pixel_move - Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH)).to<float>();
     
     w_pos *= c.render_scale;
-    w_pos += (c.window_size.to_float() - c.resolution.to_float() * c.render_scale) * 0.5f;
+    w_pos += (c.window_size.to<float>() - c.resolution.to<float>() * c.render_scale) * 0.5f;
     
     return w_pos;
 }

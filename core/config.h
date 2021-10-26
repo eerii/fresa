@@ -13,14 +13,19 @@
 
 namespace Verse
 {
+    struct Info {
+        static str name;
+        static ui8 version[3];
+    };
+}
+
+namespace Verse
+{
     struct Config {
-        str name;
-        ui8 version[3];
-        
-        Vec2 resolution;
+        Vec2<int> resolution;
         
         SDL_Window* window;
-        Vec2 window_size;
+        Vec2<int> window_size;
         ui16 render_scale;
         ui16 refresh_rate;
         bool use_vsync;
@@ -55,7 +60,7 @@ namespace Verse
         bool use_subpixel_cam;
         
         float gravity;
-        Vec2f gravity_dir;
+        Vec2<float> gravity_dir;
         
         bool player_loses_light;
     };

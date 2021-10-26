@@ -21,7 +21,7 @@ void Gui::tilemapEditor(Config &c, EntityID eid) {
     
     Verse::Gui::draw_vec2(tile->pos.x, tile->pos.y, "pos", eid, [&c, &tile, eid]() {
         Component::Collider* col = c.active_scene->getComponent<Component::Collider>(eid);
-        if (col != nullptr and col->transform.pos != tile->pos) {
+        if (col != nullptr and col->transform.pos() != tile->pos) {
             col->transform = tile->pos;
         }
         

@@ -12,8 +12,8 @@ namespace Verse::Graphics::Window
     void onResize(SDL_Event &e, Config &c);
     void updateVsync(Config &c);
 
-    Vec2f sceneToWindow(Config &c, Vec2 s_pos);
-    Vec2 windowToScene(Config &c, Vec2f w_pos);
+    Vec2<float> sceneToWindow(Config &c, Vec2<int> s_pos);
+    Vec2<int> windowToScene(Config &c, Vec2<float> w_pos);
 
     void calculateRefreshRate(Config &c);
 }

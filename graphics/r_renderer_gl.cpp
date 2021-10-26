@@ -532,7 +532,7 @@ void Graphics::Renderer::renderTest(Config &c) {
     glCheckError();
 }
 
-void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool colliding) {
+void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<int> col, bool colliding) {
     //Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
     glUseProgram(gl.shaders["debug"].pid);
@@ -546,9 +546,9 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool collidin
         1.0f, 0.0f
     };
     
-    float epsilon_x = 1.0f / (float)*col.w;
+    float epsilon_x = 1.0f / (float)col.w;
     outlines[0] += epsilon_x;
-    float epsilon_y = 1.0f / (float)*col.h;
+    float epsilon_y = 1.0f / (float)col.h;
     outlines[3] -= epsilon_y; outlines[5] -= epsilon_y;
     
     glBindVertexArray(vao[V_DEBUG]);
@@ -564,7 +564,7 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool collidin
     glUniform3f(gl.shaders["debug"].locations["c"], color.r, color.g, color.b);
     
     //Matrices
-    mat4 model = matModel2D(col.pos - Vec2(BORDER_WIDTH, BORDER_WIDTH), col.size);
+    mat4 model = matModel2D(col.pos() - Vec2(BORDER_WIDTH, BORDER_WIDTH), col.size());
     glUniformMatrix4fv(gl.shaders["debug"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     glCheckError();
     
@@ -576,7 +576,7 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2 col, bool collidin
     glCheckError();
 }
 
-void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2 pos, ui16 radius, bool colliding) {
+void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2<int> pos, ui16 radius, bool colliding) {
     //Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
     glUseProgram(gl.shaders["debug"].pid);
@@ -709,7 +709,7 @@ void Graphics::Renderer::onResize(Config &c) {
     
 }
 
-void Graphics::Renderer::createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2 res) {
+void Graphics::Renderer::createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2<int> res) {
     glGenFramebuffers(1, &fb);
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
     
@@ -730,7 +730,7 @@ void Graphics::Renderer::createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2 
     glCheckError();
 }
 
-void Graphics::Renderer::createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2 res) {
+void Graphics::Renderer::createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2<int> res) {
     Graphics::Renderer::createFramebuffer(c, fb, tex, res);
     
     glGenTextures(1, &d_tex);
@@ -754,15 +754,15 @@ void Graphics::Renderer::toggleDepthTest(bool enable) {
 
 //MATRICES
 //-----------------------------------------
-mat4 Graphics::Renderer::matModel2D(Vec2 pos, Vec2 size, float rotation) {
+mat4 Graphics::Renderer::matModel2D(Vec2<int> pos, Vec2<int> size, float rotation) {
     mat4 s = scale(mat4(1.0f), vec3(size.x, size.y, 1.0f));
     mat4 r = rotate(mat4(1.0f), rotation, vec3(0.0f, 0.0f, 1.0f));
     mat4 t = translate(mat4(1.0f), vec3(pos.x, pos.y, 0.0f));
     
     return t * r * s;
 }
-mat4 Graphics::Renderer::matModel2D(Rect2 rect, float rotation) {
-    return Graphics::Renderer::matModel2D(rect.pos, rect.size, rotation);
+mat4 Graphics::Renderer::matModel2D(Rect2<int> rect, float rotation) {
+    return Graphics::Renderer::matModel2D(rect.pos(), rect.size(), rotation);
 }
 
 //-----------------------------------------

@@ -83,7 +83,7 @@ void Gui::update(Config &c) {
     
     imgui_io.DeltaTime = c.timestep * c.game_speed;
     
-    Vec2f mouse_pos = Vec2f(Input::mouse().x, Input::mouse().y);
+    Vec2<float> mouse_pos = Vec2<float>(Input::mouse().x, Input::mouse().y);
     
     imgui_io.MousePos = ImVec2(mouse_pos.x, mouse_pos.y);
     imgui_io.MouseDown[0] = Input::down(SDL_BUTTON_LEFT);

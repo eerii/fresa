@@ -43,7 +43,7 @@ namespace Verse
     };
 }
 
-namespace Test {
+namespace Testing {
 
     namespace {
     
