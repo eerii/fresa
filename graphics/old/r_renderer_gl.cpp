@@ -18,6 +18,8 @@
 #include "r_window.h"
 #include "system_list.h"
 
+#include "r_api.h"
+
 #define CLIPPING_FAR -1000.0f
 #define CLIPPING_NEAR 1000.0f
 
@@ -26,7 +28,7 @@ using namespace Graphics;
 using namespace glm;
 
 namespace {
-    OpenGL gl;
+    OpenGL *gl;
 
     //FRAMEBUFFERS
     ui32 fb_render, fb_light, fb_post, fb_cam;
@@ -69,10 +71,10 @@ namespace {
 
 //CREATE
 //-----------------------------------------
-void Graphics::Renderer::create(Config &c) {
+void Graphics::Renderer::create(OpenGL *api, Config &c) {
     log::debug("Creating renderer");
     
-    GL::initOpenGL(&gl, c);
+    gl = api;
     
     //FRAMEBUFFERS
     //-----------------------------------------
@@ -96,7 +98,7 @@ void Graphics::Renderer::create(Config &c) {
     glBindVertexArray(vao[V_EMPTY]);
     
     //Validate Programs
-    for (auto &[key, s] : gl.shaders)
+    for (auto &[key, s] : gl->shaders)
         s.validate();
     
     //VBOs
@@ -194,7 +196,7 @@ void Graphics::Renderer::create(Config &c) {
 void Graphics::Renderer::renderTexture(Config &c, TextureData &data) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
-    glUseProgram(gl.shaders["render"].pid);
+    glUseProgram(gl->shaders["render"].pid);
     glCheckError();
     
     //Vertices
@@ -204,12 +206,12 @@ void Graphics::Renderer::renderTexture(Config &c, TextureData &data) {
     glCheckError();
     
     //Layer
-    glUniform1f(gl.shaders["render"].locations["layer"], (float)data.layer);
+    glUniform1f(gl->shaders["render"].locations["layer"], (float)data.layer);
     
     //Matrices
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering texture)");
-    glUniformMatrix4fv(gl.shaders["render"].locations["mvp"], 1, GL_FALSE,
+    glUniformMatrix4fv(gl->shaders["render"].locations["mvp"], 1, GL_FALSE,
                        glm::value_ptr(proj_render * c.active_camera->m_pixel * data.model));
     glCheckError();
     
@@ -225,7 +227,7 @@ void Graphics::Renderer::renderTexture(Config &c, TextureData &data) {
 void Graphics::Renderer::renderTilemap(Config &c, TextureData &data) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
-    glUseProgram(gl.shaders["render"].pid);
+    glUseProgram(gl->shaders["render"].pid);
     glCheckError();
     
     //Vertices
@@ -235,12 +237,12 @@ void Graphics::Renderer::renderTilemap(Config &c, TextureData &data) {
     glCheckError();
     
     //Layer
-    glUniform1f(gl.shaders["render"].locations["layer"], (float)data.layer);
+    glUniform1f(gl->shaders["render"].locations["layer"], (float)data.layer);
     
     //Matrices
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering tilemap)");
-    glUniformMatrix4fv(gl.shaders["render"].locations["mvp"], 1, GL_FALSE,
+    glUniformMatrix4fv(gl->shaders["render"].locations["mvp"], 1, GL_FALSE,
                        glm::value_ptr(proj_render * c.active_camera->m_pixel * data.model));
     glCheckError();
     
@@ -256,7 +258,7 @@ void Graphics::Renderer::renderTilemap(Config &c, TextureData &data) {
 void Graphics::Renderer::renderNoise(Config &c, TextureData &mask_data, TextureData &noise_data) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
-    glUseProgram(gl.shaders["noise"].pid);
+    glUseProgram(gl->shaders["noise"].pid);
     glCheckError();
     
     //Vertices
@@ -268,22 +270,22 @@ void Graphics::Renderer::renderNoise(Config &c, TextureData &mask_data, TextureD
     glCheckError();
     
     //Layer
-    glUniform1f(gl.shaders["noise"].locations["layer"], (float)mask_data.layer);
+    glUniform1f(gl->shaders["noise"].locations["layer"], (float)mask_data.layer);
     
     //Matrices
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering texture)");
-    glUniformMatrix4fv(gl.shaders["noise"].locations["mvp"], 1, GL_FALSE,
+    glUniformMatrix4fv(gl->shaders["noise"].locations["mvp"], 1, GL_FALSE,
                        glm::value_ptr(proj_render * c.active_camera->m_pixel * mask_data.model));
     glCheckError();
     
     //Textures
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, noise_data.gl_id);
-    glUniform1i(gl.shaders["noise"].locations["noise"], 1);
+    glUniform1i(gl->shaders["noise"].locations["noise"], 1);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, mask_data.gl_id);
-    glUniform1i(gl.shaders["noise"].locations["mask"], 2);
+    glUniform1i(gl->shaders["noise"].locations["mask"], 2);
     
     //Draw
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -296,7 +298,7 @@ void Graphics::Renderer::renderNoise(Config &c, TextureData &mask_data, TextureD
 void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float g, float b, bool same_color) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
-    glUseProgram(gl.shaders["text"].pid);
+    glUseProgram(gl->shaders["text"].pid);
     glCheckError();
     
     //Vertices
@@ -306,16 +308,16 @@ void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float
     glCheckError();
     
     //Layer
-    glUniform1f(gl.shaders["text"].locations["layer"], (float)data.layer);
+    glUniform1f(gl->shaders["text"].locations["layer"], (float)data.layer);
     
     //Color
-    glUniform3f(gl.shaders["text"].locations["text_color"], r, g, b);
-    glUniform1i(gl.shaders["text"].locations["same_color"], same_color);
+    glUniform3f(gl->shaders["text"].locations["text_color"], r, g, b);
+    glUniform1i(gl->shaders["text"].locations["same_color"], same_color);
     
     //Matrices
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering texture)");
-    glUniformMatrix4fv(gl.shaders["text"].locations["mvp"], 1, GL_FALSE,
+    glUniformMatrix4fv(gl->shaders["text"].locations["mvp"], 1, GL_FALSE,
                        glm::value_ptr(proj_render * c.active_camera->m_pixel * data.model));
     glCheckError();
     
@@ -337,7 +339,7 @@ void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float
 void Graphics::Renderer::renderLight(Config &c) {
     //Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_light);
-    glUseProgram(gl.shaders["light"].pid);
+    glUseProgram(gl->shaders["light"].pid);
     glCheckError();
     
     //Vertices
@@ -347,15 +349,15 @@ void Graphics::Renderer::renderLight(Config &c) {
     glCheckError();
     
     //Light
-    std::vector<glm::vec4> light_data = System::Light::render(c, gl.shaders["light"].pid);
-    glUniform4fv(gl.shaders["light"].locations["light"], (int)(light_data.size()), reinterpret_cast<GLfloat *>(light_data.data()));
-    glUniform1i(gl.shaders["light"].locations["light_size"], (int)(light_data.size()));
-    glUniform1f(gl.shaders["light"].locations["light_distortion"], (float)(c.resolution.x + 2*BORDER_WIDTH) / (float)(c.resolution.y + 2*BORDER_WIDTH));
+    std::vector<glm::vec4> light_data = System::Light::render(c, gl->shaders["light"].pid);
+    glUniform4fv(gl->shaders["light"].locations["light"], (int)(light_data.size()), reinterpret_cast<GLfloat *>(light_data.data()));
+    glUniform1i(gl->shaders["light"].locations["light_size"], (int)(light_data.size()));
+    glUniform1f(gl->shaders["light"].locations["light_distortion"], (float)(c.resolution.x + 2*BORDER_WIDTH) / (float)(c.resolution.y + 2*BORDER_WIDTH));
     
     //Matrices
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering texture)");
-    glUniformMatrix4fv(gl.shaders["light"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_post));
+    glUniformMatrix4fv(gl->shaders["light"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_post));
     glCheckError();
     
     //Draw
@@ -369,7 +371,7 @@ void Graphics::Renderer::renderLight(Config &c) {
 void Graphics::Renderer::renderPost(Config &c) {
     //Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
-    glUseProgram(gl.shaders["post"].pid);
+    glUseProgram(gl->shaders["post"].pid);
     glCheckError();
     
     //Vertices
@@ -379,22 +381,22 @@ void Graphics::Renderer::renderPost(Config &c) {
     glCheckError();
     
     //Palette
-    Graphics::Palette::render(c, palette_tex, gl.shaders["post"].pid);
+    Graphics::Palette::render(c, palette_tex, gl->shaders["post"].pid);
     
     //Light
-    glUniform1i(gl.shaders["post"].locations["use_light"], c.use_light);
-    glUniform1i(gl.shaders["post"].locations["show_light"], c.show_light);
+    glUniform1i(gl->shaders["post"].locations["use_light"], c.use_light);
+    glUniform1i(gl->shaders["post"].locations["show_light"], c.show_light);
     
     //Set texture
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, tex_render);
-    glUniform1i(gl.shaders["post"].locations["tex"], 1);
+    glUniform1i(gl->shaders["post"].locations["tex"], 1);
     glActiveTexture(GL_TEXTURE4);
     glBindTexture(GL_TEXTURE_2D, tex_light);
-    glUniform1i(gl.shaders["post"].locations["light_tex"], 4);
+    glUniform1i(gl->shaders["post"].locations["light_tex"], 4);
     
     //Matrices
-    glUniformMatrix4fv(gl.shaders["post"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_post));
+    glUniformMatrix4fv(gl->shaders["post"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_post));
     glCheckError();
     
     //Draw
@@ -416,7 +418,7 @@ void Graphics::Renderer::renderCam(Config &c) {
     
     //Render Target: fb_cam
     glBindFramebuffer(GL_FRAMEBUFFER, fb_cam);
-    glUseProgram(gl.shaders["cam"].pid);
+    glUseProgram(gl->shaders["cam"].pid);
     glCheckError();
     
     //Vertices
@@ -428,13 +430,13 @@ void Graphics::Renderer::renderCam(Config &c) {
     //Set texture
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex_post);
-    glUniform1i(gl.shaders["cam"].locations["tex"], 0);
+    glUniform1i(gl->shaders["cam"].locations["tex"], 0);
     
     //Matrices
     mat4 model = matModel2D(Vec2(-c.render_scale*BORDER_WIDTH, -c.render_scale*BORDER_WIDTH), (c.resolution + Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH)) * c.render_scale);
     if (c.active_camera == nullptr)
         log::error("No active camera! (Rendering extra camera)");
-    glUniformMatrix4fv(gl.shaders["cam"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_cam * c.active_camera->m_extra * model));
+    glUniformMatrix4fv(gl->shaders["cam"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_cam * c.active_camera->m_extra * model));
     glCheckError();
     
     //Draw
@@ -456,7 +458,7 @@ void Graphics::Renderer::renderWindow(Config &c) {
     
     //Render Target: Window (fb 0)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glUseProgram(gl.shaders["window"].pid);
+    glUseProgram(gl->shaders["window"].pid);
     glCheckError();
     
     //Vertices
@@ -466,12 +468,12 @@ void Graphics::Renderer::renderWindow(Config &c) {
     glCheckError();
     
     //Palette for background
-    Graphics::Palette::render(c, palette_tex, gl.shaders["window"].pid);
+    Graphics::Palette::render(c, palette_tex, gl->shaders["window"].pid);
     
     //Set texture
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex_cam);
-    glUniform1i(gl.shaders["window"].locations["tex"], 0);
+    glUniform1i(gl->shaders["window"].locations["tex"], 0);
     
     //Matrices
     mat4 model = matModel2D((c.window_size - c.resolution * c.render_scale) * 0.5f, c.resolution * c.render_scale);
@@ -479,13 +481,13 @@ void Graphics::Renderer::renderWindow(Config &c) {
     glCheckError();
     
     //Draw Background
-    glUniform1i(gl.shaders["window"].locations["is_background"], true);
-    glUniformMatrix4fv(gl.shaders["window"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_window * modelbg));
+    glUniform1i(gl->shaders["window"].locations["is_background"], true);
+    glUniformMatrix4fv(gl->shaders["window"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_window * modelbg));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     //Draw Level
-    glUniform1i(gl.shaders["window"].locations["is_background"], false);
-    glUniformMatrix4fv(gl.shaders["window"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_window * model));
+    glUniform1i(gl->shaders["window"].locations["is_background"], false);
+    glUniformMatrix4fv(gl->shaders["window"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_window * model));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -499,14 +501,14 @@ void Graphics::Renderer::renderWindow(Config &c) {
 
 //OTHER RENDERERS
 //-----------------------------------------
-void Graphics::Renderer::renderTest(Config &c) {
+void Graphics::Renderer::renderTest(WindowData &win) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glUseProgram(gl.shaders["cam"].pid);
+    glUseProgram(gl->shaders["cam"].pid);
     glCheckError();
     
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, palette_tex);
-    glUniform1i(gl.shaders["cam"].locations["tex"], 0);
+    glUniform1i(gl->shaders["cam"].locations["tex"], 0);
     glCheckError();
     
     glBindVertexArray(vao[V_TEST]);
@@ -522,10 +524,10 @@ void Graphics::Renderer::renderTest(Config &c) {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     glCheckError();
     
-    mat4 model = matModel2D(Vec2(0,0), c.window_size);
+    mat4 model = matModel2D(Vec2(0,0), win.size);
     glCheckError();
     
-    glUniformMatrix4fv(gl.shaders["cam"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_window * model));
+    glUniformMatrix4fv(gl->shaders["cam"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_window * model));
     glCheckError();
     
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -535,7 +537,7 @@ void Graphics::Renderer::renderTest(Config &c) {
 void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<> col, bool colliding) {
     //Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
-    glUseProgram(gl.shaders["debug"].pid);
+    glUseProgram(gl->shaders["debug"].pid);
     glCheckError();
     
     //Vertices
@@ -561,11 +563,11 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<> col, bool collid
     if (colliding)
         color = vec3(0.98f, 0.27f, 0.42f);
     
-    glUniform3f(gl.shaders["debug"].locations["c"], color.r, color.g, color.b);
+    glUniform3f(gl->shaders["debug"].locations["c"], color.r, color.g, color.b);
     
     //Matrices
     mat4 model = matModel2D(col.pos() - Vec2(BORDER_WIDTH, BORDER_WIDTH), col.size());
-    glUniformMatrix4fv(gl.shaders["debug"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glUniformMatrix4fv(gl->shaders["debug"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     glCheckError();
     
     //Draw
@@ -579,7 +581,7 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<> col, bool collid
 void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2<> pos, ui16 radius, bool colliding) {
     //Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
-    glUseProgram(gl.shaders["debug"].pid);
+    glUseProgram(gl->shaders["debug"].pid);
     glCheckError();
     
     //Vertices
@@ -601,11 +603,11 @@ void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2<> pos, ui16 r
     if (colliding)
         color = vec3(0.98f, 0.27f, 0.42f);
     
-    glUniform3f(gl.shaders["debug"].locations["c"], color.r, color.g, color.b);
+    glUniform3f(gl->shaders["debug"].locations["c"], color.r, color.g, color.b);
     
     //Matrices
     mat4 model = matModel2D(pos - Vec2(BORDER_WIDTH, BORDER_WIDTH), Vec2(1,1));
-    glUniformMatrix4fv(gl.shaders["debug"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
+    glUniformMatrix4fv(gl->shaders["debug"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(proj_render * c.active_camera->m_pixel * model));
     glCheckError();
     
     //Draw
@@ -697,7 +699,7 @@ void Graphics::Renderer::destroy() {
 #endif
     
     //SDL
-    SDL_GL_DeleteContext(gl.context);
+    SDL_GL_DeleteContext(gl->context);
 }
 //-----------------------------------------
 
@@ -705,7 +707,7 @@ void Graphics::Renderer::destroy() {
 
 //HELPERS
 //-----------------------------------------
-void Graphics::Renderer::onResize(Config &c) {
+void Graphics::Renderer::onResize(WindowData &win) {
     
 }
 

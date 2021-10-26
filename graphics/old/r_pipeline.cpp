@@ -9,8 +9,8 @@
 
 #include "gui.h"
 
-#include "r_opengl_core.h"
-#include "r_vulkan_core.h"
+#include "r_api.h"
+
 #include "r_window.h"
 #include "r_renderer.h"
 #include "system_list.h"
@@ -19,38 +19,36 @@ using namespace Verse;
 using namespace Graphics;
 
 namespace {
-    WindowInfo win_info;
+    WindowData win;
+    GraphicsAPI api;
 }
 
 bool Graphics::init(Config &c) {
     log::debug("Initializing graphics");
     
-    //OpenGL Configuration
-#ifdef USE_OPENGL
-    #ifdef __EMSCRIPTEN__
-        GL::configWebGL();
-    #else
-        GL::configOpenGL();
-    #endif
-#endif
+    //Pre configuration
+    API::configure();
  
-    //Window Creation
+    //Window creation
     str version = std::to_string(Conf::version[0]) + "." + std::to_string(Conf::version[1]) + "." + std::to_string(Conf::version[2]);
     str name = Conf::name + " - Version " + version;
-    win_info = Window::createWindow(Conf::window_size.x, Conf::window_size.y, name);
+    win = Window::create(Conf::window_size.x, Conf::window_size.y, name);
     
     //TODO: REMOVE THIS
-    c.window = win_info.window;
-    c.window_size = win_info.size;
-    c.refresh_rate = win_info.refresh_rate;
+    c.window = win.window;
+    c.window_size = win.size;
+    c.refresh_rate = win.refresh_rate;
+    
+    //Initialize graphics API
+    API::init(&api, win);
     
     //Renderer Creation
-    Renderer::create(c);
+    Renderer::create(&api, c);
     
     //GUI
-#ifndef DISABLE_GUI
-    Gui::init(c);
-#endif
+    #ifndef DISABLE_GUI
+        Gui::init(c);
+    #endif
     
     return true;
 }
@@ -95,7 +93,7 @@ void Graphics::render(Config &c) {
 #endif
     
 #ifdef USE_VULKAN
-    Renderer::renderTest(c);
+    Renderer::renderTest(win);
 #endif
     
     c.render_time = ns(time() - time_before_render);

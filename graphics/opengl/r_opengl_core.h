@@ -7,7 +7,9 @@
 #ifdef USE_OPENGL
 
 #include "r_opengl.h"
+#include "r_windowdata.h"
 #include "r_shader.h"
+
 #include "gui.h"
 
 namespace Verse::Graphics
@@ -17,19 +19,18 @@ namespace Verse::Graphics
     namespace GL
     {
         void configOpenGL();
-        void configWebGL();
     
-        void initOpenGL(OpenGL *gl, Config &c);
+        void initOpenGL(OpenGL *gl, WindowData &win);
     }
 
     struct OpenGL {
         SDL_GLContext context;
-        void createContext(Config &c);
+        void createContext(WindowData &win);
         
         #ifndef DISABLE_GUI
         ImGuiContext* imgui_context;
         ImGuiIO io;
-        void initImGUI(Config &c);
+        void initImGUI(WindowData &win);
         #endif
         
         std::map<str, ShaderData> shaders;

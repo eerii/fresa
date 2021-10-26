@@ -6,6 +6,9 @@
 
 #include <array>
 
+#include "r_windowdata.h"
+#include "r_renderdata.h"
+
 #include "config.h"
 #include "r_vertex.h"
 #include "r_textures.h"
@@ -14,7 +17,7 @@
 
 namespace Verse::Graphics::Renderer
 {
-    void create(Config &c);
+    void create(GraphicsAPI *api, Config &c);
     
     void renderTexture(Config &c, TextureData &data);
     void renderTilemap(Config &c, TextureData &data);
@@ -26,7 +29,7 @@ namespace Verse::Graphics::Renderer
     void renderCam(Config &c);
     void renderWindow(Config &c);
 
-    void renderTest(Config &c);
+    void renderTest(WindowData &win);
     void renderDebugCollider(Config &c, Rect2<> col, bool colliding);
     void renderDebugColliderCircle(Config &c, Vec2<> pos, ui16 radius, bool colliding);
 
@@ -35,7 +38,7 @@ namespace Verse::Graphics::Renderer
     
     void destroy();
 
-    void onResize(Config &c);
+    void onResize(WindowData &win);
 
     void createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2<> res);
     void createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2<> res);

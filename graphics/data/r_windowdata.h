@@ -4,9 +4,13 @@
 
 #pragma once
 
+#include "dtypes.h"
+
 namespace Verse::Graphics
 {
-    struct RenderInfo {
-        
+    struct WindowData {
+        SDL_Window* window;
+        Vec2<> size;
+        ui16 refresh_rate;
     };
 }

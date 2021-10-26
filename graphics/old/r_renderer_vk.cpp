@@ -16,11 +16,11 @@ using namespace Graphics;
 using namespace glm;
 
 namespace {
-    Vulkan vulkan;
+    Vulkan *vulkan;
 }
 
-void Graphics::Renderer::create(Config &c) {
-    VK::initVulkan(&vulkan, c);
+void Graphics::Renderer::create(Vulkan *vk, Config &c) {
+    vulkan = vk;
 }
 
 
@@ -60,8 +60,8 @@ void Graphics::Renderer::renderWindow(Config &c) {
 
 
 
-void Graphics::Renderer::renderTest(Config &c) {
-    vulkan.renderFrame(c);
+void Graphics::Renderer::renderTest(WindowData &win) {
+    vulkan->renderFrame(win);
 }
 
 void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<> col, bool colliding) {
@@ -84,13 +84,13 @@ void Graphics::Renderer::clear(Config &c) {
 
 
 void Graphics::Renderer::destroy() {
-    vulkan.destroy();
+    vulkan->destroy();
 }
 
 
 
-void Graphics::Renderer::onResize(Config &c) {
-    vulkan.recreateSwapchain(c);
+void Graphics::Renderer::onResize(WindowData &win) {
+    vulkan->recreateSwapchain(win);
 }
 
 

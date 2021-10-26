@@ -7,8 +7,10 @@
 #ifdef USE_VULKAN
 
 #include "r_vulkan.h"
-#include "config.h"
+#include "r_windowdata.h"
 #include "r_vertex.h"
+
+#include "config.h"
 
 #include <optional>
 
@@ -19,7 +21,7 @@ namespace Verse::Graphics
     struct Vulkan;
 
     namespace VK {
-        void initVulkan(Vulkan *vulkan, Config &c);
+        void initVulkan(Vulkan *vulkan, WindowData &win);
 
         struct QueueFamilyIndices {
             std::optional<ui32> graphics_queue_family_index;
@@ -66,7 +68,7 @@ namespace Verse::Graphics
         //----------------------------------------
         VkInstance instance;
         std::vector<VkExtensionProperties> instance_extensions;
-        void createInstance(Config &c);
+        void createInstance(WindowData &win);
         
         VkPhysicalDevice physical_device = VK_NULL_HANDLE;
         ui16 ratePhysicalDevice(VkPhysicalDevice physical_device);
@@ -85,7 +87,7 @@ namespace Verse::Graphics
         void createDevice();
         
         VkSurfaceKHR surface;
-        void createSurface(Config &c);
+        void createSurface(WindowData &win);
         
         VkDebugReportCallbackEXT debug_callback;
         void createDebug();
@@ -96,14 +98,14 @@ namespace Verse::Graphics
         VK::SwapchainSupportDetails getSwapchainSupport(VkPhysicalDevice physical_device);
         VkSurfaceFormatKHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
         VkPresentModeKHR selectSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
-        VkExtent2D selectSwapExtent(Config &c, const VkSurfaceCapabilitiesKHR& capabilities);
+        VkExtent2D selectSwapExtent(WindowData &win, const VkSurfaceCapabilitiesKHR& capabilities);
         
         std::vector<VkImage> swapchain_images;
         VkFormat swapchain_format;
         VkExtent2D swapchain_extent;
         
         VkSwapchainKHR swapchain;
-        void createSwapchain(Config &c);
+        void createSwapchain(WindowData &win);
         
         std::vector<VkImageView> swapchain_image_views;
         void createImageViews();
@@ -175,7 +177,7 @@ namespace Verse::Graphics
         void createSyncObjects();
         
         ui8 current_frame = 0;
-        void renderFrame(Config &c);
+        void renderFrame(WindowData &win);
         //----------------------------------------
         
         //UNIFORMS
@@ -194,7 +196,7 @@ namespace Verse::Graphics
         
         //RECREATE SWAPCHAIN
         //----------------------------------------
-        void recreateSwapchain(Config &c);
+        void recreateSwapchain(WindowData &win);
         //----------------------------------------
         
         //CLEANUP
