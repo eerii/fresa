@@ -532,7 +532,7 @@ void Graphics::Renderer::renderTest(Config &c) {
     glCheckError();
 }
 
-void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<int> col, bool colliding) {
+void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<> col, bool colliding) {
     //Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
     glUseProgram(gl.shaders["debug"].pid);
@@ -576,7 +576,7 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<int> col, bool col
     glCheckError();
 }
 
-void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2<int> pos, ui16 radius, bool colliding) {
+void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2<> pos, ui16 radius, bool colliding) {
     //Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
     glUseProgram(gl.shaders["debug"].pid);
@@ -709,7 +709,7 @@ void Graphics::Renderer::onResize(Config &c) {
     
 }
 
-void Graphics::Renderer::createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2<int> res) {
+void Graphics::Renderer::createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2<> res) {
     glGenFramebuffers(1, &fb);
     glBindFramebuffer(GL_FRAMEBUFFER, fb);
     
@@ -730,7 +730,7 @@ void Graphics::Renderer::createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2<
     glCheckError();
 }
 
-void Graphics::Renderer::createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2<int> res) {
+void Graphics::Renderer::createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2<> res) {
     Graphics::Renderer::createFramebuffer(c, fb, tex, res);
     
     glGenTextures(1, &d_tex);
@@ -754,14 +754,14 @@ void Graphics::Renderer::toggleDepthTest(bool enable) {
 
 //MATRICES
 //-----------------------------------------
-mat4 Graphics::Renderer::matModel2D(Vec2<int> pos, Vec2<int> size, float rotation) {
+mat4 Graphics::Renderer::matModel2D(Vec2<> pos, Vec2<> size, float rotation) {
     mat4 s = scale(mat4(1.0f), vec3(size.x, size.y, 1.0f));
     mat4 r = rotate(mat4(1.0f), rotation, vec3(0.0f, 0.0f, 1.0f));
     mat4 t = translate(mat4(1.0f), vec3(pos.x, pos.y, 0.0f));
     
     return t * r * s;
 }
-mat4 Graphics::Renderer::matModel2D(Rect2<int> rect, float rotation) {
+mat4 Graphics::Renderer::matModel2D(Rect2<> rect, float rotation) {
     return Graphics::Renderer::matModel2D(rect.pos(), rect.size(), rotation);
 }
 

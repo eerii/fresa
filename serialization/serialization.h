@@ -31,14 +31,14 @@ namespace Verse::Serialization
     void appendYAML(str name, std::vector<str> key, float num, bool overwrite=false);
     void appendYAML(str name, str key, bool b, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, bool b, bool overwrite=false);
-    void appendYAML(str name, str key, Vec2<int> vec, bool overwrite=false);
-    void appendYAML(str name, std::vector<str> key, Vec2<int> vec, bool overwrite=false);
-    void appendYAML(str name, str key, std::vector<Vec2<int>> vec, bool overwrite=false);
-    void appendYAML(str name, std::vector<str> key, std::vector<Vec2<int>> vec, bool overwrite=false);
+    void appendYAML(str name, str key, Vec2<> vec, bool overwrite=false);
+    void appendYAML(str name, std::vector<str> key, Vec2<> vec, bool overwrite=false);
+    void appendYAML(str name, str key, std::vector<Vec2<>> vec, bool overwrite=false);
+    void appendYAML(str name, std::vector<str> key, std::vector<Vec2<>> vec, bool overwrite=false);
     void appendYAML(str name, str key, Vec2<float> vec, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, Vec2<float> vec, bool overwrite=false);
-    void appendYAML(str name, str key, Rect2<int> rect, bool overwrite=false);
-    void appendYAML(str name, std::vector<str> key, Rect2<int> rect, bool overwrite=false);
+    void appendYAML(str name, str key, Rect2<> rect, bool overwrite=false);
+    void appendYAML(str name, std::vector<str> key, Rect2<> rect, bool overwrite=false);
     void appendYAML(str name, str key, Rect2<float> rect, bool overwrite=false);
     void appendYAML(str name, std::vector<str> key, Rect2<float> rect, bool overwrite=false);
 

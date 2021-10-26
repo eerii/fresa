@@ -11,14 +11,14 @@
 
 using namespace Verse;
 
-bool Math::checkAABB(Rect2<int> &a, Rect2<int> &b) {
+bool Math::checkAABB(Rect2<> &a, Rect2<> &b) {
     return (a.x < b.x + b.w) and
            (a.x + a.w > b.x) and
            (a.y < b.y + b.h) and
            (a.y + a.h > b.y);
 }
 
-bool Math::checkCircleAABB(Rect2<int> &a, Vec2<int> &pos, float r) {
+bool Math::checkCircleAABB(Rect2<> &a, Vec2<> &pos, float r) {
     Vec2 dist = Vec2(abs(pos.x - (a.x+a.w/2)), abs(pos.y - (a.y+a.h/2)));
     
     if (dist.x > (a.w/2 + r) or dist.y > (a.h/2 + r))
@@ -30,7 +30,7 @@ bool Math::checkCircleAABB(Rect2<int> &a, Vec2<int> &pos, float r) {
     return (corner <= pow(r,2));
 }
 
-void Math::perlinNoise(Vec2<int> size, Vec2<int> offset, float freq, int levels, ui8 *noise_data, bool reset) {
+void Math::perlinNoise(Vec2<> size, Vec2<> offset, float freq, int levels, ui8 *noise_data, bool reset) {
     float f = freq * 0.001f;
     
     //TODO: Change to scrolling texture instead of rewrite

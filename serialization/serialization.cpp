@@ -226,17 +226,17 @@ void Serialization::appendYAML(str name, std::vector<str> key, bool b, bool over
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, str key, Vec2<int> vec, bool overwrite) {
+void Serialization::appendYAML(str name, str key, Vec2<> vec, bool overwrite) {
     YAML::Node n = YAML::Load("[" + std::to_string(vec.x) + "," + std::to_string(vec.y) + "]");
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, std::vector<str> key, Vec2<int> vec, bool overwrite) {
+void Serialization::appendYAML(str name, std::vector<str> key, Vec2<> vec, bool overwrite) {
     YAML::Node n = YAML::Load("[" + std::to_string(vec.x) + "," + std::to_string(vec.y) + "]");
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, str key, std::vector<Vec2<int>> vec, bool overwrite) {
+void Serialization::appendYAML(str name, str key, std::vector<Vec2<>> vec, bool overwrite) {
     str y = "";
     for (Vec2 v : vec)
         y += "  - [" + std::to_string(v.x) + "," + std::to_string(v.y) + "]\n";
@@ -244,7 +244,7 @@ void Serialization::appendYAML(str name, str key, std::vector<Vec2<int>> vec, bo
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, std::vector<str> key, std::vector<Vec2<int>> vec, bool overwrite) {
+void Serialization::appendYAML(str name, std::vector<str> key, std::vector<Vec2<>> vec, bool overwrite) {
     str y = "";
     for (Vec2 v : vec)
         y += "  - [" + std::to_string(v.x) + "," + std::to_string(v.y) + "]\n";
@@ -252,12 +252,12 @@ void Serialization::appendYAML(str name, std::vector<str> key, std::vector<Vec2<
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, str key, Rect2<int> rect, bool overwrite) {
+void Serialization::appendYAML(str name, str key, Rect2<> rect, bool overwrite) {
     YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, std::vector<str> key, Rect2<int> rect, bool overwrite) {
+void Serialization::appendYAML(str name, std::vector<str> key, Rect2<> rect, bool overwrite) {
     YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
     appendYAML(name, key, n, overwrite);
 }
@@ -339,16 +339,16 @@ void Serialization::loadScene(str name, Scene *s, Config &c) {
         return;
     }
     s->name = data["scene"]["name"].as<str>();
-    s->size = data["scene"]["size"].as<Vec2<int>>();
+    s->size = data["scene"]["size"].as<Vec2<>>();
     
     s->checkpoints = {};
     if (data["scene"]["spawn"]) {
         if (data["scene"]["spawn"].IsSequence()) {
-            for (Vec2 sp : data["scene"]["spawn"].as<std::vector<Vec2<int>>>()) {
+            for (Vec2 sp : data["scene"]["spawn"].as<std::vector<Vec2<>>>()) {
                 s->checkpoints.push_back(sp);
             }
         } else {
-            s->checkpoints.push_back(data["scene"]["spawn"].as<Vec2<int>>());
+            s->checkpoints.push_back(data["scene"]["spawn"].as<Vec2<>>());
         }
     } else {
         s->checkpoints.push_back(Vec2(0,0));
