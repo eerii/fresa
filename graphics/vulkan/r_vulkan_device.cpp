@@ -23,13 +23,13 @@ namespace
     };
 }
 
-void Vulkan::createInstance(Config &c) {
+void Vulkan::createInstance(WindowData &win) {
     log::graphics("");
     
     ui32 extension_count;
-    SDL_Vulkan_GetInstanceExtensions(c.window, &extension_count, nullptr);
+    SDL_Vulkan_GetInstanceExtensions(win.window, &extension_count, nullptr);
     std::vector<const char *> extension_names(extension_count);
-    SDL_Vulkan_GetInstanceExtensions(c.window, &extension_count, extension_names.data());
+    SDL_Vulkan_GetInstanceExtensions(win.window, &extension_count, extension_names.data());
     log::graphics("Vulkan requested Instance Extensions: %d", extension_count);
     for (const char* ext : extension_names)
         log::graphics(" - %s", ext);
@@ -60,10 +60,10 @@ void Vulkan::createInstance(Config &c) {
     
     VkApplicationInfo app_info{};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = Info::name.c_str();
-    app_info.applicationVersion = VK_MAKE_VERSION(Info::version[0], Info::version[1], Info::version[2]);
+    app_info.pApplicationName = Conf::name.c_str();
+    app_info.applicationVersion = VK_MAKE_VERSION(Conf::version[0], Conf::version[1], Conf::version[2]);
     app_info.pEngineName = "Fresa";
-    app_info.engineVersion = VK_MAKE_VERSION(Info::version[0], Info::version[1], Info::version[2]);
+    app_info.engineVersion = VK_MAKE_VERSION(Conf::version[0], Conf::version[1], Conf::version[2]);
     app_info.apiVersion = VK_API_VERSION_1_1;
     
     VkInstanceCreateInfo instance_create_info{};
@@ -253,8 +253,8 @@ void Vulkan::createDevice() {
     log::graphics("");
 }
 
-void Vulkan::createSurface(Config &c) {
-    if (not SDL_Vulkan_CreateSurface(c.window, instance, &surface))
+void Vulkan::createSurface(WindowData &win) {
+    if (not SDL_Vulkan_CreateSurface(win.window, instance, &surface))
         log::error("Error while creating a Vulkan Surface (from createSurface): %s", SDL_GetError());
 }
 

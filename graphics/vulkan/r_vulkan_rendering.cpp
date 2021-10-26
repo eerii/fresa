@@ -141,7 +141,7 @@ void Vulkan::createSyncObjects() {
     log::graphics("Created all Vulkan Semaphores");
 }
 
-void Vulkan::renderFrame(Config &c) {
+void Vulkan::renderFrame(WindowData &win) {
     vkWaitForFences(device, 1, &fences_in_flight[current_frame], VK_TRUE, UINT64_MAX);
     
     VkResult result;
@@ -149,7 +149,7 @@ void Vulkan::renderFrame(Config &c) {
     result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, semaphores_image_available[current_frame], VK_NULL_HANDLE, &image_index);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        recreateSwapchain(c);
+        recreateSwapchain(win);
         return;
     }
     if (result != VK_SUCCESS and result != VK_SUBOPTIMAL_KHR) {
@@ -205,7 +205,7 @@ void Vulkan::renderFrame(Config &c) {
     result = vkQueuePresentKHR(present_queue, &present_info);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR or result == VK_SUBOPTIMAL_KHR)
-        recreateSwapchain(c);
+        recreateSwapchain(win);
     else if (result != VK_SUCCESS)
         log::error("Failed to present Swapchain Image");
     

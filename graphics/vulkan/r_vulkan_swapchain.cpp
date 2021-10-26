@@ -54,12 +54,12 @@ VkPresentModeKHR Vulkan::selectSwapPresentMode(const std::vector<VkPresentModeKH
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D Vulkan::selectSwapExtent(Config &c, const VkSurfaceCapabilitiesKHR &capabilities) {
+VkExtent2D Vulkan::selectSwapExtent(WindowData &win, const VkSurfaceCapabilitiesKHR &capabilities) {
     if (capabilities.currentExtent.width != UINT32_MAX)
         return capabilities.currentExtent;
     
     int w, h;
-    SDL_Vulkan_GetDrawableSize(c.window, &w, &h);
+    SDL_Vulkan_GetDrawableSize(win.window, &w, &h);
     
     VkExtent2D actual_extent{ static_cast<ui32>(w), static_cast<ui32>(h) };
     
@@ -69,12 +69,12 @@ VkExtent2D Vulkan::selectSwapExtent(Config &c, const VkSurfaceCapabilitiesKHR &c
     return actual_extent;
 }
 
-void Vulkan::createSwapchain(Config &c) {
+void Vulkan::createSwapchain(WindowData &win) {
     VK::SwapchainSupportDetails swapchain_support = getSwapchainSupport(physical_device);
     
     VkSurfaceFormatKHR surface_format = selectSwapSurfaceFormat(swapchain_support.formats);
     VkPresentModeKHR present_mode = selectSwapPresentMode(swapchain_support.present_modes);
-    swapchain_extent = selectSwapExtent(c, swapchain_support.capabilities);
+    swapchain_extent = selectSwapExtent(win, swapchain_support.capabilities);
     swapchain_format = surface_format.format;
     
     ui32 image_count = swapchain_support.capabilities.minImageCount + 1;
@@ -157,12 +157,12 @@ VkImageView Vulkan::createImageView(VkImage image, VkImageAspectFlags aspect_fla
     return image_view;
 }
 
-void Vulkan::recreateSwapchain(Config &c) {
+void Vulkan::recreateSwapchain(WindowData &win) {
     vkDeviceWaitIdle(device);
     
     destroySwapchain();
     
-    createSwapchain(c);
+    createSwapchain(win);
     createImageViews();
     
     createRenderPass();

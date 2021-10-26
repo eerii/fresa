@@ -22,8 +22,8 @@
 using namespace Verse;
 using namespace Graphics;
 
-WindowInfo Graphics::Window::createWindow(int size_x, int size_y, str name) {
-    WindowInfo win_info;
+WindowData Graphics::Window::create(int size_x, int size_y, str name) {
+    WindowData win;
     
 #ifdef __EMSCRIPTEN__
     SDL_Renderer* renderer = nullptr;
@@ -32,26 +32,26 @@ WindowInfo Graphics::Window::createWindow(int size_x, int size_y, str name) {
     if (win_info.window == nullptr or renderer == nullptr)
         log::error("Failed to create a Window and a Renderer", SDL_GetError());
 #else
-    win_info.window = SDL_CreateWindow((name + " - " + RENDERER_NAME).c_str(),
+    win.window = SDL_CreateWindow((name + " - " + RENDERER_NAME).c_str(),
                                        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size_x, size_y, W_FLAGS);
     
-    if (win_info.window == nullptr)
+    if (win.window == nullptr)
         log::error("Failed to create a Window", SDL_GetError());
     
-    SDL_SetWindowResizable(win_info.window, SDL_TRUE);
-    SDL_SetWindowMinimumSize(win_info.window, 256, 180);
+    SDL_SetWindowResizable(win.window, SDL_TRUE);
+    SDL_SetWindowMinimumSize(win.window, 256, 180);
 #endif
     
-    win_info.size = Vec2(size_x, size_y);
-    win_info.refresh_rate = getRefreshRate(win_info);
+    win.size = Vec2(size_x, size_y);
     
-    log::graphics("Refresh Rate: %d", win_info.refresh_rate);
+    win.refresh_rate = getRefreshRate(win);
+    log::graphics("Refresh Rate: %d", win.refresh_rate);
     
-    return win_info;
+    return win;
 }
 
-ui16 Graphics::Window::getRefreshRate(WindowInfo &win_info) {
-    int displayIndex = SDL_GetWindowDisplayIndex(win_info.window);
+ui16 Graphics::Window::getRefreshRate(WindowData &win) {
+    int displayIndex = SDL_GetWindowDisplayIndex(win.window);
     
     SDL_DisplayMode mode;
     if(SDL_GetDisplayMode(displayIndex, 0, &mode))
@@ -72,7 +72,8 @@ void Graphics::Window::onResize(SDL_Event &e, Config &c) {
     imgui_io.DisplaySize.y = static_cast<float>(e.window.data2);
 #endif
     
-    Graphics::Renderer::onResize(c);
+    //TODO: Rework
+    //Graphics::Renderer::onResize(win);
 }
 
 void Graphics::Window::updateVsync(bool use_vsync) {

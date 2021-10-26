@@ -10,14 +10,14 @@
 using namespace Verse;
 using namespace Graphics;
 
-void OpenGL::createContext(Config &c) {
-    context = SDL_GL_CreateContext(c.window);
+void OpenGL::createContext(WindowData &win) {
+    context = SDL_GL_CreateContext(win.window);
     if (context == nullptr) {
         log::error("Error creating OpenGL Context: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
     }
-    if (SDL_GL_MakeCurrent(c.window, context)) {
+    if (SDL_GL_MakeCurrent(win.window, context)) {
         log::error("Error making OpenGL Context current: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
@@ -35,13 +35,13 @@ void OpenGL::createContext(Config &c) {
 }
 
 #ifndef DISABLE_GUI
-void OpenGL::initImGUI(Config &c) {
+void OpenGL::initImGUI(WindowData &win) {
     imgui_context = ImGui::CreateContext();
     if (imgui_context == nullptr)
         log::error("Error creating ImGui context: ", SDL_GetError());
     ImPlot::CreateContext();
     io = ImGui::GetIO(); (void)io;
-    if (not ImGui_ImplSDL2_InitForOpenGL(c.window, context))
+    if (not ImGui_ImplSDL2_InitForOpenGL(win.window, context))
         log::error("Error initializing ImGui for SDL");
     if (not ImGui_ImplOpenGL3_Init())
         log::error("Error initializing ImGui for OpenGL");

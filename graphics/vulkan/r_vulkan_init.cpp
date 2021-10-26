@@ -29,17 +29,17 @@ namespace {
     };
 }
 
-void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, Config &c) {
-    vulkan->createInstance(c);
+void Verse::Graphics::VK::initVulkan(Vulkan *vulkan, WindowData &win) {
+    vulkan->createInstance(win);
     vulkan->createDebug();
     
-    vulkan->createSurface(c);
+    vulkan->createSurface(win);
     
     vulkan->selectPhysicalDevice();
     vulkan->selectQueueFamily();
     vulkan->createDevice();
     
-    vulkan->createSwapchain(c);
+    vulkan->createSwapchain(win);
     vulkan->createImageViews();
     
     vulkan->createRenderPass();
