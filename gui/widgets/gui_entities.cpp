@@ -165,12 +165,11 @@ void components(Config &c, Signature mask, EntityID e) {
     if (ImGui::Combo(add_label.c_str(), &curr, unused_components) and curr != 0) {
         auto it = std::find(Component::component_names.begin(), Component::component_names.end(), unused_components[curr]);
         if (it != Component::component_names.end()) {
-            //ComponentID cid = std::distance(component_names.begin(), it);
-            //TODO: FIX GUI COMPONENTS
-            /*for_<std::variant_size_v<ComponentType>>([&](auto i) {
+            ComponentID cid = std::distance(Component::component_names.begin(), it);
+            for_<std::variant_size_v<Component::ComponentType>>([&](auto i) {
                 if (i.value == cid)
-                    c.active_scene->addComponent<std::variant_alternative_t<i.value, ComponentType>>(e);
-            });*/
+                    c.active_scene->addComponent<std::variant_alternative_t<i.value, Component::ComponentType>>(e);
+            });
         }
     }
 }

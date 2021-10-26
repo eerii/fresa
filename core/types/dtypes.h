@@ -18,186 +18,168 @@ namespace Verse
     //STRING
     typedef std::string str;
 
-    struct Vec2f;
-
     //VEC2 - 2D Vector
+    template<typename T = int, typename = typename std::enable_if<std::is_arithmetic_v<T>, T>::type>
     struct Vec2 {
-        int x, y;
+        T x, y;
 
-        Vec2();
-        Vec2(int p_x, int p_y);
         
-        Vec2 operator +(const Vec2 p_v) const;
-        Vec2 operator -(const Vec2 p_v) const;
-        Vec2 operator /(const float p_f) const;
-        Vec2 operator *(const float p_f) const;
-        Vec2 operator -() const;
+        Vec2():x(0),y(0){};
+        Vec2(T p_x, T p_y):x(p_x),y(p_y){};
         
-        Vec2& operator +=(const Vec2& p_v);
-        Vec2& operator -=(const Vec2& p_v);
-        Vec2& operator /=(float p_f);
-        Vec2& operator *=(float p_f);
         
-        bool operator ==(const Vec2& p_v) const;
-        bool operator !=(const Vec2& p_v) const;
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T> operator +(const Vec2<U> p_v) const { return Vec2<T>(x + p_v.x, y + p_v.y); };
         
-        float length() const;
-        float length2() const;
-        Vec2 perpendicular() const;
-        float angle() const;
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T> operator -(const Vec2<U> p_v) const { return Vec2<T>(x - p_v.x, y - p_v.y); };
         
-        Vec2f to_float() const;
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T> operator /(const U p_v) const { return Vec2<T>(x / p_v, y / p_v); };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T> operator /(const Vec2<U> p_v) const { return Vec2<T>(x / p_v.x, y / p_v.y); };
         
-        static int dot(Vec2 p_v1, Vec2 p_v2);
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T> operator *(const U p_v) const { return Vec2<T>(x * p_v, y * p_v); };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T> operator *(const Vec2<U> p_v) const { return Vec2<T>(x * p_v.x, y * p_v.y); };
+        
+        Vec2<T> operator -() const { return Vec2<T>(-x, -y); };
+        
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T>& operator +=(const Vec2<U>& p_v) { x += p_v.x; y += p_v.y; return *this; };
+        
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T>& operator -=(const Vec2<U>& p_v) { x -= p_v.x; y -= p_v.y; return *this; };
+        
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T>& operator /=(U p_v) { x = x / p_v; y = y / p_v; return *this; };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T>& operator /=(Vec2<U> p_v) { x = x / p_v.x; y = y / p_v.y; return *this; };
+        
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T>& operator *=(U p_v) { x = x * p_v; y = y * p_v; return *this; };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T>& operator *=(Vec2<U> p_v) { x = x * p_v.x; y = y * p_v.y; return *this; };
+      
+        bool operator ==(const Vec2<T>& p_v) const { return x == p_v.x && y == p_v.y; };
+        bool operator !=(const Vec2<T>& p_v) const { return x != p_v.x || y != p_v.y; };
+        
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<T>& operator =(const Vec2<U> p_v) { x = (T)p_v.x; y = (T)p_v.y; return *this; };
+        
+        
+        float length() const { return sqrtf(x*x + y*y); };
+        float length2() const { return x*x + y*y; };
+        Vec2<T> normal() const { if (x == 0 && y == 0) return Vec2<T>(0,0); return Vec2<T>(x / this->length(), y / this->length()); };
+        Vec2<T> perpendicular() const { return Vec2<T>(-y, x); };
+        float angle() const { return atan2(y, x); };
+        
+        
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Vec2<U> to() const { return Vec2<U>((U)x, (U)y); };
+        
+        
+        template<typename U = int, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type,
+                 typename V = int, typename = typename std::enable_if<std::is_arithmetic_v<V>, V>::type>
+        static int dot(Vec2<U> p_v1, Vec2<V> p_v2) { return p_v1.x * p_v2.x + p_v1.y * p_v2.y; };
 
-        static Vec2 reflect(const Vec2& p_v, const Vec2& p_n);
-
-        static const Vec2 i;
-        static const Vec2 j;
-        static const Vec2 right;
-        static const Vec2 up;
-        static const Vec2 down;
-        static const Vec2 left;
-        static const Vec2 zero;
-        static const Vec2 one;
+        
+        static Vec2<T> from_angle(float p_rad, float p_len) { return Vec2<T>((T)(cos(p_rad) * p_len), (T)(sin(p_rad) * p_len)); };
+        static Vec2<T> from_angle(float p_rad) { return from_angle<T>(p_rad, 1); };
+        
+        
+        template<typename U = int, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type,
+                 typename V = int, typename = typename std::enable_if<std::is_arithmetic_v<V>, V>::type>
+        static Vec2<T> reflect(const Vec2<U>& p_v, const Vec2<V>& p_n) {
+            return Vec2<T>(p_v.x - 2.0f * dot(p_v, p_n) * p_n.x, p_v.y - 2.0f * dot(p_v, p_n) * p_n.y); };
     };
 
-    //VEC2f - 2D Vector (float)
-    struct Vec2f {
-        float x, y;
-
-        Vec2f();
-        Vec2f(float p_x, float p_y);
-        Vec2f(int p_x, float p_y);
-        Vec2f(float p_x, int p_y);
-        Vec2f(int p_x, int p_y);
-        
-        Vec2f operator +(const Vec2f p_v) const;
-        Vec2f operator -(const Vec2f p_v) const;
-        Vec2f operator /(const float p_f) const;
-        Vec2f operator *(const float p_f) const;
-        Vec2f operator -() const;
-        
-        Vec2f& operator +=(const Vec2f& p_v);
-        Vec2f& operator -=(const Vec2f& p_v);
-        Vec2f& operator /=(float p_f);
-        Vec2f& operator *=(float p_f);
-        
-        bool operator ==(const Vec2f& p_v) const;
-        bool operator !=(const Vec2f& p_v) const;
-        
-        Vec2f normal() const;
-        float length() const;
-        float length2() const;
-        Vec2f perpendicular() const;
-        float angle() const;
-        
-        Vec2 to_int() const;
-        
-        static float dot(Vec2f p_v1, Vec2f p_v2);
-
-        static Vec2f from_angle(float p_rad, float p_len);
-        static Vec2f from_angle(float p_rad);
-        static Vec2f reflect(const Vec2f& p_v, const Vec2f& p_n);
-
-        static const Vec2f i;
-        static const Vec2f j;
-        static const Vec2f right;
-        static const Vec2f up;
-        static const Vec2f down;
-        static const Vec2f left;
-        static const Vec2f zero;
-        static const Vec2f one;
-        static const Vec2f up_right;
-        static const Vec2f up_left;
-        static const Vec2f down_right;
-        static const Vec2f down_left;
-    };
-
-    struct Rect2f;
 
     //RECT2 - 4D Vector
+    template<typename T = int, typename = typename std::enable_if<std::is_arithmetic_v<T>, T>::type>
     struct Rect2 {
-        Vec2 pos;
-        Vec2 size;
-        int *x, *y, *w, *h;
+        T x, y, w, h;
         
-        Rect2();
-        Rect2(Vec2 pos, Vec2 size);
-        Rect2(int pos_x, int pos_y, int size_x, int size_y);
         
-        void link();
+        Rect2():x(0),y(0),w(0),h(0){};
+        Rect2(Vec2<T> p_pos, Vec2<T> p_size):x(p_pos.x),y(p_pos.y),w(p_size.x),h(p_size.y){};
+        Rect2(T pos_x, T pos_y, T size_x, T size_y):x(pos_x),y(pos_y),w(size_x),h(size_y){};
         
-        Rect2f to_float() const;
         
-        Rect2 operator +(const Vec2 p_pos) const;
-        Rect2 operator -(const Vec2 p_pos) const;
-        Rect2 operator +(const Rect2 p_pos) const;
-        Rect2 operator -(const Rect2 p_pos) const;
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T> operator +(const Rect2<U> p_v) const { return (Rect2<T>(x + p_v.x, y + p_v.y, w + p_v.w, h + p_v.h)); };
         
-        Rect2 operator *(const Vec2f p_v) const;
-        Rect2 operator /(const Vec2f p_v) const;
-        Rect2 operator *(const float p_f) const;
-        Rect2 operator /(const float p_f) const;
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T> operator -(const Rect2<U> p_v) const { return (Rect2<T>(x - p_v.x, y - p_v.y, w - p_v.w, h - p_v.h)); };
         
-        Rect2 operator -() const;
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T> operator /(const Rect2<U> p_v) const { return Rect2<T>(x / p_v.x, y / p_v.y, w / p_v.w, h / p_v.h); };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T> operator /(const Vec2<U> p_v) const { return Rect2<T>(x / p_v.x, y / p_v.x, w / p_v.y, h / p_v.y); };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T> operator /(const U p_v) const { return Rect2<T>(x / p_v, y / p_v, w / p_v, h / p_v); };
         
-        Rect2& operator +=(const Vec2 p_pos);
-        Rect2& operator -=(const Vec2 p_pos);
-        Rect2& operator +=(const Rect2 p_pos);
-        Rect2& operator -=(const Rect2 p_pos);
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T> operator *(const Rect2<U> p_v) const { return Rect2<T>(x * p_v.x, y * p_v.y, w * p_v.w, h * p_v.h); };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T> operator *(const Vec2<U> p_v) const { return Rect2<T>(x * p_v.x, y * p_v.x, w * p_v.y, h * p_v.y); };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T> operator *(const U p_v) const { return Rect2<T>(x * p_v, y * p_v, w * p_v, h * p_v); };
         
-        Rect2& operator *=(const Vec2f p_v);
-        Rect2& operator /=(const Vec2f p_v);
-        Rect2& operator *=(const float p_f);
-        Rect2& operator /=(const float p_f);
+        Rect2<T> operator -() const { return Rect2<T>(-x, -y, -w, -h); };
         
-        Rect2& operator =(const Rect2 p_rect);
-        Rect2& operator =(const Vec2 p_pos);
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator +=(const Rect2<U> p_v) { x += p_v.x; y += p_v.y; w += p_v.w; h += p_v.h; return *this; };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator +=(const Vec2<U> p_v) { x += p_v.x; y += p_v.y; return *this; }; //Notation shorthand
         
-        SDL_Rect toSDL();
-    };
-
-    //RECT2f - 4D Vector (float)
-    struct Rect2f {
-        Vec2f pos;
-        Vec2f size;
-        float *x, *y, *w, *h;
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator -=(const Rect2<U> p_v) { x -= p_v.x; y -= p_v.y; w -= p_v.w; h -= p_v.h; return *this; };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator -=(const Vec2<U> p_v) { x -= p_v.x; y -= p_v.y; return *this; }; //Notation shorthand
         
-        Rect2f();
-        Rect2f(Vec2f pos, Vec2f size);
-        Rect2f(float pos_x, float pos_y, float size_x, float size_y);
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator /=(const Rect2<U> p_v) { x /= p_v.x; y /= p_v.y; w /= p_v.w; h /= p_v.h; return *this; };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator /=(const Vec2<U> p_v) { x /= p_v.x; y /= p_v.x; w /= p_v.y; h /= p_v.y; return *this; };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator /=(const U p_v) { x /= p_v; y /= p_v; w /= p_v; h /= p_v; return *this; };
         
-        void link();
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator *=(const Rect2<U> p_v) { x *= p_v.x; y *= p_v.y; w *= p_v.w; h *= p_v.h; return *this; };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator *=(const Vec2<U> p_v) { x *= p_v.x; y *= p_v.x; w *= p_v.y; h *= p_v.y; return *this; };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator *=(const U p_v) { x *= p_v; y *= p_v; w *= p_v; h *= p_v; return *this; };
         
-        Rect2 to_int() const;
+        bool operator ==(const Rect2<T>& p_v) const { return x == p_v.x && y == p_v.y && w == p_v.w && h == p_v.h; };
+        bool operator !=(const Rect2<T>& p_v) const { return x != p_v.x || y != p_v.y || w != p_v.w || h != p_v.h; };
         
-        Rect2f operator +(const Vec2f p_pos) const;
-        Rect2f operator -(const Vec2f p_pos) const;
-        Rect2f operator +(const Rect2f p_pos) const;
-        Rect2f operator -(const Rect2f p_pos) const;
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator =(const Rect2<U> p_v) { x = (T)p_v.x; y = (T)p_v.y; w = (T)p_v.w; h = (T)p_v.h; return *this; };
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<T>& operator =(const Vec2<U> p_v) { x = (T)p_v.x; y = (T)p_v.y; return *this; }; //Notation shorthand
         
-        Rect2f operator *(const Vec2f p_v) const;
-        Rect2f operator /(const Vec2f p_v) const;
-        Rect2f operator *(const float p_f) const;
-        Rect2f operator /(const float p_f) const;
         
-        Rect2f operator -() const;
+        Vec2<T> pos() { return Vec2<T>(x, y); };
+        Vec2<T> size() { return Vec2<T>(w, h); };
         
-        Rect2f& operator +=(const Vec2f p_pos);
-        Rect2f& operator -=(const Vec2f p_pos);
-        Rect2f& operator +=(const Rect2f p_pos);
-        Rect2f& operator -=(const Rect2f p_pos);
         
-        Rect2f& operator *=(const Vec2f p_v);
-        Rect2f& operator /=(const Vec2f p_v);
-        Rect2f& operator *=(const float p_f);
-        Rect2f& operator /=(const float p_f);
+        template<typename U, typename = typename std::enable_if<std::is_arithmetic_v<U>, U>::type>
+        Rect2<U> to() const { return Rect2<U>((U)x, (U)y, (U)w, (U)h); };
         
-        Rect2f& operator =(const Rect2f p_rect);
-        Rect2f& operator =(const Vec2f p_pos);
         
-        SDL_Rect toSDL();
+        SDL_Rect toSDL() {
+            SDL_Rect rect;
+            
+            rect.x = x;
+            rect.y = y;
+            rect.w = w;
+            rect.h = h;
+            
+            return rect;
+        };
     };
 
     //SIGN

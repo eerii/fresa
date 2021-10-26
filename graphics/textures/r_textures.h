@@ -20,5 +20,5 @@ namespace Verse::Graphics::Texture
     void createTexture(ui8* tex, TextureData &data, bool rgba = true);
     void createTexture(ui8* tex, TextureData &data, int w, int h, bool rgba = true);
 
-    void createPerlinNoise(ui8* noise_data, TextureData &tex_data, Vec2 size, Vec2 offset, float freq, int levels);
+    void createPerlinNoise(ui8* noise_data, TextureData &tex_data, Vec2<int> size, Vec2<int> offset, float freq, int levels);
 }

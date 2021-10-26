@@ -27,8 +27,8 @@ namespace Verse::Graphics::Renderer
     void renderWindow(Config &c);
 
     void renderTest(Config &c);
-    void renderDebugCollider(Config &c, Rect2 col, bool colliding);
-    void renderDebugColliderCircle(Config &c, Vec2 pos, ui16 radius, bool colliding);
+    void renderDebugCollider(Config &c, Rect2<int> col, bool colliding);
+    void renderDebugColliderCircle(Config &c, Vec2<int> pos, ui16 radius, bool colliding);
 
     void present(SDL_Window* window);
     void clear(Config &c);
@@ -37,11 +37,11 @@ namespace Verse::Graphics::Renderer
 
     void onResize(Config &c);
 
-    void createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2 res);
-    void createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2 res);
+    void createFramebuffer(Config &c, ui32 &fb, ui32 &tex, Vec2<int> res);
+    void createDepthFramebuffer(Config &c, ui32 &fb, ui32 &tex, ui32 &d_tex, Vec2<int> res);
 
     void toggleDepthTest(bool enable);
 
-    glm::mat4 matModel2D(Vec2 pos, Vec2 size, float rotation = 0.0f);
-    glm::mat4 matModel2D(Rect2 rect, float rotation = 0.0f);
+    glm::mat4 matModel2D(Vec2<int> pos, Vec2<int> size, float rotation = 0.0f);
+    glm::mat4 matModel2D(Rect2<int> rect, float rotation = 0.0f);
 }
