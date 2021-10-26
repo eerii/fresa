@@ -22,9 +22,10 @@
 using namespace Verse;
 using namespace Graphics;
 
-WindowData Graphics::Window::create(int size_x, int size_y, str name) {
+WindowData Graphics::Window::create(Vec2<> size, str name) {
     WindowData win;
     
+    //Create SDL window
 #ifdef __EMSCRIPTEN__
     SDL_Renderer* renderer = nullptr;
     SDL_CreateWindowAndRenderer(size_x, size_y, SDL_WINDOW_OPENGL, &win_info.window, &renderer);
@@ -33,7 +34,7 @@ WindowData Graphics::Window::create(int size_x, int size_y, str name) {
         log::error("Failed to create a Window and a Renderer", SDL_GetError());
 #else
     win.window = SDL_CreateWindow((name + " - " + RENDERER_NAME).c_str(),
-                                       SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size_x, size_y, W_FLAGS);
+                                       SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size.x, size.y, W_FLAGS);
     
     if (win.window == nullptr)
         log::error("Failed to create a Window", SDL_GetError());
@@ -42,8 +43,10 @@ WindowData Graphics::Window::create(int size_x, int size_y, str name) {
     SDL_SetWindowMinimumSize(win.window, 256, 180);
 #endif
     
-    win.size = Vec2(size_x, size_y);
+    //Window size
+    win.size = size;
     
+    //Refresh rate
     win.refresh_rate = getRefreshRate(win);
     log::graphics("Refresh Rate: %d", win.refresh_rate);
     
@@ -78,10 +81,12 @@ void Graphics::Window::onResize(SDL_Event &e, Config &c) {
 
 void Graphics::Window::updateVsync(bool use_vsync) {
 #ifndef __EMSCRIPTEN__
+#ifndef USE_VULKAN
     if (SDL_GL_SetSwapInterval(use_vsync)) {
         str text = use_vsync ? "Error enabling V-Sync: " : "Error disabling V-Sync: ";
         log::error(text, SDL_GetError());
     }
+#endif
 #endif
 }
 

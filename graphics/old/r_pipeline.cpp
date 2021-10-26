@@ -32,12 +32,7 @@ bool Graphics::init(Config &c) {
     //Window creation
     str version = std::to_string(Conf::version[0]) + "." + std::to_string(Conf::version[1]) + "." + std::to_string(Conf::version[2]);
     str name = Conf::name + " - Version " + version;
-    win = Window::create(Conf::window_size.x, Conf::window_size.y, name);
-    
-    //TODO: REMOVE THIS
-    c.window = win.window;
-    c.window_size = win.size;
-    c.refresh_rate = win.refresh_rate;
+    win = Window::create(Conf::window_size, name);
     
     //Initialize graphics API
     api = API::create(win);

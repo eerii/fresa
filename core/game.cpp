@@ -10,7 +10,7 @@
 #include "file.h"
 #include "events.h"
 #include "gui.h"
-#include "r_pipeline.h"
+#include "r_graphics.h"
 #include "system_list.h"
 
 using namespace Verse;
@@ -27,10 +27,6 @@ bool Game::init(Config &c) {
     
     //INITIALIZE FILE SYSTEM
     File::init();
-    
-    #if _WIN32
-    SetProcessDPIAware();
-    #endif
 
     //INITIALIZE SDL
     SDL_version version;
@@ -42,7 +38,7 @@ bool Game::init(Config &c) {
     }
     
     //INITIALIZE GRAPHICS
-    return Graphics::init(c);
+    return Graphics::init();
 }
 
 bool Game::update(Config &c) {
@@ -60,7 +56,9 @@ bool Game::update(Config &c) {
    
     //RENDER UPDATE
     if (c.window_size.x != 0 and c.window_size.y != 0)
-        Graphics::render(c);
+        Graphics::update();
+    
+    //Need some kind of vsync for vulkan
     
     return true;
 }
@@ -104,19 +102,19 @@ void Game::timeFrame(Config &c) {
     if (accumulator > 1.0e10)
         accumulator = 0;
     
-    frames++;
+    /*frames++;
     fps_time += ns(Time::delta);
     
     if (fps_time > 1.0e9) {
         c.fps = floor((1.0e9 * frames) / fps_time);
         frames = 0;
         fps_time = 0;
-    }
+    }*/ //TODO: Enable again
 }
 
 void Game::stop() {
     log::debug("Closing the game...");
     
-    Graphics::destroy();
+    Graphics::stop();
     SDL_Quit();
 }
