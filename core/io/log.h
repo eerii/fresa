@@ -18,11 +18,13 @@ namespace Verse
         void graphics(str p_info, ...);
         void debug(str p_info, ...);
     
-        void vec2(Vec2 p_vector, str p_name = "");
-        void vec2(Vec2f p_vector, str p_name = "");
+        template <typename T>
+        std::enable_if<std::is_arithmetic_v<T>, T> vec2(Vec2<T> p_vector, str p_name = "") {
+            std::cout << "[ VECTOR ] " << p_name << ((p_name == "") ? "" : " ") << "x: " << p_vector.x << " | y: " << p_vector.y << std::endl;
+        };
     
-        template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
-        void num(T p_number, str p_name = "") {
+        template <typename T>
+        std::enable_if<std::is_arithmetic_v<T>, T> num(T p_number, str p_name = "") {
             std::cout << "[ NUMBER ] " << p_name << ((p_name == "") ? "" : ": ") << std::to_string(p_number) << std::endl;
         }
     

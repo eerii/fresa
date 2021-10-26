@@ -9,14 +9,16 @@
 
 namespace Verse::Graphics
 {
-
     struct FramebufferData {
         str name;
         ui8 render_step;
         
-        ui32 gl_fid;
-        
         glm::vec3 clear_color;
+        
+    #if defined USE_OPENGL
+        ui32 gl_fid;
+    #elif defined USE_VULKAN
+            
+    #endif
     };
-
 }

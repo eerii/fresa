@@ -242,8 +242,8 @@ namespace Verse
             bool pressed[Input::max_mouse_buttons];
             bool down[Input::max_mouse_buttons];
             bool released[Input::max_mouse_buttons];
-            Vec2f screen_position;
-            Vec2f position;
+            Vec2<float> screen_position;
+            Vec2<float> position;
             int wheel;
         };
 
@@ -303,7 +303,7 @@ namespace Verse
 
 
         // Gets the Mouse Position
-        Vec2f mouse();
+        Vec2<float> mouse();
     
         //Gets the Mouse Wheel
         int mouseWheel();

@@ -94,7 +94,7 @@ const InputState* Input::state() { return &g_curr_state; }
 const InputState* Input::lastState() { return &g_last_state; }
 
 
-Vec2f Input::mouse() { return g_curr_state.mouse.position; }
+Vec2<float> Input::mouse() { return g_curr_state.mouse.position; }
 
 int Input::mouseWheel() { return g_curr_state.mouse.wheel; };
 

@@ -5,22 +5,21 @@
 #pragma once
 
 #include "dtypes.h"
-#include "r_shaderdata.h"
 #include <glm/glm.hpp>
 
 namespace Verse::Graphics
 {
-
     struct TextureData {
         std::vector<float> vertices;
         glm::mat4 model;
         
-        ui32 gl_id;
-        
-        ShaderData* shader;
-        
         int layer;
         ui16 w, h;
+        
+    #if defined USE_OPENGL
+        ui32 gl_id;
+    #elif defined USE_VULKAN
+            
+    #endif
     };
-
 }

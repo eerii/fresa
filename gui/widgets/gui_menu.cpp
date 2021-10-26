@@ -21,7 +21,7 @@ void Gui::menu(Config &c) {
         //LUME
         //---------------------------
         if (ImGui::BeginMenu("[ lume ]")) {
-            str version = std::to_string(c.version[0]) + "." + std::to_string(c.version[1]) + "." + std::to_string(c.version[2]);
+            str version = std::to_string(Info::version[0]) + "." + std::to_string(Info::version[1]) + "." + std::to_string(Info::version[2]);
             ImGui::Text("version: %s", version.c_str());
             ImGui::Text("res: %d x %d (x%d)", c.resolution.x, c.resolution.y, c.render_scale);
             

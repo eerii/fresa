@@ -21,9 +21,9 @@ namespace Verse
         
         std::vector<ComponentPool*> component_pools;
         
-        Vec2 size;
+        Vec2<int> size;
         str name;
-        std::vector<Vec2> checkpoints;
+        std::vector<Vec2<int>> checkpoints;
         
         EntityID createEntity();
         EntityID createEntity(std::string name);
