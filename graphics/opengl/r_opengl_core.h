@@ -20,7 +20,7 @@ namespace Verse::Graphics
     {
         void configOpenGL();
     
-        void initOpenGL(OpenGL *gl, WindowData &win);
+        OpenGL createOpenGL(WindowData &win);
     }
 
     struct OpenGL {
