@@ -5,7 +5,7 @@
 #ifdef USE_OPENGL
 
 #include "r_renderer.h"
-#include "r_opengl_core.h"
+#include "r_opengl_api.h"
 
 #include <glm/ext.hpp>
 
@@ -99,7 +99,7 @@ void Graphics::Renderer::create(OpenGL *api, Config &c) {
     
     //Validate Programs
     for (auto &[key, s] : gl->shaders)
-        s.validate();
+        Shader::validate(s);
     
     //VBOs
     glGenBuffers(V_LAST, vbo);

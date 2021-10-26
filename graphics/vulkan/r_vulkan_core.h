@@ -21,7 +21,7 @@ namespace Verse::Graphics
     struct Vulkan;
 
     namespace VK {
-        Vulkan createVulkan(WindowData &win);
+        Vulkan create(WindowData &win);
 
         struct QueueFamilyIndices {
             std::optional<ui32> graphics_queue_family_index;
