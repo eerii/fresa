@@ -12,8 +12,9 @@
 #include "log.h"
 
 using namespace Verse;
+using namespace Graphics;
 
-ui8 Graphics::Shader::compileShaderGL(const char* source, ui32 shaderType) {
+ui8 Shader::compileShaderGL(const char* source, ui32 shaderType) {
     //CREATE SHADER FROM SOURCE
     ui8 id = glCreateShader(shaderType);
     glShaderSource(id, 1, &source, NULL);
@@ -43,7 +44,7 @@ ui8 Graphics::Shader::compileShaderGL(const char* source, ui32 shaderType) {
     return id;
 }
 
-ui8 Graphics::Shader::compileProgramGL(str vertex_file, str fragment_file) {
+ui8 Shader::compileProgramGL(str vertex_file, str fragment_file) {
     ui8 pid = 0;
     ui8 vertex_shader, fragment_shader;
 
@@ -111,35 +112,41 @@ ui8 Graphics::Shader::compileProgramGL(str vertex_file, str fragment_file) {
     return pid;
 }
 
-void Verse::Graphics::ShaderData::compile(std::vector<str> loc) {
-    if (vertex_file.size() == 0 or frag_file.size() == 0)
+ShaderData Shader::create(str vertex, str frag, std::vector<str> loc) {
+    ShaderData shader;
+    
+    if (vertex.size() == 0 or frag.size() == 0)
         log::error("Tried to compile a shader without vertex or fragment file");
     
-    pid = Shader::compileProgramGL(vertex_file, frag_file);
+    shader.vertex_file = vertex;
+    shader.frag_file = frag;
+    shader.pid = Shader::compileProgramGL(vertex, frag);
     
     for (str l : loc)
-        locations[l] = glGetUniformLocation(pid, l.c_str());
+        shader.locations[l] = glGetUniformLocation(shader.pid, l.c_str());
     glCheckError();
+    
+    return shader;
 }
 
-void Verse::Graphics::ShaderData::validate() {
-    glValidateProgram(pid);
+void Shader::validate(ShaderData &shader) {
+    glValidateProgram(shader.pid);
     
     int program_valid = GL_FALSE;
-    glGetProgramiv(pid, GL_VALIDATE_STATUS, &program_valid);
+    glGetProgramiv(shader.pid, GL_VALIDATE_STATUS, &program_valid);
     if(program_valid != GL_TRUE) {
         int log_len;
-        glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &log_len);
+        glGetProgramiv(shader.pid, GL_INFO_LOG_LENGTH, &log_len);
         if (log_len > 0) {
             char* log = (char*)malloc(log_len * sizeof(char));
-            glGetProgramInfoLog(pid, log_len, &log_len, log);
+            glGetProgramInfoLog(shader.pid, log_len, &log_len, log);
             
             std::cout << "[ERROR]: Program compile log: " << log << std::endl;
             free(log);
         }
-        glDeleteProgram(pid);
+        glDeleteProgram(shader.pid);
         
-        log::error("Program Validation Error, ID: %d", pid);
+        log::error("Program Validation Error, ID: %d", shader.pid);
         return;
     }
 }

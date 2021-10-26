@@ -48,7 +48,7 @@ namespace {
 //CREATION
 //----------------------------------------
 
-Vulkan Verse::Graphics::VK::createVulkan(WindowData &win) {
+Vulkan Verse::Graphics::VK::create(WindowData &win) {
     Vulkan vulkan;
     
     vulkan.createInstance(win);

@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "config.h"
-
 #ifdef USE_OPENGL
 
     #ifdef __EMSCRIPTEN__ //WEB
@@ -27,5 +25,24 @@
     #endif
 
 #include "r_opengl_debug.h"
+
+#include "r_shaderdata.h"
+#include "gui.h"
+
+#include <map>
+
+namespace Verse::Graphics
+{
+    struct OpenGL {
+        SDL_GLContext context;
+        std::map<str, ShaderData> shaders;
+        std::map<str, std::vector<str>> shader_locations;
+        
+        #ifndef DISABLE_GUI
+        ImGuiContext* imgui_context;
+        ImGuiIO io;
+        #endif
+    };
+}
 
 #endif

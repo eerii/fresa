@@ -5,7 +5,7 @@
 #pragma once
 
 #include "r_vulkan_core.h"
-#include "r_opengl_core.h"
+#include "r_opengl_api.h"
 
 namespace Verse::Graphics
 {

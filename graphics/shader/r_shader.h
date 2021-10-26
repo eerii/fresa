@@ -19,46 +19,32 @@
 #include "r_vulkan.h"
 #endif
 
+#include "r_shaderdata.h"
+
 #include <optional>
-#include <map>
 
-namespace Verse::Graphics
+namespace Verse::Graphics::Shader
 {
-    namespace Shader
-    {
     #if defined USE_OPENGL
-        ui8 compileShaderGL(const char* source, ui32 shader_type);
-        ui8 compileProgramGL(str vertex_file, str fragment_file);
-    #elif defined USE_VULKAN
-        struct ShaderStages {
-            std::optional<VkShaderModule> vert;
-            std::optional<VkShaderModule> frag;
-            std::optional<VkShaderModule> compute;
-            std::optional<VkShaderModule> geometry;
-        };
+    
+    ui8 compileShaderGL(const char* source, ui32 shader_type);
+    ui8 compileProgramGL(str vertex_file, str fragment_file);
 
-        std::vector<char> readSPIRV(std::string filename);
-        VkShaderModule createShaderModule(std::vector<char> &code, VkDevice &device);
-        std::vector<VkPipelineShaderStageCreateInfo> createShaderStageInfo(ShaderStages &stages);
-    #endif
-    }
-
-    struct ShaderData {
-        str vertex_file;
-        str frag_file;
-        
-    #if defined USE_OPENGL
-        ui8 pid;
-        std::map<str, ui8> locations;
-        
-        ShaderData() {}
-        ShaderData(str vertex, str frag) : vertex_file(vertex), frag_file(frag) {}
-        
-        void compile(std::vector<str> loc);
-        
-        void validate();
+    ShaderData create(str vertex, str frag, std::vector<str> loc);
+    void validate(ShaderData &shader);
+    
     #elif defined USE_VULKAN
-        
-    #endif
+
+    struct ShaderStages {
+        std::optional<VkShaderModule> vert;
+        std::optional<VkShaderModule> frag;
+        std::optional<VkShaderModule> compute;
+        std::optional<VkShaderModule> geometry;
     };
+
+    std::vector<char> readSPIRV(std::string filename);
+    VkShaderModule createShaderModule(std::vector<char> &code, VkDevice &device);
+    std::vector<VkPipelineShaderStageCreateInfo> createShaderStageInfo(ShaderStages &stages);
+
+    #endif
 }

@@ -11,16 +11,16 @@ void API::configure() {
     #if defined USE_VULKAN
         
     #elif defined USE_OPENGL
-        GL::configOpenGL();
+        GL::config();
     #endif
 }
 
 GraphicsAPI API::create(WindowData &win) {
     GraphicsAPI api;
     #if defined USE_VULKAN
-        api = VK::createVulkan(win);
+        api = VK::create(win);
     #elif defined USE_OPENGL
-        api = GL::createOpenGL(win);
+        api = GL::create(win);
     #endif
     return api;
 }
