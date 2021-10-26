@@ -10,17 +10,21 @@ namespace Verse::Graphics
 {
     struct WindowInfo {
         SDL_Window* window;
+        Vec2<> size;
+        ui16 refresh_rate;
     };
 
     namespace Window
     {
-        SDL_Window* createWindow(Config &c);
+        WindowInfo createWindow(int size_x, int size_y, str name);
+        ui16 getRefreshRate(WindowInfo &win_info);
+    
         void onResize(SDL_Event &e, Config &c);
-        void updateVsync(Config &c);
+        void updateVsync(bool use_vsync);
 
         Vec2<float> sceneToWindow(Config &c, Vec2<> s_pos);
         Vec2<> windowToScene(Config &c, Vec2<float> w_pos);
 
-        void calculateRefreshRate(Config &c);
+        
     }
 }

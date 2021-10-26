@@ -18,6 +18,10 @@
 using namespace Verse;
 using namespace Graphics;
 
+namespace {
+    WindowInfo win_info;
+}
+
 bool Graphics::init(Config &c) {
     log::debug("Initializing graphics");
     
@@ -31,15 +35,14 @@ bool Graphics::init(Config &c) {
 #endif
  
     //Window Creation
-    c.window = Window::createWindow(c);
-    if(c.window == nullptr) {
-        log::error("There was an error with the window pointer, check r_pipeline");
-        return false;
-    }
+    str version = std::to_string(Conf::version[0]) + "." + std::to_string(Conf::version[1]) + "." + std::to_string(Conf::version[2]);
+    str name = Conf::name + " - Version " + version;
+    win_info = Window::createWindow(Conf::window_size.x, Conf::window_size.y, name);
     
-    //Refresh Rate
-    Window::calculateRefreshRate(c);
-    log::graphics("Refresh Rate: %d", c.refresh_rate);
+    //TODO: REMOVE THIS
+    c.window = win_info.window;
+    c.window_size = win_info.size;
+    c.refresh_rate = win_info.refresh_rate;
     
     //Renderer Creation
     Renderer::create(c);
