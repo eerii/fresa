@@ -9,7 +9,7 @@
 #include "r_opengl.h"
 
 #include "r_windowdata.h"
-#include "r_shader.h"
+#include "r_bufferdata.h"
 
 namespace Verse::Graphics::GL
 {
@@ -20,7 +20,13 @@ namespace Verse::Graphics::GL
     {
         void createContext(OpenGL &gl, WindowData &win);
         void createShaderData(OpenGL &gl);
+        void createFramebuffers(OpenGL &gl, WindowData &win);
         void initImGUI(OpenGL &gl, WindowData &win);
+    }
+
+    namespace Buffers
+    {
+        BufferData createFramebuffer(Vec2<> size, FramebufferType type);
     }
 }
 
