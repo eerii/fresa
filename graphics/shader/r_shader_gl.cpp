@@ -25,7 +25,7 @@ ui8 Shader::compileShaderGL(const char* source, ui32 shaderType) {
     int shaderCompiled = GL_FALSE;
     glGetShaderiv(id, GL_COMPILE_STATUS, &shaderCompiled);
     if(shaderCompiled != GL_TRUE) {
-        log::error("Shader Compilation Error, ID: %d", id);
+        std::cerr << "Shader Compilation Error, ID: " << id << std::endl;
         
         int log_len;
         glGetShaderiv(id, GL_INFO_LOG_LENGTH, &log_len);
@@ -33,7 +33,7 @@ ui8 Shader::compileShaderGL(const char* source, ui32 shaderType) {
             char *log = (char*)malloc(log_len);
             glGetShaderInfoLog(id, log_len, &log_len, log);
             
-            log::error("Shader compile log: %s", log);
+            std::cerr << "Shader compile log: " << log << std::endl;
             free(log);
         }
         glDeleteShader(id);
@@ -82,7 +82,7 @@ ui8 Shader::compileProgramGL(str vertex_file, str fragment_file) {
         int program_linked = GL_FALSE;
         glGetProgramiv(pid, GL_LINK_STATUS, &program_linked);
         if(program_linked != GL_TRUE) {
-            log::error("Program Compilation Error, ID: %d", pid);
+            std::cerr << "Program Compilation Error, ID: " << pid << std::endl;
             
             int log_len;
             glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &log_len);
@@ -90,7 +90,7 @@ ui8 Shader::compileProgramGL(str vertex_file, str fragment_file) {
                 char* log = (char*)malloc(log_len * sizeof(char));
                 glGetProgramInfoLog(pid, log_len, &log_len, log);
                 
-                log::error("Program compile log: %s", log);
+                std::cerr << "Program compile log: " << log << std::endl;
                 free(log);
             }
             glDeleteProgram(pid);

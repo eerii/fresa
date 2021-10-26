@@ -27,6 +27,7 @@
 #include "r_opengl_debug.h"
 
 #include "r_shaderdata.h"
+#include "r_bufferdata.h"
 #include "gui.h"
 
 #include <map>
@@ -35,8 +36,11 @@ namespace Verse::Graphics
 {
     struct OpenGL {
         SDL_GLContext context;
+        
         std::map<str, ShaderData> shaders;
         std::map<str, std::vector<str>> shader_locations;
+        
+        BufferData framebuffer;
         
         #ifndef DISABLE_GUI
         ImGuiContext* imgui_context;
