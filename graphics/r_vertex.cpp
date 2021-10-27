@@ -3,6 +3,7 @@
 //all rights reserved uwu
 
 #include "r_vertex.h"
+#include "log.h"
 
 using namespace Verse;
 using namespace Graphics;
@@ -10,17 +11,29 @@ using namespace Graphics;
 std::vector<VertexAttributeDescription> Vertex::getAttributeDescriptions() {
     std::vector<VertexAttributeDescription> attribute_descriptions = {};
     
-    attribute_descriptions.resize(2);
+    log::graphics("Creating attribute descriptions...");
     
-    attribute_descriptions[0].binding = 0;
-    attribute_descriptions[0].location = 0;
-    attribute_descriptions[0].format = VERTEX_FORMAT_RG_F;
-    attribute_descriptions[0].offset = 0;
-    
-    attribute_descriptions[1].binding = 0;
-    attribute_descriptions[1].location = 1;
-    attribute_descriptions[1].format = VERTEX_FORMAT_RGB_F;
-    attribute_descriptions[1].offset = sizeof(glm::vec2);
+    ui32 offset = 0;
+    Reflection::forEach(VertexData{}, [&](auto &&x, ui8 level, const char* name){
+        if (level == 1) { //Is a member of VertexData
+            int i = (int)attribute_descriptions.size();
+            attribute_descriptions.resize(i + 1);
+            
+            attribute_descriptions[i].binding = 0;
+            attribute_descriptions[i].location = i;
+            
+            int size = sizeof(x);
+            if (size % 4 != 0 or size < 4 or size > 16)
+                log::error("Vertex data has an invalid size %d", size);
+            attribute_descriptions[i].format = (VertexFormat)(size / 4);
+            
+            attribute_descriptions[i].offset = offset;
+            
+            log::graphics(" - Attribute %s [%d] - Format : %d - Size : %d - Offset %d", name, i, attribute_descriptions[i].format, size, offset);
+            
+            offset += sizeof(x);
+        }
+    });
 
     return attribute_descriptions;
 }

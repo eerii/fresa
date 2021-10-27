@@ -4,12 +4,15 @@
 
 #pragma once
 
+#include "reflection.h"
+
 #include <glm/glm.hpp>
 #include <vector>
 
 namespace Verse::Graphics
 {
     struct VertexData {
+        Serialize(VertexData, pos, color);
         glm::vec2 pos;
         glm::vec3 color;
     };

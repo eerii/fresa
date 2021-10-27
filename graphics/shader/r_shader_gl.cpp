@@ -141,7 +141,7 @@ void Shader::validate(ShaderData &shader) {
             char* log = (char*)malloc(log_len * sizeof(char));
             glGetProgramInfoLog(shader.pid, log_len, &log_len, log);
             
-            std::cout << "[ERROR]: Program compile log: " << log << std::endl;
+            std::cout << "[ ERROR ]: Program compile log: " << log << std::endl;
             free(log);
         }
         glDeleteProgram(shader.pid);
