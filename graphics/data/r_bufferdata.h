@@ -10,20 +10,10 @@
 namespace Verse::Graphics
 {
     struct BufferData {
-        
         #if defined USE_OPENGL
-        ui32 buffer_id;
-        std::optional<ui32> color_texture_id;
-        std::optional<ui32> depth_texture_id;
+        ui32 id_;
         #elif defined USE_VULKAN
                 
         #endif
     };
-
-    enum FramebufferType {
-        FRAMEBUFFER_COLOR_ATTACHMENT,
-        FRAMEBUFFER_DEPTH_ATTACHMENT,
-        FRAMEBUFFER_COLOR_DEPTH_ATTACHMENT
-    };
-    
 }
