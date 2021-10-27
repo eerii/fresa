@@ -7,6 +7,8 @@
 #include "r_window.h"
 #include "r_next_renderer.h"
 
+#include "ftime.h"
+
 using namespace Verse;
 using namespace Graphics;
 

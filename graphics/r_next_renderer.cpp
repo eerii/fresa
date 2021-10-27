@@ -21,7 +21,6 @@ RenderData Renderer::create(WindowData &win, Vec2<> resolution, bool vsync) {
     
     //V-Sync
     render.vsync = vsync;
-    Window::updateVsync(vsync);
     
     return render;
 }

@@ -91,9 +91,6 @@ void Gui::menu(Config &c) {
             ImGui::Checkbox("enable lookahead", &c.enable_lookahead);
             ImGui::Checkbox("enable smooth panning", &c.enable_smooth_panning);
             
-            if (ImGui::Checkbox("use vsync", &c.use_vsync))
-                Graphics::Window::updateVsync(c.use_vsync);
-            
             ImGui::EndMenu();
         }
         //---------------------------

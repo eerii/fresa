@@ -8,5 +8,12 @@
 
 namespace Verse::Events
 {
-    bool handleEvents(Config &c);
+    enum EventTypes {
+        EVENT_QUIT,
+        EVENT_PAUSE,
+        EVENT_CONTINUE,
+        EVENT_NONE
+    };
+
+    EventTypes handleEvents(Config &c);
 }

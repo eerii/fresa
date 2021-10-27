@@ -12,11 +12,7 @@ namespace {
 
 Clock::time_point Time::current = {};
 Clock::time_point Time::previous = {};
-Duration Time::delta = {};
-
-Clock::time_point Time::current_render = {};
-Clock::time_point Time::previous_render = {};
-Duration Time::delta_render = {};
+Clock::time_point Time::next = {};
 
 std::map<TimerID, Timer> Time::timers = {};
 
