@@ -30,7 +30,6 @@ namespace Verse
         Vec2<> window_size;
         ui16 render_scale;
         ui16 refresh_rate;
-        bool use_vsync;
         
         ui16 fps;
         double physics_time;

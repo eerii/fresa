@@ -25,11 +25,7 @@ namespace Verse
     struct Time {
         static Clock::time_point current;
         static Clock::time_point previous;
-        static Duration delta;
-        
-        static Clock::time_point current_render;
-        static Clock::time_point previous_render;
-        static Duration delta_render;
+        static Clock::time_point next;
         
         static std::map<TimerID, Timer> timers;
     };

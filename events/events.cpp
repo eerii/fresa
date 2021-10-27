@@ -12,12 +12,12 @@
 
 using namespace Verse;
 
-bool Events::handleEvents(Config &c) {
+Events::EventTypes Events::handleEvents(Config &c) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_QUIT:
-                return false;
+                return EVENT_QUIT;
             case SDL_KEYDOWN:
                 if (event.key.repeat == 0) {
                     Input::onKeyDown((Input::Key)event.key.keysym.scancode);
@@ -31,7 +31,7 @@ bool Events::handleEvents(Config &c) {
                     Input::onKeyUp((Input::Key)event.key.keysym.scancode);
                 break;
             case SDL_MOUSEMOTION:
-                Input::onMouseMove(event.motion.x, event.motion.y);
+                Input::onMouseMove(event.motion.x, event.motion.y); //This event consumes 5-10% of CPU, check in the future
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 Input::onMouseDown(event.button.button);
@@ -43,6 +43,10 @@ bool Events::handleEvents(Config &c) {
                 Input::onMouseWheel(event.wheel.y);
                 break;
             case SDL_WINDOWEVENT:
+                if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+                    return EVENT_PAUSE;
+                if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
+                    return EVENT_CONTINUE;
                 if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
                     Graphics::Window::onResize(event, c);
                 break;
@@ -52,5 +56,5 @@ bool Events::handleEvents(Config &c) {
                 break;
         }
     }
-    return true;
+    return EVENT_NONE;
 }

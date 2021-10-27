@@ -62,7 +62,6 @@ void GL::Init::createContext(OpenGL &gl, WindowData &win) {
         SDL_Quit();
         exit(-1);
     }
-    Window::updateVsync(true);
     glCheckError();
     
     log::graphics("---");
@@ -286,6 +285,7 @@ void GL::renderTest(WindowData &win, RenderData &render) {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     
     //Present
+    SDL_GL_SetSwapInterval(0); //See if it is needed all frames
     SDL_GL_SwapWindow(win.window);
 }
 

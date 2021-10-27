@@ -14,6 +14,7 @@ namespace Verse::Game
 
     bool update(Config &c);
     bool physicsUpdate(Config &c);
+
     void timeFrame(Config &c);
 
     void stop();

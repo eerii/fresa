@@ -79,18 +79,6 @@ void Graphics::Window::onResize(SDL_Event &e, Config &c) {
     //Graphics::Renderer::onResize(win);
 }
 
-void Graphics::Window::updateVsync(bool use_vsync) {
-#ifndef __EMSCRIPTEN__
-#ifndef USE_VULKAN
-    if (SDL_GL_SetSwapInterval(use_vsync)) {
-        str text = use_vsync ? "Error enabling V-Sync: " : "Error disabling V-Sync: ";
-        log::error(text, SDL_GetError());
-    }
-#endif
-#endif
-}
-
-
 Vec2<> Graphics::Window::windowToScene(Config &c, Vec2<float> w_pos) {
     Vec2 pixel_move = Vec2(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
     
@@ -102,7 +90,6 @@ Vec2<> Graphics::Window::windowToScene(Config &c, Vec2<float> w_pos) {
     
     return s_pos;
 }
-
 
 Vec2<float> Graphics::Window::sceneToWindow(Config &c, Vec2<> s_pos) {
     Vec2<> pixel_move = Vec2<>(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));

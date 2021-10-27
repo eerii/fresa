@@ -13,7 +13,6 @@ namespace Verse::Graphics::Window
     ui16 getRefreshRate(WindowData &win);
 
     void onResize(SDL_Event &e, Config &c);
-    void updateVsync(bool use_vsync);
 
     Vec2<float> sceneToWindow(Config &c, Vec2<> s_pos);
     Vec2<> windowToScene(Config &c, Vec2<float> w_pos);
