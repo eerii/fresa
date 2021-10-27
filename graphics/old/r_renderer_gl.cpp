@@ -179,7 +179,7 @@ void Graphics::Renderer::create(OpenGL *api, Config &c) {
     ui8* tex = stbi_load("res/graphics/palette.png", &w, &h, &ch, STBI_rgb_alpha);
     TextureData palette_data;
     Graphics::Texture::createTexture(tex, palette_data, w, h);
-    palette_tex = palette_data.gl_id; //TODO: CHANGE THIS
+    palette_tex = palette_data.id_; //TODO: CHANGE THIS
     Palette::setPaletteInterval(w);
     glCheckError();
     
@@ -216,7 +216,7 @@ void Graphics::Renderer::renderTexture(Config &c, TextureData &data) {
     glCheckError();
     
     //Draw
-    glBindTexture(GL_TEXTURE_2D, data.gl_id);
+    glBindTexture(GL_TEXTURE_2D, data.id_);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -247,7 +247,7 @@ void Graphics::Renderer::renderTilemap(Config &c, TextureData &data) {
     glCheckError();
     
     //Draw
-    glBindTexture(GL_TEXTURE_2D, data.gl_id);
+    glBindTexture(GL_TEXTURE_2D, data.id_);
     glDrawArrays(GL_TRIANGLES, 0, (int)(data.vertices.size() / 4));
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -281,10 +281,10 @@ void Graphics::Renderer::renderNoise(Config &c, TextureData &mask_data, TextureD
     
     //Textures
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, noise_data.gl_id);
+    glBindTexture(GL_TEXTURE_2D, noise_data.id_);
     glUniform1i(gl->shaders["noise"].locations["noise"], 1);
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, mask_data.gl_id);
+    glBindTexture(GL_TEXTURE_2D, mask_data.id_);
     glUniform1i(gl->shaders["noise"].locations["mask"], 2);
     
     //Draw
@@ -322,7 +322,7 @@ void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float
     glCheckError();
     
     //Draw
-    glBindTexture(GL_TEXTURE_2D, data.gl_id);
+    glBindTexture(GL_TEXTURE_2D, data.id_);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

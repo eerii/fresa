@@ -28,6 +28,9 @@
 
 #include "r_shaderdata.h"
 #include "r_bufferdata.h"
+#include "r_framebufferdata.h"
+#include "r_vertexdata.h"
+
 #include "gui.h"
 
 #include <map>
@@ -40,7 +43,9 @@ namespace Verse::Graphics
         std::map<str, ShaderData> shaders;
         std::map<str, std::vector<str>> shader_locations;
         
-        BufferData framebuffer;
+        FramebufferData framebuffer;
+        VertexArrayData vao;
+        BufferData vbo;
         
         #ifndef DISABLE_GUI
         ImGuiContext* imgui_context;

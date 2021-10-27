@@ -143,7 +143,7 @@ namespace Verse::Graphics
         //BUFFERS
         //----------------------------------------
         void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory);
-        void createVertexBuffer(const std::vector<Graphics::Vertex> &vertices);
+        void createVertexBuffer(const std::vector<Graphics::VertexData> &vertices);
         void createIndexBuffer(const std::vector<ui16> &indices);
         
         void copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);

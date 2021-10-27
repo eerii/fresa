@@ -16,11 +16,11 @@ using namespace Verse;
 using namespace Graphics;
 
 namespace {
-    const std::vector<Graphics::Vertex> vertices = {
-        {{0.5f, -0.5f}, {1.0f, 0.05f, 0.05f}},
+    const std::vector<Graphics::VertexData> vertices = {
+        {{0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
         {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.5f, 0.5f}, {0.05f, 0.05f, 1.0f}},
-        {{-0.5f, -0.5f}, {1.0f, 0.05f, 1.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{-0.5f, -0.5f}, {0.7f, 0.3f, 0.7f}},
         /*{{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},
         {{1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
         {{1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
@@ -582,8 +582,8 @@ void Vulkan::prepareRenderInfoVertexInput() {
     rendering_create_info.vertex_input = {};
     rendering_create_info.vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     
-    rendering_create_info.vertex_input_binding_description = Vertex::getBindingDescription();
-    rendering_create_info.vertex_input_attribute_descriptions = Vertex::getAttributeDescriptions();
+    rendering_create_info.vertex_input_binding_description = Vertex::getBindingDescriptionVK();
+    rendering_create_info.vertex_input_attribute_descriptions = Vertex::getAttributeDescriptionsVK();
     
     rendering_create_info.vertex_input.vertexBindingDescriptionCount = 1;
     rendering_create_info.vertex_input.pVertexBindingDescriptions = &rendering_create_info.vertex_input_binding_description;
@@ -818,7 +818,7 @@ void Vulkan::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryP
     vkBindBufferMemory(device, buffer, memory, 0);
 }
 
-void Vulkan::createVertexBuffer(const std::vector<Graphics::Vertex> &vertices) {
+void Vulkan::createVertexBuffer(const std::vector<Graphics::VertexData> &vertices) {
     VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
     
     VkBuffer staging_buffer;

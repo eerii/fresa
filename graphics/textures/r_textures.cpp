@@ -83,7 +83,7 @@ void Graphics::Texture::createTexture(ui8* tex, TextureData &data, int w, int h,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                   
-    data.gl_id = tex_id;
+    data.id_ = tex_id;
 }
 
 #elif defined USE_VULKAN
