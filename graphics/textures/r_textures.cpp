@@ -17,12 +17,53 @@
 #include "r_vulkan.h"
 
 using namespace Verse;
+using namespace Graphics;
 
 bool checkPath(str path) {
     std::filesystem::path f{path};
     return std::filesystem::exists(f);
 }
 
+TextureData Texture::load(str path, Channels ch) {
+    TextureData tex;
+    
+    //Load the image
+    //---
+    if (not checkPath(path))
+        log::error("The texture path does not exist!");
+    
+    auto mode = [ch](){
+        switch(ch) {
+            case TEXTURE_CHANNELS_G:
+                return STBI_grey;
+            case TEXTURE_CHANNELS_GA:
+                return STBI_grey_alpha;
+            case TEXTURE_CHANNELS_RGB:
+                return STBI_rgb;
+            case TEXTURE_CHANNELS_RGBA:
+                return STBI_rgb_alpha;
+        }
+    }();
+    
+    ui8* pixels = stbi_load(path.c_str(), &tex.w, &tex.h, &tex.ch, mode);
+    //---
+    
+    //Create the texture
+    //---
+    
+    //---
+    
+    stbi_image_free(pixels);
+    
+    return tex;
+}
+
+
+
+
+
+//TODO: DEPRECATE
+//----------------------------------------
 void Graphics::Texture::loadTexture(str path, Component::Texture* tex) {
     if (not checkPath(path)) {
         log::error("The texture path does not exist!");
@@ -98,3 +139,4 @@ void Graphics::Texture::createPerlinNoise(ui8* noise_data, TextureData &tex_data
     Math::perlinNoise(size, offset, freq, levels, noise_data);
     createTexture(noise_data, tex_data, size.x, size.y, false);
 }
+//----------------------------------------

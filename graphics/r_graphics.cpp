@@ -39,5 +39,7 @@ bool Graphics::update() {
 }
 
 bool Graphics::stop() {
+    Renderer::clean(render);
+    
     return true;
 }

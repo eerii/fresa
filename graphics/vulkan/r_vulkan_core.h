@@ -201,8 +201,8 @@ namespace Verse::Graphics
         
         //CLEANUP
         //----------------------------------------
-        void destroySwapchain();
-        void destroy();
+        void cleanSwapchain();
+        void clean();
         //----------------------------------------
     };
 }

@@ -11,4 +11,6 @@ namespace Verse::Graphics::Renderer
     RenderData create(WindowData &win, Vec2<> resolution, bool vsync = true);
 
     void test(WindowData &win, RenderData &render);
+
+    void clean(RenderData &render);
 }

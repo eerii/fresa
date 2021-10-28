@@ -32,3 +32,12 @@ void API::renderTest(WindowData &win, RenderData &render) {
         GL::renderTest(win, render);
     #endif
 }
+
+void API::clean(RenderData &render) {
+    #if defined USE_VULKAN
+        render.api.clean();
+    #elif defined USE_OPENGL
+        GL::clean(render.api);
+    #endif
+    
+}

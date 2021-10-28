@@ -11,18 +11,11 @@
 namespace Verse::Graphics
 {
     struct TextureData {
-        //TODO: REMOVE THIS
-        std::vector<float> vertices;
-        glm::mat4 model;
-        int layer;
-        //-----------
-        
-        ui16 w, h;
-        
+        int w, h, ch;
     #if defined USE_OPENGL
         ui32 id_;
     #elif defined USE_VULKAN
-            
+        
     #endif
     };
 }

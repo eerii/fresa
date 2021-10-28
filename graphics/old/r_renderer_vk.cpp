@@ -84,7 +84,7 @@ void Graphics::Renderer::clear(Config &c) {
 
 
 void Graphics::Renderer::destroy() {
-    vulkan->destroy();
+    vulkan->clean();
 }
 
 

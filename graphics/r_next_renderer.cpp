@@ -28,3 +28,7 @@ RenderData Renderer::create(WindowData &win, Vec2<> resolution, bool vsync) {
 void Renderer::test(WindowData &win, RenderData &render) {
     API::renderTest(win, render);
 }
+
+void Renderer::clean(RenderData &render) {
+    API::clean(render);
+}
