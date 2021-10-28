@@ -20,8 +20,8 @@ inline void draw_label(str label, EntityID eid = 0) {
     ImGui::Text("%s", label.c_str());
 }
 
-template<typename T>
-std::enable_if_t<std::is_integral_v<T>> draw_int(T &n, str label, EntityID eid = 0, std::function<void()> callback = [](){},
+template<typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
+void draw_int(T &n, str label, EntityID eid = 0, std::function<void()> callback = [](){},
                                                  float speed = 1.0f, int min_val = -1e3, int max_val = 1e3) {
     draw_label(label, eid);
     
@@ -39,8 +39,8 @@ std::enable_if_t<std::is_integral_v<T>> draw_int(T &n, str label, EntityID eid =
     ImGui::PopID();
 }
 
-template<typename T>
-std::enable_if_t<std::is_floating_point_v<T>> draw_float(T &f, str label, EntityID eid = 0, std::function<void()> callback = []() {},
+template<typename T, std::enable_if_t<std::is_floating_point<T>::value, bool> = true>
+void draw_float(T &f, str label, EntityID eid = 0, std::function<void()> callback = []() {},
                                                          float speed = 0.1f, float min_val = -1.0e3, float max_val = 1.0e3) {
     draw_label(label, eid);
     

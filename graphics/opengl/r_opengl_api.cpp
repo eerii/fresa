@@ -8,7 +8,6 @@
 
 #include "r_window.h"
 #include "r_shader.h"
-#include "r_vertex.h"
 
 #include <glm/ext.hpp>
 #include "ftime.h"
@@ -44,7 +43,6 @@ OpenGL GL::create(WindowData &win) {
     GL::Init::createVertexArrays(gl);
     GL::Init::validateShaderData(gl);
     GL::Init::createVertexBuffers(gl);
-    GL::Init::configureVertexAttributes(gl);
     GL::Init::configureProperties();
     
     return gl;
@@ -100,12 +98,12 @@ void GL::Init::createShaderData(OpenGL &gl) {
 }
 
 void GL::Init::createFramebuffers(OpenGL &gl, WindowData &win) {
-    gl.framebuffer = GL::Buffers::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
+    gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
     log::graphics("Created OpenGL framebuffers");
 }
 
 void GL::Init::createVertexArrays(OpenGL &gl) {
-    gl.vao = GL::Buffers::createVertexArray();
+    gl.vao = GL::createVertexArray<VertexData>();
     log::graphics("Created OpenGL vertex arrays");
 }
 
@@ -117,24 +115,8 @@ void GL::Init::validateShaderData(OpenGL &gl) {
 }
 
 void GL::Init::createVertexBuffers(OpenGL &gl) {
-    gl.vbo = GL::Buffers::createVertexBuffer(gl.vao);
+    gl.vbo = GL::createVertexBuffer(gl.vao);
     log::graphics("Created OpenGL vertex buffers");
-}
-
-void GL::Init::configureVertexAttributes(OpenGL &gl) {
-    glBindVertexArray(gl.vao.id_);
-    glBindBuffer(GL_ARRAY_BUFFER, gl.vbo.id_);
-    
-    for (const auto &attr : gl.vao.attributes) {
-        ui32 size = (ui32)attr.format; //Assuming float
-        glVertexAttribPointer(attr.location, size, GL_FLOAT, GL_FALSE, sizeof(VertexData), reinterpret_cast<void*>(attr.offset));
-        glEnableVertexAttribArray(attr.location);
-    }
-    glCheckError();
-    
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-    log::graphics("Configured OpenGL vertex attributes, number of attributes: %d", gl.vao.attributes.size());
 }
 
 void GL::Init::configureProperties() {
@@ -151,7 +133,7 @@ void GL::Init::configureProperties() {
 //BUFFERS
 //----------------------------------------
 
-FramebufferData GL::Buffers::createFramebuffer(Vec2<> size, FramebufferType type) {
+FramebufferData GL::createFramebuffer(Vec2<> size, FramebufferType type) {
     FramebufferData fb;
     
     glGenFramebuffers(1, &fb.id_);
@@ -189,23 +171,23 @@ FramebufferData GL::Buffers::createFramebuffer(Vec2<> size, FramebufferType type
     return fb;
 }
 
-VertexArrayData GL::Buffers::createVertexArray() {
-    VertexArrayData vao;
-    
-    glGenVertexArrays(1, &vao.id_);
-    vao.attributes = Vertex::getAttributeDescriptions();
-    glCheckError();
-    
-    return vao;
-}
-
-BufferData GL::Buffers::createVertexBuffer(VertexArrayData &vao) {
+BufferData GL::createVertexBuffer(VertexArrayData &vao) {
     BufferData vbo;
     
     glBindVertexArray(vao.id_);
+    
     glGenBuffers(1, &vbo.id_);
-    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo.id_);
+    
+    for (const auto &attr : vao.attributes) {
+        ui32 size = (ui32)attr.format; //Assuming float
+        glVertexAttribPointer(attr.location, size, GL_FLOAT, GL_FALSE, sizeof(VertexData), reinterpret_cast<void*>(attr.offset));
+        glEnableVertexAttribArray(attr.location);
+    }
     glCheckError();
+    
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
     
     return vbo;
 }
