@@ -37,7 +37,7 @@ OpenGL GL::create(WindowData &win) {
     OpenGL gl;
     
     GL::Init::createContext(gl, win);
-    GL::Init::initImGUI(gl, win);
+    GL::GUI::initImGUI(gl, win);
     GL::Init::createShaderData(gl);
     GL::Init::createFramebuffers(gl, win);
     GL::Init::createVertexArrays(gl);
@@ -210,28 +210,6 @@ BufferData GL::createVertexBuffer(VertexArrayData &vao) {
 
 
 
-//GUI
-//----------------------------------------
-
-void GL::Init::initImGUI(OpenGL &gl, WindowData &win) {
-    #ifndef DISABLE_GUI
-    gl.imgui_context = ImGui::CreateContext();
-    if (gl.imgui_context == nullptr)
-        log::error("Error creating ImGui context: ", SDL_GetError());
-    ImPlot::CreateContext();
-    gl.io = ImGui::GetIO();
-    if (not ImGui_ImplSDL2_InitForOpenGL(win.window, gl.context))
-        log::error("Error initializing ImGui for SDL");
-    if (not ImGui_ImplOpenGL3_Init())
-        log::error("Error initializing ImGui for OpenGL");
-    glCheckError();
-    #endif
-}
-
-//----------------------------------------
-
-
-
 //TEST
 //----------------------------------------
 
@@ -286,6 +264,48 @@ void GL::renderTest(WindowData &win, RenderData &render) {
     //Present
     SDL_GL_SetSwapInterval(0); //See if it is needed all frames
     SDL_GL_SwapWindow(win.window);
+}
+
+//----------------------------------------
+
+
+
+//GUI
+//----------------------------------------
+
+void GL::GUI::initImGUI(OpenGL &gl, WindowData &win) {
+    #ifndef DISABLE_GUI
+    gl.imgui_context = ImGui::CreateContext();
+    if (gl.imgui_context == nullptr)
+        log::error("Error creating ImGui context: ", SDL_GetError());
+    ImPlot::CreateContext();
+    gl.io = ImGui::GetIO();
+    if (not ImGui_ImplSDL2_InitForOpenGL(win.window, gl.context))
+        log::error("Error initializing ImGui for SDL");
+    if (not ImGui_ImplOpenGL3_Init())
+        log::error("Error initializing ImGui for OpenGL");
+    glCheckError();
+    #endif
+}
+
+//----------------------------------------
+
+
+
+//GUI
+//----------------------------------------
+
+void GL::clean(OpenGL &gl) {
+    glDeleteBuffers(1, &gl.vbo.id_);
+    glDeleteBuffers(1, &gl.ibo.id_);
+    
+    for(auto &[key, val] : gl.shaders) {
+        glDeleteProgram(val.pid);
+    }
+    
+    glDeleteVertexArrays(1, &gl.vao.id_);
+    
+    log::graphics("Cleaned up OpenGL");
 }
 
 //----------------------------------------

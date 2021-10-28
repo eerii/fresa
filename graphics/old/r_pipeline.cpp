@@ -99,5 +99,5 @@ void Graphics::render(Config &c) {
 
 
 void Graphics::destroy() {
-    Renderer::destroy();
+    //Renderer::clean();
 }

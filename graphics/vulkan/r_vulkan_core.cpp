@@ -483,7 +483,7 @@ VkImageView Vulkan::createImageView(VkImage image, VkImageAspectFlags aspect_fla
 void Vulkan::recreateSwapchain(WindowData &win) {
     vkDeviceWaitIdle(device);
     
-    destroySwapchain();
+    cleanSwapchain();
     
     createSwapchain(win);
     createImageViews();
@@ -1228,7 +1228,7 @@ void Vulkan::updateUniformBuffer(ui32 current_image) {
 //CLEANUP
 //----------------------------------------
 
-void Vulkan::destroySwapchain() {
+void Vulkan::cleanSwapchain() {
     for (VkFramebuffer fb : swapchain_framebuffers)
         vkDestroyFramebuffer(device, fb, nullptr);
     
@@ -1251,10 +1251,10 @@ void Vulkan::destroySwapchain() {
     vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
 }
 
-void Vulkan::destroy() {
+void Vulkan::clean() {
     vkDeviceWaitIdle(device);
     
-    destroySwapchain();
+    cleanSwapchain();
     
     vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
     
@@ -1277,6 +1277,8 @@ void Vulkan::destroy() {
     
     vkDestroySurfaceKHR(instance, surface, nullptr);
     vkDestroyInstance(instance, nullptr);
+    
+    log::graphics("Cleaned up Vulkan");
 }
 
 //----------------------------------------
