@@ -40,6 +40,8 @@ static constexpr std::array<const char*, ::Verse::Reflection::Impl::n_args(#__VA
         while(Type::member_name_data[++i] != '\0'); } \
     return out;}(); \
 \
+static constexpr size_t size = ::Verse::Reflection::Impl::n_args(#__VA_ARGS__); \
+\
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_equal, OT>, int> = 0> \
 friend bool operator==(const Type& lhs, const OT& rhs) { return lhs.members() == rhs.members(); } \
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_nequal, OT>, int> = 0> \

@@ -16,6 +16,7 @@ namespace Verse::Graphics
         glm::vec2 pos;
         glm::vec3 color;
     };
+    //Needs to be ordered the same way as the shader
 
     enum VertexFormat {
         VERTEX_FORMAT_R_F = 1,

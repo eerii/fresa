@@ -11,6 +11,8 @@
 #include "r_windowdata.h"
 #include "r_renderdata.h"
 
+#include "r_vertex.h"
+
 namespace Verse::Graphics::GL
 {
     void config();
@@ -25,18 +27,23 @@ namespace Verse::Graphics::GL
         void createVertexArrays(OpenGL &gl);
         void validateShaderData(OpenGL &gl);
         void createVertexBuffers(OpenGL &gl);
-        void configureVertexAttributes(OpenGL &gl);
         void configureProperties();
     
         void initImGUI(OpenGL &gl, WindowData &win);
     }
 
-    namespace Buffers
-    {
-        FramebufferData createFramebuffer(Vec2<> size, FramebufferType type);
-        VertexArrayData createVertexArray();
-        BufferData createVertexBuffer(VertexArrayData &vao);
+    FramebufferData createFramebuffer(Vec2<> size, FramebufferType type);
+
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    VertexArrayData createVertexArray() {
+        VertexArrayData vao;
+        glGenVertexArrays(1, &vao.id_);
+        vao.attributes = Vertex::getAttributeDescriptions<V>();
+        glCheckError();
+        return vao;
     }
+
+    BufferData createVertexBuffer(VertexArrayData &vao);
 
     void renderTest(WindowData &win, RenderData &render);
 }

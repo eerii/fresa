@@ -583,7 +583,7 @@ void Vulkan::prepareRenderInfoVertexInput() {
     rendering_create_info.vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     
     rendering_create_info.vertex_input_binding_description = Vertex::getBindingDescriptionVK();
-    rendering_create_info.vertex_input_attribute_descriptions = Vertex::getAttributeDescriptionsVK();
+    rendering_create_info.vertex_input_attribute_descriptions = Vertex::getAttributeDescriptionsVK<VertexData>();
     
     rendering_create_info.vertex_input.vertexBindingDescriptionCount = 1;
     rendering_create_info.vertex_input.pVertexBindingDescriptions = &rendering_create_info.vertex_input_binding_description;
