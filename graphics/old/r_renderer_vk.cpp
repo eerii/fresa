@@ -5,7 +5,7 @@
 #ifdef USE_VULKAN
 
 #include "r_renderer.h"
-#include "r_vulkan_core.h"
+#include "r_vulkan_api.h"
 
 #include <glm/ext.hpp>
 
@@ -16,10 +16,10 @@ using namespace Graphics;
 using namespace glm;
 
 namespace {
-    Vulkan *vulkan;
+    VulkanOld *vulkan;
 }
 
-void Graphics::Renderer::create(Vulkan *vk, Config &c) {
+void Graphics::Renderer::create(VulkanOld *vk, Config &c) {
     vulkan = vk;
 }
 

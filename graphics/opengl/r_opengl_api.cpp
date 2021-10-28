@@ -5,6 +5,7 @@
 #ifdef USE_OPENGL
 
 #include "r_opengl_api.h"
+#include "r_api.h"
 
 #include "r_window.h"
 #include "r_shader.h"
@@ -18,7 +19,7 @@ using namespace Graphics;
 //INITIALIZATION
 //----------------------------------------
 
-void GL::config() {
+void API::configure() {
     #ifdef __EMSCRIPTEN__
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -33,7 +34,7 @@ void GL::config() {
     #endif
 }
 
-OpenGL GL::create(WindowData &win) {
+OpenGL API::create(WindowData &win) {
     OpenGL gl;
     
     GL::Init::createContext(gl, win);
@@ -226,7 +227,7 @@ namespace {
     };
 }
 
-void GL::renderTest(WindowData &win, RenderData &render) {
+void API::renderTest(WindowData &win, RenderData &render) {
     //Clear
     glClearColor(0.1f, 0.1f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -295,15 +296,15 @@ void GL::GUI::initImGUI(OpenGL &gl, WindowData &win) {
 //GUI
 //----------------------------------------
 
-void GL::clean(OpenGL &gl) {
-    glDeleteBuffers(1, &gl.vbo.id_);
-    glDeleteBuffers(1, &gl.ibo.id_);
+void API::clean(RenderData &render) {
+    glDeleteBuffers(1, &render.api.vbo.id_);
+    glDeleteBuffers(1, &render.api.ibo.id_);
     
-    for(auto &[key, val] : gl.shaders) {
+    for(auto &[key, val] : render.api.shaders) {
         glDeleteProgram(val.pid);
     }
     
-    glDeleteVertexArrays(1, &gl.vao.id_);
+    glDeleteVertexArrays(1, &render.api.vao.id_);
     
     log::graphics("Cleaned up OpenGL");
 }

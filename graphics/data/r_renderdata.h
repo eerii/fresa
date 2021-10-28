@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "r_vulkan_core.h"
+#include "r_vulkan_api.h"
 #include "r_opengl.h"
 
 namespace Verse::Graphics
 {
     #if defined USE_VULKAN
-        using GraphicsAPI = Vulkan;
+        using GraphicsAPI = VulkanOld;
     #elif defined USE_OPENGL
         using GraphicsAPI = OpenGL;
     #endif

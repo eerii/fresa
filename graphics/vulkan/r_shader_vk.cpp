@@ -7,6 +7,7 @@
 #include "r_shader.h"
 
 #include <fstream>
+#include <vector>
 
 #include "log.h"
 

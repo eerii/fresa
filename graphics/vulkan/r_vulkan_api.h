@@ -18,11 +18,9 @@
 
 namespace Verse::Graphics
 {
-    struct Vulkan;
+    struct VulkanOld;
 
     namespace VK {
-        Vulkan create(WindowData &win);
-
         struct QueueFamilyIndices {
             std::optional<ui32> graphics_queue_family_index;
             std::optional<ui32> present_queue_family_index;
@@ -63,7 +61,7 @@ namespace Verse::Graphics
         };
     }
 
-    struct Vulkan {
+    struct VulkanOld {
         //DEVICE
         //----------------------------------------
         VkInstance instance;

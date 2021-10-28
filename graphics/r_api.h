@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "r_vulkan_core.h"
+#include "r_vulkan_api.h"
 #include "r_opengl_api.h"
 
 #include "r_windowdata.h"
