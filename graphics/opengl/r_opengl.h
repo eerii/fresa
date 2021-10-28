@@ -46,6 +46,7 @@ namespace Verse::Graphics
         FramebufferData framebuffer;
         VertexArrayData vao;
         BufferData vbo;
+        BufferData ibo;
         
         #ifndef DISABLE_GUI
         ImGuiContext* imgui_context;

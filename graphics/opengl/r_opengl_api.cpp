@@ -43,6 +43,7 @@ OpenGL GL::create(WindowData &win) {
     GL::Init::createVertexArrays(gl);
     GL::Init::validateShaderData(gl);
     GL::Init::createVertexBuffers(gl);
+    GL::Init::createIndexBuffer(gl);
     GL::Init::configureProperties();
     
     return gl;
@@ -119,6 +120,11 @@ void GL::Init::createVertexBuffers(OpenGL &gl) {
     log::graphics("Created OpenGL vertex buffers");
 }
 
+void GL::Init::createIndexBuffer(OpenGL &gl) {
+    gl.ibo = GL::createBuffer(gl.vao);
+    log::graphics("Created OpenGL index buffer");
+}
+
 void GL::Init::configureProperties() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -171,12 +177,20 @@ FramebufferData GL::createFramebuffer(Vec2<> size, FramebufferType type) {
     return fb;
 }
 
-BufferData GL::createVertexBuffer(VertexArrayData &vao) {
-    BufferData vbo;
+BufferData GL::createBuffer(VertexArrayData &vao) {
+    BufferData buffer;
     
     glBindVertexArray(vao.id_);
+    glGenBuffers(1, &buffer.id_);
+    glBindVertexArray(0);
     
-    glGenBuffers(1, &vbo.id_);
+    return buffer;
+}
+
+BufferData GL::createVertexBuffer(VertexArrayData &vao) {
+    BufferData vbo = createBuffer(vao);
+    
+    glBindVertexArray(vao.id_);
     glBindBuffer(GL_ARRAY_BUFFER, vbo.id_);
     
     for (const auto &attr : vao.attributes) {
@@ -222,14 +236,15 @@ void GL::Init::initImGUI(OpenGL &gl, WindowData &win) {
 //----------------------------------------
 
 namespace {
-    const std::array<VertexData, 6> vertices = {
+    const std::array<VertexData, 4> vertices = {
         VertexData{{-0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
         VertexData{{-0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
         VertexData{{0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}},
-        
-        VertexData{{0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}},
-        VertexData{{-0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
-        VertexData{{0.5f, 0.5f}, {0.7f, 0.2f, 0.7f}},
+        VertexData{{0.5f, 0.5f}, {0.7f, 0.3f, 0.7f}},
+    };
+
+    const std::array<ui16, 6> indices = {
+        0, 1, 2, 2, 3, 0
     };
 }
 
@@ -244,12 +259,14 @@ void GL::renderTest(WindowData &win, RenderData &render) {
     //Test shader
     glUseProgram(render.api.shaders["test_gl"].pid);
     
-    //Bind VAO and VBO
+    //Bind VAO, VBO and IBO
     glBindVertexArray(render.api.vao.id_);
     glBindBuffer(GL_ARRAY_BUFFER, render.api.vbo.id_);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, render.api.ibo.id_);
     
     //Buffer data
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices.data(), GL_STATIC_DRAW); //This can be done in advance
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices.data(), GL_STATIC_DRAW);
     
     //Matrices (improve)
     static Clock::time_point start_time = time();
@@ -264,7 +281,7 @@ void GL::renderTest(WindowData &win, RenderData &render) {
     glUniformMatrix4fv(render.api.shaders["test_gl"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(mvp));
     
     //Draw (add indexed)
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, (void*)0);
     
     //Present
     SDL_GL_SetSwapInterval(0); //See if it is needed all frames

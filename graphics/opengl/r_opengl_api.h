@@ -27,6 +27,7 @@ namespace Verse::Graphics::GL
         void createVertexArrays(OpenGL &gl);
         void validateShaderData(OpenGL &gl);
         void createVertexBuffers(OpenGL &gl);
+        void createIndexBuffer(OpenGL &gl);
         void configureProperties();
     
         void initImGUI(OpenGL &gl, WindowData &win);
@@ -43,6 +44,7 @@ namespace Verse::Graphics::GL
         return vao;
     }
 
+    BufferData createBuffer(VertexArrayData &vao);
     BufferData createVertexBuffer(VertexArrayData &vao);
 
     void renderTest(WindowData &win, RenderData &render);
