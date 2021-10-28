@@ -4,7 +4,8 @@
 
 #ifdef USE_VULKAN
 
-#include "r_vulkan_core.h"
+#include "r_vulkan_api.h"
+#include "r_api.h"
 
 #include "ftime.h"
 #include "r_shader.h"
@@ -21,12 +22,6 @@ namespace {
         {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
         {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
         {{-0.5f, -0.5f}, {0.7f, 0.3f, 0.7f}},
-        /*{{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},
-        {{1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
-        {{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}},
-        {{1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-        {{-1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},*/
     };
 
     const std::vector<ui16> indices = {
@@ -45,11 +40,15 @@ namespace {
 
 
 
-//CREATION
+//INITIALIZATION
 //----------------------------------------
 
-Vulkan Verse::Graphics::VK::create(WindowData &win) {
-    Vulkan vulkan;
+void API::configure() {
+    
+}
+
+VulkanOld API::create(WindowData &win) {
+    VulkanOld vulkan;
     
     vulkan.createInstance(win);
     vulkan.createDebug();
@@ -90,7 +89,7 @@ Vulkan Verse::Graphics::VK::create(WindowData &win) {
 //DEVICE
 //----------------------------------------
 
-void Vulkan::createInstance(WindowData &win) {
+void VulkanOld::createInstance(WindowData &win) {
     log::graphics("");
     
     ui32 extension_count;
@@ -145,7 +144,7 @@ void Vulkan::createInstance(WindowData &win) {
         log::error("Error creating Vulkan Instance");
 }
 
-ui16 Vulkan::ratePhysicalDevice(VkPhysicalDevice physical_device) {
+ui16 VulkanOld::ratePhysicalDevice(VkPhysicalDevice physical_device) {
     VkPhysicalDeviceProperties device_properties;
     vkGetPhysicalDeviceProperties(physical_device, &device_properties);
     
@@ -189,7 +188,7 @@ ui16 Vulkan::ratePhysicalDevice(VkPhysicalDevice physical_device) {
     return score;
 }
 
-void Vulkan::selectPhysicalDevice() {
+void VulkanOld::selectPhysicalDevice() {
     ui32 device_count = 0;
     vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
     
@@ -224,7 +223,7 @@ void Vulkan::selectPhysicalDevice() {
         log::error("No GPU passed the Vulkan Physical Device Requirements.");
 }
 
-VK::QueueFamilyIndices Vulkan::getQueueFamilies(VkPhysicalDevice physical_device) {
+VK::QueueFamilyIndices VulkanOld::getQueueFamilies(VkPhysicalDevice physical_device) {
     ui32 queue_family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, nullptr);
     
@@ -258,11 +257,11 @@ VK::QueueFamilyIndices Vulkan::getQueueFamilies(VkPhysicalDevice physical_device
     return indices;
 }
 
-void Vulkan::selectQueueFamily() {
+void VulkanOld::selectQueueFamily() {
     queue_families = getQueueFamilies(physical_device);
 }
 
-void Vulkan::createDevice() {
+void VulkanOld::createDevice() {
     std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
     
     std::set<ui32> unique_queue_families{};
@@ -320,7 +319,7 @@ void Vulkan::createDevice() {
     log::graphics("");
 }
 
-void Vulkan::createSurface(WindowData &win) {
+void VulkanOld::createSurface(WindowData &win) {
     if (not SDL_Vulkan_CreateSurface(win.window, instance, &surface))
         log::error("Error while creating a Vulkan Surface (from createSurface): %s", SDL_GetError());
 }
@@ -332,7 +331,7 @@ void Vulkan::createSurface(WindowData &win) {
 //SWAPCHAIN
 //----------------------------------------
 
-VK::SwapchainSupportDetails Vulkan::getSwapchainSupport(VkPhysicalDevice physical_device) {
+VK::SwapchainSupportDetails VulkanOld::getSwapchainSupport(VkPhysicalDevice physical_device) {
     VK::SwapchainSupportDetails details;
     
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &details.capabilities);
@@ -354,7 +353,7 @@ VK::SwapchainSupportDetails Vulkan::getSwapchainSupport(VkPhysicalDevice physica
     return details;
 }
 
-VkSurfaceFormatKHR Vulkan::selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available_formats) {
+VkSurfaceFormatKHR VulkanOld::selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available_formats) {
     for (VkSurfaceFormatKHR fmt : available_formats) {
         if (fmt.format == VK_FORMAT_B8G8R8A8_SRGB && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             return fmt;
@@ -362,7 +361,7 @@ VkSurfaceFormatKHR Vulkan::selectSwapSurfaceFormat(const std::vector<VkSurfaceFo
     return available_formats[0];
 }
 
-VkPresentModeKHR Vulkan::selectSwapPresentMode(const std::vector<VkPresentModeKHR> &available_present_modes) {
+VkPresentModeKHR VulkanOld::selectSwapPresentMode(const std::vector<VkPresentModeKHR> &available_present_modes) {
     //Fifo: Vsync, when the queue is full the program waits
     //Mailbox: Triple buffering, the program replaces the last images of the queue, less latency but more power consumption
     
@@ -377,7 +376,7 @@ VkPresentModeKHR Vulkan::selectSwapPresentMode(const std::vector<VkPresentModeKH
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D Vulkan::selectSwapExtent(WindowData &win, const VkSurfaceCapabilitiesKHR &capabilities) {
+VkExtent2D VulkanOld::selectSwapExtent(WindowData &win, const VkSurfaceCapabilitiesKHR &capabilities) {
     if (capabilities.currentExtent.width != UINT32_MAX)
         return capabilities.currentExtent;
     
@@ -392,7 +391,7 @@ VkExtent2D Vulkan::selectSwapExtent(WindowData &win, const VkSurfaceCapabilities
     return actual_extent;
 }
 
-void Vulkan::createSwapchain(WindowData &win) {
+void VulkanOld::createSwapchain(WindowData &win) {
     VK::SwapchainSupportDetails swapchain_support = getSwapchainSupport(physical_device);
     
     VkSurfaceFormatKHR surface_format = selectSwapSurfaceFormat(swapchain_support.formats);
@@ -444,7 +443,7 @@ void Vulkan::createSwapchain(WindowData &win) {
     vkGetSwapchainImagesKHR(device, swapchain, &image_count, swapchain_images.data());
 }
 
-void Vulkan::createImageViews() {
+void VulkanOld::createImageViews() {
     swapchain_image_views.resize(swapchain_images.size());
     
     for (int i = 0; i < swapchain_images.size(); i++)
@@ -453,7 +452,7 @@ void Vulkan::createImageViews() {
     log::graphics("Created all Vulkan Image Views");
 }
 
-VkImageView Vulkan::createImageView(VkImage image, VkImageAspectFlags aspect_flags) {
+VkImageView VulkanOld::createImageView(VkImage image, VkImageAspectFlags aspect_flags) {
     VkImageViewCreateInfo create_info{};
     
     create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -480,7 +479,7 @@ VkImageView Vulkan::createImageView(VkImage image, VkImageAspectFlags aspect_fla
     return image_view;
 }
 
-void Vulkan::recreateSwapchain(WindowData &win) {
+void VulkanOld::recreateSwapchain(WindowData &win) {
     vkDeviceWaitIdle(device);
     
     cleanSwapchain();
@@ -507,7 +506,7 @@ void Vulkan::recreateSwapchain(WindowData &win) {
 //PIPELINE
 //----------------------------------------
 
-void Vulkan::createRenderPass() {
+void VulkanOld::createRenderPass() {
     VkAttachmentDescription color_attachment{};
     
     color_attachment.format = swapchain_format;
@@ -554,7 +553,7 @@ void Vulkan::createRenderPass() {
     log::graphics("Created all Vulkan Render Passes");
 }
 
-VkSubpassDescription Vulkan::createRenderSubpass() {
+VkSubpassDescription VulkanOld::createRenderSubpass() {
     VkAttachmentReference color_attachment_ref{};
     color_attachment_ref.attachment = 0;
     color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -567,7 +566,7 @@ VkSubpassDescription Vulkan::createRenderSubpass() {
     return subpass;
 }
 
-void Vulkan::prepareRenderInfo() {
+void VulkanOld::prepareRenderInfo() {
     prepareRenderInfoVertexInput();
     prepareRenderInfoInputAssembly();
     prepareRenderInfoViewportState();
@@ -578,7 +577,7 @@ void Vulkan::prepareRenderInfo() {
     prepareRenderInfoColorBlendState();
 }
 
-void Vulkan::prepareRenderInfoVertexInput() {
+void VulkanOld::prepareRenderInfoVertexInput() {
     rendering_create_info.vertex_input = {};
     rendering_create_info.vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     
@@ -591,7 +590,7 @@ void Vulkan::prepareRenderInfoVertexInput() {
     rendering_create_info.vertex_input.pVertexAttributeDescriptions = rendering_create_info.vertex_input_attribute_descriptions.data();
 }
 
-void Vulkan::prepareRenderInfoInputAssembly() {
+void VulkanOld::prepareRenderInfoInputAssembly() {
     rendering_create_info.input_assembly = {};
     
     rendering_create_info.input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -599,7 +598,7 @@ void Vulkan::prepareRenderInfoInputAssembly() {
     rendering_create_info.input_assembly.primitiveRestartEnable = VK_FALSE; //Change when using an index buffer
 }
 
-void Vulkan::prepareRenderInfoViewportState() {
+void VulkanOld::prepareRenderInfoViewportState() {
     rendering_create_info.viewport = {};
     rendering_create_info.viewport.x = 0.0f;
     rendering_create_info.viewport.y = 0.0f;
@@ -621,7 +620,7 @@ void Vulkan::prepareRenderInfoViewportState() {
     rendering_create_info.viewport_state.pScissors = &rendering_create_info.scissor;
 }
 
-void Vulkan::prepareRenderInfoRasterizer() {
+void VulkanOld::prepareRenderInfoRasterizer() {
     rendering_create_info.rasterizer = {};
     
     rendering_create_info.rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -640,7 +639,7 @@ void Vulkan::prepareRenderInfoRasterizer() {
     rendering_create_info.rasterizer.depthBiasSlopeFactor = 0.0f;
 }
 
-void Vulkan::prepareRenderInfoMultisampling() {
+void VulkanOld::prepareRenderInfoMultisampling() {
     rendering_create_info.multisampling = {};
     
     rendering_create_info.multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -654,7 +653,7 @@ void Vulkan::prepareRenderInfoMultisampling() {
     rendering_create_info.multisampling.alphaToOneEnable = VK_FALSE;
 }
 
-void Vulkan::prepareRenderInfoDepthStencil() {
+void VulkanOld::prepareRenderInfoDepthStencil() {
     rendering_create_info.depth_stencil = {};
     
     rendering_create_info.depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -674,7 +673,7 @@ void Vulkan::prepareRenderInfoDepthStencil() {
     rendering_create_info.depth_stencil.back = {};
 }
 
-void Vulkan::prepareRenderInfoColorBlendAttachment() {
+void VulkanOld::prepareRenderInfoColorBlendAttachment() {
     rendering_create_info.color_blend_attachment = {};
     
     rendering_create_info.color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -690,7 +689,7 @@ void Vulkan::prepareRenderInfoColorBlendAttachment() {
     rendering_create_info.color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 }
 
-void Vulkan::prepareRenderInfoColorBlendState() {
+void VulkanOld::prepareRenderInfoColorBlendState() {
     rendering_create_info.color_blend_state = {};
 
     rendering_create_info.color_blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -707,7 +706,7 @@ void Vulkan::prepareRenderInfoColorBlendState() {
     rendering_create_info.color_blend_state.blendConstants[3] = 0.0f;
 }
 
-void Vulkan::createDescriptorSetLayout() {
+void VulkanOld::createDescriptorSetLayout() {
     VkDescriptorSetLayoutBinding ubo_layout_binding{};
     ubo_layout_binding.binding = 0;
     ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -724,7 +723,7 @@ void Vulkan::createDescriptorSetLayout() {
         log::error("Error creating the Vulkan Descriptor Set Layout for Uniform Buffers");
 }
 
-void Vulkan::createPipelineLayout() {
+void VulkanOld::createPipelineLayout() {
     VkPipelineLayoutCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     
@@ -740,7 +739,7 @@ void Vulkan::createPipelineLayout() {
     log::graphics("Created the Vulkan Pipeline Layout");
 }
 
-void Vulkan::createGraphicsPipeline() {
+void VulkanOld::createGraphicsPipeline() {
     std::vector<char> vert_shader_code = Graphics::Shader::readSPIRV("res/shaders/test/test.vert.spv");
     std::vector<char> frag_shader_code = Graphics::Shader::readSPIRV("res/shaders/test/test.frag.spv");
     
@@ -793,7 +792,7 @@ void Vulkan::createGraphicsPipeline() {
 //BUFFERS
 //----------------------------------------
 
-void Vulkan::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &memory) {
+void VulkanOld::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &memory) {
     VkBufferCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     create_info.size = size;
@@ -818,7 +817,7 @@ void Vulkan::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryP
     vkBindBufferMemory(device, buffer, memory, 0);
 }
 
-void Vulkan::createVertexBuffer(const std::vector<Graphics::VertexData> &vertices) {
+void VulkanOld::createVertexBuffer(const std::vector<Graphics::VertexData> &vertices) {
     VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
     
     VkBuffer staging_buffer;
@@ -843,7 +842,7 @@ void Vulkan::createVertexBuffer(const std::vector<Graphics::VertexData> &vertice
     vkFreeMemory(device, staging_buffer_memory, nullptr);
 }
 
-void Vulkan::createIndexBuffer(const std::vector<ui16> &indices) {
+void VulkanOld::createIndexBuffer(const std::vector<ui16> &indices) {
     VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
     index_buffer_size = (ui32)indices.size();
     
@@ -869,7 +868,7 @@ void Vulkan::createIndexBuffer(const std::vector<ui16> &indices) {
     vkFreeMemory(device, staging_buffer_memory, nullptr);
 }
 
-void Vulkan::copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+void VulkanOld::copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) {
     VkCommandBufferAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocate_info.commandPool = temp_command_pool;
@@ -902,7 +901,7 @@ void Vulkan::copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) {
     vkFreeCommandBuffers(device, temp_command_pool, 1, &command_buffer);
 }
 
-ui32 Vulkan::getMemoryType(ui32 filter, VkMemoryPropertyFlags properties) {
+ui32 VulkanOld::getMemoryType(ui32 filter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memory_properties;
     vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
     
@@ -922,7 +921,7 @@ ui32 Vulkan::getMemoryType(ui32 filter, VkMemoryPropertyFlags properties) {
 //RENDERING
 //----------------------------------------
 
-void Vulkan::createFramebuffers() {
+void VulkanOld::createFramebuffers() {
     swapchain_framebuffers.resize(swapchain_image_views.size());
     
     for (int i = 0; i < swapchain_framebuffers.size(); i++) {
@@ -942,7 +941,7 @@ void Vulkan::createFramebuffers() {
     log::graphics("Created all Vulkan Framebuffers");
 }
 
-void Vulkan::createCommandPools() {
+void VulkanOld::createCommandPools() {
     //Main command pool
     
     VkCommandPoolCreateInfo create_info{};
@@ -966,7 +965,7 @@ void Vulkan::createCommandPools() {
     log::graphics("Created all Vulkan Command Pools");
 }
 
-void Vulkan::createCommandBuffers() {
+void VulkanOld::createCommandBuffers() {
     command_buffers.resize(swapchain_framebuffers.size());
     
     VkCommandBufferAllocateInfo allocate_info{};
@@ -996,7 +995,7 @@ void Vulkan::createCommandBuffers() {
     log::graphics("Created all Vulkan Command Buffers");
 }
 
-void Vulkan::recordCommandBuffer(VkCommandBuffer &command_buffer, VkFramebuffer &framebuffer, VkDescriptorSet &descriptor_set) {
+void VulkanOld::recordCommandBuffer(VkCommandBuffer &command_buffer, VkFramebuffer &framebuffer, VkDescriptorSet &descriptor_set) {
     std::array<VkClearValue, 2> clear_values{};
     clear_values[0].color = {0.02f, 0.02f, 0.02f, 1.0f};
     clear_values[1].depthStencil = {1.0f, 0};
@@ -1027,7 +1026,7 @@ void Vulkan::recordCommandBuffer(VkCommandBuffer &command_buffer, VkFramebuffer 
     vkCmdEndRenderPass(command_buffer);
 }
 
-void Vulkan::createSyncObjects() {
+void VulkanOld::createSyncObjects() {
     semaphores_image_available.resize(MAX_FRAMES_IN_FLIGHT);
     semaphores_render_finished.resize(MAX_FRAMES_IN_FLIGHT);
     fences_in_flight.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1054,7 +1053,7 @@ void Vulkan::createSyncObjects() {
     log::graphics("Created all Vulkan Semaphores");
 }
 
-void Vulkan::renderFrame(WindowData &win) {
+void VulkanOld::renderFrame(WindowData &win) {
     vkWaitForFences(device, 1, &fences_in_flight[current_frame], VK_TRUE, UINT64_MAX);
     
     VkResult result;
@@ -1133,7 +1132,7 @@ void Vulkan::renderFrame(WindowData &win) {
 //UNIFORM
 //----------------------------------------
 
-void Vulkan::createUniformBuffers() {
+void VulkanOld::createUniformBuffers() {
     VkDeviceSize buffer_size = sizeof(VK::UniformBufferObject);
     
     uniform_buffers.resize(swapchain_images.size());
@@ -1148,7 +1147,7 @@ void Vulkan::createUniformBuffers() {
     log::graphics("Created Vulkan Uniform Buffers");
 }
 
-void Vulkan::createDescriptorPool() {
+void VulkanOld::createDescriptorPool() {
     VkDescriptorPoolSize pool_size{};
     pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     pool_size.descriptorCount = static_cast<ui32>(swapchain_images.size());
@@ -1165,7 +1164,7 @@ void Vulkan::createDescriptorPool() {
     log::graphics("Created a Vulkan Descriptor Pool");
 }
 
-void Vulkan::createDescriptorSets() {
+void VulkanOld::createDescriptorSets() {
     std::vector<VkDescriptorSetLayout> layouts(swapchain_images.size(), descriptor_set_layout);
     
     VkDescriptorSetAllocateInfo allocate_info{};
@@ -1201,7 +1200,7 @@ void Vulkan::createDescriptorSets() {
     }
 }
 
-void Vulkan::updateUniformBuffer(ui32 current_image) {
+void VulkanOld::updateUniformBuffer(ui32 current_image) {
     //EXAMPLE FUNCTION
     
     static Clock::time_point start_time = time();
@@ -1225,10 +1224,21 @@ void Vulkan::updateUniformBuffer(ui32 current_image) {
 
 
 
+//TEST
+//----------------------------------------
+
+void API::renderTest(WindowData &win, RenderData &render) {
+    render.api.renderFrame(win);
+}
+
+//----------------------------------------
+
+
+
 //CLEANUP
 //----------------------------------------
 
-void Vulkan::cleanSwapchain() {
+void VulkanOld::cleanSwapchain() {
     for (VkFramebuffer fb : swapchain_framebuffers)
         vkDestroyFramebuffer(device, fb, nullptr);
     
@@ -1251,7 +1261,7 @@ void Vulkan::cleanSwapchain() {
     vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
 }
 
-void Vulkan::clean() {
+void VulkanOld::clean() {
     vkDeviceWaitIdle(device);
     
     cleanSwapchain();
@@ -1279,6 +1289,10 @@ void Vulkan::clean() {
     vkDestroyInstance(instance, nullptr);
     
     log::graphics("Cleaned up Vulkan");
+}
+
+void API::clean(RenderData &render) {
+    render.api.clean();
 }
 
 //----------------------------------------

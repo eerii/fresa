@@ -4,13 +4,17 @@
 
 #pragma once
 
-#include "config.h"
-
-
 #ifdef USE_VULKAN
 
 #include <vulkan/vulkan.h>
 #include <SDL2/SDL_vulkan.h>
+
+
+
+
+
+
+
 
 #endif
 

@@ -15,11 +15,8 @@
 
 namespace Verse::Graphics::GL
 {
-    void config();
-
     //INITIALIZATION
     //----------------------------------------
-    OpenGL create(WindowData &win);
     namespace Init
     {
         void createContext(OpenGL &gl, WindowData &win);
@@ -53,24 +50,12 @@ namespace Verse::Graphics::GL
     //----------------------------------------
 
 
-    //RENDER
-    //----------------------------------------
-    void renderTest(WindowData &win, RenderData &render);
-    //----------------------------------------
-
-
     //GUI
     //----------------------------------------
     namespace GUI
     {
         void initImGUI(OpenGL &gl, WindowData &win);
     }
-    //----------------------------------------
-
-
-    //CLEANUP
-    //----------------------------------------
-    void clean(OpenGL &gl);
     //----------------------------------------
 }
 

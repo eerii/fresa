@@ -194,7 +194,7 @@ void Graphics::Renderer::create(OpenGL *api, Config &c) {
 //fb_render, tex_render (c.resolution) using shaders[S_RENDER2D] or shaders[S_RENDER3D]
 //-----------------------------------------
 void Graphics::Renderer::renderTexture(Config &c, TextureData &data) {
-    //Render Target: fb_render
+    /*//Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(gl->shaders["render"].pid);
     glCheckError();
@@ -221,11 +221,11 @@ void Graphics::Renderer::renderTexture(Config &c, TextureData &data) {
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    glCheckError();
+    glCheckError();*/
 }
 
 void Graphics::Renderer::renderTilemap(Config &c, TextureData &data) {
-    //Render Target: fb_render
+    /*//Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(gl->shaders["render"].pid);
     glCheckError();
@@ -252,11 +252,11 @@ void Graphics::Renderer::renderTilemap(Config &c, TextureData &data) {
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    glCheckError();
+    glCheckError();*/
 }
 
 void Graphics::Renderer::renderNoise(Config &c, TextureData &mask_data, TextureData &noise_data) {
-    //Render Target: fb_render
+    /*//Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(gl->shaders["noise"].pid);
     glCheckError();
@@ -292,11 +292,11 @@ void Graphics::Renderer::renderNoise(Config &c, TextureData &mask_data, TextureD
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    glCheckError();
+    glCheckError();*/
 }
 
 void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float g, float b, bool same_color) {
-    //Render Target: fb_render
+    /*//Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glUseProgram(gl->shaders["text"].pid);
     glCheckError();
@@ -327,7 +327,7 @@ void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    glCheckError();
+    glCheckError();*/
 }
 //-----------------------------------------
 

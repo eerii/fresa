@@ -122,7 +122,7 @@ void Game::timeFrame(Config &c) {
     fps_time += ns(Time::next - Time::current);
     
     if (fps_time > 1.0e9) {
-        log::num(round(frames * (1.0e9 / fps_time)));
+        log::info("FPS - %d", (int)round(frames * (1.0e9 / fps_time)));
         frames = 0; fps_time = 0;
     }
     

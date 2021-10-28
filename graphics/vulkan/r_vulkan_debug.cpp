@@ -4,7 +4,7 @@
 
 #ifdef USE_VULKAN
 
-#include "r_vulkan_core.h"
+#include "r_vulkan_api.h"
 
 using namespace Verse;
 using namespace Graphics;
@@ -27,7 +27,7 @@ namespace Verse::Graphics
     }
 
     PFN_vkCreateDebugReportCallbackEXT SDL2_vkCreateDebugReportCallbackEXT = nullptr;
-    void Vulkan::createDebug()
+    void VulkanOld::createDebug()
     {
         SDL2_vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)SDL_Vulkan_GetVkGetInstanceProcAddr();
 
