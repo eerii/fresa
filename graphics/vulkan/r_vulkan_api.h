@@ -7,88 +7,36 @@
 #ifdef USE_VULKAN
 
 #include "r_vulkan.h"
+
 #include "r_windowdata.h"
-#include "r_vertex.h"
-
-#include "config.h"
-
-#include <optional>
+#include "r_vertexdata.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
-namespace Verse::Graphics
+namespace Verse::Graphics::VK
 {
-    struct VulkanOld;
-
-    namespace VK {
-        struct QueueFamilyIndices {
-            std::optional<ui32> graphics_queue_family_index;
-            std::optional<ui32> present_queue_family_index;
-            std::optional<ui32> compute_queue_family_index;
-            
-            bool all() { return (graphics_queue_family_index.has_value() and present_queue_family_index.has_value() and
-                                 compute_queue_family_index.has_value()); };
-        };
+    namespace Init {
+        void createInstance(Vulkan &vk, WindowData &win);
     
-        struct SwapchainSupportDetails {
-            VkSurfaceCapabilitiesKHR capabilities;
-            std::vector<VkSurfaceFormatKHR> formats;
-            std::vector<VkPresentModeKHR> present_modes;
-        };
+        void createSurface(Vulkan &vk, WindowData &win);
     
-        struct RenderingCreateInfo {
-            VkPipelineVertexInputStateCreateInfo vertex_input;
-            VkPipelineInputAssemblyStateCreateInfo input_assembly;
-            VkPipelineRasterizationStateCreateInfo rasterizer;
-            VkPipelineMultisampleStateCreateInfo multisampling;
-            VkPipelineDepthStencilStateCreateInfo depth_stencil;
-            VkPipelineColorBlendAttachmentState color_blend_attachment;
-            VkPipelineColorBlendStateCreateInfo color_blend_state;
-            
-            VkPipelineViewportStateCreateInfo viewport_state;
-            VkViewport viewport;
-            VkRect2D scissor;
-            
-            VkVertexInputBindingDescription vertex_input_binding_description;
-            std::array<VkVertexInputAttributeDescription, 2> vertex_input_attribute_descriptions;
-        };
+        ui16 ratePhysicalDevice(Vulkan &vk, VkPhysicalDevice physical_device);
+        void selectPhysicalDevice(Vulkan &vk);
     
-        //TODO: CHANGE THIS
-        struct UniformBufferObject {
-            glm::mat4 model;
-            glm::mat4 view;
-            glm::mat4 proj;
-        };
+        QueueData getQueueFamilies(Vulkan &vk, VkPhysicalDevice physical_device);
+        void selectQueueFamily(Vulkan &vk);
+    
+        void createDevice(Vulkan &vk);
     }
 
+    namespace Debug {
+        void createDebug(Vulkan &vk);
+    }
+}
+
+namespace Verse::Graphics
+{
     struct VulkanOld {
-        //DEVICE
-        //----------------------------------------
-        VkInstance instance;
-        std::vector<VkExtensionProperties> instance_extensions;
-        void createInstance(WindowData &win);
-        
-        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-        ui16 ratePhysicalDevice(VkPhysicalDevice physical_device);
-        void selectPhysicalDevice();
-        
-        VkQueue graphics_queue;
-        VkQueue present_queue;
-        VkQueue compute_queue;
-        
-        VK::QueueFamilyIndices getQueueFamilies(VkPhysicalDevice physical_device);
-        VK::QueueFamilyIndices queue_families;
-        
-        void selectQueueFamily();
-        
-        VkDevice device;
-        void createDevice();
-        
-        VkSurfaceKHR surface;
-        void createSurface(WindowData &win);
-        
-        VkDebugReportCallbackEXT debug_callback;
-        void createDebug();
         //----------------------------------------
         
         //SWAPCHAIN
