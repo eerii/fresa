@@ -35,6 +35,7 @@
 
 #include <map>
 
+
 namespace Verse::Graphics
 {
     struct OpenGL {
@@ -54,5 +55,6 @@ namespace Verse::Graphics
         #endif
     };
 }
+
 
 #endif

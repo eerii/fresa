@@ -293,7 +293,7 @@ void GL::GUI::initImGUI(OpenGL &gl, WindowData &win) {
 
 
 
-//GUI
+//CLEAN
 //----------------------------------------
 
 void API::clean(RenderData &render) {

@@ -7,10 +7,14 @@
 #include "r_vulkan_api.h"
 #include "r_api.h"
 
-#include "ftime.h"
 #include "r_shader.h"
+#include "r_vertex.h"
+
+#include "ftime.h"
+#include "config.h"
 
 #include <set>
+#include <numeric>
 #include <glm/gtc/matrix_transform.hpp>
 
 using namespace Verse;
@@ -49,15 +53,16 @@ void API::configure() {
 
 VulkanOld API::create(WindowData &win) {
     VulkanOld vulkan;
+    Vulkan vk;
     
-    vulkan.createInstance(win);
-    vulkan.createDebug();
+    VK::Init::createInstance(vk, win);
+    VK::Debug::createDebug(vk);
     
-    vulkan.createSurface(win);
+    VK::Init::createSurface(vk, win);
     
-    vulkan.selectPhysicalDevice();
-    vulkan.selectQueueFamily();
-    vulkan.createDevice();
+    VK::Init::selectPhysicalDevice(vk);
+    VK::Init::selectQueueFamily(vk);
+    VK::Init::createDevice(vk);
     
     vulkan.createSwapchain(win);
     vulkan.createImageViews();
@@ -89,9 +94,11 @@ VulkanOld API::create(WindowData &win) {
 //DEVICE
 //----------------------------------------
 
-void VulkanOld::createInstance(WindowData &win) {
+void VK::Init::createInstance(Vulkan &vk, WindowData &win) {
     log::graphics("");
     
+    //Instance extensions
+    //  Add extra functionality to Vulkan
     ui32 extension_count;
     SDL_Vulkan_GetInstanceExtensions(win.window, &extension_count, nullptr);
     std::vector<const char *> extension_names(extension_count);
@@ -102,6 +109,9 @@ void VulkanOld::createInstance(WindowData &win) {
     
     log::graphics("");
     
+    //Validation layers
+    //  Middleware for existing Vulkan functionality
+    //  Primarily used for getting detailed error descriptions, in this case with VK_LAYER_KHRONOS_validation
     ui32 validation_layer_count;
     vkEnumerateInstanceLayerProperties(&validation_layer_count, nullptr);
     std::vector<VkLayerProperties> available_validation_layers(validation_layer_count);
@@ -124,6 +134,7 @@ void VulkanOld::createInstance(WindowData &win) {
             log::error("Attempted to use a validation layer but it is not supported (%s)", val);
     }
     
+    //App info
     VkApplicationInfo app_info{};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = Conf::name.c_str();
@@ -132,6 +143,7 @@ void VulkanOld::createInstance(WindowData &win) {
     app_info.engineVersion = VK_MAKE_VERSION(Conf::version[0], Conf::version[1], Conf::version[2]);
     app_info.apiVersion = VK_API_VERSION_1_1;
     
+    //Instance create info
     VkInstanceCreateInfo instance_create_info{};
     instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instance_create_info.pApplicationInfo = &app_info;
@@ -140,11 +152,17 @@ void VulkanOld::createInstance(WindowData &win) {
     instance_create_info.enabledExtensionCount = (int)extension_names.size();
     instance_create_info.ppEnabledExtensionNames = extension_names.data();
     
-    if (vkCreateInstance(&instance_create_info, nullptr, &instance)!= VK_SUCCESS)
+    //Create instance
+    if (vkCreateInstance(&instance_create_info, nullptr, &vk.instance)!= VK_SUCCESS)
         log::error("Error creating Vulkan Instance");
 }
 
-ui16 VulkanOld::ratePhysicalDevice(VkPhysicalDevice physical_device) {
+void VK::Init::createSurface(Vulkan &vk, WindowData &win) {
+    if (not SDL_Vulkan_CreateSurface(win.window, vk.instance, &vk.surface))
+        log::error("Error while creating a Vulkan Surface (from createSurface): %s", SDL_GetError());
+}
+
+ui16 VK::Init::ratePhysicalDevice(Vulkan &vk, VkPhysicalDevice physical_device) {
     VkPhysicalDeviceProperties device_properties;
     vkGetPhysicalDeviceProperties(physical_device, &device_properties);
     
@@ -158,12 +176,12 @@ ui16 VulkanOld::ratePhysicalDevice(VkPhysicalDevice physical_device) {
         score += 256;
     
     //Queues
-    VK::QueueFamilyIndices queue_indices = getQueueFamilies(physical_device);
-    if (queue_indices.compute_queue_family_index.has_value())
+    QueueData queue_indices = getQueueFamilies(vk, physical_device);
+    if (queue_indices.compute_index.has_value())
         score += 16;
-    if (not queue_indices.present_queue_family_index.has_value())
+    if (not queue_indices.present_index.has_value())
         return 0;
-    if (not queue_indices.graphics_queue_family_index.has_value())
+    if (not queue_indices.graphics_index.has_value())
         return 0;
     
     //Extensions
@@ -188,89 +206,91 @@ ui16 VulkanOld::ratePhysicalDevice(VkPhysicalDevice physical_device) {
     return score;
 }
 
-void VulkanOld::selectPhysicalDevice() {
-    ui32 device_count = 0;
-    vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
-    
-    if (device_count == 0)
-        log::error("There are no GPUs with Vulkan Support!");
-    
+void VK::Init::selectPhysicalDevice(Vulkan &vk) {
+    //Show requested device extensions
     log::graphics("Vulkan required Device Extensions: %d", required_device_extensions.size());
     for (const char* ext : required_device_extensions)
         log::graphics(" - %s", ext);
     log::graphics("");
     
+    //Get physical devices
+    ui32 device_count = 0;
+    vkEnumeratePhysicalDevices(vk.instance, &device_count, nullptr);
+    if (device_count == 0)
+        log::error("There are no GPUs with Vulkan Support!");
+    
     std::vector<VkPhysicalDevice> devices(device_count);
-    vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
+    vkEnumeratePhysicalDevices(vk.instance, &device_count, devices.data());
     log::graphics("Vulkan Physical Devices: %d", device_count);
     
+    //Rate physical devices
     std::multimap<VkPhysicalDevice, ui16> candidates;
-    for (VkPhysicalDevice dev : devices)
-        candidates.insert(std::make_pair(dev, ratePhysicalDevice(dev)));
+    for (VkPhysicalDevice device : devices)
+        candidates.insert(std::make_pair(device, ratePhysicalDevice(vk, device)));
+    auto chosen = std::max_element(candidates.begin(), candidates.end(), [](auto &a, auto &b){ return a.second < b.second;});
+    if (chosen->second > 0)
+        vk.physical_device = chosen->first;
     
-    if (candidates.rbegin()->second > 0)
-        physical_device = candidates.rbegin()->first;
-    
-    for (VkPhysicalDevice dev : devices) {
+    //Show the result of the process
+    for (VkPhysicalDevice device : devices) {
         VkPhysicalDeviceProperties device_properties;
-        vkGetPhysicalDeviceProperties(dev, &device_properties);
-        log::graphics(((dev == physical_device) ? " > %s" : " - %s"), device_properties.deviceName);
+        vkGetPhysicalDeviceProperties(device, &device_properties);
+        log::graphics(((device == vk.physical_device) ? " > %s" : " - %s"), device_properties.deviceName);
     }
-    
     log::graphics("");
     
-    if (physical_device == VK_NULL_HANDLE)
+    if (vk.physical_device == VK_NULL_HANDLE)
         log::error("No GPU passed the Vulkan Physical Device Requirements.");
 }
 
-VK::QueueFamilyIndices VulkanOld::getQueueFamilies(VkPhysicalDevice physical_device) {
+VK::QueueData VK::Init::getQueueFamilies(Vulkan &vk, VkPhysicalDevice physical_device) {
     ui32 queue_family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, nullptr);
     
     std::vector<VkQueueFamilyProperties> queue_family_list(queue_family_count);
     vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_family_list.data());
     
-    VK::QueueFamilyIndices indices;
+    QueueData queues;
     
     for (int i = 0; i < queue_family_list.size(); i++) {
-        if (not indices.present_queue_family_index.has_value()) {
+        if (not queues.present_index.has_value()) {
             VkBool32 present_support = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &present_support);
+            vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, vk.surface, &present_support);
             if(present_support)
-                indices.present_queue_family_index = i;
+                queues.present_index = i;
         }
         
-        if (not indices.graphics_queue_family_index.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
-            indices.graphics_queue_family_index = i;
+        if (not queues.graphics_index.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+            queues.graphics_index = i;
             continue;
         }
         
-        if (not indices.compute_queue_family_index.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
-            indices.compute_queue_family_index = i;
+        if (not queues.compute_index.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
+            queues.compute_index = i;
             continue;
         }
         
-        if (indices.all())
+        if (queues.all())
             break;
     }
     
-    return indices;
+    return queues;
 }
 
-void VulkanOld::selectQueueFamily() {
-    queue_families = getQueueFamilies(physical_device);
+void VK::Init::selectQueueFamily(Vulkan &vk) {
+    vk.queues = getQueueFamilies(vk, vk.physical_device);
 }
 
-void VulkanOld::createDevice() {
+void VK::Init::createDevice(Vulkan &vk) {
     std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
     
     std::set<ui32> unique_queue_families{};
-    if (queue_families.graphics_queue_family_index.has_value())
-        unique_queue_families.insert(queue_families.graphics_queue_family_index.value());
-    if (queue_families.present_queue_family_index.has_value())
-        unique_queue_families.insert(queue_families.present_queue_family_index.value());
-    if (queue_families.compute_queue_family_index.has_value())
-        unique_queue_families.insert(queue_families.compute_queue_family_index.value());
+    if (vk.queues.graphics_index.has_value())
+        unique_queue_families.insert(vk.queues.graphics_index.value());
+    if (vk.queues.present_index.has_value())
+        unique_queue_families.insert(vk.queues.present_index.value());
+    if (vk.queues.compute_index.has_value())
+        unique_queue_families.insert(vk.queues.compute_index.value());
     
     int i = 0;
     std::vector<float> priorities{ 1.0f, 1.0f, 0.5f };
@@ -300,28 +320,23 @@ void VulkanOld::createDevice() {
     device_create_info.enabledLayerCount = (int)validation_layers.size();
     device_create_info.ppEnabledLayerNames = validation_layers.data();
     
-    if (vkCreateDevice(physical_device, &device_create_info, nullptr, &device)!= VK_SUCCESS)
+    if (vkCreateDevice(vk.physical_device, &device_create_info, nullptr, &vk.device)!= VK_SUCCESS)
         log::error("Error creating Vulkan Logical Device");
     
     log::graphics("Vulkan Queue Families: %d", unique_queue_families.size());
-    if (queue_families.graphics_queue_family_index.has_value()) {
-        vkGetDeviceQueue(device, queue_families.graphics_queue_family_index.value(), 0, &graphics_queue);
-        log::graphics(" - Graphics (%d)", queue_families.graphics_queue_family_index.value());
+    if (vk.queues.graphics_index.has_value()) {
+        vkGetDeviceQueue(vk.device, vk.queues.graphics_index.value(), 0, &vk.queues.graphics);
+        log::graphics(" - Graphics (%d)", vk.queues.graphics_index.value());
     }
-    if (queue_families.present_queue_family_index.has_value()) {
-        vkGetDeviceQueue(device, queue_families.present_queue_family_index.value(), 0, &present_queue);
-        log::graphics(" - Present (%d)", queue_families.present_queue_family_index.value());
+    if (vk.queues.present_index.has_value()) {
+        vkGetDeviceQueue(vk.device, vk.queues.present_index.value(), 0, &vk.queues.present);
+        log::graphics(" - Present (%d)", vk.queues.present_index.value());
     }
-    if (queue_families.compute_queue_family_index.has_value()) {
-        vkGetDeviceQueue(device, queue_families.compute_queue_family_index.value(), 0, &compute_queue);
-        log::graphics(" - Compute (%d)", queue_families.compute_queue_family_index.value());
+    if (vk.queues.compute_index.has_value()) {
+        vkGetDeviceQueue(vk.device, vk.queues.compute_index.value(), 0, &vk.queues.compute);
+        log::graphics(" - Compute (%d)", vk.queues.compute_index.value());
     }
     log::graphics("");
-}
-
-void VulkanOld::createSurface(WindowData &win) {
-    if (not SDL_Vulkan_CreateSurface(win.window, instance, &surface))
-        log::error("Error while creating a Vulkan Surface (from createSurface): %s", SDL_GetError());
 }
 
 //----------------------------------------
@@ -1293,6 +1308,41 @@ void VulkanOld::clean() {
 
 void API::clean(RenderData &render) {
     render.api.clean();
+}
+
+//----------------------------------------
+
+
+
+//DEBUG
+//----------------------------------------
+
+static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanReportFunc(
+    VkDebugReportFlagsEXT flags,
+    VkDebugReportObjectTypeEXT objType,
+    uint64_t obj,
+    size_t location,
+    int32_t code,
+    const char* layerPrefix,
+    const char* msg,
+    void* userData)
+
+{
+    printf("[VULKAN]: %s\n", msg);
+    return VK_FALSE;
+}
+
+PFN_vkCreateDebugReportCallbackEXT SDL2_vkCreateDebugReportCallbackEXT = nullptr;
+
+void VK::Debug::createDebug(Vulkan &vk) {
+    SDL2_vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)SDL_Vulkan_GetVkGetInstanceProcAddr();
+
+    VkDebugReportCallbackCreateInfoEXT debug_callback_create_info = {};
+    debug_callback_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+    debug_callback_create_info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+    debug_callback_create_info.pfnCallback = vulkanReportFunc;
+
+    SDL2_vkCreateDebugReportCallbackEXT(vk.instance, &debug_callback_create_info, 0, &vk.debug_callback);
 }
 
 //----------------------------------------
