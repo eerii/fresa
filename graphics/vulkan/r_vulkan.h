@@ -30,6 +30,19 @@ namespace Verse::Graphics
         VkDevice device;
         //----------------------------------------
         
+        
+        //Swapchain
+        //----------------------------------------
+        VkFormat swapchain_format;
+        VkExtent2D swapchain_extent;
+        
+        VkSwapchainKHR swapchain;
+        
+        std::vector<VkImage> swapchain_images;
+        std::vector<VkImageView> swapchain_image_views;
+        //----------------------------------------
+        
+        
         //Debug
         //----------------------------------------
         VkDebugReportCallbackEXT debug_callback;

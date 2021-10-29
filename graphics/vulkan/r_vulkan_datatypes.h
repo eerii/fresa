@@ -24,6 +24,12 @@ namespace Verse::Graphics::VK
                              compute_index.has_value()); };
     };
 
+    struct SwapchainSupportData {
+        VkSurfaceCapabilitiesKHR capabilities;
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR> present_modes;
+    };
+
     struct RenderingCreateInfo {
         VkPipelineVertexInputStateCreateInfo vertex_input;
         VkPipelineInputAssemblyStateCreateInfo input_assembly;
@@ -39,12 +45,6 @@ namespace Verse::Graphics::VK
         
         VkVertexInputBindingDescription vertex_input_binding_description;
         std::array<VkVertexInputAttributeDescription, 2> vertex_input_attribute_descriptions;
-    };
-
-    struct SwapchainSupportDetails {
-        VkSurfaceCapabilitiesKHR capabilities;
-        std::vector<VkSurfaceFormatKHR> formats;
-        std::vector<VkPresentModeKHR> present_modes;
     };
 
     //TODO: CHANGE THIS
