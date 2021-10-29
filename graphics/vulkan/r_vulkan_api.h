@@ -10,6 +10,7 @@
 
 #include "r_windowdata.h"
 #include "r_vertexdata.h"
+#include "r_bufferdata.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
@@ -33,92 +34,95 @@ namespace Verse::Graphics::VK
     //----------------------------------------
     }
 
-    namespace Swapchain
-    {
+
     //Swapchain
     //----------------------------------------
+    namespace Swapchain
+    {
     SwapchainSupportData getSwapchainSupport(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
     
     VkSurfaceFormatKHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
     VkPresentModeKHR selectSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
     VkExtent2D selectSwapExtent(WindowData &win, const VkSurfaceCapabilitiesKHR& capabilities);
-    
-    void createSwapchain(Vulkan &vk, WindowData &win);
-    
-    VkImageView createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
-    void createImageViews(Vulkan &vk);
-    
-    void recreateSwapchain(Vulkan &vk, WindowData &win);
-    //----------------------------------------
     }
 
-    namespace Debug
+    void createSwapchain(Vulkan &vk, WindowData &win);
+    void recreateSwapchain(Vulkan &vk, WindowData &win);
+
+    VkImageView createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
+    void createImageViews(Vulkan &vk);
+    //----------------------------------------
+
+
+    //Render Pass
+    //----------------------------------------
+    VkSubpassDescription createRenderSubpass();
+    void createRenderPass(Vulkan &vk);
+    //----------------------------------------
+
+
+    //Pipeline
+    //----------------------------------------
+    namespace Pipeline
     {
-    void createDebug(Vulkan &vk);
+    void prepareRenderInfoVertexInput(RenderingCreateInfo &rendering_create_info);
+    void prepareRenderInfoInputAssembly(RenderingCreateInfo &rendering_create_info);
+    void prepareRenderInfoViewportState(RenderingCreateInfo &rendering_create_info, VkExtent2D extent);
+    void prepareRenderInfoRasterizer(RenderingCreateInfo &rendering_create_info);
+    void prepareRenderInfoMultisampling(RenderingCreateInfo &rendering_create_info);
+    void prepareRenderInfoDepthStencil(RenderingCreateInfo &rendering_create_info);
+    void prepareRenderInfoColorBlendAttachment(RenderingCreateInfo &rendering_create_info);
+    void prepareRenderInfoColorBlendState(RenderingCreateInfo &rendering_create_info);
+    void prepareRenderInfoPipelineLayout(RenderingCreateInfo &rendering_create_info);
+    RenderingCreateInfo prepareRenderInfo(Vulkan &vk);
+    
+    void createDescriptorSetLayout(Vulkan &vk);
+    void createPipelineLayout(Vulkan &vk);
     }
+
+    void createGraphicsPipeline(Vulkan &vk);
+    //----------------------------------------
+
+
+    //Buffers
+    //----------------------------------------
+    BufferData createBuffer(Vulkan &vk, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+    void copyBuffer(Vulkan &vk, VkBuffer src, VkBuffer dst, VkDeviceSize size);
+    ui32 getMemoryType(Vulkan &vk, ui32 filter, VkMemoryPropertyFlags properties);
+
+    void createVertexBuffer(Vulkan &vk, const std::vector<Graphics::VertexData> &vertices);
+    void createIndexBuffer(Vulkan &vk, const std::vector<ui16> &indices);
+    //----------------------------------------
+
+
+    //Framebuffers
+    //----------------------------------------
+    void createFramebuffers(Vulkan &vk);
+    //----------------------------------------
+
+
+    //Command Pools
+    //----------------------------------------
+    void createCommandPools(Vulkan &vk);
+    //----------------------------------------
+
+
+    //Debug
+    //----------------------------------------
+    void createDebug(Vulkan &vk);
+    //----------------------------------------
 }
 
 namespace Verse::Graphics
 {
     struct VulkanOld {
         
-        
-        
-        //----------------------------------------
-        
-        //PIPELINE
-        //----------------------------------------
-        VkRenderPass render_pass;
-        void createRenderPass();
-        VkSubpassDescription createRenderSubpass();
-        
-        VK::RenderingCreateInfo rendering_create_info;
-        void prepareRenderInfoVertexInput();
-        void prepareRenderInfoInputAssembly();
-        void prepareRenderInfoViewportState();
-        void prepareRenderInfoRasterizer();
-        void prepareRenderInfoMultisampling();
-        void prepareRenderInfoDepthStencil();
-        void prepareRenderInfoColorBlendAttachment();
-        void prepareRenderInfoColorBlendState();
-        void prepareRenderInfoPipelineLayout();
-        void prepareRenderInfo();
-        
-        VkDescriptorSetLayout descriptor_set_layout;
-        void createDescriptorSetLayout();
-        
-        VkPipelineLayout pipeline_layout;
-        void createPipelineLayout();
-        
-        VkPipeline pipeline;
-        void createGraphicsPipeline();
-        //----------------------------------------
-        
-        //BUFFERS
-        //----------------------------------------
-        void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory);
-        void createVertexBuffer(const std::vector<Graphics::VertexData> &vertices);
-        void createIndexBuffer(const std::vector<ui16> &indices);
-        
-        void copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
-        
-        ui32 getMemoryType(ui32 filter, VkMemoryPropertyFlags properties);
-        
-        VkBuffer vertex_buffer;
-        VkDeviceMemory vertex_buffer_memory;
-        VkBuffer index_buffer;
-        VkDeviceMemory index_buffer_memory;
-        ui32 index_buffer_size;
-        //----------------------------------------
-        
         //RENDERING
         //----------------------------------------
-        std::vector<VkFramebuffer> swapchain_framebuffers;
-        void createFramebuffers();
         
-        VkCommandPool command_pool;
-        VkCommandPool temp_command_pool;
-        void createCommandPools();
+        
+        
+        
         
         std::vector<VkCommandBuffer> command_buffers;
         void createCommandBuffers();
