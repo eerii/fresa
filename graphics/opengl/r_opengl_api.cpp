@@ -16,7 +16,7 @@
 using namespace Verse;
 using namespace Graphics;
 
-//INITIALIZATION
+//Initialization
 //----------------------------------------
 
 void API::configure() {
@@ -137,7 +137,7 @@ void GL::Init::configureProperties() {
 
 
 
-//BUFFERS
+//Buffers
 //----------------------------------------
 
 FramebufferData GL::createFramebuffer(Vec2<> size, FramebufferType type) {
@@ -211,7 +211,7 @@ BufferData GL::createVertexBuffer(VertexArrayData &vao) {
 
 
 
-//TEST
+//Test
 //----------------------------------------
 
 namespace {
@@ -293,18 +293,29 @@ void GL::GUI::initImGUI(OpenGL &gl, WindowData &win) {
 
 
 
-//CLEAN
+//Resize
 //----------------------------------------
 
-void API::clean(RenderData &render) {
-    glDeleteBuffers(1, &render.api.vbo.id_);
-    glDeleteBuffers(1, &render.api.ibo.id_);
+void API::resize(OpenGL &gl, WindowData &win) {
     
-    for(auto &[key, val] : render.api.shaders) {
+}
+
+//----------------------------------------
+
+
+
+//Clean
+//----------------------------------------
+
+void API::clean(OpenGL &gl) {
+    glDeleteBuffers(1, &gl.vbo.id_);
+    glDeleteBuffers(1, &gl.ibo.id_);
+    
+    for(auto &[key, val] : gl.shaders) {
         glDeleteProgram(val.pid);
     }
     
-    glDeleteVertexArrays(1, &render.api.vao.id_);
+    glDeleteVertexArrays(1, &gl.vao.id_);
     
     log::graphics("Cleaned up OpenGL");
 }

@@ -30,5 +30,5 @@ void Renderer::test(WindowData &win, RenderData &render) {
 }
 
 void Renderer::clean(RenderData &render) {
-    API::clean(render);
+    API::clean(render.api);
 }

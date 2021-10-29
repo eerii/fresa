@@ -15,7 +15,7 @@
 
 namespace Verse::Graphics::GL
 {
-    //INITIALIZATION
+    //Initialization
     //----------------------------------------
     namespace Init
     {
@@ -32,7 +32,7 @@ namespace Verse::Graphics::GL
     //----------------------------------------
 
 
-    //BUFFERS
+    //Buffers
     //----------------------------------------
     FramebufferData createFramebuffer(Vec2<> size, FramebufferType type);
 
