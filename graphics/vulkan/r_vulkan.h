@@ -64,6 +64,16 @@ namespace Verse::Graphics
         BufferData vertex_buffer;
         BufferData index_buffer;
         ui32 index_buffer_size;
+        
+        std::vector<VkCommandBuffer> command_buffers;
+        //----------------------------------------
+        
+        
+        //Uniforms
+        //----------------------------------------
+        std::vector<BufferData> uniform_buffers;
+        VkDescriptorPool descriptor_pool;
+        std::vector<VkDescriptorSet> descriptor_sets;
         //----------------------------------------
         
         
@@ -77,6 +87,21 @@ namespace Verse::Graphics
         //----------------------------------------
         VkCommandPool command_pool;
         VkCommandPool temp_command_pool;
+        //----------------------------------------
+        
+        
+        //Sync objects
+        //----------------------------------------
+        std::vector<VkSemaphore> semaphores_image_available;
+        std::vector<VkSemaphore> semaphores_render_finished;
+        std::vector<VkFence> fences_in_flight;
+        std::vector<VkFence> fences_images_in_flight;
+        //----------------------------------------
+        
+        
+        //Render
+        //----------------------------------------
+        ui8 current_frame;
         //----------------------------------------
         
         

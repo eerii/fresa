@@ -10,7 +10,7 @@
 namespace Verse::Graphics
 {
     #if defined USE_VULKAN
-        using GraphicsAPI = VulkanOld;
+        using GraphicsAPI = Vulkan;
     #elif defined USE_OPENGL
         using GraphicsAPI = OpenGL;
     #endif

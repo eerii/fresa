@@ -63,22 +63,6 @@ ui16 Graphics::Window::getRefreshRate(WindowData &win) {
     return (ui16)mode.refresh_rate;
 }
 
-void Graphics::Window::onResize(SDL_Event &e, Config &c) {
-    bool longer_x = ((float)e.window.data1 / (float)e.window.data2) >= ((float)c.resolution.x / (float)c.resolution.y);
-    c.render_scale = longer_x ? floor((float)e.window.data2 / (float)c.resolution.y) : floor((float)e.window.data1 / (float)c.resolution.x);
-    
-    c.window_size = Vec2(e.window.data1, e.window.data2);
-    
-#ifndef DISABLE_GUI
-    ImGuiIO& imgui_io = ImGui::GetIO();
-    imgui_io.DisplaySize.x = static_cast<float>(e.window.data1);
-    imgui_io.DisplaySize.y = static_cast<float>(e.window.data2);
-#endif
-    
-    //TODO: Rework
-    //Graphics::Renderer::onResize(win);
-}
-
 Vec2<> Graphics::Window::windowToScene(Config &c, Vec2<float> w_pos) {
     Vec2 pixel_move = Vec2(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
     

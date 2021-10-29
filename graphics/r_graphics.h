@@ -11,4 +11,6 @@ namespace Verse::Graphics
     bool init();
     bool update();
     bool stop();
+
+    void onResize(Vec2<> size);
 }

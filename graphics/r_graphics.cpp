@@ -43,3 +43,22 @@ bool Graphics::stop() {
     
     return true;
 }
+
+void Graphics::onResize(Vec2<> size) {
+    //New window size
+    win.size = size;
+    
+    //Adjust render scale
+    Vec2<float> ratios = win.size.to<float>() / render.resolution.to<float>();
+    render.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
+    
+    //GUI adjustment
+    #ifndef DISABLE_GUI
+    ImGuiIO& io = ImGui::GetIO(); //TODO: Save this somewhere where we can access it later
+    io.DisplaySize.x = static_cast<float>(size.x);
+    io.DisplaySize.y = static_cast<float>(size.y);
+    #endif
+    
+    //Pass the resize command to the API
+    API::resize(render.api, win);
+}
