@@ -15,47 +15,55 @@
 
 namespace Verse::Graphics::VK
 {
-    namespace Init {
-        void createInstance(Vulkan &vk, WindowData &win);
-    
-        void createSurface(Vulkan &vk, WindowData &win);
-    
-        ui16 ratePhysicalDevice(Vulkan &vk, VkPhysicalDevice physical_device);
-        void selectPhysicalDevice(Vulkan &vk);
-    
-        QueueData getQueueFamilies(Vulkan &vk, VkPhysicalDevice physical_device);
-        void selectQueueFamily(Vulkan &vk);
-    
-        void createDevice(Vulkan &vk);
+    namespace Init
+    {
+    //Device
+    //----------------------------------------
+    void createInstance(Vulkan &vk, WindowData &win);
+
+    void createSurface(Vulkan &vk, WindowData &win);
+
+    ui16 ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
+    void selectPhysicalDevice(Vulkan &vk);
+
+    QueueData getQueueFamilies(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
+    void selectQueueFamily(Vulkan &vk);
+
+    void createDevice(Vulkan &vk);
+    //----------------------------------------
     }
 
-    namespace Debug {
-        void createDebug(Vulkan &vk);
+    namespace Swapchain
+    {
+    //Swapchain
+    //----------------------------------------
+    SwapchainSupportData getSwapchainSupport(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
+    
+    VkSurfaceFormatKHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
+    VkPresentModeKHR selectSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
+    VkExtent2D selectSwapExtent(WindowData &win, const VkSurfaceCapabilitiesKHR& capabilities);
+    
+    void createSwapchain(Vulkan &vk, WindowData &win);
+    
+    VkImageView createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
+    void createImageViews(Vulkan &vk);
+    
+    void recreateSwapchain(Vulkan &vk, WindowData &win);
+    //----------------------------------------
+    }
+
+    namespace Debug
+    {
+    void createDebug(Vulkan &vk);
     }
 }
 
 namespace Verse::Graphics
 {
     struct VulkanOld {
-        //----------------------------------------
         
-        //SWAPCHAIN
-        //----------------------------------------
-        VK::SwapchainSupportDetails getSwapchainSupport(VkPhysicalDevice physical_device);
-        VkSurfaceFormatKHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
-        VkPresentModeKHR selectSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
-        VkExtent2D selectSwapExtent(WindowData &win, const VkSurfaceCapabilitiesKHR& capabilities);
         
-        std::vector<VkImage> swapchain_images;
-        VkFormat swapchain_format;
-        VkExtent2D swapchain_extent;
         
-        VkSwapchainKHR swapchain;
-        void createSwapchain(WindowData &win);
-        
-        std::vector<VkImageView> swapchain_image_views;
-        void createImageViews();
-        VkImageView createImageView(VkImage image, VkImageAspectFlags aspect_flags);
         //----------------------------------------
         
         //PIPELINE
@@ -138,11 +146,6 @@ namespace Verse::Graphics
         std::vector<VkDescriptorSet> descriptor_sets;
         
         void updateUniformBuffer(ui32 current_image);
-        //----------------------------------------
-        
-        //RECREATE SWAPCHAIN
-        //----------------------------------------
-        void recreateSwapchain(WindowData &win);
         //----------------------------------------
         
         //CLEANUP
