@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "r_vulkan_datatypes.h"
+#include "r_bufferdata.h"
 
 namespace Verse::Graphics
 {
@@ -40,6 +41,42 @@ namespace Verse::Graphics
         
         std::vector<VkImage> swapchain_images;
         std::vector<VkImageView> swapchain_image_views;
+        //----------------------------------------
+        
+        
+        //Render Pass
+        //----------------------------------------
+        VkRenderPass render_pass;
+        //----------------------------------------
+        
+        
+        //Pipeline
+        //----------------------------------------
+        VkDescriptorSetLayout descriptor_set_layout;
+        VkPipelineLayout pipeline_layout;
+        
+        VkPipeline pipeline;
+        //----------------------------------------
+        
+        
+        //Buffers
+        //----------------------------------------
+        BufferData vertex_buffer;
+        BufferData index_buffer;
+        ui32 index_buffer_size;
+        //----------------------------------------
+        
+        
+        //Framebuffers
+        //----------------------------------------
+        std::vector<VkFramebuffer> swapchain_framebuffers;
+        //----------------------------------------
+        
+        
+        //Command pools
+        //----------------------------------------
+        VkCommandPool command_pool;
+        VkCommandPool temp_command_pool;
         //----------------------------------------
         
         
