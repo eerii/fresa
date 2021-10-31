@@ -41,6 +41,10 @@ namespace Verse::Graphics
         
         std::vector<VkImage> swapchain_images;
         std::vector<VkImageView> swapchain_image_views;
+        
+        VkImage depth_image;
+        VkDeviceMemory depth_image_memory;
+        VkImageView depth_image_view;
         //----------------------------------------
         
         
