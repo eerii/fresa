@@ -11,6 +11,7 @@
 #include "r_windowdata.h"
 #include "r_vertexdata.h"
 #include "r_bufferdata.h"
+#include "r_texturedata.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
@@ -45,6 +46,11 @@ namespace Verse::Graphics::VK
 
     VkImageView createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
     void createImageViews(Vulkan &vk);
+
+    VkFormat chooseSupportedFormat(Vulkan &vk, const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+    VkFormat getDepthFormat(Vulkan &vk);
+
+    void createDepthResources(Vulkan &vk);
     //----------------------------------------
 
 
@@ -78,7 +84,6 @@ namespace Verse::Graphics::VK
     //Buffers
     //----------------------------------------
     BufferData createBuffer(Vulkan &vk, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
-    void copyBuffer(Vulkan &vk, VkBuffer src, VkBuffer dst, VkDeviceSize size);
     ui32 getMemoryType(Vulkan &vk, ui32 filter, VkMemoryPropertyFlags properties);
 
     void createVertexBuffer(Vulkan &vk, const std::vector<Graphics::VertexData> &vertices);
@@ -86,6 +91,11 @@ namespace Verse::Graphics::VK
 
     void createCommandBuffers(Vulkan &vk);
     void recordCommandBuffer(Vulkan &vk, VkCommandBuffer &buffer, VkFramebuffer &framebuffer, VkDescriptorSet &descriptor_set);
+
+    VkCommandBuffer beginSingleUseCommandBuffer(Vulkan &vk);
+    void endSingleUseCommandBuffer(Vulkan &vk, VkCommandBuffer command_buffer);
+
+    void copyBuffer(Vulkan &vk, VkBuffer src, VkBuffer dst, VkDeviceSize size);
     //----------------------------------------
 
 
@@ -96,6 +106,14 @@ namespace Verse::Graphics::VK
 
     void createUniformBuffers(Vulkan &vk);
     void updateUniformBuffer(Vulkan &vk, ui32 current_image);
+    //----------------------------------------
+
+
+    //Images
+    //----------------------------------------
+    void createImage(Vulkan &vk, TextureData &tex, ui8 *pixels);
+    void transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_layout);
+    void copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex);
     //----------------------------------------
 
 

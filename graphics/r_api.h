@@ -9,12 +9,14 @@
 
 #include "r_windowdata.h"
 #include "r_renderdata.h"
+#include "r_texturedata.h"
 
 namespace Verse::Graphics::API
 {
     void configure();
     GraphicsAPI create(WindowData &win);
 
+    void createTexture(GraphicsAPI &api, TextureData &tex, ui8* pixels);
     void resize(GraphicsAPI &api, WindowData &win);
 
     void renderTest(WindowData &win, RenderData &render);

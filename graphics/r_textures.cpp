@@ -13,8 +13,7 @@
 #include "log.h"
 
 #include "r_renderer.h"
-#include "r_opengl.h"
-#include "r_vulkan.h"
+#include "r_api.h"
 
 using namespace Verse;
 using namespace Graphics;
@@ -24,7 +23,7 @@ bool checkPath(str path) {
     return std::filesystem::exists(f);
 }
 
-TextureData Texture::load(str path, Channels ch) {
+TextureData Texture::load(RenderData &render, str path, Channels ch) {
     TextureData tex;
     
     //Load the image
@@ -32,25 +31,29 @@ TextureData Texture::load(str path, Channels ch) {
     if (not checkPath(path))
         log::error("The texture path does not exist!");
     
-    auto mode = [ch](){
+    auto mode = [ch, &tex](){
         switch(ch) {
             case TEXTURE_CHANNELS_G:
+                tex.ch = 1;
                 return STBI_grey;
             case TEXTURE_CHANNELS_GA:
+                tex.ch = 2;
                 return STBI_grey_alpha;
             case TEXTURE_CHANNELS_RGB:
+                tex.ch = 3;
                 return STBI_rgb;
             case TEXTURE_CHANNELS_RGBA:
+                tex.ch = 4;
                 return STBI_rgb_alpha;
         }
     }();
     
-    ui8* pixels = stbi_load(path.c_str(), &tex.w, &tex.h, &tex.ch, mode);
+    ui8* pixels = stbi_load(path.c_str(), &tex.w, &tex.h, &tex.real_ch, mode);
     //---
     
     //Create the texture
     //---
-    
+    API::createTexture(render.api, tex, pixels);
     //---
     
     stbi_image_free(pixels);
@@ -65,6 +68,7 @@ TextureData Texture::load(str path, Channels ch) {
 //TODO: DEPRECATE
 //----------------------------------------
 void Graphics::Texture::loadTexture(str path, Component::Texture* tex) {
+    log::warn("Deprecated texture creation, switch to new method");
     if (not checkPath(path)) {
         log::error("The texture path does not exist!");
         return;
@@ -80,6 +84,7 @@ void Graphics::Texture::loadTexture(str path, Component::Texture* tex) {
 }
 
 void Graphics::Texture::loadTexture(std::vector<str> path, Component::Tilemap* tile) {
+    log::warn("Deprecated texture creation, switch to new method");
     tile->tex_data = std::vector<TextureData>(path.size());
     
     int w, h, ch;
@@ -104,6 +109,7 @@ void Graphics::Texture::createTexture(ui8* tex, TextureData &data, bool rgba) {
 #if defined USE_OPENGL
 
 void Graphics::Texture::createTexture(ui8* tex, TextureData &data, int w, int h, bool rgba) {
+    log::warn("Deprecated texture creation, switch to new method");
     ui32 tex_id;
     
     glGenTextures(1, &tex_id);
@@ -136,6 +142,7 @@ void Graphics::Texture::createTexture(ui8* tex, TextureData &data, int w, int h,
 #endif
 
 void Graphics::Texture::createPerlinNoise(ui8* noise_data, TextureData &tex_data, Vec2<> size, Vec2<> offset, float freq, int levels) {
+    log::warn("Deprecated perlin noise creation, implement new method");
     Math::perlinNoise(size, offset, freq, levels, noise_data);
     createTexture(noise_data, tex_data, size.x, size.y, false);
 }

@@ -21,15 +21,24 @@ using namespace Verse;
 using namespace Graphics;
 
 namespace {
-    const std::vector<Graphics::VertexData> vertices = {
-        {{0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f, -0.5f}, {0.7f, 0.3f, 0.7f}},
+    const std::vector<VertexData> vertices = {
+        {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
+        {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
+        {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
+        {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
+        {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}}, //Red
+        {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
+        {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
+        {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
     };
 
     const std::vector<ui16> indices = {
-        0, 1, 2, 2, 3, 0
+        0, 1, 3, 3, 1, 2,
+        1, 5, 2, 2, 5, 6,
+        4, 0, 7, 7, 0, 3,
+        3, 2, 7, 7, 2, 6,
+        4, 5, 0, 0, 5, 1,
+        5, 4, 6, 6, 4, 7,
     };
 
     const std::vector<const char*> validation_layers{
@@ -369,7 +378,7 @@ VK::SwapchainSupportData VK::getSwapchainSupport(VkSurfaceKHR &surface, VkPhysic
 
 VkSurfaceFormatKHR VK::selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available_formats) {
     for (VkSurfaceFormatKHR fmt : available_formats) {
-        if (fmt.format == VK_FORMAT_B8G8R8A8_SRGB && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        if (fmt.format == VK_FORMAT_R8G8B8A8_SRGB && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             return fmt;
     }
     return available_formats[0];
@@ -457,6 +466,26 @@ void VK::createSwapchain(Vulkan &vk, WindowData &win) {
     vkGetSwapchainImagesKHR(vk.device, vk.swapchain, &image_count, vk.swapchain_images.data());
 }
 
+void VK::recreateSwapchain(Vulkan &vk, WindowData &win) {
+    vkDeviceWaitIdle(vk.device);
+    
+    cleanSwapchain(vk);
+    
+    createSwapchain(vk, win);
+    createImageViews(vk);
+    
+    createRenderPass(vk);
+    createGraphicsPipeline(vk);
+    
+    createFramebuffers(vk);
+    
+    createUniformBuffers(vk);
+    createDescriptorPool(vk);
+    createDescriptorSets(vk);
+    
+    createCommandBuffers(vk);
+}
+
 VkImageView VK::createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format) {
     VkImageViewCreateInfo create_info{};
     
@@ -493,25 +522,31 @@ void VK::createImageViews(Vulkan &vk) {
     log::graphics("Created all Vulkan Image Views");
 }
 
+VkFormat VK::chooseSupportedFormat(Vulkan &vk, const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
+    for (VkFormat format : candidates) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(vk.physical_device, format, &props);
+        
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
+            return format;
+        }
+        
+        if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
+            return format;
+        }
+    }
+    
+    log::error("Failed to find a suitable supported format");
+    return candidates[0];
+}
 
-void VK::recreateSwapchain(Vulkan &vk, WindowData &win) {
-    vkDeviceWaitIdle(vk.device);
+VkFormat VK::getDepthFormat(Vulkan &vk) {
+    return chooseSupportedFormat(vk, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+                                 VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+void VK::createDepthResources(Vulkan &vk) {
     
-    cleanSwapchain(vk);
-    
-    createSwapchain(vk, win);
-    createImageViews(vk);
-    
-    createRenderPass(vk);
-    createGraphicsPipeline(vk);
-    
-    createFramebuffers(vk);
-    
-    createUniformBuffers(vk);
-    createDescriptorPool(vk);
-    createDescriptorSets(vk);
-    
-    createCommandBuffers(vk);
 }
 
 //----------------------------------------
@@ -657,7 +692,7 @@ void VK::prepareRenderInfoRasterizer(VK::RenderingCreateInfo &info) {
     info.rasterizer.lineWidth = 1.0f; //Larger thickness requires enabling GPU features
     
     info.rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    info.rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    info.rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     
     info.rasterizer.depthBiasEnable = VK_FALSE;
     info.rasterizer.depthBiasConstantFactor = 0.0f;
@@ -710,8 +745,8 @@ void VK::prepareRenderInfoColorBlendAttachment(VK::RenderingCreateInfo &info) {
     info.color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     info.color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
     
-    info.color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    info.color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    info.color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    info.color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     info.color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 }
 
@@ -847,39 +882,6 @@ BufferData VK::createBuffer(Vulkan &vk, VkDeviceSize size, VkBufferUsageFlags us
     return data;
 }
 
-void VK::copyBuffer(Vulkan &vk, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
-    VkCommandBufferAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocate_info.commandPool = vk.temp_command_pool;
-    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocate_info.commandBufferCount = 1;
-    
-    VkCommandBuffer command_buffer;
-    vkAllocateCommandBuffers(vk.device, &allocate_info, &command_buffer);
-    
-    VkCommandBufferBeginInfo begin_info{};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(command_buffer, &begin_info);
-    
-    VkBufferCopy copy_region{};
-    copy_region.srcOffset = 0;
-    copy_region.dstOffset = 0;
-    copy_region.size = size;
-    vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
-    
-    vkEndCommandBuffer(command_buffer);
-    
-    VkSubmitInfo submit_info{};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
-    vkQueueSubmit(vk.queues.graphics, 1, &submit_info, VK_NULL_HANDLE);
-    vkQueueWaitIdle(vk.queues.graphics);
-    
-    vkFreeCommandBuffers(vk.device, vk.temp_command_pool, 1, &command_buffer);
-}
-
 ui32 VK::getMemoryType(Vulkan &vk, ui32 filter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memory_properties;
     vkGetPhysicalDeviceMemoryProperties(vk.physical_device, &memory_properties);
@@ -971,7 +973,7 @@ void VK::createCommandBuffers(Vulkan &vk) {
 
 void VK::recordCommandBuffer(Vulkan &vk, VkCommandBuffer &command_buffer, VkFramebuffer &framebuffer, VkDescriptorSet &descriptor_set) {
     std::array<VkClearValue, 2> clear_values{};
-    clear_values[0].color = {0.02f, 0.02f, 0.02f, 1.0f};
+    clear_values[0].color = {0.1f, 0.1f, 0.3f, 1.0f};
     clear_values[1].depthStencil = {1.0f, 0};
     
     VkRenderPassBeginInfo render_pass_info{};
@@ -998,6 +1000,49 @@ void VK::recordCommandBuffer(Vulkan &vk, VkCommandBuffer &command_buffer, VkFram
     vkCmdDrawIndexed(command_buffer, vk.index_buffer_size, 1, 0, 0, 0);
     
     vkCmdEndRenderPass(command_buffer);
+}
+
+VkCommandBuffer VK::beginSingleUseCommandBuffer(Vulkan &vk) {
+    VkCommandBufferAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.commandPool = vk.temp_command_pool;
+    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocate_info.commandBufferCount = 1;
+    
+    VkCommandBuffer command_buffer;
+    vkAllocateCommandBuffers(vk.device, &allocate_info, &command_buffer);
+    
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+    
+    return command_buffer;
+}
+
+void VK::endSingleUseCommandBuffer(Vulkan &vk, VkCommandBuffer command_buffer) {
+    vkEndCommandBuffer(command_buffer);
+    
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffer;
+    vkQueueSubmit(vk.queues.graphics, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(vk.queues.graphics);
+    
+    vkFreeCommandBuffers(vk.device, vk.temp_command_pool, 1, &command_buffer);
+}
+
+void VK::copyBuffer(Vulkan &vk, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk);
+    
+    VkBufferCopy copy_region{};
+    copy_region.srcOffset = 0;
+    copy_region.dstOffset = 0;
+    copy_region.size = size;
+    vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
+    
+    endSingleUseCommandBuffer(vk, command_buffer);
 }
 
 //----------------------------------------
@@ -1082,7 +1127,8 @@ void VK::updateUniformBuffer(Vulkan &vk, ui32 current_image) {
     
     VK::UniformBufferObject ubo{};
     
-    ubo.model = glm::rotate(glm::mat4(1.0f), t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
+    ubo.model = glm::rotate(ubo.model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.model = glm::translate(ubo.model, glm::vec3(0.0f, 0.0f, 0.3f * std::sin(t * 1.570796f)));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), vk.swapchain_extent.width / (float) vk.swapchain_extent.height, 0.1f, 10.0f);
@@ -1092,6 +1138,167 @@ void VK::updateUniformBuffer(Vulkan &vk, ui32 current_image) {
     vkMapMemory(vk.device, vk.uniform_buffers[current_image].memory, 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
     vkUnmapMemory(vk.device, vk.uniform_buffers[current_image].memory);
+}
+
+//----------------------------------------
+
+
+
+//Images
+//----------------------------------------
+
+void API::createTexture(Vulkan &vk, TextureData &tex, ui8 *pixels) {
+    ui32 size = tex.w * tex.h * tex.ch * sizeof(ui8);
+    
+    VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    VkMemoryPropertyFlags memory_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    BufferData staging_buffer = VK::createBuffer(vk, size, usage_flags, memory_flags);
+    
+    void* data;
+    vkMapMemory(vk.device, staging_buffer.memory, 0, size, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(size));
+    vkUnmapMemory(vk.device, staging_buffer.memory);
+    
+    VK::createImage(vk, tex, pixels);
+    VK::transitionImageLayout(vk, tex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VK::copyBufferToImage(vk, staging_buffer, tex);
+    VK::transitionImageLayout(vk, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    
+    vkDestroyBuffer(vk.device, staging_buffer.buffer, nullptr);
+    vkFreeMemory(vk.device, staging_buffer.memory, nullptr);
+}
+
+void VK::createImage(Vulkan &vk, TextureData &tex, ui8 *pixels) {
+    VkImageCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    create_info.imageType = VK_IMAGE_TYPE_2D;
+    create_info.extent.width = static_cast<ui32>(tex.w);
+    create_info.extent.height = static_cast<ui32>(tex.h);
+    create_info.extent.depth = 1;
+    create_info.mipLevels = 1;
+    create_info.arrayLayers = 1;
+    
+    //This way the image can't be access directly, but it is better for performance
+    create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    
+    tex.format = [tex](){
+        switch(tex.ch) {
+            case 1:
+                return VK_FORMAT_R8_SRGB;
+            case 2:
+                return VK_FORMAT_R8G8_SRGB;
+            case 3:
+                return VK_FORMAT_R8G8B8_SRGB;
+            default:
+                return VK_FORMAT_R8G8B8A8_SRGB;
+        }
+        //Is it necessary to test for alternatives?
+    }();
+    create_info.format = tex.format;
+    
+    tex.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    create_info.initialLayout = tex.layout;
+    
+    create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    
+    create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    create_info.flags = 0;
+    
+    if (vkCreateImage(vk.device, &create_info, nullptr, &tex.image) != VK_SUCCESS)
+        log::error("Failed to create a Vulkan image");
+    
+    
+    VkMemoryRequirements memory_requirements;
+    vkGetImageMemoryRequirements(vk.device, tex.image, &memory_requirements);
+    
+    VkMemoryAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocate_info.allocationSize = memory_requirements.size;
+    allocate_info.memoryTypeIndex = getMemoryType(vk, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    
+    if (vkAllocateMemory(vk.device, &allocate_info, nullptr, &tex.memory) != VK_SUCCESS)
+        log::error("Failed to allocate memory for a Vulkan image");
+    
+    vkBindImageMemory(vk.device, tex.image, tex.memory, 0);
+}
+
+void VK::transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_layout) {
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk);
+
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.image = tex.image;
+    
+    barrier.oldLayout = tex.layout;
+    barrier.newLayout = new_layout;
+    
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    
+    VkPipelineStageFlags src_stage;
+    VkPipelineStageFlags dst_stage;
+    
+    barrier.srcAccessMask = [tex, &src_stage](){
+        switch (tex.layout) {
+            case VK_IMAGE_LAYOUT_UNDEFINED:
+                src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+                return (VkAccessFlagBits)0;
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                return VK_ACCESS_TRANSFER_WRITE_BIT;
+            default:
+                log::warn("Not a valid src access mask in image layout transition");
+                return (VkAccessFlagBits)0;
+        }
+    }();
+    
+    barrier.dstAccessMask = [new_layout, &dst_stage](){
+        switch (new_layout) {
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                return VK_ACCESS_TRANSFER_WRITE_BIT;
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+                return VK_ACCESS_SHADER_READ_BIT;
+            default:
+                log::warn("Not a valid dst access mask in image layout transition");
+                return (VkAccessFlagBits)0;
+        }
+    }();
+    
+    vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier); //TODO
+    
+    endSingleUseCommandBuffer(vk, command_buffer);
+    
+    tex.layout = new_layout;
+}
+
+void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk);
+    
+    VkBufferImageCopy copy_region{};
+    copy_region.bufferOffset = 0;
+    copy_region.bufferRowLength = 0;
+    copy_region.bufferImageHeight = 0;
+
+    copy_region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copy_region.imageSubresource.mipLevel = 0;
+    copy_region.imageSubresource.baseArrayLayer = 0;
+    copy_region.imageSubresource.layerCount = 1;
+
+    copy_region.imageOffset = {0, 0, 0};
+    copy_region.imageExtent = {(ui32)tex.w, (ui32)tex.h, 1};
+    
+    vkCmdCopyBufferToImage(command_buffer, buffer.buffer, tex.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
+    
+    endSingleUseCommandBuffer(vk, command_buffer);
 }
 
 //----------------------------------------

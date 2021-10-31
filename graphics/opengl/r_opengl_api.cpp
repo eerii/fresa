@@ -127,9 +127,14 @@ void GL::Init::createIndexBuffer(OpenGL &gl) {
 }
 
 void GL::Init::configureProperties() {
+    //Blending
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    
+    //Depth test
+    glEnable(GL_DEPTH_TEST);
+    
     glCheckError();
 }
 
@@ -211,19 +216,65 @@ BufferData GL::createVertexBuffer(VertexArrayData &vao) {
 
 
 
+//Images
+//----------------------------------------
+
+void API::createTexture(OpenGL &gl, TextureData &tex, ui8* pixels) {
+    glGenTextures(1, &tex.id_);
+    
+    glBindTexture(GL_TEXTURE_2D, tex.id_);
+    
+    auto channels = [tex](){
+        switch(tex.ch) {
+            case 1:
+                #ifdef __EMSCRIPTEN__
+                return GL_LUMINANCE;
+                #else
+                return GL_RED;
+                #endif
+            case 2:
+                return GL_RG;
+            case 3:
+                return GL_RGB;
+            default:
+                return GL_RGBA;
+        }
+    }();
+    
+    glTexImage2D(GL_TEXTURE_2D, 0, channels, tex.w, tex.h, 0, channels, GL_UNSIGNED_BYTE, pixels);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+//----------------------------------------
+
+
+
 //Test
 //----------------------------------------
 
 namespace {
-    const std::array<VertexData, 4> vertices = {
-        VertexData{{-0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
-        VertexData{{-0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-        VertexData{{0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}},
-        VertexData{{0.5f, 0.5f}, {0.7f, 0.3f, 0.7f}},
+    const std::vector<VertexData> vertices = {
+        {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
+        {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
+        {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
+        {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
+        {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}}, //Red
+        {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
+        {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
+        {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
     };
 
-    const std::array<ui16, 6> indices = {
-        0, 1, 2, 2, 3, 0
+    const std::vector<ui16> indices = {
+        0, 1, 3, 3, 1, 2,
+        1, 5, 2, 2, 5, 6,
+        4, 0, 7, 7, 0, 3,
+        3, 2, 7, 7, 2, 6,
+        4, 5, 0, 0, 5, 1,
+        5, 4, 6, 6, 4, 7,
     };
 }
 
@@ -244,14 +295,15 @@ void API::renderTest(WindowData &win, RenderData &render) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, render.api.ibo.id_);
     
     //Buffer data
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices.data(), GL_STATIC_DRAW); //This can be done in advance
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(VertexData), vertices.data(), GL_STATIC_DRAW); //This can be done in advance
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(ui16), indices.data(), GL_STATIC_DRAW);
     
     //Matrices (improve)
     static Clock::time_point start_time = time();
     float t = sec(time() - start_time);
     
-    glm::mat4 model = glm::rotate(glm::mat4(1.0f), t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
+    model = glm::rotate(model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
     model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.3f * std::sin(t * 1.570796f)));
     glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     glm::mat4 proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
@@ -260,7 +312,7 @@ void API::renderTest(WindowData &win, RenderData &render) {
     glUniformMatrix4fv(render.api.shaders["test_gl"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(mvp));
     
     //Draw (add indexed)
-    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, (void*)0);
+    glDrawElements(GL_TRIANGLES, (ui32)indices.size(), GL_UNSIGNED_SHORT, (void*)0);
     
     //Present
     SDL_GL_SetSwapInterval(0); //See if it is needed all frames

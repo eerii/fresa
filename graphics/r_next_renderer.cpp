@@ -4,9 +4,15 @@
 
 #include "r_next_renderer.h"
 #include "r_window.h"
+#include "r_textures.h"
 
 using namespace Verse;
 using namespace Graphics;
+
+//TEST
+namespace {
+    TextureData test_tex;
+}
 
 RenderData Renderer::create(WindowData &win, Vec2<> resolution, bool vsync) {
     RenderData render;
@@ -22,6 +28,9 @@ RenderData Renderer::create(WindowData &win, Vec2<> resolution, bool vsync) {
     //V-Sync
     render.vsync = vsync;
     
+    //TEST
+    test_tex = Texture::load(render, "res/graphics/texture.jpg", Texture::TEXTURE_CHANNELS_RGBA);
+    
     return render;
 }
 
@@ -30,5 +39,9 @@ void Renderer::test(WindowData &win, RenderData &render) {
 }
 
 void Renderer::clean(RenderData &render) {
+    //TEST
+    vkDestroyImage(render.api.device, test_tex.image, nullptr);
+    vkFreeMemory(render.api.device, test_tex.memory, nullptr);
+    
     API::clean(render.api);
 }
