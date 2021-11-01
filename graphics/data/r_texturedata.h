@@ -21,6 +21,9 @@ namespace Verse::Graphics
         VkDeviceMemory memory;
         VkFormat format;
         VkImageLayout layout;
+        
+        VkImageView image_view;
+        VkSampler sampler;
     #endif
     };
 }
