@@ -44,7 +44,6 @@ namespace Verse::Graphics::VK
     void createSwapchain(Vulkan &vk, WindowData &win);
     void recreateSwapchain(Vulkan &vk, WindowData &win);
 
-    VkImageView createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
     void createImageViews(Vulkan &vk);
 
     VkFormat chooseSupportedFormat(Vulkan &vk, const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
@@ -114,6 +113,9 @@ namespace Verse::Graphics::VK
     void createImage(Vulkan &vk, TextureData &tex, ui8 *pixels);
     void transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_layout);
     void copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex);
+
+    VkImageView createImageView(Vulkan &vk, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
+    VkSampler createSampler(Vulkan &vk);
     //----------------------------------------
 
 

@@ -183,6 +183,11 @@ ui16 VK::ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_de
     if (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
         score += 256;
     
+    //Features
+    //Enable if using anisotropy
+    /*if (not device_features.samplerAnisotropy)
+        return 0;*/
+    
     //Queues
     QueueData queue_indices = getQueueFamilies(surface, physical_device);
     if (queue_indices.compute_index.has_value())
@@ -315,6 +320,7 @@ void VK::createDevice(Vulkan &vk) {
     
     //Device required features
     VkPhysicalDeviceFeatures device_features{};
+    //Enable for Anisotropy -> device_features.samplerAnisotropy = VK_TRUE;
     
     VkDeviceCreateInfo device_create_info{};
     
@@ -486,38 +492,11 @@ void VK::recreateSwapchain(Vulkan &vk, WindowData &win) {
     createCommandBuffers(vk);
 }
 
-VkImageView VK::createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format) {
-    VkImageViewCreateInfo create_info{};
-    
-    create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    create_info.image = image;
-    
-    create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    create_info.format = format;
-    
-    create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    
-    create_info.subresourceRange.aspectMask = aspect_flags;
-    create_info.subresourceRange.baseMipLevel = 0;
-    create_info.subresourceRange.levelCount = 1;
-    create_info.subresourceRange.baseArrayLayer = 0;
-    create_info.subresourceRange.layerCount = 1;
-    
-    VkImageView image_view;
-    if (vkCreateImageView(device, &create_info, nullptr, &image_view)!= VK_SUCCESS)
-        log::error("Error creating a Vulkan Image View");
-    
-    return image_view;
-}
-
 void VK::createImageViews(Vulkan &vk) {
     vk.swapchain_image_views.resize(vk.swapchain_images.size());
     
     for (int i = 0; i < vk.swapchain_images.size(); i++)
-        vk.swapchain_image_views[i] = createImageView(vk.device, vk.swapchain_images[i], VK_IMAGE_ASPECT_COLOR_BIT, vk.swapchain_format);
+        vk.swapchain_image_views[i] = createImageView(vk, vk.swapchain_images[i], VK_IMAGE_ASPECT_COLOR_BIT, vk.swapchain_format);
     
     log::graphics("Created all Vulkan Image Views");
 }
@@ -1164,6 +1143,9 @@ void API::createTexture(Vulkan &vk, TextureData &tex, ui8 *pixels) {
     VK::copyBufferToImage(vk, staging_buffer, tex);
     VK::transitionImageLayout(vk, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     
+    tex.image_view = VK::createImageView(vk, tex.image, VK_IMAGE_ASPECT_COLOR_BIT, tex.format);
+    tex.sampler = VK::createSampler(vk);
+    
     vkDestroyBuffer(vk.device, staging_buffer.buffer, nullptr);
     vkFreeMemory(vk.device, staging_buffer.memory, nullptr);
 }
@@ -1299,6 +1281,70 @@ void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
     vkCmdCopyBufferToImage(command_buffer, buffer.buffer, tex.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
     
     endSingleUseCommandBuffer(vk, command_buffer);
+}
+
+VkImageView VK::createImageView(Vulkan &vk, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format) {
+    VkImageViewCreateInfo create_info{};
+    
+    create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    create_info.image = image;
+    
+    create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    create_info.format = format;
+    
+    create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    
+    create_info.subresourceRange.aspectMask = aspect_flags;
+    create_info.subresourceRange.baseMipLevel = 0;
+    create_info.subresourceRange.levelCount = 1;
+    create_info.subresourceRange.baseArrayLayer = 0;
+    create_info.subresourceRange.layerCount = 1;
+    
+    VkImageView image_view;
+    if (vkCreateImageView(vk.device, &create_info, nullptr, &image_view)!= VK_SUCCESS)
+        log::error("Error creating a Vulkan image view");
+    
+    return image_view;
+}
+
+VkSampler VK::createSampler(Vulkan &vk) {
+    VkSamplerCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    
+    create_info.magFilter = VK_FILTER_NEAREST; //This is for pixel art, change to linear for interpolation
+    create_info.minFilter = VK_FILTER_NEAREST;
+    
+    create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER; //The texture doesn't repeat if sampled out of range
+    create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    
+    create_info.anisotropyEnable = VK_FALSE;
+    create_info.maxAnisotropy = 1.0f;
+    
+    //Enable for anisotropy, as well as device features in createDevice()
+    /*VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(vk.physical_device, &properties);
+    create_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;*/
+    
+    create_info.unnormalizedCoordinates = VK_FALSE;
+    create_info.compareEnable = VK_FALSE;
+    create_info.compareOp = VK_COMPARE_OP_ALWAYS;
+    
+    create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    create_info.mipLodBias = 0.0f;
+    create_info.minLod = 0.0f;
+    create_info.maxLod = 0.0f;
+    
+    VkSampler sampler;
+    
+    if (vkCreateSampler(vk.device, &create_info, nullptr, &sampler) != VK_SUCCESS)
+        log::error("Error creating a Vulkan image sampler");
+    
+    return sampler;
 }
 
 //----------------------------------------

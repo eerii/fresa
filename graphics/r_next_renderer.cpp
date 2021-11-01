@@ -40,6 +40,8 @@ void Renderer::test(WindowData &win, RenderData &render) {
 
 void Renderer::clean(RenderData &render) {
     //TEST
+    vkDestroySampler(render.api.device, test_tex.sampler, nullptr);
+    vkDestroyImageView(render.api.device, test_tex.image_view, nullptr);
     vkDestroyImage(render.api.device, test_tex.image, nullptr);
     vkFreeMemory(render.api.device, test_tex.memory, nullptr);
     
