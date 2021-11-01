@@ -115,7 +115,7 @@ namespace Verse::Graphics::VK
     void copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex);
 
     VkImageView createImageView(Vulkan &vk, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
-    VkSampler createSampler(Vulkan &vk);
+    void createSampler(Vulkan &vk);
     //----------------------------------------
 
 

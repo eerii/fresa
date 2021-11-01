@@ -23,7 +23,7 @@ bool checkPath(str path) {
     return std::filesystem::exists(f);
 }
 
-TextureData Texture::load(RenderData &render, str path, Channels ch) {
+TextureData Texture::load(GraphicsAPI &api, str path, Channels ch) {
     TextureData tex;
     
     //Load the image
@@ -53,7 +53,7 @@ TextureData Texture::load(RenderData &render, str path, Channels ch) {
     
     //Create the texture
     //---
-    API::createTexture(render.api, tex, pixels);
+    API::createTexture(api, tex, pixels);
     //---
     
     stbi_image_free(pixels);

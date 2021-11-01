@@ -5,9 +5,12 @@
 #pragma once
 
 #include "dtypes.h"
-#include "r_vulkan.h"
 #include <vector>
 #include <glm/glm.hpp>
+
+#ifdef USE_VULKAN
+#include <vulkan/vulkan.h>
+#endif
 
 namespace Verse::Graphics
 {
@@ -21,9 +24,6 @@ namespace Verse::Graphics
         VkDeviceMemory memory;
         VkFormat format;
         VkImageLayout layout;
-        
-        VkImageView image_view;
-        VkSampler sampler;
     #endif
     };
 }

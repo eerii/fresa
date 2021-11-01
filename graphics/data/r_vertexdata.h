@@ -12,9 +12,10 @@
 namespace Verse::Graphics
 {
     struct VertexData {
-        Serialize(VertexData, pos, color);
+        Serialize(VertexData, pos, color, uv);
         glm::vec3 pos;
         glm::vec3 color;
+        glm::vec2 uv;
     };
     //Needs to be ordered the same way as the shader
 

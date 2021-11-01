@@ -13,6 +13,7 @@
 
 #include "r_vulkan_datatypes.h"
 #include "r_bufferdata.h"
+#include "r_texturedata.h"
 
 namespace Verse::Graphics
 {
@@ -78,6 +79,14 @@ namespace Verse::Graphics
         std::vector<BufferData> uniform_buffers;
         VkDescriptorPool descriptor_pool;
         std::vector<VkDescriptorSet> descriptor_sets;
+        //----------------------------------------
+        
+        
+        //Images
+        //----------------------------------------
+        TextureData test_image;
+        VkImageView image_view;
+        VkSampler sampler;
         //----------------------------------------
         
         
