@@ -22,7 +22,7 @@ namespace Verse::Graphics::Texture
         TEXTURE_CHANNELS_RGBA = 4
     };
 
-    TextureData load(RenderData &render, str path, Channels ch = TEXTURE_CHANNELS_RGBA);
+    TextureData load(GraphicsAPI &api, str path, Channels ch = TEXTURE_CHANNELS_RGBA);
 
     //TODO: DEPRECATE
     //----------------------------------------

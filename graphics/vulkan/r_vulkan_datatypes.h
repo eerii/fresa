@@ -44,7 +44,7 @@ namespace Verse::Graphics::VK
         VkRect2D scissor;
         
         VkVertexInputBindingDescription vertex_input_binding_description;
-        std::array<VkVertexInputAttributeDescription, 2> vertex_input_attribute_descriptions;
+        std::array<VkVertexInputAttributeDescription, 3> vertex_input_attribute_descriptions; //TODO: Scale this accordingly
     };
 
     //TODO: CHANGE THIS
