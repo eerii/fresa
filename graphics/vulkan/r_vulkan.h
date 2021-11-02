@@ -18,14 +18,6 @@
 
 namespace Verse::Graphics
 {
-    struct VkCommandData {
-        std::map<str, VkCommandPool> command_pools;
-        std::map<str, std::vector<VkCommandBuffer>> command_buffers;
-        
-        VK::QueueIndices queue_indices;
-        VK::QueueData queues;
-    };
-
     struct VkSwapchainData {
         VkFormat format;
         VkExtent2D extent;
@@ -40,6 +32,28 @@ namespace Verse::Graphics
         VkImage depth_image;
         VkDeviceMemory depth_image_memory;
         VkImageView depth_image_view;
+        
+        VkRenderPass main_render_pass;
+        
+        std::vector<VkFramebuffer> framebuffers;
+    };
+
+    struct VkCommandData {
+        std::map<str, VkCommandPool> command_pools;
+        std::map<str, std::vector<VkCommandBuffer>> command_buffers;
+        
+        VK::QueueIndices queue_indices;
+        VK::QueueData queues;
+    };
+
+    struct VkSyncData {
+        std::vector<VkSemaphore> semaphores_image_available;
+        std::vector<VkSemaphore> semaphores_render_finished;
+        
+        std::vector<VkFence> fences_in_flight;
+        std::vector<VkFence> fences_images_in_flight;
+        
+        ui8 current_frame;
     };
 
     struct Vulkan {
@@ -57,22 +71,14 @@ namespace Verse::Graphics
         //----------------------------------------
         
         
-        //Commands
-        //----------------------------------------
-        VkCommandData cmd;
-        //----------------------------------------
-        
-        
-        //Swapchain
-        //----------------------------------------
+        //---Swapchain---
         VkSwapchainData swapchain;
-        //----------------------------------------
         
+        //---Commands---
+        VkCommandData cmd;
         
-        //Render Pass
-        //----------------------------------------
-        VkRenderPass render_pass;
-        //----------------------------------------
+        //---Sync---
+        VkSyncData sync;
         
         
         //Pipeline
@@ -105,27 +111,6 @@ namespace Verse::Graphics
         TextureData test_image;
         VkImageView image_view;
         VkSampler sampler;
-        //----------------------------------------
-        
-        
-        //Framebuffers
-        //----------------------------------------
-        std::vector<VkFramebuffer> swapchain_framebuffers;
-        //----------------------------------------
-        
-        
-        //Sync objects
-        //----------------------------------------
-        std::vector<VkSemaphore> semaphores_image_available;
-        std::vector<VkSemaphore> semaphores_render_finished;
-        std::vector<VkFence> fences_in_flight;
-        std::vector<VkFence> fences_images_in_flight;
-        //----------------------------------------
-        
-        
-        //Render
-        //----------------------------------------
-        ui8 current_frame;
         //----------------------------------------
         
         

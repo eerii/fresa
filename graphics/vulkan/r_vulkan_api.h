@@ -52,16 +52,33 @@ namespace Verse::Graphics::VK
     //----------------------------------------
 
 
-    //Command Pools
+    //Commands
     //----------------------------------------
-    void createCommandPools(Vulkan &vk, std::vector<str> keys, std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags);
+    std::map<str, VkCommandPool> createCommandPools(VkDevice &device, QueueIndices &queue_indices, std::vector<str> keys,
+                                                    std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags);
+
+    std::vector<VkCommandBuffer> createDrawCommandBuffers(VkDevice &device, VkSwapchainData &swapchain, VkCommandData &cmd);
+    void recordDrawCommandBuffers(Vulkan &vk);
     //----------------------------------------
 
 
-    //Render Pass
+    //Render pass
     //----------------------------------------
     VkSubpassDescription createRenderSubpass();
-    void createRenderPass(Vulkan &vk);
+    VkSubpassDependency createRenderSubpassDependency();
+    VkAttachmentDescription createRenderPassAttachment(VkFormat format);
+    RenderPassCreateData prepareRenderPass(VkSwapchainData &swapchain);
+
+    VkRenderPass createRenderPass(VkDevice &device, VkSwapchainData &swapchain);
+
+    VkFramebuffer createFramebuffer(VkDevice &device, VkRenderPass &render_pass, VkImageView &image_view, VkExtent2D &extent);
+    std::vector<VkFramebuffer> createFramebuffers(VkDevice &device, VkSwapchainData &swapchain);
+    //----------------------------------------
+
+
+    //Sync objects
+    //----------------------------------------
+    VkSyncData createSyncObjects(VkDevice &device, VkSwapchainData &swapchain);
     //----------------------------------------
 
 
@@ -93,9 +110,6 @@ namespace Verse::Graphics::VK
     void createVertexBuffer(Vulkan &vk, const std::vector<Graphics::VertexData> &vertices);
     void createIndexBuffer(Vulkan &vk, const std::vector<ui16> &indices);
 
-    void createCommandBuffers(Vulkan &vk);
-    void recordCommandBuffer(Vulkan &vk, VkCommandBuffer &buffer, VkFramebuffer &framebuffer, VkDescriptorSet &descriptor_set);
-
     VkCommandBuffer beginSingleUseCommandBuffer(Vulkan &vk);
     void endSingleUseCommandBuffer(Vulkan &vk, VkCommandBuffer command_buffer);
 
@@ -121,18 +135,6 @@ namespace Verse::Graphics::VK
 
     VkImageView createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
     void createSampler(Vulkan &vk);
-    //----------------------------------------
-
-
-    //Framebuffers
-    //----------------------------------------
-    void createFramebuffers(Vulkan &vk);
-    //----------------------------------------
-
-
-    //Sync objects
-    //----------------------------------------
-    void createSyncObjects(Vulkan &vk);
     //----------------------------------------
 
 

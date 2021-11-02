@@ -23,14 +23,14 @@ using namespace Graphics;
 
 namespace {
     const std::vector<VertexData> vertices = {
-        {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}, {1.0f, 0.0f}}, //Light
-        {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}, {0.0f, 0.0f}}, //Teal
-        {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}, {0.0f, 1.0f}}, //Yellow
-        {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}, {1.0f, 1.0f}}, //Orange
-        {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}, {1.0f, 0.0f}}, //Red
-        {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}, {0.0f, 0.0f}}, //Pink
-        {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}, {0.0f, 1.0f}}, //Purple
-        {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}, {1.0f, 1.0f}}, //Blue
+        {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
+        {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
+        {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
+        {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
+        {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}}, //Red
+        {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
+        {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
+        {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
     };
 
     const std::vector<ui16> indices = {
@@ -83,13 +83,24 @@ Vulkan API::create(WindowData &win) {
     //---Swapchain---
     vk.swapchain = VK::createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
     
-    VK::createCommandPools(vk, {"draw", "temp"}, {}, {{"temp", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}});
+    //---Command pools---
+    vk.cmd.command_pools = VK::createCommandPools(vk.device, vk.cmd.queue_indices,
+                                                  {"draw", "temp"}, {}, {{"temp", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}});
+    vk.cmd.command_buffers["draw"] = VK::createDrawCommandBuffers(vk.device, vk.swapchain, vk.cmd);
     
-    VK::createRenderPass(vk);
+    //---Render pass---
+    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain);
+    
+    //---Framebuffers---
+    vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
+    
+    //---Sync objects---
+    vk.sync = VK::createSyncObjects(vk.device, vk.swapchain);
+    
     VK::createDescriptorSetLayout(vk);
     VK::createGraphicsPipeline(vk);
     
-    VK::createFramebuffers(vk);
+    
     VK::createVertexBuffer(vk, vertices);
     VK::createIndexBuffer(vk, indices);
     
@@ -101,9 +112,9 @@ Vulkan API::create(WindowData &win) {
     VK::createDescriptorPool(vk);
     VK::createDescriptorSets(vk);
     
-    VK::createCommandBuffers(vk);
+    VK::recordDrawCommandBuffers(vk);
     
-    VK::createSyncObjects(vk);
+    log::graphics("");
     
     return vk;
 }
@@ -607,17 +618,18 @@ void VK::recreateSwapchain(Vulkan &vk, WindowData &win) {
     cleanSwapchain(vk);
     
     vk.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
+    vk.cmd.command_buffers["draw"] = VK::createDrawCommandBuffers(vk.device, vk.swapchain, vk.cmd); //TODO: Only reset buffers
     
-    createRenderPass(vk);
+    vk.swapchain.main_render_pass = createRenderPass(vk.device, vk.swapchain);
+    vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
+    
     createGraphicsPipeline(vk);
-    
-    createFramebuffers(vk);
     
     createUniformBuffers(vk);
     createDescriptorPool(vk);
     createDescriptorSets(vk);
     
-    createCommandBuffers(vk);
+    recordDrawCommandBuffers(vk);
 }
 
 VkFormat VK::chooseSupportedFormat(VkPhysicalDevice &physical_device, const std::vector<VkFormat> &candidates,
@@ -658,31 +670,111 @@ void VK::createDepthResources(Vulkan &vk) {
 
 
 
-//Command Pools
+//Commands
 //----------------------------------------
 
-void VK::createCommandPools(Vulkan &vk, std::vector<str> keys, std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags) {
+std::map<str, VkCommandPool> VK::createCommandPools(VkDevice &device, QueueIndices &queue_indices, std::vector<str> keys,
+                                                    std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags) {
+    //---Command pools---
+    //      Command buffers can be allocated inside them
+    //      We can have multiple command pools for different types of buffers, for example, "draw" and "temp"
+    //      Resetting the command pool is easier than individually resetting buffers
+    
+    std::map<str, VkCommandPool> command_pools;
+    
     for (auto key: keys) {
         VkCommandPoolCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         
-        create_info.queueFamilyIndex = [queues, vk, key](){
+        //: Queue index for this specific command pool
+        create_info.queueFamilyIndex = [queues, queue_indices, key](){
             if (queues.count(key) > 0)
                 return queues.at(key);
-            return vk.cmd.queue_indices.graphics.value();
+            return queue_indices.graphics.value();
         }();
         
+        //: Flags, for example, a transient flag for temporary buffers
         create_info.flags = [flags, key](){
             if (flags.count(key) > 0)
                 return flags.at(key);
             return (VkCommandPoolCreateFlagBits)0;
         }();
         
-        if (vkCreateCommandPool(vk.device, &create_info, nullptr, &vk.cmd.command_pools[key]) != VK_SUCCESS)
+        //: Create the command pool
+        if (vkCreateCommandPool(device, &create_info, nullptr, &command_pools[key]) != VK_SUCCESS)
             log::error("Failed to create a vulkan command pool (%s)", key.c_str());
     }
     
     log::graphics("Created all vulkan command pools");
+    return command_pools;
+}
+
+std::vector<VkCommandBuffer> VK::createDrawCommandBuffers(VkDevice &device, VkSwapchainData &swapchain, VkCommandData &cmd) {
+    //---Command buffers---
+    //      All vulkan commands must be executed inside a command buffer
+    //      Here we create the command buffers we will use for drawing, and allocate them inside a command pool ("draw")
+    //      We are creating one buffer per swapchain image
+    
+    std::vector<VkCommandBuffer> command_buffers;
+    command_buffers.resize(swapchain.size);
+    
+    VkCommandBufferAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocate_info.commandPool = cmd.command_pools["draw"];
+    allocate_info.commandBufferCount = (ui32)command_buffers.size();
+    
+    if (vkAllocateCommandBuffers(device, &allocate_info, command_buffers.data()) != VK_SUCCESS)
+        log::error("Failed to allocate the vulkan main draw command buffers");
+    
+    log::graphics("Created the vulkan draw command buffers");
+    
+    return command_buffers;
+}
+
+void VK::recordDrawCommandBuffers(Vulkan &vk) {
+    //TODO: IMPROVE THIS
+    for (int i = 0; i < vk.cmd.command_buffers["draw"].size(); i++) {
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = 0;
+        begin_info.pInheritanceInfo = nullptr;
+        
+        if (vkBeginCommandBuffer(vk.cmd.command_buffers["draw"][i], &begin_info) != VK_SUCCESS)
+            log::error("Failed to begin recording on a vulkan command buffer");
+        
+        std::array<VkClearValue, 2> clear_values{};
+        clear_values[0].color = {0.01f, 0.01f, 0.05f, 1.0f};
+        clear_values[1].depthStencil = {1.0f, 0};
+        
+        VkRenderPassBeginInfo render_pass_info{};
+        render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        render_pass_info.renderPass = vk.swapchain.main_render_pass;
+        render_pass_info.framebuffer = vk.swapchain.framebuffers[i];
+        render_pass_info.renderArea.offset = {0, 0};
+        render_pass_info.renderArea.extent = vk.swapchain.extent;
+        render_pass_info.clearValueCount = 2;
+        render_pass_info.pClearValues = clear_values.data();
+        
+        vkCmdBeginRenderPass(vk.cmd.command_buffers["draw"][i], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+        
+        vkCmdBindPipeline(vk.cmd.command_buffers["draw"][i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline);
+        
+        VkBuffer vertex_buffers[]{ vk.vertex_buffer.buffer };
+        VkDeviceSize offsets[]{ 0 };
+        vkCmdBindVertexBuffers(vk.cmd.command_buffers["draw"][i], 0, 1, vertex_buffers, offsets);
+        
+        vkCmdBindIndexBuffer(vk.cmd.command_buffers["draw"][i], vk.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+        
+        vkCmdBindDescriptorSets(vk.cmd.command_buffers["draw"][i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &vk.descriptor_sets[i], 0, nullptr);
+        
+        vkCmdDrawIndexed(vk.cmd.command_buffers["draw"][i], vk.index_buffer_size, 1, 0, 0, 0);
+        
+        vkCmdEndRenderPass(vk.cmd.command_buffers["draw"][i]);
+        
+        if (vkEndCommandBuffer(vk.cmd.command_buffers["draw"][i]) != VK_SUCCESS)
+            log::error("Failed to end recording on a vulkan command buffer");
+    }
 }
 
 //----------------------------------------
@@ -693,11 +785,14 @@ void VK::createCommandPools(Vulkan &vk, std::vector<str> keys, std::map<str, ui3
 //----------------------------------------
 
 VkSubpassDescription VK::createRenderSubpass() {
+    //---Render subpass---
     VkAttachmentReference color_attachment_ref{};
+    
     color_attachment_ref.attachment = 0;
     color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     
     VkSubpassDescription subpass{};
+    
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &color_attachment_ref;
@@ -705,25 +800,10 @@ VkSubpassDescription VK::createRenderSubpass() {
     return subpass;
 }
 
-void VK::createRenderPass(Vulkan &vk) {
-    VkAttachmentDescription color_attachment{};
-    
-    color_attachment.format = vk.swapchain.format;
-    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    
-    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    
-    color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    
-    color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    
-    
-    VkSubpassDescription subpass = createRenderSubpass();
-    
+VkSubpassDependency VK::createRenderSubpassDependency() {
+    //---Render subpass dependency---
     VkSubpassDependency dependency{};
+    
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
     
@@ -733,23 +813,161 @@ void VK::createRenderPass(Vulkan &vk) {
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     
+    return dependency;
+}
+
+VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format) {
+    //---Render pass attachment---
+    VkAttachmentDescription attachment{};
+    
+    attachment.format = format;
+    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    
+    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    
+    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    
+    attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    
+    return attachment;
+}
+
+VK::RenderPassCreateData VK::prepareRenderPass(VkSwapchainData &swapchain) {
+    //---Combine all data required to create a render pass---
+    RenderPassCreateData data;
+    
+    data.subpasses = { VK::createRenderSubpass() };
+    data.dependencies = { VK::createRenderSubpassDependency() };
+    data.attachments = { VK::createRenderPassAttachment(swapchain.format) };
+    
+    return data;
+}
+
+VkRenderPass VK::createRenderPass(VkDevice &device, VkSwapchainData &swapchain) {
+    //---Render pass---
+    //      All rendering happens inside of a render pass
+    //      It can have multiple subpasses and attachments
+    //      It will render to a framebuffer
+    VkRenderPass render_pass;
+    
+    RenderPassCreateData render_pass_data = VK::prepareRenderPass(swapchain);
     
     VkRenderPassCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     
+    create_info.attachmentCount = (ui32)render_pass_data.attachments.size();
+    create_info.pAttachments = render_pass_data.attachments.data();
+    
+    create_info.subpassCount = (ui32)render_pass_data.subpasses.size();
+    create_info.pSubpasses = render_pass_data.subpasses.data();
+    
+    create_info.dependencyCount = (ui32)render_pass_data.dependencies.size();
+    create_info.pDependencies = render_pass_data.dependencies.data();
+    
+    if (vkCreateRenderPass(device, &create_info, nullptr, &render_pass) != VK_SUCCESS)
+        log::error("Error creating a vulkan render pass");
+    
+    log::graphics("Created a vulkan render pass");
+    return render_pass;
+}
+
+VkFramebuffer VK::createFramebuffer(VkDevice &device, VkRenderPass &render_pass, VkImageView &image_view, VkExtent2D &extent) {
+    //---Framebuffer---
+    VkFramebuffer framebuffer;
+    
+    VkFramebufferCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    
+    //: Associated render pass
+    create_info.renderPass = render_pass;
+    
+    //: The image view it will be rendering to
     create_info.attachmentCount = 1;
-    create_info.pAttachments = &color_attachment;
+    create_info.pAttachments = &image_view;
     
-    create_info.subpassCount = 1;
-    create_info.pSubpasses = &subpass;
+    //: Size and layers
+    create_info.width = extent.width;
+    create_info.height = extent.height;
+    create_info.layers = 1;
     
-    create_info.dependencyCount = 1;
-    create_info.pDependencies = &dependency;
+    //: Create the framebuffer
+    if (vkCreateFramebuffer(device, &create_info, nullptr, &framebuffer) != VK_SUCCESS)
+        log::error("Failed to create a vulkan framebuffer");
     
-    if (vkCreateRenderPass(vk.device, &create_info, nullptr, &vk.render_pass) != VK_SUCCESS)
-        log::error("Error creating a Vulkan Render Pass");
+    return framebuffer;
+}
+
+std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice &device, VkSwapchainData &swapchain) {
+    //---Framebuffers---
+    std::vector<VkFramebuffer> framebuffers;
+    framebuffers.resize(swapchain.size);
     
-    log::graphics("Created all Vulkan Render Passes");
+    for (int i = 0; i < swapchain.size; i++)
+        framebuffers[i] = VK::createFramebuffer(device, swapchain.main_render_pass, swapchain.image_views[i], swapchain.extent);
+    
+    log::graphics("Created all vulkan framebuffers");
+    
+    return framebuffers;
+}
+
+//----------------------------------------
+
+
+
+//Sync objects
+//----------------------------------------
+
+VkSyncData VK::createSyncObjects(VkDevice &device, VkSwapchainData &swapchain) {
+    //---Sync objects---
+    //      Used to control the flow of operations when executing commands
+    //      - Fence: GPU->CPU, we can wait from the CPU until a fence has finished on a GPU operation
+    //      - Semaphore: GPU->GPU, can be signal or wait
+    //          - Signal: Operation locks semaphore when executing and unlocks after it is finished
+    //          - Wait: Wait until semaphore is unlocked to execute the command
+    VkSyncData sync;
+    
+    //---Frames in flight---
+    //      Defined in r_vulkan_api.h, indicates how many frames can be processed concurrently
+    
+    
+    //---Semaphores--- (GPU->GPU)
+    //: Image available, locks when vkAcquireNextImageKHR() is getting a new image, then submits command buffer
+    sync.semaphores_image_available.resize(MAX_FRAMES_IN_FLIGHT);
+    //: Render finished, locks while the command buffer is in execution, then finishes frame
+    sync.semaphores_render_finished.resize(MAX_FRAMES_IN_FLIGHT);
+    //: Default semaphore creation info
+    VkSemaphoreCreateInfo semaphore_info{};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    
+    
+    //---Fences--- (GPU->CPU)
+    //: Frame in flight, waits until the frame is not in flight and can be writter again
+    sync.fences_in_flight.resize(MAX_FRAMES_IN_FLIGHT);
+    //: Images in flight, we need to track for each swapchain image if a frame in flight is currently using it, has size of swapchain
+    sync.fences_images_in_flight.resize(swapchain.size, VK_NULL_HANDLE);
+    //: Default fence creation info, signaled bit means they start like they have already finished once
+    VkFenceCreateInfo fence_info{};
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    
+    
+    //---Create semaphores and fences---
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (vkCreateSemaphore(device, &semaphore_info, nullptr, &sync.semaphores_image_available[i]) != VK_SUCCESS)
+            log::error("Failed to create a vulkan semaphore (image available)");
+        
+        if (vkCreateSemaphore(device, &semaphore_info, nullptr, &sync.semaphores_render_finished[i]) != VK_SUCCESS)
+            log::error("Failed to create a vulkan semaphore (render finished)");
+        
+        if (vkCreateFence(device, &fence_info, nullptr, &sync.fences_in_flight[i]) != VK_SUCCESS)
+            log::error("Failed to create a vulkan fence (frame in flight)");
+    }
+    
+    log::graphics("Created all vulkan sync objects");
+    return sync;
 }
 
 //----------------------------------------
@@ -974,7 +1192,7 @@ void VK::createGraphicsPipeline(Vulkan &vk) {
     
     create_info.layout = vk.pipeline_layout;
     
-    create_info.renderPass = vk.render_pass;
+    create_info.renderPass = vk.swapchain.main_render_pass;
     create_info.subpass = 0;
     
     create_info.basePipelineHandle = VK_NULL_HANDLE; //It is not a derived pipeline
@@ -1081,68 +1299,6 @@ void VK::createIndexBuffer(Vulkan &vk, const std::vector<ui16> &indices) {
     
     vkDestroyBuffer(vk.device, staging_buffer.buffer, nullptr);
     vkFreeMemory(vk.device, staging_buffer.memory, nullptr);
-}
-
-void VK::createCommandBuffers(Vulkan &vk) {
-    vk.cmd.command_buffers["draw"].resize(vk.swapchain_framebuffers.size());
-    
-    VkCommandBufferAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocate_info.commandPool = vk.cmd.command_pools["draw"];
-    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocate_info.commandBufferCount = (ui32)vk.cmd.command_buffers["draw"].size();
-    
-    if (vkAllocateCommandBuffers(vk.device, &allocate_info, vk.cmd.command_buffers["draw"].data()) != VK_SUCCESS)
-        log::error("Failed to allocate a Vulkan Command Buffer");
-    
-    for (int i = 0; i < vk.cmd.command_buffers["draw"].size(); i++) {
-        VkCommandBufferBeginInfo begin_info{};
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags = 0;
-        begin_info.pInheritanceInfo = nullptr;
-        
-        if (vkBeginCommandBuffer(vk.cmd.command_buffers["draw"][i], &begin_info) != VK_SUCCESS)
-            log::error("Failed to create a Vulkan Command Buffer");
-        
-        recordCommandBuffer(vk, vk.cmd.command_buffers["draw"][i], vk.swapchain_framebuffers[i], vk.descriptor_sets[i]);
-        //TODO: Check how to clean this?
-        
-        if (vkEndCommandBuffer(vk.cmd.command_buffers["draw"][i]) != VK_SUCCESS)
-            log::error("Failed to end recording on a Vulkan Command Buffer");
-    }
-    
-    log::graphics("Created all Vulkan Command Buffers");
-}
-
-void VK::recordCommandBuffer(Vulkan &vk, VkCommandBuffer &command_buffer, VkFramebuffer &framebuffer, VkDescriptorSet &descriptor_set) {
-    std::array<VkClearValue, 2> clear_values{};
-    clear_values[0].color = {0.01f, 0.01f, 0.05f, 1.0f};
-    clear_values[1].depthStencil = {1.0f, 0};
-    
-    VkRenderPassBeginInfo render_pass_info{};
-    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = vk.render_pass;
-    render_pass_info.framebuffer = framebuffer;
-    render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = vk.swapchain.extent;
-    render_pass_info.clearValueCount = 2;
-    render_pass_info.pClearValues = clear_values.data();
-    
-    vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-    
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline);
-    
-    VkBuffer vertex_buffers[]{ vk.vertex_buffer.buffer };
-    VkDeviceSize offsets[]{ 0 };
-    vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
-    
-    vkCmdBindIndexBuffer(command_buffer, vk.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
-    
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
-    
-    vkCmdDrawIndexed(command_buffer, vk.index_buffer_size, 1, 0, 0, 0);
-    
-    vkCmdEndRenderPass(command_buffer);
 }
 
 VkCommandBuffer VK::beginSingleUseCommandBuffer(Vulkan &vk) {
@@ -1531,76 +1687,15 @@ void VK::createSampler(Vulkan &vk) {
 
 
 
-//Framebuffers
-//----------------------------------------
-
-void VK::createFramebuffers(Vulkan &vk) {
-    vk.swapchain_framebuffers.resize(vk.swapchain.image_views.size());
-    
-    for (int i = 0; i < vk.swapchain_framebuffers.size(); i++) {
-        VkFramebufferCreateInfo create_info{};
-        create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        create_info.renderPass = vk.render_pass;
-        create_info.attachmentCount = 1;
-        create_info.pAttachments = &vk.swapchain.image_views[i];
-        create_info.width = vk.swapchain.extent.width;
-        create_info.height = vk.swapchain.extent.height;
-        create_info.layers = 1;
-        
-        if (vkCreateFramebuffer(vk.device, &create_info, nullptr, &vk.swapchain_framebuffers[i]) != VK_SUCCESS)
-            log::error("Failed to create a Vulkan Framebuffer");
-    }
-    
-    log::graphics("Created all Vulkan Framebuffers");
-}
-
-//----------------------------------------
-
-
-
-//Sync objects
-//----------------------------------------
-
-void VK::createSyncObjects(Vulkan &vk) {
-    vk.semaphores_image_available.resize(MAX_FRAMES_IN_FLIGHT);
-    vk.semaphores_render_finished.resize(MAX_FRAMES_IN_FLIGHT);
-    vk.fences_in_flight.resize(MAX_FRAMES_IN_FLIGHT);
-    vk.fences_images_in_flight.resize(vk.swapchain.images.size(), VK_NULL_HANDLE);
-    
-    VkSemaphoreCreateInfo semaphore_info{};
-    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    
-    VkFenceCreateInfo fence_info{};
-    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-    
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (vkCreateSemaphore(vk.device, &semaphore_info, nullptr, &vk.semaphores_image_available[i]) != VK_SUCCESS)
-            log::error("Failed to create a Vulkan Semaphore");
-        
-        if (vkCreateSemaphore(vk.device, &semaphore_info, nullptr, &vk.semaphores_render_finished[i]) != VK_SUCCESS)
-            log::error("Failed to create a Vulkan Semaphore");
-        
-        if (vkCreateFence(vk.device, &fence_info, nullptr, &vk.fences_in_flight[i]) != VK_SUCCESS)
-            log::error("Failed to create a Vulkan Fence");
-    }
-    
-    log::graphics("Created all Vulkan Semaphores");
-}
-
-//----------------------------------------
-
-
-
 //Render
 //----------------------------------------
 
 void VK::renderFrame(Vulkan &vk, WindowData &win) {
-    vkWaitForFences(vk.device, 1, &vk.fences_in_flight[vk.current_frame], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(vk.device, 1, &vk.sync.fences_in_flight[vk.sync.current_frame], VK_TRUE, UINT64_MAX);
     
     VkResult result;
     ui32 image_index;
-    result = vkAcquireNextImageKHR(vk.device, vk.swapchain.swapchain, UINT64_MAX, vk.semaphores_image_available[vk.current_frame], VK_NULL_HANDLE, &image_index);
+    result = vkAcquireNextImageKHR(vk.device, vk.swapchain.swapchain, UINT64_MAX, vk.sync.semaphores_image_available[vk.sync.current_frame], VK_NULL_HANDLE, &image_index);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         recreateSwapchain(vk, win);
@@ -1611,13 +1706,13 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
     }
     
     
-    if (vk.fences_images_in_flight[image_index] != VK_NULL_HANDLE)
-        vkWaitForFences(vk.device, 1, &vk.fences_images_in_flight[image_index], VK_TRUE, UINT64_MAX);
-    vk.fences_images_in_flight[image_index] = vk.fences_in_flight[vk.current_frame];
+    if (vk.sync.fences_images_in_flight[image_index] != VK_NULL_HANDLE)
+        vkWaitForFences(vk.device, 1, &vk.sync.fences_images_in_flight[image_index], VK_TRUE, UINT64_MAX);
+    vk.sync.fences_images_in_flight[image_index] = vk.sync.fences_in_flight[vk.sync.current_frame];
     
-    VkSemaphore wait_semaphores[]{ vk.semaphores_image_available[vk.current_frame] };
+    VkSemaphore wait_semaphores[]{ vk.sync.semaphores_image_available[vk.sync.current_frame] };
     VkPipelineStageFlags wait_stages[]{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    VkSemaphore signal_semaphores[]{ vk.semaphores_render_finished[vk.current_frame] };
+    VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished[vk.sync.current_frame] };
     
     
     updateUniformBuffer(vk, image_index);
@@ -1637,9 +1732,9 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
     submit_info.pSignalSemaphores = signal_semaphores;
     
     
-    vkResetFences(vk.device, 1, &vk.fences_in_flight[vk.current_frame]);
+    vkResetFences(vk.device, 1, &vk.sync.fences_in_flight[vk.sync.current_frame]);
     
-    if (vkQueueSubmit(vk.cmd.queues.graphics, 1, &submit_info, vk.fences_in_flight[vk.current_frame]) != VK_SUCCESS)
+    if (vkQueueSubmit(vk.cmd.queues.graphics, 1, &submit_info, vk.sync.fences_in_flight[vk.sync.current_frame]) != VK_SUCCESS)
         log::error("Failed to submit Draw Command Buffer");
     
     
@@ -1664,7 +1759,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
         log::error("Failed to present Swapchain Image");
     
     
-    vk.current_frame = (vk.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+    vk.sync.current_frame = (vk.sync.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 //----------------------------------------
@@ -1696,15 +1791,15 @@ void API::resize(Vulkan &vk, WindowData &win) {
 //----------------------------------------
 
 void VK::cleanSwapchain(Vulkan &vk) {
-    for (VkFramebuffer fb : vk.swapchain_framebuffers)
+    for (VkFramebuffer fb : vk.swapchain.framebuffers)
         vkDestroyFramebuffer(vk.device, fb, nullptr);
     
-    for (auto [key, val] : vk.cmd.command_buffers)
-        vkFreeCommandBuffers(vk.device, vk.cmd.command_pools[key], (ui32)val.size(), val.data());
+    for (auto [key, buffers] : vk.cmd.command_buffers)
+        vkFreeCommandBuffers(vk.device, vk.cmd.command_pools[key], (ui32)buffers.size(), buffers.data());
     
     vkDestroyPipeline(vk.device, vk.pipeline, nullptr);
     vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
-    vkDestroyRenderPass(vk.device, vk.render_pass, nullptr);
+    vkDestroyRenderPass(vk.device, vk.swapchain.main_render_pass, nullptr);
     
     for (VkImageView view : vk.swapchain.image_views)
         vkDestroyImageView(vk.device, view, nullptr);
@@ -1738,13 +1833,13 @@ void API::clean(Vulkan &vk) {
     vkFreeMemory(vk.device, vk.index_buffer.memory, nullptr);
     
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroySemaphore(vk.device, vk.semaphores_image_available[i], nullptr);
-        vkDestroySemaphore(vk.device, vk.semaphores_render_finished[i], nullptr);
-        vkDestroyFence(vk.device, vk.fences_in_flight[i], nullptr);
+        vkDestroySemaphore(vk.device, vk.sync.semaphores_image_available[i], nullptr);
+        vkDestroySemaphore(vk.device, vk.sync.semaphores_render_finished[i], nullptr);
+        vkDestroyFence(vk.device, vk.sync.fences_in_flight[i], nullptr);
     }
     
-    for (auto [key, val] : vk.cmd.command_pools)
-        vkDestroyCommandPool(vk.device, val, nullptr);
+    for (auto [key, pool] : vk.cmd.command_pools)
+        vkDestroyCommandPool(vk.device, pool, nullptr);
     
     vkDestroyDevice(vk.device, nullptr);
     
