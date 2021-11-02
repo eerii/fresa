@@ -26,6 +26,22 @@ namespace Verse::Graphics
         VK::QueueData queues;
     };
 
+    struct VkSwapchainData {
+        VkFormat format;
+        VkExtent2D extent;
+        
+        VkSwapchainKHR swapchain;
+        
+        ui32 size;
+        
+        std::vector<VkImage> images;
+        std::vector<VkImageView> image_views;
+        
+        VkImage depth_image;
+        VkDeviceMemory depth_image_memory;
+        VkImageView depth_image_view;
+    };
+
     struct Vulkan {
         //Device
         //----------------------------------------
@@ -49,17 +65,7 @@ namespace Verse::Graphics
         
         //Swapchain
         //----------------------------------------
-        VkFormat swapchain_format;
-        VkExtent2D swapchain_extent;
-        
-        VkSwapchainKHR swapchain;
-        
-        std::vector<VkImage> swapchain_images;
-        std::vector<VkImageView> swapchain_image_views;
-        
-        VkImage depth_image;
-        VkDeviceMemory depth_image_memory;
-        VkImageView depth_image_view;
+        VkSwapchainData swapchain;
         //----------------------------------------
         
         

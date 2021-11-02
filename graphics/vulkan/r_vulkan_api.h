@@ -26,6 +26,8 @@ namespace Verse::Graphics::VK
     ui16 ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
     VkPhysicalDevice selectPhysicalDevice(VkInstance &instance, VkSurfaceKHR &surface);
     VkPhysicalDeviceFeatures getPhysicalDeviceFeatures(VkPhysicalDevice &physical_device);
+    VkFormat chooseSupportedFormat(VkPhysicalDevice &physical_device, const std::vector<VkFormat> &candidates,
+                                   VkImageTiling tiling, VkFormatFeatureFlags features);
 
     VkDevice createDevice(VkPhysicalDevice &physical_device, VkPhysicalDeviceFeatures &physical_device_features, QueueIndices &queue_indices);
     QueueIndices getQueueFamilies(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
@@ -37,18 +39,15 @@ namespace Verse::Graphics::VK
     //----------------------------------------
     SwapchainSupportData getSwapchainSupport(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
     
-    VkSurfaceFormatKHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
-    VkPresentModeKHR selectSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
-    VkExtent2D selectSwapExtent(WindowData &win, const VkSurfaceCapabilitiesKHR& capabilities);
+    VkSurfaceFormatKHR selectSwapSurfaceFormat(SwapchainSupportData &support);
+    VkPresentModeKHR selectSwapPresentMode(SwapchainSupportData &support);
+    VkExtent2D selectSwapExtent(SwapchainSupportData &support, WindowData &win);
     
-    void createSwapchain(Vulkan &vk, WindowData &win);
+    VkSwapchainData createSwapchain(VkDevice &device, VkPhysicalDevice &physical_device, VkSurfaceKHR &surface,
+                                    QueueIndices &queue_indices, WindowData &win);
     void recreateSwapchain(Vulkan &vk, WindowData &win);
 
-    void createImageViews(Vulkan &vk);
-
-    VkFormat chooseSupportedFormat(Vulkan &vk, const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
     VkFormat getDepthFormat(Vulkan &vk);
-
     void createDepthResources(Vulkan &vk);
     //----------------------------------------
 
@@ -120,7 +119,7 @@ namespace Verse::Graphics::VK
     void transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_layout);
     void copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex);
 
-    VkImageView createImageView(Vulkan &vk, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
+    VkImageView createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
     void createSampler(Vulkan &vk);
     //----------------------------------------
 
