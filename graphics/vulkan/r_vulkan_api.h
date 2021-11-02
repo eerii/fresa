@@ -19,17 +19,17 @@ namespace Verse::Graphics::VK
 {
     //Device
     //----------------------------------------
-    void createInstance(Vulkan &vk, WindowData &win);
+    VkInstance createInstance(WindowData &win);
 
-    void createSurface(Vulkan &vk, WindowData &win);
+    VkSurfaceKHR createSurface(VkInstance &instance, WindowData &win);
 
     ui16 ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
-    void selectPhysicalDevice(Vulkan &vk);
+    VkPhysicalDevice selectPhysicalDevice(VkInstance &instance, VkSurfaceKHR &surface);
+    VkPhysicalDeviceFeatures getPhysicalDeviceFeatures(VkPhysicalDevice &physical_device);
 
-    QueueData getQueueFamilies(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
-    void selectQueueFamily(Vulkan &vk);
-
-    void createDevice(Vulkan &vk);
+    VkDevice createDevice(VkPhysicalDevice &physical_device, VkPhysicalDeviceFeatures &physical_device_features, QueueIndices &queue_indices);
+    QueueIndices getQueueFamilies(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
+    QueueData getQueues(VkDevice &device, QueueIndices &queue_indices);
     //----------------------------------------
 
 
@@ -50,6 +50,12 @@ namespace Verse::Graphics::VK
     VkFormat getDepthFormat(Vulkan &vk);
 
     void createDepthResources(Vulkan &vk);
+    //----------------------------------------
+
+
+    //Command Pools
+    //----------------------------------------
+    void createCommandPools(Vulkan &vk, std::vector<str> keys, std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags);
     //----------------------------------------
 
 
@@ -125,12 +131,6 @@ namespace Verse::Graphics::VK
     //----------------------------------------
 
 
-    //Command Pools
-    //----------------------------------------
-    void createCommandPools(Vulkan &vk);
-    //----------------------------------------
-
-
     //Sync objects
     //----------------------------------------
     void createSyncObjects(Vulkan &vk);
@@ -145,7 +145,7 @@ namespace Verse::Graphics::VK
 
     //Debug
     //----------------------------------------
-    void createDebug(Vulkan &vk);
+    VkDebugReportCallbackEXT createDebug(VkInstance &instance);
     //----------------------------------------
 
     //Cleanup
