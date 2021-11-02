@@ -22,35 +22,24 @@ using namespace Verse;
 using namespace Graphics;
 
 namespace {
-    /*const std::vector<VertexData> vertices = {
-        {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
-        {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
-        {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
-        {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
-        {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}}, //Red
-        {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
-        {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
-        {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
-    };
-
-    const std::vector<ui16> indices = {
-        0, 1, 3, 3, 1, 2,
-        1, 5, 2, 2, 5, 6,
-        4, 0, 7, 7, 0, 3,
-        3, 2, 7, 7, 2, 6,
-        4, 5, 0, 0, 5, 1,
-        5, 4, 6, 6, 4, 7,
-    };*/
-
     const std::vector<VertexData> vertices = {
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+        {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}, {1.0f, 0.0f}}, //Light
+        {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}, {0.0f, 0.0f}}, //Teal
+        {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}, {0.0f, 1.0f}}, //Yellow
+        {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}, {1.0f, 1.0f}}, //Orange
+        {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}, {1.0f, 0.0f}}, //Red
+        {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}, {0.0f, 0.0f}}, //Pink
+        {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}, {0.0f, 1.0f}}, //Purple
+        {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}, {1.0f, 1.0f}}, //Blue
     };
 
     const std::vector<ui16> indices = {
-        0, 1, 2, 2, 3, 0
+        0, 3, 1, 3, 2, 1,
+        1, 2, 5, 2, 6, 5,
+        4, 7, 0, 7, 3, 0,
+        3, 7, 2, 7, 6, 2,
+        4, 0, 5, 0, 1, 5,
+        5, 6, 4, 6, 7, 4,
     };
 
     const std::vector<const char*> validation_layers{
@@ -75,24 +64,33 @@ void API::configure() {
 Vulkan API::create(WindowData &win) {
     Vulkan vk;
     
-    VK::createInstance(vk, win);
-    VK::createDebug(vk);
+    //---Instance---
+    vk.instance = VK::createInstance(win);
+    vk.debug_callback = VK::createDebug(vk.instance);
     
-    VK::createSurface(vk, win);
+    //---Surface---
+    vk.surface = VK::createSurface(vk.instance, win);
     
-    VK::selectPhysicalDevice(vk);
-    VK::selectQueueFamily(vk);
-    VK::createDevice(vk);
+    //---Physical device---
+    vk.physical_device = VK::selectPhysicalDevice(vk.instance, vk.surface);
+    vk.physical_device_features = VK::getPhysicalDeviceFeatures(vk.physical_device);
     
+    //---Queues and logical device---
+    vk.cmd.queue_indices = VK::getQueueFamilies(vk.surface, vk.physical_device);
+    vk.device = VK::createDevice(vk.physical_device, vk.physical_device_features, vk.cmd.queue_indices);
+    vk.cmd.queues = VK::getQueues(vk.device, vk.cmd.queue_indices);
+    
+    //---Swapchain---
     VK::createSwapchain(vk, win);
     VK::createImageViews(vk);
+    
+    VK::createCommandPools(vk, {"draw", "temp"}, {}, {{"temp", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}});
     
     VK::createRenderPass(vk);
     VK::createDescriptorSetLayout(vk);
     VK::createGraphicsPipeline(vk);
     
     VK::createFramebuffers(vk);
-    VK::createCommandPools(vk);
     VK::createVertexBuffer(vk, vertices);
     VK::createIndexBuffer(vk, indices);
     
@@ -118,29 +116,29 @@ Vulkan API::create(WindowData &win) {
 //Device
 //----------------------------------------
 
-void VK::createInstance(Vulkan &vk, WindowData &win) {
+VkInstance VK::createInstance(WindowData &win) {
     log::graphics("");
     
-    //Instance extensions
-    //  Add extra functionality to Vulkan
+    //---Instance extensions---
+    //      Add extra functionality to Vulkan
     ui32 extension_count;
     SDL_Vulkan_GetInstanceExtensions(win.window, &extension_count, nullptr);
     std::vector<const char *> extension_names(extension_count);
     SDL_Vulkan_GetInstanceExtensions(win.window, &extension_count, extension_names.data());
-    log::graphics("Vulkan requested Instance Extensions: %d", extension_count);
+    log::graphics("Vulkan requested instance extensions: %d", extension_count);
     for (const char* ext : extension_names)
         log::graphics(" - %s", ext);
     
     log::graphics("");
     
-    //Validation layers
-    //  Middleware for existing Vulkan functionality
-    //  Primarily used for getting detailed error descriptions, in this case with VK_LAYER_KHRONOS_validation
+    //---Validation layers---
+    //      Middleware for existing Vulkan functionality
+    //      Primarily used for getting detailed error descriptions, in this case with VK_LAYER_KHRONOS_validation
     ui32 validation_layer_count;
     vkEnumerateInstanceLayerProperties(&validation_layer_count, nullptr);
     std::vector<VkLayerProperties> available_validation_layers(validation_layer_count);
     vkEnumerateInstanceLayerProperties(&validation_layer_count, available_validation_layers.data());
-    log::graphics("Vulkan supported Validation Layers: %d", validation_layer_count);
+    log::graphics("Vulkan supported validation layers: %d", validation_layer_count);
     for (VkLayerProperties layer : available_validation_layers)
         log::graphics(" - %s", layer.layerName);
     
@@ -158,7 +156,7 @@ void VK::createInstance(Vulkan &vk, WindowData &win) {
             log::error("Attempted to use a validation layer but it is not supported (%s)", val);
     }
     
-    //App info
+    //---App info---
     VkApplicationInfo app_info{};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = Conf::name.c_str();
@@ -167,7 +165,7 @@ void VK::createInstance(Vulkan &vk, WindowData &win) {
     app_info.engineVersion = VK_MAKE_VERSION(Conf::version[0], Conf::version[1], Conf::version[2]);
     app_info.apiVersion = VK_API_VERSION_1_1;
     
-    //Instance create info
+    //---Instance create info---
     VkInstanceCreateInfo instance_create_info{};
     instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instance_create_info.pApplicationInfo = &app_info;
@@ -176,44 +174,67 @@ void VK::createInstance(Vulkan &vk, WindowData &win) {
     instance_create_info.enabledExtensionCount = (int)extension_names.size();
     instance_create_info.ppEnabledExtensionNames = extension_names.data();
     
-    //Create instance
-    if (vkCreateInstance(&instance_create_info, nullptr, &vk.instance)!= VK_SUCCESS)
-        log::error("Error creating Vulkan Instance");
+    //---Create instance---
+    VkInstance instance;
+    
+    if (vkCreateInstance(&instance_create_info, nullptr, &instance)!= VK_SUCCESS)
+        log::error("Fatal error creating a vulkan instance");
+    
+    return instance;
 }
 
-void VK::createSurface(Vulkan &vk, WindowData &win) {
-    if (not SDL_Vulkan_CreateSurface(win.window, vk.instance, &vk.surface))
-        log::error("Error while creating a Vulkan Surface (from createSurface): %s", SDL_GetError());
+VkSurfaceKHR VK::createSurface(VkInstance &instance, WindowData &win) {
+    VkSurfaceKHR surface;
+    
+    //---Surface---
+    //      It is the abstraction of the window created by SDL to something Vulkan can draw onto
+    if (not SDL_Vulkan_CreateSurface(win.window, instance, &surface))
+        log::error("Fatal error while creating a vulkan surface (from createSurface): %s", SDL_GetError());
+    
+    return surface;
 }
 
 ui16 VK::ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device) {
+    ui16 score = 16;
+    
+    
+    //---Device properties---
+    //      Holds information about the GPU, such as if it is discrete or integrated
     VkPhysicalDeviceProperties device_properties;
     vkGetPhysicalDeviceProperties(physical_device, &device_properties);
     
-    VkPhysicalDeviceFeatures device_features;
-    vkGetPhysicalDeviceFeatures(physical_device, &device_features);
-    
-    ui16 score = 16;
-    
-    //Properties
+    //: Prefer a discrete GPU
     if (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
         score += 256;
     
-    //Features
-    //Enable if using anisotropy
-    /*if (not device_features.samplerAnisotropy)
-        return 0;*/
     
-    //Queues
-    QueueData queue_indices = getQueueFamilies(surface, physical_device);
-    if (queue_indices.compute_index.has_value())
+    //---Features---
+    //      What capabilites are supported with this device
+    //VkPhysicalDeviceFeatures device_features = getPhysicalDeviceFeatures(physical_device);
+    
+    //: (optional) Anisotropy
+    //      Helps when rendering with perspective
+    //      Provides a higher quality at the cost of performance
+    //      Not all devices suppoport it, so it has to be checked for and enabled
+    //  if (not device_features.samplerAnisotropy) return 0;
+    
+    
+    //---Queues---
+    //      Different execution ports of the GPU, command buffers are submitted here
+    //      There are different spetialized queue families, such as present and graphics
+    QueueIndices queue_indices = getQueueFamilies(surface, physical_device);
+    if (queue_indices.compute.has_value())
         score += 16;
-    if (not queue_indices.present_index.has_value())
+    if (not queue_indices.present.has_value())
         return 0;
-    if (not queue_indices.graphics_index.has_value())
+    if (not queue_indices.graphics.has_value())
         return 0;
     
-    //Extensions
+    
+    //---Extensions---
+    //      Not everything is core in Vulkan, so we need to enable some extensions
+    //      Here we check for required extensions (defined up top) and choose physical devices that support them
+    //      The main one is vkSwapchainKHR, the surface we draw onto, which is implementation dependent
     ui32 extension_count;
     vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, nullptr);
     std::vector<VkExtensionProperties> available_extensions(extension_count);
@@ -227,7 +248,8 @@ ui16 VK::ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_de
     if (not required_extensions.empty())
         return 0;
     
-    //Swapchain
+    //---Swapchain---
+    //      Make sure that the device supports swapchain presentation
     VK::SwapchainSupportData swapchain_support = VK::getSwapchainSupport(surface, physical_device);
     if (swapchain_support.formats.empty() or swapchain_support.present_modes.empty())
         return 0;
@@ -235,91 +257,123 @@ ui16 VK::ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_de
     return score;
 }
 
-void VK::selectPhysicalDevice(Vulkan &vk) {
-    //Show requested device extensions
-    log::graphics("Vulkan required Device Extensions: %d", required_device_extensions.size());
+VkPhysicalDevice VK::selectPhysicalDevice(VkInstance &instance, VkSurfaceKHR &surface) {
+    VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+    
+    //---Show requested device extensions---
+    log::graphics("Vulkan required device extensions: %d", required_device_extensions.size());
     for (const char* ext : required_device_extensions)
         log::graphics(" - %s", ext);
     log::graphics("");
     
-    //Get physical devices
+    
+    //---Get available physical devices---
     ui32 device_count = 0;
-    vkEnumeratePhysicalDevices(vk.instance, &device_count, nullptr);
+    vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
     if (device_count == 0)
-        log::error("There are no GPUs with Vulkan Support!");
+        log::error("There are no GPUs with vulkan support!");
     
     std::vector<VkPhysicalDevice> devices(device_count);
-    vkEnumeratePhysicalDevices(vk.instance, &device_count, devices.data());
-    log::graphics("Vulkan Physical Devices: %d", device_count);
+    vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
+    log::graphics("Vulkan physical devices: %d", device_count);
     
-    //Rate physical devices
+    
+    //---Rate physical devices---
+    //      Using ratePhysicalDevice(), assign a number to each available GPU
+    //      Highest number gets chosen as the main physical device for the program
+    //      It is possible to use multiple GPUs, but we won't support it yet
     std::multimap<VkPhysicalDevice, ui16> candidates;
     for (VkPhysicalDevice device : devices)
-        candidates.insert(std::make_pair(device, ratePhysicalDevice(vk.surface, device)));
+        candidates.insert(std::make_pair(device, ratePhysicalDevice(surface, device)));
     auto chosen = std::max_element(candidates.begin(), candidates.end(), [](auto &a, auto &b){ return a.second < b.second;});
     if (chosen->second > 0)
-        vk.physical_device = chosen->first;
+        physical_device = chosen->first;
     
-    //Show the result of the process
+    
+    //---Show the result of the process---
     for (VkPhysicalDevice device : devices) {
         VkPhysicalDeviceProperties device_properties;
         vkGetPhysicalDeviceProperties(device, &device_properties);
-        log::graphics(((device == vk.physical_device) ? " > %s" : " - %s"), device_properties.deviceName);
+        log::graphics(((device == physical_device) ? " > %s" : " - %s"), device_properties.deviceName);
     }
     log::graphics("");
     
-    if (vk.physical_device == VK_NULL_HANDLE)
-        log::error("No GPU passed the Vulkan Physical Device Requirements.");
+    if (physical_device == VK_NULL_HANDLE)
+        log::error("No GPU passed the vulkan physical device requirements.");
+    
+    return physical_device;
 }
 
-VK::QueueData VK::getQueueFamilies(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device) {
+VkPhysicalDeviceFeatures VK::getPhysicalDeviceFeatures(VkPhysicalDevice &physical_device) {
+    VkPhysicalDeviceFeatures device_features;
+    vkGetPhysicalDeviceFeatures(physical_device, &device_features);
+    return device_features;
+}
+
+VK::QueueIndices VK::getQueueFamilies(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device) {
+    //---Queues---
+    //      Different execution ports of the GPU, command buffers are submitted here
+    //      There are different spetialized queue families, such as present, graphics and compute
+    
+    
+    //---Get all available queues---
     ui32 queue_family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, nullptr);
-    
     std::vector<VkQueueFamilyProperties> queue_family_list(queue_family_count);
     vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_family_list.data());
     
-    QueueData queues;
     
+    //---Select desired queues---
+    //      Using the QueueIndices struct, which has 3 std::optional indices, for:
+    //          - Graphics: pipeline operations, including vertex/fragment shaders and drawing
+    //          - Present: send framebuffers to the screen
+    //          - Compute: for compute shaders
+    //      Not all queues are needed, and in the future more queues can be created for multithread support
+    //      Made so present and graphics queue can be the same
+    QueueIndices queue_indices;
     for (int i = 0; i < queue_family_list.size(); i++) {
-        if (not queues.present_index.has_value()) {
+        if (not queue_indices.present.has_value()) {
             VkBool32 present_support = false;
             vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &present_support);
             if(present_support)
-                queues.present_index = i;
+                queue_indices.present = i;
         }
         
-        if (not queues.graphics_index.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
-            queues.graphics_index = i;
+        if (not queue_indices.graphics.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+            queue_indices.graphics = i;
             continue;
         }
         
-        if (not queues.compute_index.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
-            queues.compute_index = i;
+        if (not queue_indices.compute.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
+            queue_indices.compute = i;
             continue;
         }
         
-        if (queues.all())
+        if (queue_indices.graphics.has_value() and queue_indices.present.has_value() and queue_indices.compute.has_value())
             break;
     }
     
-    return queues;
+    return queue_indices;
 }
 
-void VK::selectQueueFamily(Vulkan &vk) {
-    vk.queues = getQueueFamilies(vk.surface, vk.physical_device);
-}
-
-void VK::createDevice(Vulkan &vk) {
+VkDevice VK::createDevice(VkPhysicalDevice &physical_device, VkPhysicalDeviceFeatures &physical_device_features, QueueIndices &queue_indices) {
+    //---Logical device---
+    //      Vulkan GPU driver, it encapsulates the physical device
+    //      Needs to be passed to almost every Vulkan function
+    VkDevice device;
+    
+    
+    //---Create the selected queues---
     std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
     
     std::set<ui32> unique_queue_families{};
-    if (vk.queues.graphics_index.has_value())
-        unique_queue_families.insert(vk.queues.graphics_index.value());
-    if (vk.queues.present_index.has_value())
-        unique_queue_families.insert(vk.queues.present_index.value());
-    if (vk.queues.compute_index.has_value())
-        unique_queue_families.insert(vk.queues.compute_index.value());
+    if (queue_indices.graphics.has_value())
+        unique_queue_families.insert(queue_indices.graphics.value());
+    if (queue_indices.present.has_value())
+        unique_queue_families.insert(queue_indices.present.value());
+    if (queue_indices.compute.has_value())
+        unique_queue_families.insert(queue_indices.compute.value());
+    log::graphics("Vulkan queue families: %d", unique_queue_families.size());
     
     int i = 0;
     std::vector<float> priorities{ 1.0f, 1.0f, 0.5f };
@@ -334,39 +388,50 @@ void VK::createDevice(Vulkan &vk) {
         i++;
     }
     
-    //Device required features
-    VkPhysicalDeviceFeatures device_features{};
-    //Enable for Anisotropy -> device_features.samplerAnisotropy = VK_TRUE;
     
+    //---Device required features---
+    //      Enable some features here, try to keep it as small as possible
+    //: (optional) Anisotropy - vk.physical_device_features.samplerAnisotropy = VK_TRUE;
+    
+    
+    //---Create device---
     VkDeviceCreateInfo device_create_info{};
-    
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    
+    //: Add the queues we selected before to be created
     device_create_info.queueCreateInfoCount = (int)queue_create_infos.size();
     device_create_info.pQueueCreateInfos = queue_create_infos.data();
     device_create_info.enabledExtensionCount = (int)required_device_extensions.size();
     device_create_info.ppEnabledExtensionNames = required_device_extensions.data();
-    device_create_info.pEnabledFeatures = &device_features;
+    device_create_info.pEnabledFeatures = &physical_device_features;
     
     device_create_info.enabledLayerCount = (int)validation_layers.size();
     device_create_info.ppEnabledLayerNames = validation_layers.data();
     
-    if (vkCreateDevice(vk.physical_device, &device_create_info, nullptr, &vk.device)!= VK_SUCCESS)
-        log::error("Error creating Vulkan Logical Device");
+    if (vkCreateDevice(physical_device, &device_create_info, nullptr, &device)!= VK_SUCCESS)
+        log::error("Error creating a vulkan logical device");
     
-    log::graphics("Vulkan Queue Families: %d", unique_queue_families.size());
-    if (vk.queues.graphics_index.has_value()) {
-        vkGetDeviceQueue(vk.device, vk.queues.graphics_index.value(), 0, &vk.queues.graphics);
-        log::graphics(" - Graphics (%d)", vk.queues.graphics_index.value());
+    return device;
+}
+
+VK::QueueData VK::getQueues(VkDevice &device, QueueIndices &queue_indices) {
+    VK::QueueData queues;
+    
+    if (queue_indices.graphics.has_value()) {
+        vkGetDeviceQueue(device, queue_indices.graphics.value(), 0, &queues.graphics);
+        log::graphics(" - Graphics (%d)", queue_indices.graphics.value());
     }
-    if (vk.queues.present_index.has_value()) {
-        vkGetDeviceQueue(vk.device, vk.queues.present_index.value(), 0, &vk.queues.present);
-        log::graphics(" - Present (%d)", vk.queues.present_index.value());
+    if (queue_indices.present.has_value()) {
+        vkGetDeviceQueue(device, queue_indices.present.value(), 0, &queues.present);
+        log::graphics(" - Present (%d)", queue_indices.present.value());
     }
-    if (vk.queues.compute_index.has_value()) {
-        vkGetDeviceQueue(vk.device, vk.queues.compute_index.value(), 0, &vk.queues.compute);
-        log::graphics(" - Compute (%d)", vk.queues.compute_index.value());
+    if (queue_indices.compute.has_value()) {
+        vkGetDeviceQueue(device, queue_indices.compute.value(), 0, &queues.compute);
+        log::graphics(" - Compute (%d)", queue_indices.compute.value());
     }
     log::graphics("");
+    
+    return queues;
 }
 
 //----------------------------------------
@@ -460,8 +525,8 @@ void VK::createSwapchain(Vulkan &vk, WindowData &win) {
     create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     
     ui32 queue_family_indices[2]{
-        vk.queues.graphics_index.value(),
-        vk.queues.present_index.value()
+        vk.cmd.queue_indices.graphics.value(),
+        vk.cmd.queue_indices.present.value()
     };
     
     if (queue_family_indices[0] != queue_family_indices[1]) {
@@ -542,6 +607,37 @@ VkFormat VK::getDepthFormat(Vulkan &vk) {
 
 void VK::createDepthResources(Vulkan &vk) {
     
+}
+
+//----------------------------------------
+
+
+
+//Command Pools
+//----------------------------------------
+
+void VK::createCommandPools(Vulkan &vk, std::vector<str> keys, std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags) {
+    for (auto key: keys) {
+        VkCommandPoolCreateInfo create_info{};
+        create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        
+        create_info.queueFamilyIndex = [queues, vk, key](){
+            if (queues.count(key) > 0)
+                return queues.at(key);
+            return vk.cmd.queue_indices.graphics.value();
+        }();
+        
+        create_info.flags = [flags, key](){
+            if (flags.count(key) > 0)
+                return flags.at(key);
+            return (VkCommandPoolCreateFlagBits)0;
+        }();
+        
+        if (vkCreateCommandPool(vk.device, &create_info, nullptr, &vk.cmd.command_pools[key]) != VK_SUCCESS)
+            log::error("Failed to create a vulkan command pool (%s)", key.c_str());
+    }
+    
+    log::graphics("Created all vulkan command pools");
 }
 
 //----------------------------------------
@@ -943,30 +1039,30 @@ void VK::createIndexBuffer(Vulkan &vk, const std::vector<ui16> &indices) {
 }
 
 void VK::createCommandBuffers(Vulkan &vk) {
-    vk.command_buffers.resize(vk.swapchain_framebuffers.size());
+    vk.cmd.command_buffers["draw"].resize(vk.swapchain_framebuffers.size());
     
     VkCommandBufferAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocate_info.commandPool = vk.command_pool;
+    allocate_info.commandPool = vk.cmd.command_pools["draw"];
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocate_info.commandBufferCount = (ui32)vk.command_buffers.size();
+    allocate_info.commandBufferCount = (ui32)vk.cmd.command_buffers["draw"].size();
     
-    if (vkAllocateCommandBuffers(vk.device, &allocate_info, vk.command_buffers.data()) != VK_SUCCESS)
+    if (vkAllocateCommandBuffers(vk.device, &allocate_info, vk.cmd.command_buffers["draw"].data()) != VK_SUCCESS)
         log::error("Failed to allocate a Vulkan Command Buffer");
     
-    for (int i = 0; i < vk.command_buffers.size(); i++) {
+    for (int i = 0; i < vk.cmd.command_buffers["draw"].size(); i++) {
         VkCommandBufferBeginInfo begin_info{};
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         begin_info.flags = 0;
         begin_info.pInheritanceInfo = nullptr;
         
-        if (vkBeginCommandBuffer(vk.command_buffers[i], &begin_info) != VK_SUCCESS)
+        if (vkBeginCommandBuffer(vk.cmd.command_buffers["draw"][i], &begin_info) != VK_SUCCESS)
             log::error("Failed to create a Vulkan Command Buffer");
         
-        recordCommandBuffer(vk, vk.command_buffers[i], vk.swapchain_framebuffers[i], vk.descriptor_sets[i]);
+        recordCommandBuffer(vk, vk.cmd.command_buffers["draw"][i], vk.swapchain_framebuffers[i], vk.descriptor_sets[i]);
         //TODO: Check how to clean this?
         
-        if (vkEndCommandBuffer(vk.command_buffers[i]) != VK_SUCCESS)
+        if (vkEndCommandBuffer(vk.cmd.command_buffers["draw"][i]) != VK_SUCCESS)
             log::error("Failed to end recording on a Vulkan Command Buffer");
     }
     
@@ -1007,7 +1103,7 @@ void VK::recordCommandBuffer(Vulkan &vk, VkCommandBuffer &command_buffer, VkFram
 VkCommandBuffer VK::beginSingleUseCommandBuffer(Vulkan &vk) {
     VkCommandBufferAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocate_info.commandPool = vk.temp_command_pool;
+    allocate_info.commandPool = vk.cmd.command_pools["temp"];
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocate_info.commandBufferCount = 1;
     
@@ -1029,10 +1125,10 @@ void VK::endSingleUseCommandBuffer(Vulkan &vk, VkCommandBuffer command_buffer) {
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &command_buffer;
-    vkQueueSubmit(vk.queues.graphics, 1, &submit_info, VK_NULL_HANDLE);
-    vkQueueWaitIdle(vk.queues.graphics);
+    vkQueueSubmit(vk.cmd.queues.graphics, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(vk.cmd.queues.graphics);
     
-    vkFreeCommandBuffers(vk.device, vk.temp_command_pool, 1, &command_buffer);
+    vkFreeCommandBuffers(vk.device, vk.cmd.command_pools["temp"], 1, &command_buffer);
 }
 
 void VK::copyBuffer(Vulkan &vk, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
@@ -1150,11 +1246,10 @@ void VK::updateUniformBuffer(Vulkan &vk, ui32 current_image) {
     
     VK::UniformBufferObject ubo{};
     
-    //ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
-    ubo.model = glm::rotate(glm::mat4(1.0f), t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
+    ubo.model = glm::rotate(ubo.model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.model = glm::translate(ubo.model, glm::vec3(0.0f, 0.0f, 0.3f * std::sin(t * 1.570796f)));
-    //ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 2.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), vk.swapchain_extent.width / (float) vk.swapchain_extent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
     
@@ -1418,35 +1513,6 @@ void VK::createFramebuffers(Vulkan &vk) {
 
 
 
-//Command Pools
-//----------------------------------------
-
-void VK::createCommandPools(Vulkan &vk) {
-    //Main command pool
-    VkCommandPoolCreateInfo create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    create_info.queueFamilyIndex = vk.queues.graphics_index.value(); //This is the command pool for graphics
-    create_info.flags = 0;
-    
-    if (vkCreateCommandPool(vk.device, &create_info, nullptr, &vk.command_pool) != VK_SUCCESS)
-        log::error("Failed to create the Vulkan Graphics Command Pool");
-    
-    //Temporary command pool for short lived objects
-    VkCommandPoolCreateInfo temp_create_info{};
-    temp_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    temp_create_info.queueFamilyIndex = vk.queues.graphics_index.value();
-    temp_create_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    
-    if (vkCreateCommandPool(vk.device, &create_info, nullptr, &vk.temp_command_pool) != VK_SUCCESS)
-        log::error("Failed to create the Vulkan Graphics Temporary Command Pool");
-    
-    log::graphics("Created all Vulkan Command Pools");
-}
-
-//----------------------------------------
-
-
-
 //Sync objects
 //----------------------------------------
 
@@ -1520,7 +1586,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
     submit_info.pWaitDstStageMask = wait_stages;
     
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &vk.command_buffers[image_index];
+    submit_info.pCommandBuffers = &vk.cmd.command_buffers["draw"][image_index];
     
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
@@ -1528,7 +1594,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
     
     vkResetFences(vk.device, 1, &vk.fences_in_flight[vk.current_frame]);
     
-    if (vkQueueSubmit(vk.queues.graphics, 1, &submit_info, vk.fences_in_flight[vk.current_frame]) != VK_SUCCESS)
+    if (vkQueueSubmit(vk.cmd.queues.graphics, 1, &submit_info, vk.fences_in_flight[vk.current_frame]) != VK_SUCCESS)
         log::error("Failed to submit Draw Command Buffer");
     
     
@@ -1545,7 +1611,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
     present_info.pResults = nullptr;
     
     
-    result = vkQueuePresentKHR(vk.queues.present, &present_info);
+    result = vkQueuePresentKHR(vk.cmd.queues.present, &present_info);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR or result == VK_SUBOPTIMAL_KHR)
         recreateSwapchain(vk, win);
@@ -1588,7 +1654,8 @@ void VK::cleanSwapchain(Vulkan &vk) {
     for (VkFramebuffer fb : vk.swapchain_framebuffers)
         vkDestroyFramebuffer(vk.device, fb, nullptr);
     
-    vkFreeCommandBuffers(vk.device, vk.command_pool, static_cast<ui32>(vk.command_buffers.size()), vk.command_buffers.data());
+    for (auto [key, val] : vk.cmd.command_buffers)
+        vkFreeCommandBuffers(vk.device, vk.cmd.command_pools[key], (ui32)val.size(), val.data());
     
     vkDestroyPipeline(vk.device, vk.pipeline, nullptr);
     vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
@@ -1631,8 +1698,8 @@ void API::clean(Vulkan &vk) {
         vkDestroyFence(vk.device, vk.fences_in_flight[i], nullptr);
     }
     
-    vkDestroyCommandPool(vk.device, vk.command_pool, nullptr);
-    vkDestroyCommandPool(vk.device, vk.temp_command_pool, nullptr);
+    for (auto [key, val] : vk.cmd.command_pools)
+        vkDestroyCommandPool(vk.device, val, nullptr);
     
     vkDestroyDevice(vk.device, nullptr);
     
@@ -1666,7 +1733,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanReportFunc(
 
 PFN_vkCreateDebugReportCallbackEXT SDL2_vkCreateDebugReportCallbackEXT = nullptr;
 
-void VK::createDebug(Vulkan &vk) {
+VkDebugReportCallbackEXT VK::createDebug(VkInstance &instance) {
     SDL2_vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)SDL_Vulkan_GetVkGetInstanceProcAddr();
 
     VkDebugReportCallbackCreateInfoEXT debug_callback_create_info = {};
@@ -1674,7 +1741,11 @@ void VK::createDebug(Vulkan &vk) {
     debug_callback_create_info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
     debug_callback_create_info.pfnCallback = vulkanReportFunc;
 
-    SDL2_vkCreateDebugReportCallbackEXT(vk.instance, &debug_callback_create_info, 0, &vk.debug_callback);
+    VkDebugReportCallbackEXT debug_callback;
+    
+    SDL2_vkCreateDebugReportCallbackEXT(instance, &debug_callback_create_info, 0, &debug_callback);
+    
+    return debug_callback;
 }
 
 //----------------------------------------

@@ -10,6 +10,7 @@
 #include <SDL2/SDL_vulkan.h>
 
 #include <vector>
+#include <map>
 
 #include "r_vulkan_datatypes.h"
 #include "r_bufferdata.h"
@@ -17,6 +18,14 @@
 
 namespace Verse::Graphics
 {
+    struct VkCommandData {
+        std::map<str, VkCommandPool> command_pools;
+        std::map<str, std::vector<VkCommandBuffer>> command_buffers;
+        
+        VK::QueueIndices queue_indices;
+        VK::QueueData queues;
+    };
+
     struct Vulkan {
         //Device
         //----------------------------------------
@@ -25,11 +34,16 @@ namespace Verse::Graphics
         
         VkSurfaceKHR surface;
         
-        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-        
-        VK::QueueData queues;
+        VkPhysicalDevice physical_device;
+        VkPhysicalDeviceFeatures physical_device_features;
         
         VkDevice device;
+        //----------------------------------------
+        
+        
+        //Commands
+        //----------------------------------------
+        VkCommandData cmd;
         //----------------------------------------
         
         
@@ -69,8 +83,6 @@ namespace Verse::Graphics
         BufferData vertex_buffer;
         BufferData index_buffer;
         ui32 index_buffer_size;
-        
-        std::vector<VkCommandBuffer> command_buffers;
         //----------------------------------------
         
         
@@ -93,13 +105,6 @@ namespace Verse::Graphics
         //Framebuffers
         //----------------------------------------
         std::vector<VkFramebuffer> swapchain_framebuffers;
-        //----------------------------------------
-        
-        
-        //Command pools
-        //----------------------------------------
-        VkCommandPool command_pool;
-        VkCommandPool temp_command_pool;
         //----------------------------------------
         
         

@@ -11,17 +11,16 @@
 
 namespace Verse::Graphics::VK
 {
+    struct QueueIndices {
+        std::optional<ui32> graphics;
+        std::optional<ui32> present;
+        std::optional<ui32> compute;
+    };
+
     struct QueueData {
-        std::optional<ui32> graphics_index;
-        std::optional<ui32> present_index;
-        std::optional<ui32> compute_index;
-        
         VkQueue graphics;
         VkQueue present;
         VkQueue compute;
-        
-        bool all() { return (graphics_index.has_value() and present_index.has_value() and
-                             compute_index.has_value()); };
     };
 
     struct SwapchainSupportData {
