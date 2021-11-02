@@ -84,6 +84,10 @@ namespace Verse::Graphics::VK
 
     //Pipeline
     //----------------------------------------
+    ShaderData createShaderData(VkDevice &device, str vert = "", str frag = "", str compute = "", str geometry = "");
+
+    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice &device, ShaderData &shader);
+
     void prepareRenderInfoVertexInput(RenderingCreateInfo &rendering_create_info);
     void prepareRenderInfoInputAssembly(RenderingCreateInfo &rendering_create_info);
     void prepareRenderInfoViewportState(RenderingCreateInfo &rendering_create_info, VkExtent2D extent);
@@ -95,7 +99,6 @@ namespace Verse::Graphics::VK
     void prepareRenderInfoPipelineLayout(RenderingCreateInfo &rendering_create_info);
     RenderingCreateInfo prepareRenderInfo(Vulkan &vk);
     
-    void createDescriptorSetLayout(Vulkan &vk);
     void createPipelineLayout(Vulkan &vk);
 
     void createGraphicsPipeline(Vulkan &vk);

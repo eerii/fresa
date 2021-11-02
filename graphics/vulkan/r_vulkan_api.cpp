@@ -97,7 +97,13 @@ Vulkan API::create(WindowData &win) {
     //---Sync objects---
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain);
     
-    VK::createDescriptorSetLayout(vk);
+    //---Shader data---
+    vk.shader = VK::createShaderData(vk.device, "res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
+    
+    //---Descriptor set layout---
+    vk.descriptor_set_layout = VK::createDescriptorSetLayout(vk.device, vk.shader);
+    
+    
     VK::createGraphicsPipeline(vk);
     
     
@@ -623,6 +629,8 @@ void VK::recreateSwapchain(Vulkan &vk, WindowData &win) {
     vk.swapchain.main_render_pass = createRenderPass(vk.device, vk.swapchain);
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
     
+    vk.shader = VK::createShaderData(vk.device, "res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
+    
     createGraphicsPipeline(vk);
     
     createUniformBuffers(vk);
@@ -977,6 +985,78 @@ VkSyncData VK::createSyncObjects(VkDevice &device, VkSwapchainData &swapchain) {
 //Pipeline
 //----------------------------------------
 
+ShaderData VK::createShaderData(VkDevice &device, str vert, str frag, str compute, str geometry) {
+    ShaderData data;
+    
+    if (vert != "" and not data.locations.vert.has_value())
+        data.locations.vert = vert;
+    if (frag != "" and not data.locations.frag.has_value())
+        data.locations.frag = frag;
+    if (compute != "" and not data.locations.compute.has_value())
+        data.locations.compute = compute;
+    if (geometry != "" and not data.locations.geometry.has_value())
+        data.locations.geometry = geometry;
+    
+    
+    data.code = Shader::readSPIRV(data);
+    data.stages = Shader::createShaderStages(data.code, device);
+    
+    return data;
+}
+
+VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice &device, ShaderData &shader) {
+    //TODO: ADD DESCRIPTION AND PRINTING OF ATTRIBUTES
+    VkDescriptorSetLayout layout;
+    
+    std::vector<VkDescriptorSetLayoutBinding> layout_binding;
+    
+    //---Vertex shader---
+    if (shader.code.vert.has_value()) {
+        ShaderCompiler compiler = Shader::getShaderCompiler(shader.code.vert.value());
+        ShaderResources resources = compiler.get_shader_resources();
+        
+        //: Uniform buffers
+        for (const auto &res : resources.uniform_buffers) {
+            ui32 i = (ui32)layout_binding.size();
+            layout_binding.push_back(VkDescriptorSetLayoutBinding{});
+            
+            layout_binding[i].binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            layout_binding[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            layout_binding[i].descriptorCount = 1;
+            layout_binding[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+            layout_binding[i].pImmutableSamplers = nullptr;
+        }
+    }
+    
+    //---Fragment shader---
+    if (shader.code.frag.has_value()) {
+        ShaderCompiler compiler = Shader::getShaderCompiler(shader.code.frag.value());
+        ShaderResources resources = compiler.get_shader_resources();
+        
+        //: Combined image samplers
+        for (const auto &res : resources.sampled_images) {
+            ui32 i = (ui32)layout_binding.size();
+            layout_binding.push_back(VkDescriptorSetLayoutBinding{});
+            
+            layout_binding[i].binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            layout_binding[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            layout_binding[i].descriptorCount = 1;
+            layout_binding[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            layout_binding[i].pImmutableSamplers = nullptr;
+        }
+    }
+    
+    VkDescriptorSetLayoutCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    create_info.bindingCount = (ui32)layout_binding.size();
+    create_info.pBindings = layout_binding.data();
+    
+    if (vkCreateDescriptorSetLayout(device, &create_info, nullptr, &layout) != VK_SUCCESS)
+        log::error("Error creating the Vulkan Descriptor Set Layout for Uniform Buffers");
+    
+    return layout;
+}
+
 VK::RenderingCreateInfo VK::prepareRenderInfo(Vulkan &vk) {
     RenderingCreateInfo info;
     
@@ -1121,30 +1201,6 @@ void VK::prepareRenderInfoColorBlendState(VK::RenderingCreateInfo &info) {
     info.color_blend_state.blendConstants[3] = 0.0f;
 }
 
-void VK::createDescriptorSetLayout(Vulkan &vk) {
-    std::array<VkDescriptorSetLayoutBinding, 2> layout_binding;
-    
-    layout_binding[0].binding = 0;
-    layout_binding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layout_binding[0].descriptorCount = 1;
-    layout_binding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layout_binding[0].pImmutableSamplers = nullptr;
-    
-    layout_binding[1].binding = 1;
-    layout_binding[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layout_binding[1].descriptorCount = 1;
-    layout_binding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layout_binding[1].pImmutableSamplers = nullptr;
-    
-    VkDescriptorSetLayoutCreateInfo create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    create_info.bindingCount = (ui32)layout_binding.size();
-    create_info.pBindings = layout_binding.data();
-    
-    if (vkCreateDescriptorSetLayout(vk.device, &create_info, nullptr, &vk.descriptor_set_layout) != VK_SUCCESS)
-        log::error("Error creating the Vulkan Descriptor Set Layout for Uniform Buffers");
-}
-
 void VK::createPipelineLayout(Vulkan &vk) {
     VkPipelineLayoutCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1162,13 +1218,7 @@ void VK::createPipelineLayout(Vulkan &vk) {
 }
 
 void VK::createGraphicsPipeline(Vulkan &vk) {
-    std::vector<char> vert_shader_code = Graphics::Shader::readSPIRV("res/shaders/test/test.vert.spv");
-    std::vector<char> frag_shader_code = Graphics::Shader::readSPIRV("res/shaders/test/test.frag.spv");
-    
-    Graphics::Shader::ShaderStages stages;
-    stages.vert = Graphics::Shader::createShaderModule(vert_shader_code, vk.device);
-    stages.frag = Graphics::Shader::createShaderModule(frag_shader_code, vk.device);
-    std::vector<VkPipelineShaderStageCreateInfo> stage_info = Graphics::Shader::createShaderStageInfo(stages);
+    std::vector<VkPipelineShaderStageCreateInfo> stage_info = Graphics::Shader::getShaderStageInfo(vk.shader.stages);
     
     RenderingCreateInfo rendering_create_info = prepareRenderInfo(vk);
     
@@ -1203,8 +1253,7 @@ void VK::createGraphicsPipeline(Vulkan &vk) {
     
     log::graphics("Created the Vulkan Graphics Pipeline");
     
-    vkDestroyShaderModule(vk.device, stages.vert.value(), nullptr);
-    vkDestroyShaderModule(vk.device, stages.frag.value(), nullptr);
+    Shader::destroyShaderStages(vk.device, vk.shader.stages);
 }
 
 //----------------------------------------

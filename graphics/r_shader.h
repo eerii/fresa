@@ -35,16 +35,15 @@ namespace Verse::Graphics::Shader
     
     #elif defined USE_VULKAN
 
-    struct ShaderStages {
-        std::optional<VkShaderModule> vert;
-        std::optional<VkShaderModule> frag;
-        std::optional<VkShaderModule> compute;
-        std::optional<VkShaderModule> geometry;
-    };
-
     std::vector<char> readSPIRV(std::string filename);
-    VkShaderModule createShaderModule(std::vector<char> &code, VkDevice &device);
-    std::vector<VkPipelineShaderStageCreateInfo> createShaderStageInfo(ShaderStages &stages);
+    ShaderCode readSPIRV(ShaderData &data);
 
+    VkShaderModule createShaderModule(std::vector<char> &code, VkDevice &device);
+    ShaderStages createShaderStages(ShaderCode &code, VkDevice &device);
+
+    std::vector<VkPipelineShaderStageCreateInfo> getShaderStageInfo(ShaderStages &stages);
+    void destroyShaderStages(VkDevice &device, ShaderStages &stages);
+
+    ShaderCompiler getShaderCompiler(std::vector<char> &code);
     #endif
 }

@@ -15,6 +15,7 @@
 #include "r_vulkan_datatypes.h"
 #include "r_bufferdata.h"
 #include "r_texturedata.h"
+#include "r_shaderdata.h"
 
 namespace Verse::Graphics
 {
@@ -83,6 +84,8 @@ namespace Verse::Graphics
         
         //Pipeline
         //----------------------------------------
+        ShaderData shader;
+        
         VkDescriptorSetLayout descriptor_set_layout;
         VkPipelineLayout pipeline_layout;
         
