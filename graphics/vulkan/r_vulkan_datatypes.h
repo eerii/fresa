@@ -29,6 +29,12 @@ namespace Verse::Graphics::VK
         std::vector<VkPresentModeKHR> present_modes;
     };
 
+    struct RenderPassCreateData {
+        std::vector<VkSubpassDescription> subpasses;
+        std::vector<VkSubpassDependency> dependencies;
+        std::vector<VkAttachmentDescription> attachments;
+    };
+
     struct RenderingCreateInfo {
         VkPipelineVertexInputStateCreateInfo vertex_input;
         VkPipelineInputAssemblyStateCreateInfo input_assembly;
@@ -43,10 +49,9 @@ namespace Verse::Graphics::VK
         VkRect2D scissor;
         
         VkVertexInputBindingDescription vertex_input_binding_description;
-        std::array<VkVertexInputAttributeDescription, 3> vertex_input_attribute_descriptions; //TODO: Scale this accordingly
+        std::array<VkVertexInputAttributeDescription, 2> vertex_input_attribute_descriptions; //TODO: Scale this accordingly
     };
 
-    //TODO: CHANGE THIS
     struct UniformBufferObject {
         glm::mat4 model;
         glm::mat4 view;
