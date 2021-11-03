@@ -19,6 +19,7 @@ namespace Verse::Graphics::Vertex
     std::vector<VertexAttributeDescription> getAttributeDescriptions() {
         std::vector<VertexAttributeDescription> attribute_descriptions = {};
         
+        log::graphics("");
         log::graphics("Creating attribute descriptions...");
         
         ui32 offset = 0;
@@ -42,25 +43,31 @@ namespace Verse::Graphics::Vertex
                 offset += sizeof(x);
             }
         });
-
+        
+        log::graphics("");
         return attribute_descriptions;
     }
 
     #ifdef USE_VULKAN
-    inline VkVertexInputBindingDescription getBindingDescriptionVK() {
-        VkVertexInputBindingDescription binding_description = {};
-
-        binding_description.binding = 0;
-        binding_description.stride = sizeof(VertexData);
-        binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    std::vector<VkVertexInputBindingDescription> getBindingDescriptionVK() {
+        std::vector<VkVertexInputBindingDescription> binding_descriptions;
         
-        return binding_description;
+        VkVertexInputBindingDescription v;
+        v.binding = 0;
+        v.stride = sizeof(V);
+        v.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        
+        binding_descriptions.push_back(v);
+        
+        return binding_descriptions;
     }
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    std::array<VkVertexInputAttributeDescription, V::size> getAttributeDescriptionsVK() {
+    std::vector<VkVertexInputAttributeDescription> getAttributeDescriptionsVK() {
         std::vector<VertexAttributeDescription> attr_v = getAttributeDescriptions<V>();
-        std::array<VkVertexInputAttributeDescription, V::size> attr;
+        std::vector<VkVertexInputAttributeDescription> attr;
+        attr.resize(attr_v.size());
         std::transform(attr_v.begin(), attr_v.end(), attr.begin(), [](const auto &a){
             VkVertexInputAttributeDescription v;
             v.binding = a.binding;
@@ -83,4 +90,7 @@ namespace Verse::Graphics::Vertex
         return attr;
     }
     #endif
+
+    //Expand to allow multiple vertex descriptions, use it so the user can pass multiple
+    //template arguments and they will be created for each of them
 }

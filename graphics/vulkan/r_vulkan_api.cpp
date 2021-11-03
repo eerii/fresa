@@ -103,8 +103,9 @@ Vulkan API::create(WindowData &win) {
     //---Descriptor set layout---
     vk.descriptor_set_layout = VK::createDescriptorSetLayout(vk.device, vk.shader);
     
-    
-    VK::createGraphicsPipeline(vk);
+    //---Pipeline---
+    vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptor_set_layout);
+    vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
     
     VK::createVertexBuffer(vk, vertices);
@@ -629,9 +630,8 @@ void VK::recreateSwapchain(Vulkan &vk, WindowData &win) {
     vk.swapchain.main_render_pass = createRenderPass(vk.device, vk.swapchain);
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
     
-    vk.shader = VK::createShaderData(vk.device, "res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
-    
-    createGraphicsPipeline(vk);
+    vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptor_set_layout);
+    vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
     createUniformBuffers(vk);
     createDescriptorPool(vk);
@@ -986,6 +986,9 @@ VkSyncData VK::createSyncObjects(VkDevice &device, VkSwapchainData &swapchain) {
 //----------------------------------------
 
 ShaderData VK::createShaderData(VkDevice &device, str vert, str frag, str compute, str geometry) {
+    //---Shader data---
+    //      Creates a shader data object from a list of locations for the different stages
+    //      First it saves the locations, then it reads the code, and then gets the stage create info
     ShaderData data;
     
     if (vert != "" and not data.locations.vert.has_value())
@@ -997,18 +1000,38 @@ ShaderData VK::createShaderData(VkDevice &device, str vert, str frag, str comput
     if (geometry != "" and not data.locations.geometry.has_value())
         data.locations.geometry = geometry;
     
-    
     data.code = Shader::readSPIRV(data);
     data.stages = Shader::createShaderStages(data.code, device);
     
     return data;
 }
 
-VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice &device, ShaderData &shader) {
-    //TODO: ADD DESCRIPTION AND PRINTING OF ATTRIBUTES
-    VkDescriptorSetLayout layout;
+VkDescriptorSetLayoutBinding VK::prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding) {
+    //---Descriptor set layout binding---
+    //      One item of a descriptor set layout, it includes the stage (vertex, frag...),
+    //      the type of the descriptor (uniform, image...) and the binding position
+    VkDescriptorSetLayoutBinding layout_binding;
     
+    layout_binding.binding = binding;
+    layout_binding.descriptorType = type;
+    layout_binding.descriptorCount = 1;
+    layout_binding.stageFlags = stage;
+    layout_binding.pImmutableSamplers = nullptr;
+    
+    return layout_binding;
+}
+
+VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice &device, ShaderData &shader) {
+    //---Descriptor set layout---
+    //      It is a blueprint for creating descriptor sets, specifies the number and type of descriptors in the GLSL shader
+    //      Descriptors can be anything passed into a shader: uniforms, images, ...
+    //      We use SPIRV-cross to get reflection from the shaders themselves and create the descriptor layout automatically
+    VkDescriptorSetLayout layout;
     std::vector<VkDescriptorSetLayoutBinding> layout_binding;
+    
+    log::graphics("");
+    log::graphics("Creating descriptor set layout...");
+    
     
     //---Vertex shader---
     if (shader.code.vert.has_value()) {
@@ -1017,243 +1040,348 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice &device, ShaderData
         
         //: Uniform buffers
         for (const auto &res : resources.uniform_buffers) {
-            ui32 i = (ui32)layout_binding.size();
-            layout_binding.push_back(VkDescriptorSetLayoutBinding{});
-            
-            layout_binding[i].binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            layout_binding[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            layout_binding[i].descriptorCount = 1;
-            layout_binding[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-            layout_binding[i].pImmutableSamplers = nullptr;
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: Vertex", res.name.c_str(), binding);
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
         }
     }
+    
     
     //---Fragment shader---
     if (shader.code.frag.has_value()) {
         ShaderCompiler compiler = Shader::getShaderCompiler(shader.code.frag.value());
         ShaderResources resources = compiler.get_shader_resources();
         
+        //: Uniform buffers
+        for (const auto &res : resources.uniform_buffers) {
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: Fragment", res.name.c_str(), binding);
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
+        }
+        
         //: Combined image samplers
         for (const auto &res : resources.sampled_images) {
-            ui32 i = (ui32)layout_binding.size();
-            layout_binding.push_back(VkDescriptorSetLayoutBinding{});
-            
-            layout_binding[i].binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            layout_binding[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            layout_binding[i].descriptorCount = 1;
-            layout_binding[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            layout_binding[i].pImmutableSamplers = nullptr;
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Image (%s) - Binding : %d - Stage : Fragment", res.name.c_str(), binding);
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding));
         }
     }
     
+    
+    //---Create the descriptor layout itself---
     VkDescriptorSetLayoutCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     create_info.bindingCount = (ui32)layout_binding.size();
     create_info.pBindings = layout_binding.data();
     
     if (vkCreateDescriptorSetLayout(device, &create_info, nullptr, &layout) != VK_SUCCESS)
-        log::error("Error creating the Vulkan Descriptor Set Layout for Uniform Buffers");
+        log::error("Error creating a descriptor set layout, check shader refraction");
     
     return layout;
 }
 
-VK::RenderingCreateInfo VK::prepareRenderInfo(Vulkan &vk) {
-    RenderingCreateInfo info;
+VK::PipelineCreateInfo VK::preparePipelineCreateInfo(VkExtent2D extent) {
+    //---Preprare pipeline info---
+    //      Pipelines are huge objects in vulkan, and building them is both complicated and expensive
+    //      There is a lot of configuration needed, so this with all the helper functions attempt to break it down into manageable components
+    //      Each function explains itself, so refer to them for reference
+    PipelineCreateInfo info;
     
-    prepareRenderInfoVertexInput(info); //TODO: Change for actual types and add them here, it will look very nice
-    prepareRenderInfoInputAssembly(info);
-    prepareRenderInfoViewportState(info, vk.swapchain.extent);
-    prepareRenderInfoRasterizer(info);
-    prepareRenderInfoMultisampling(info);
-    prepareRenderInfoDepthStencil(info);
-    prepareRenderInfoColorBlendAttachment(info);
-    prepareRenderInfoColorBlendState(info);
+    info.vertex_input_binding_description = Vertex::getBindingDescriptionVK<VertexData>();
+    info.vertex_input_attribute_descriptions = Vertex::getAttributeDescriptionsVK<VertexData>();
+    info.vertex_input = preparePipelineCreateInfoVertexInput(info.vertex_input_binding_description, info.vertex_input_attribute_descriptions);
+    
+    info.input_assembly = preparePipelineCreateInfoInputAssembly();
+    
+    info.viewport = preparePipelineCreateInfoViewport(extent);
+    info.scissor = preparePipelineCreateInfoScissor(extent);
+    info.viewport_state = preparePipelineCreateInfoViewportState(info.viewport, info.scissor);
+    
+    info.rasterizer = preparePipelineCreateInfoRasterizer();
+    
+    info.multisampling = preparePipelineCreateInfoMultisampling();
+    
+    info.depth_stencil = preparePipelineCreateInfoDepthStencil();
+    
+    info.color_blend_attachment = preparePipelineCreateInfoColorBlendAttachment();
+    info.color_blend_state = preparePipelineCreateInfoColorBlendState(info.color_blend_attachment);
     
     return info;
 }
 
-void VK::prepareRenderInfoVertexInput(VK::RenderingCreateInfo &info) {
-    info.vertex_input = {};
-    info.vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+VkPipelineVertexInputStateCreateInfo VK::preparePipelineCreateInfoVertexInput(std::vector<VkVertexInputBindingDescription> &binding,
+                                                                              std::vector<VkVertexInputAttributeDescription> &attributes) {
+    //---Vertex input info---
+    //      Each vertex can have a different shape, this struct details it's structure
+    //      It has two components, the binding and the attribute descriptions
+    //      You can think of it as if the binding is the global binding and size of the struct (we have just one in this case, VertexData)
+    //      The attribute description is an array including each member of the array, with its size and stride
+    //      We get this information using fresa's reflection on the types we pass
+    VkPipelineVertexInputStateCreateInfo vertex_input{};
+    vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     
-    info.vertex_input_binding_description = Vertex::getBindingDescriptionVK();
-    info.vertex_input_attribute_descriptions = Vertex::getAttributeDescriptionsVK<VertexData>();
+    vertex_input.vertexBindingDescriptionCount = (ui32)binding.size();
+    vertex_input.pVertexBindingDescriptions = binding.data();
     
-    info.vertex_input.vertexBindingDescriptionCount = 1;
-    info.vertex_input.pVertexBindingDescriptions = &info.vertex_input_binding_description;
-    info.vertex_input.vertexAttributeDescriptionCount = static_cast<ui32>(info.vertex_input_attribute_descriptions.size());
-    info.vertex_input.pVertexAttributeDescriptions = info.vertex_input_attribute_descriptions.data();
+    vertex_input.vertexAttributeDescriptionCount = (ui32)attributes.size();
+    vertex_input.pVertexAttributeDescriptions = attributes.data();
+    
+    return vertex_input;
 }
 
-void VK::prepareRenderInfoInputAssembly(VK::RenderingCreateInfo &info) {
-    info.input_assembly = {};
+VkPipelineInputAssemblyStateCreateInfo VK::preparePipelineCreateInfoInputAssembly() {
+    //---Input assembly info---
+    //      Here we specify the way the vertices will be processed, in this case a triangle list (Each 3 vertices will form a triangle)
+    //      Other possible configurations make it possible to draw points or lines
+    //      If primitiveRestartEnable is set to true, it is possible to break strips using a special index, but we won't use it yet
+    VkPipelineInputAssemblyStateCreateInfo input_assembly{};
+    input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     
-    info.input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    info.input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    info.input_assembly.primitiveRestartEnable = VK_FALSE; //Change when using an index buffer
+    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    input_assembly.primitiveRestartEnable = VK_FALSE;
+    
+    return input_assembly;
 }
 
-void VK::prepareRenderInfoViewportState(VK::RenderingCreateInfo &info, VkExtent2D extent) {
-    info.viewport = {};
-    info.viewport.x = 0.0f;
-    info.viewport.y = 0.0f;
-    info.viewport.width = (float)extent.width;
-    info.viewport.height = (float)extent.height;
-    info.viewport.minDepth = 0.0f;
-    info.viewport.maxDepth = 1.0f;
+VkViewport VK::preparePipelineCreateInfoViewport(VkExtent2D extent) {
+    //---Viewport---
+    //      The offset and dimensions of the draw viewport inside the window, we just set this to the default
+    VkViewport viewport{};
     
-    info.scissor = {};
-    info.scissor.offset = {0, 0};
-    info.scissor.extent = extent;
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)extent.width;
+    viewport.height = (float)extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
     
-    info.viewport_state = {};
-    
-    info.viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    info.viewport_state.viewportCount = 1;
-    info.viewport_state.pViewports = &info.viewport;
-    info.viewport_state.scissorCount = 1;
-    info.viewport_state.pScissors = &info.scissor;
+    return viewport;
 }
 
-void VK::prepareRenderInfoRasterizer(VK::RenderingCreateInfo &info) {
-    info.rasterizer = {};
+VkRect2D VK::preparePipelineCreateInfoScissor(VkExtent2D extent) {
+    //---Scissor---
+    //      It is possible to crop the viewport and only present a part of it, but for now we will leave it as default
+    VkRect2D scissor{};
     
-    info.rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    info.rasterizer.depthClampEnable = VK_FALSE;
-    info.rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    scissor.offset = {0, 0};
+    scissor.extent = extent;
     
-    info.rasterizer.polygonMode = VK_POLYGON_MODE_FILL; //Fill, Line, Point, requires enabling GPU features
-    info.rasterizer.lineWidth = 1.0f; //Larger thickness requires enabling GPU features
-    
-    info.rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    info.rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    
-    info.rasterizer.depthBiasEnable = VK_FALSE;
-    info.rasterizer.depthBiasConstantFactor = 0.0f;
-    info.rasterizer.depthBiasClamp = 0.0f;
-    info.rasterizer.depthBiasSlopeFactor = 0.0f;
+    return scissor;
 }
 
-void VK::prepareRenderInfoMultisampling(VK::RenderingCreateInfo &info) {
-    info.multisampling = {};
+VkPipelineViewportStateCreateInfo VK::preparePipelineCreateInfoViewportState(VkViewport &viewport, VkRect2D &scissor) {
+    //---Viewport state info---
+    //      We combine the viewport and scissor into one vulkan info struct
+    VkPipelineViewportStateCreateInfo viewport_state{};
+    viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     
-    info.multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    info.multisampling.sampleShadingEnable = VK_FALSE; //Needs to be enabled in the future
+    viewport_state.viewportCount = 1;
+    viewport_state.pViewports = &viewport;
     
-    info.multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    info.multisampling.minSampleShading = 1.0f;
-    info.multisampling.pSampleMask = nullptr;
+    viewport_state.scissorCount = 1;
+    viewport_state.pScissors = &scissor;
     
-    info.multisampling.alphaToCoverageEnable = VK_FALSE;
-    info.multisampling.alphaToOneEnable = VK_FALSE;
+    return viewport_state;
 }
 
-void VK::prepareRenderInfoDepthStencil(VK::RenderingCreateInfo &info) {
-    info.depth_stencil = {};
+VkPipelineRasterizationStateCreateInfo VK::preparePipelineCreateInfoRasterizer() {
+    //---Rasterizer info---
+    //      Configuration for the rasterizer stage
+    //      While it is not directly programmable like the vertex or fragment stage, we can set some variables to modify how it works
+    VkPipelineRasterizationStateCreateInfo rasterizer = {};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     
-    info.depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
     
-    info.depth_stencil.depthTestEnable = VK_TRUE;
-    info.depth_stencil.depthWriteEnable = VK_TRUE;
+    //: Polygon modes
+    //      - Fill, fills the triangle area with fragments
+    //      - Line, draws the edges of the triangle as lines
+    //      - Point, only draws the vertices of the triangle as points
+    //      (Line and point require enabling GPU features)
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     
-    info.depth_stencil.depthBoundsTestEnable = VK_FALSE;
-    info.depth_stencil.stencilTestEnable = VK_FALSE;
+    //: Line width
+    //      Describes the thickness of lines in term of fragments, it requires enabling the wideLines GPU feature
+    rasterizer.lineWidth = 1.0f;
     
-    info.depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    //: Culling
+    //      We will be culling the back face to save in performance
+    //      To calculate the front face, if we are not sending normals, the vertices will be calculated in counter clockwise order
+    //      If nothing shows to the screen, one of the most probable causes is the winding order of the vertices to be reversed
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    log::graphics("Culling: back bit - Winding order: CCW");
     
-    info.depth_stencil.minDepthBounds = 0.0f;
-    info.depth_stencil.maxDepthBounds = 1.0f;
+    rasterizer.depthBiasEnable = VK_FALSE;
+    rasterizer.depthBiasConstantFactor = 0.0f;
+    rasterizer.depthBiasClamp = 0.0f;
+    rasterizer.depthBiasSlopeFactor = 0.0f;
     
-    info.depth_stencil.front = {};
-    info.depth_stencil.back = {};
+    return rasterizer;
 }
 
-void VK::prepareRenderInfoColorBlendAttachment(VK::RenderingCreateInfo &info) {
-    info.color_blend_attachment = {};
+VkPipelineMultisampleStateCreateInfo VK::preparePipelineCreateInfoMultisampling() {
+    //---Multisampling info---
+    //      It is one of the ways to perform anti-aliasing when multiple polygons rasterize to the same pixel
+    //      We will get back to this and enable it
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     
-    info.color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    multisampling.sampleShadingEnable = VK_FALSE;
     
-    info.color_blend_attachment.blendEnable = VK_TRUE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling.minSampleShading = 1.0f;
+    multisampling.pSampleMask = nullptr;
     
-    info.color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    info.color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    info.color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+    multisampling.alphaToCoverageEnable = VK_FALSE;
+    multisampling.alphaToOneEnable = VK_FALSE;
     
-    info.color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    info.color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    info.color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    return multisampling;
 }
 
-void VK::prepareRenderInfoColorBlendState(VK::RenderingCreateInfo &info) {
-    info.color_blend_state = {};
-
-    info.color_blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+VkPipelineDepthStencilStateCreateInfo VK::preparePipelineCreateInfoDepthStencil() {
+    //---Depth info---
+    //      WORK IN PROGRESS, get back to this
+    VkPipelineDepthStencilStateCreateInfo depth_stencil{};
+    depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     
-    info.color_blend_state.logicOpEnable = VK_FALSE;
-    info.color_blend_state.logicOp = VK_LOGIC_OP_COPY;
+    depth_stencil.depthTestEnable = VK_TRUE;
+    depth_stencil.depthWriteEnable = VK_TRUE;
     
-    info.color_blend_state.attachmentCount = 1;
-    info.color_blend_state.pAttachments = &info.color_blend_attachment; //Change for all framebuffers
+    depth_stencil.depthBoundsTestEnable = VK_FALSE;
+    depth_stencil.stencilTestEnable = VK_FALSE;
     
-    info.color_blend_state.blendConstants[0] = 0.0f;
-    info.color_blend_state.blendConstants[1] = 0.0f;
-    info.color_blend_state.blendConstants[2] = 0.0f;
-    info.color_blend_state.blendConstants[3] = 0.0f;
+    depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    
+    depth_stencil.minDepthBounds = 0.0f;
+    depth_stencil.maxDepthBounds = 1.0f;
+    
+    depth_stencil.front = {};
+    depth_stencil.back = {};
+    
+    return depth_stencil;
 }
 
-void VK::createPipelineLayout(Vulkan &vk) {
+VkPipelineColorBlendAttachmentState VK::preparePipelineCreateInfoColorBlendAttachment() {
+    //---Color blending attachment---
+    //      Specifies how colors should be blended together
+    //      We are using alpha blending:
+    //          final_color.rgb = new_color.a * new_color.rgb + (1 - new_color.a) * old_color.rgb;
+    //          final_color.a = new_color.a;
+    //      This still needs testing and possible tweaking
+    
+    VkPipelineColorBlendAttachmentState color_blend{};
+    
+    color_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    
+    color_blend.blendEnable = VK_TRUE;
+    
+    color_blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    color_blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    color_blend.colorBlendOp = VK_BLEND_OP_ADD;
+    
+    color_blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    color_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    color_blend.alphaBlendOp = VK_BLEND_OP_ADD;
+    
+    return color_blend;
+}
+
+VkPipelineColorBlendStateCreateInfo VK::preparePipelineCreateInfoColorBlendState(VkPipelineColorBlendAttachmentState &attachment) {
+    //---Color blending info---
+    //      Combines all the color blending attachments into one struct
+    //      Note: each framebuffer can have a different attachment, right now we are only using one for all
+    //      Here logic operations can be specified manually, but we will use vulkan's blend attachments to handle blending
+    
+    VkPipelineColorBlendStateCreateInfo color_blend_state{};
+
+    color_blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    
+    color_blend_state.logicOpEnable = VK_FALSE;
+    color_blend_state.logicOp = VK_LOGIC_OP_COPY;
+    
+    color_blend_state.attachmentCount = 1;
+    color_blend_state.pAttachments = &attachment;
+    
+    color_blend_state.blendConstants[0] = 0.0f;
+    color_blend_state.blendConstants[1] = 0.0f;
+    color_blend_state.blendConstants[2] = 0.0f;
+    color_blend_state.blendConstants[3] = 0.0f;
+    
+    return color_blend_state;
+}
+
+VkPipelineLayout VK::createPipelineLayout(VkDevice &device, VkDescriptorSetLayout &descriptor_set_layout) {
+    //---Pipeline layout---
+    //      Holds the information of the descriptor set layouts that we created earlier
+    //      This allows to reference uniforms or images at draw time and change them without recreating the pipeline
+    //      TODO: Add support for push constants too
+    VkPipelineLayout pipeline_layout;
+    
     VkPipelineLayoutCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     
     create_info.setLayoutCount = 1;
-    create_info.pSetLayouts = &vk.descriptor_set_layout;
+    create_info.pSetLayouts = &descriptor_set_layout;
     
     create_info.pushConstantRangeCount = 0;
     create_info.pPushConstantRanges = nullptr;
     
-    if (vkCreatePipelineLayout(vk.device, &create_info, nullptr, &vk.pipeline_layout) != VK_SUCCESS)
-        log::error("Error creating the Vulkan Pipeline Layout");
+    if (vkCreatePipelineLayout(device, &create_info, nullptr, &pipeline_layout) != VK_SUCCESS)
+        log::error("Error creating a vulkan pipeline layout");
     
-    log::graphics("Created the Vulkan Pipeline Layout");
+    log::graphics("Created a vulkan pipeline layout");
+    return pipeline_layout;
 }
 
-void VK::createGraphicsPipeline(Vulkan &vk) {
-    std::vector<VkPipelineShaderStageCreateInfo> stage_info = Graphics::Shader::getShaderStageInfo(vk.shader.stages);
-    
-    RenderingCreateInfo rendering_create_info = prepareRenderInfo(vk);
-    
+VkPipeline VK::createGraphicsPipeline(VkDevice &device, VkPipelineLayout &layout, VkSwapchainData &swapchain, ShaderStages &stages) {
+    //---Pipeline---
+    //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
+    //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
+    //      Here we put together all the previous helper functions and structs
+    //      It holds shader stages, all the creation info, a layout for description sets, render passes...
+    VkPipeline pipeline;
     VkGraphicsPipelineCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     
+    //: Shader stages
+    std::vector<VkPipelineShaderStageCreateInfo> stage_info = Graphics::Shader::getShaderStageInfo(stages);
     create_info.stageCount = (int)stage_info.size();
     create_info.pStages = stage_info.data();
     
-    create_info.pVertexInputState = &rendering_create_info.vertex_input;
-    create_info.pInputAssemblyState = &rendering_create_info.input_assembly;
-    create_info.pViewportState = &rendering_create_info.viewport_state;
-    create_info.pRasterizationState = &rendering_create_info.rasterizer;
-    create_info.pMultisampleState = &rendering_create_info.multisampling;
-    create_info.pDepthStencilState = &rendering_create_info.depth_stencil;
-    create_info.pColorBlendState = &rendering_create_info.color_blend_state;
+    //: Pipeline info
+    PipelineCreateInfo pipeline_create_info = preparePipelineCreateInfo(swapchain.extent);
+    create_info.pVertexInputState = &pipeline_create_info.vertex_input;
+    create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
+    create_info.pViewportState = &pipeline_create_info.viewport_state;
+    create_info.pRasterizationState = &pipeline_create_info.rasterizer;
+    create_info.pMultisampleState = &pipeline_create_info.multisampling;
+    create_info.pDepthStencilState = &pipeline_create_info.depth_stencil;
+    create_info.pColorBlendState = &pipeline_create_info.color_blend_state;
     create_info.pDynamicState = nullptr;
     create_info.pTessellationState = nullptr;
     
-    createPipelineLayout(vk);
+    //: Layout
+    create_info.layout = layout;
     
-    create_info.layout = vk.pipeline_layout;
-    
-    create_info.renderPass = vk.swapchain.main_render_pass;
+    //: Render pass
+    create_info.renderPass = swapchain.main_render_pass;
     create_info.subpass = 0;
     
-    create_info.basePipelineHandle = VK_NULL_HANDLE; //It is not a derived pipeline
+    //: Recreation info
+    create_info.basePipelineHandle = VK_NULL_HANDLE;
     create_info.basePipelineIndex = -1;
     
-    if (vkCreateGraphicsPipelines(vk.device, VK_NULL_HANDLE, 1, &create_info, nullptr, &vk.pipeline) != VK_SUCCESS)
-        log::error("Error while creating the Vulkan Graphics Pipeline");
+    //---Create pipeline---
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline) != VK_SUCCESS)
+        log::error("Error while creating a vulkan graphics pipeline");
     
-    log::graphics("Created the Vulkan Graphics Pipeline");
-    
-    Shader::destroyShaderStages(vk.device, vk.shader.stages);
+    log::graphics("Created a vulkan graphics pipeline");
+    return pipeline;
 }
 
 //----------------------------------------
@@ -1867,6 +1995,7 @@ void API::clean(Vulkan &vk) {
     vkDeviceWaitIdle(vk.device);
     
     VK::cleanSwapchain(vk);
+    Shader::destroyShaderStages(vk.device, vk.shader.stages);
     
     vkDestroyImageView(vk.device, vk.image_view, nullptr);
     vkDestroyImage(vk.device, vk.test_image.image, nullptr);

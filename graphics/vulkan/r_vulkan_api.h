@@ -86,22 +86,24 @@ namespace Verse::Graphics::VK
     //----------------------------------------
     ShaderData createShaderData(VkDevice &device, str vert = "", str frag = "", str compute = "", str geometry = "");
 
+    VkDescriptorSetLayoutBinding prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding);
     VkDescriptorSetLayout createDescriptorSetLayout(VkDevice &device, ShaderData &shader);
 
-    void prepareRenderInfoVertexInput(RenderingCreateInfo &rendering_create_info);
-    void prepareRenderInfoInputAssembly(RenderingCreateInfo &rendering_create_info);
-    void prepareRenderInfoViewportState(RenderingCreateInfo &rendering_create_info, VkExtent2D extent);
-    void prepareRenderInfoRasterizer(RenderingCreateInfo &rendering_create_info);
-    void prepareRenderInfoMultisampling(RenderingCreateInfo &rendering_create_info);
-    void prepareRenderInfoDepthStencil(RenderingCreateInfo &rendering_create_info);
-    void prepareRenderInfoColorBlendAttachment(RenderingCreateInfo &rendering_create_info);
-    void prepareRenderInfoColorBlendState(RenderingCreateInfo &rendering_create_info);
-    void prepareRenderInfoPipelineLayout(RenderingCreateInfo &rendering_create_info);
-    RenderingCreateInfo prepareRenderInfo(Vulkan &vk);
+    PipelineCreateInfo preparePipelineCreateInfo(VkExtent2D extent);
+    VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
+        std::vector<VkVertexInputBindingDescription> &binding, std::vector<VkVertexInputAttributeDescription> &attributes);
+    VkPipelineInputAssemblyStateCreateInfo preparePipelineCreateInfoInputAssembly();
+    VkViewport preparePipelineCreateInfoViewport(VkExtent2D extent);
+    VkRect2D preparePipelineCreateInfoScissor(VkExtent2D extent);
+    VkPipelineViewportStateCreateInfo preparePipelineCreateInfoViewportState(VkViewport &viewport, VkRect2D &scissor);
+    VkPipelineRasterizationStateCreateInfo preparePipelineCreateInfoRasterizer();
+    VkPipelineMultisampleStateCreateInfo preparePipelineCreateInfoMultisampling();
+    VkPipelineDepthStencilStateCreateInfo preparePipelineCreateInfoDepthStencil();
+    VkPipelineColorBlendAttachmentState preparePipelineCreateInfoColorBlendAttachment();
+    VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(VkPipelineColorBlendAttachmentState &attachment);
     
-    void createPipelineLayout(Vulkan &vk);
-
-    void createGraphicsPipeline(Vulkan &vk);
+    VkPipelineLayout createPipelineLayout(VkDevice &device, VkDescriptorSetLayout &descriptor_set_layout);
+    VkPipeline createGraphicsPipeline(VkDevice &device, VkPipelineLayout &layout, VkSwapchainData &swapchain, ShaderStages &stages);
     //----------------------------------------
 
 
