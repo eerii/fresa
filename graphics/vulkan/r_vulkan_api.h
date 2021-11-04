@@ -19,33 +19,34 @@ namespace Verse::Graphics::VK
 {
     //Device
     //----------------------------------------
-    VkInstance createInstance(WindowData &win);
+    VkInstance createInstance(const WindowData &win);
 
-    VkSurfaceKHR createSurface(VkInstance &instance, WindowData &win);
+    VkSurfaceKHR createSurface(VkInstance instance, const WindowData &win);
 
-    ui16 ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
-    VkPhysicalDevice selectPhysicalDevice(VkInstance &instance, VkSurfaceKHR &surface);
-    VkPhysicalDeviceFeatures getPhysicalDeviceFeatures(VkPhysicalDevice &physical_device);
-    VkFormat chooseSupportedFormat(VkPhysicalDevice &physical_device, const std::vector<VkFormat> &candidates,
+    ui16 ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
+    VkPhysicalDevice selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface);
+    VkPhysicalDeviceFeatures getPhysicalDeviceFeatures(VkPhysicalDevice physical_device);
+    VkFormat chooseSupportedFormat(VkPhysicalDevice physical_device, const std::vector<VkFormat> &candidates,
                                    VkImageTiling tiling, VkFormatFeatureFlags features);
 
-    VkDevice createDevice(VkPhysicalDevice &physical_device, VkPhysicalDeviceFeatures &physical_device_features, QueueIndices &queue_indices);
-    QueueIndices getQueueFamilies(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
-    QueueData getQueues(VkDevice &device, QueueIndices &queue_indices);
+    VkDevice createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeatures physical_device_features,
+                          const QueueIndices &queue_indices);
+    QueueIndices getQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
+    QueueData getQueues(VkDevice device, const QueueIndices &queue_indices);
     //----------------------------------------
 
 
     //Swapchain
     //----------------------------------------
-    SwapchainSupportData getSwapchainSupport(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device);
+    SwapchainSupportData getSwapchainSupport(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
     
-    VkSurfaceFormatKHR selectSwapSurfaceFormat(SwapchainSupportData &support);
-    VkPresentModeKHR selectSwapPresentMode(SwapchainSupportData &support);
-    VkExtent2D selectSwapExtent(SwapchainSupportData &support, WindowData &win);
+    VkSurfaceFormatKHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &formats);
+    VkPresentModeKHR selectSwapPresentMode(const std::vector<VkPresentModeKHR> &modes);
+    VkExtent2D selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const WindowData &win);
     
-    VkSwapchainData createSwapchain(VkDevice &device, VkPhysicalDevice &physical_device, VkSurfaceKHR &surface,
-                                    QueueIndices &queue_indices, WindowData &win);
-    void recreateSwapchain(Vulkan &vk, WindowData &win);
+    VkSwapchainData createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
+                                    const QueueIndices &queue_indices, const WindowData &win);
+    void recreateSwapchain(Vulkan &vk, const WindowData &win);
 
     VkFormat getDepthFormat(Vulkan &vk);
     void createDepthResources(Vulkan &vk);
@@ -54,10 +55,10 @@ namespace Verse::Graphics::VK
 
     //Commands
     //----------------------------------------
-    std::map<str, VkCommandPool> createCommandPools(VkDevice &device, QueueIndices &queue_indices, std::vector<str> keys,
+    std::map<str, VkCommandPool> createCommandPools(VkDevice device, const QueueIndices &queue_indices, std::vector<str> keys,
                                                     std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags);
 
-    std::vector<VkCommandBuffer> createDrawCommandBuffers(VkDevice &device, VkSwapchainData &swapchain, VkCommandData &cmd);
+    std::vector<VkCommandBuffer> createDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd);
     void recordDrawCommandBuffers(Vulkan &vk);
     //----------------------------------------
 
@@ -67,43 +68,44 @@ namespace Verse::Graphics::VK
     VkSubpassDescription createRenderSubpass();
     VkSubpassDependency createRenderSubpassDependency();
     VkAttachmentDescription createRenderPassAttachment(VkFormat format);
-    RenderPassCreateData prepareRenderPass(VkSwapchainData &swapchain);
+    RenderPassCreateData prepareRenderPass(VkFormat format);
 
-    VkRenderPass createRenderPass(VkDevice &device, VkSwapchainData &swapchain);
+    VkRenderPass createRenderPass(VkDevice device, VkFormat format);
 
-    VkFramebuffer createFramebuffer(VkDevice &device, VkRenderPass &render_pass, VkImageView &image_view, VkExtent2D &extent);
-    std::vector<VkFramebuffer> createFramebuffers(VkDevice &device, VkSwapchainData &swapchain);
+    VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, VkImageView image_view, VkExtent2D extent);
+    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const VkSwapchainData &swapchain);
     //----------------------------------------
 
 
     //Sync objects
     //----------------------------------------
-    VkSyncData createSyncObjects(VkDevice &device, VkSwapchainData &swapchain);
+    VkSyncData createSyncObjects(VkDevice device, ui32 swapchain_size);
     //----------------------------------------
 
 
     //Pipeline
     //----------------------------------------
-    ShaderData createShaderData(VkDevice &device, str vert = "", str frag = "", str compute = "", str geometry = "");
+    ShaderData createShaderData(VkDevice device, str vert = "", str frag = "", str compute = "", str geometry = "");
 
     VkDescriptorSetLayoutBinding prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding);
-    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice &device, ShaderData &shader);
+    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, const ShaderCode &code);
 
     PipelineCreateInfo preparePipelineCreateInfo(VkExtent2D extent);
     VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
-        std::vector<VkVertexInputBindingDescription> &binding, std::vector<VkVertexInputAttributeDescription> &attributes);
+        const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes);
     VkPipelineInputAssemblyStateCreateInfo preparePipelineCreateInfoInputAssembly();
     VkViewport preparePipelineCreateInfoViewport(VkExtent2D extent);
     VkRect2D preparePipelineCreateInfoScissor(VkExtent2D extent);
-    VkPipelineViewportStateCreateInfo preparePipelineCreateInfoViewportState(VkViewport &viewport, VkRect2D &scissor);
+    VkPipelineViewportStateCreateInfo preparePipelineCreateInfoViewportState(const VkViewport &viewport, const VkRect2D &scissor);
     VkPipelineRasterizationStateCreateInfo preparePipelineCreateInfoRasterizer();
     VkPipelineMultisampleStateCreateInfo preparePipelineCreateInfoMultisampling();
     VkPipelineDepthStencilStateCreateInfo preparePipelineCreateInfoDepthStencil();
     VkPipelineColorBlendAttachmentState preparePipelineCreateInfoColorBlendAttachment();
-    VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(VkPipelineColorBlendAttachmentState &attachment);
+    VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
     
-    VkPipelineLayout createPipelineLayout(VkDevice &device, VkDescriptorSetLayout &descriptor_set_layout);
-    VkPipeline createGraphicsPipeline(VkDevice &device, VkPipelineLayout &layout, VkSwapchainData &swapchain, ShaderStages &stages);
+    VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
+    VkPipeline createGraphicsPipeline(VkDevice device, const VkPipelineLayout &layout,
+                                      const VkSwapchainData &swapchain, const ShaderStages &stages);
     //----------------------------------------
 
 
@@ -138,7 +140,7 @@ namespace Verse::Graphics::VK
     void transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_layout);
     void copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex);
 
-    VkImageView createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
+    VkImageView createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
     void createSampler(Vulkan &vk);
     //----------------------------------------
 

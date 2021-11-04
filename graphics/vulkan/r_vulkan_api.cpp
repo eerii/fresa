@@ -86,22 +86,22 @@ Vulkan API::create(WindowData &win) {
     //---Command pools---
     vk.cmd.command_pools = VK::createCommandPools(vk.device, vk.cmd.queue_indices,
                                                   {"draw", "temp"}, {}, {{"temp", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}});
-    vk.cmd.command_buffers["draw"] = VK::createDrawCommandBuffers(vk.device, vk.swapchain, vk.cmd);
+    vk.cmd.command_buffers["draw"] = VK::createDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
     //---Render pass---
-    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain);
+    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format);
     
     //---Framebuffers---
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
     
     //---Sync objects---
-    vk.sync = VK::createSyncObjects(vk.device, vk.swapchain);
+    vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //---Shader data---
     vk.shader = VK::createShaderData(vk.device, "res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
     
     //---Descriptor set layout---
-    vk.descriptor_set_layout = VK::createDescriptorSetLayout(vk.device, vk.shader);
+    vk.descriptor_set_layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code);
     
     //---Pipeline---
     vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptor_set_layout);
@@ -133,7 +133,7 @@ Vulkan API::create(WindowData &win) {
 //Device
 //----------------------------------------
 
-VkInstance VK::createInstance(WindowData &win) {
+VkInstance VK::createInstance(const WindowData &win) {
     log::graphics("");
     
     //---Instance extensions---
@@ -143,7 +143,7 @@ VkInstance VK::createInstance(WindowData &win) {
     std::vector<const char *> extension_names(extension_count);
     SDL_Vulkan_GetInstanceExtensions(win.window, &extension_count, extension_names.data());
     log::graphics("Vulkan requested instance extensions: %d", extension_count);
-    for (const char* ext : extension_names)
+    for (const auto &ext : extension_names)
         log::graphics(" - %s", ext);
     
     log::graphics("");
@@ -161,7 +161,7 @@ VkInstance VK::createInstance(WindowData &win) {
     
     log::graphics("");
     
-    for (const char* val : validation_layers) {
+    for (const auto &val : validation_layers) {
         bool layer_exists = false;
         for (const auto &layer : available_validation_layers) {
             if (str(val) == str(layer.layerName)) {
@@ -200,7 +200,7 @@ VkInstance VK::createInstance(WindowData &win) {
     return instance;
 }
 
-VkSurfaceKHR VK::createSurface(VkInstance &instance, WindowData &win) {
+VkSurfaceKHR VK::createSurface(VkInstance instance, const WindowData &win) {
     VkSurfaceKHR surface;
     
     //---Surface---
@@ -211,9 +211,8 @@ VkSurfaceKHR VK::createSurface(VkInstance &instance, WindowData &win) {
     return surface;
 }
 
-ui16 VK::ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device) {
+ui16 VK::ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
     ui16 score = 16;
-    
     
     //---Device properties---
     //      Holds information about the GPU, such as if it is discrete or integrated
@@ -259,7 +258,7 @@ ui16 VK::ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_de
     
     std::set<std::string> required_extensions(required_device_extensions.begin(), required_device_extensions.end());
     
-    for (VkExtensionProperties extension : available_extensions)
+    for (const VkExtensionProperties &extension : available_extensions)
         required_extensions.erase(extension.extensionName);
 
     if (not required_extensions.empty())
@@ -274,12 +273,12 @@ ui16 VK::ratePhysicalDevice(VkSurfaceKHR &surface, VkPhysicalDevice &physical_de
     return score;
 }
 
-VkPhysicalDevice VK::selectPhysicalDevice(VkInstance &instance, VkSurfaceKHR &surface) {
+VkPhysicalDevice VK::selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface) {
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
     
     //---Show requested device extensions---
     log::graphics("Vulkan required device extensions: %d", required_device_extensions.size());
-    for (const char* ext : required_device_extensions)
+    for (const auto &ext : required_device_extensions)
         log::graphics(" - %s", ext);
     log::graphics("");
     
@@ -321,13 +320,35 @@ VkPhysicalDevice VK::selectPhysicalDevice(VkInstance &instance, VkSurfaceKHR &su
     return physical_device;
 }
 
-VkPhysicalDeviceFeatures VK::getPhysicalDeviceFeatures(VkPhysicalDevice &physical_device) {
+VkPhysicalDeviceFeatures VK::getPhysicalDeviceFeatures(VkPhysicalDevice physical_device) {
     VkPhysicalDeviceFeatures device_features;
     vkGetPhysicalDeviceFeatures(physical_device, &device_features);
     return device_features;
 }
 
-VK::QueueIndices VK::getQueueFamilies(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device) {
+VkFormat VK::chooseSupportedFormat(VkPhysicalDevice physical_device, const std::vector<VkFormat> &candidates,
+                                   VkImageTiling tiling, VkFormatFeatureFlags features) {
+    //---Choose supported format---
+    //      From a list of candidate formats in order of preference, select a supported VkFormat
+    
+    for (VkFormat format : candidates) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(physical_device, format, &props);
+        
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
+            return format;
+        }
+        
+        if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
+            return format;
+        }
+    }
+    
+    log::error("Failed to find a suitable supported format");
+    return candidates[0];
+}
+
+VK::QueueIndices VK::getQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
     //---Queues---
     //      Different execution ports of the GPU, command buffers are submitted here
     //      There are different spetialized queue families, such as present, graphics and compute
@@ -373,7 +394,8 @@ VK::QueueIndices VK::getQueueFamilies(VkSurfaceKHR &surface, VkPhysicalDevice &p
     return queue_indices;
 }
 
-VkDevice VK::createDevice(VkPhysicalDevice &physical_device, VkPhysicalDeviceFeatures &physical_device_features, QueueIndices &queue_indices) {
+VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeatures physical_device_features,
+                          const QueueIndices &queue_indices) {
     //---Logical device---
     //      Vulkan GPU driver, it encapsulates the physical device
     //      Needs to be passed to almost every Vulkan function
@@ -431,7 +453,7 @@ VkDevice VK::createDevice(VkPhysicalDevice &physical_device, VkPhysicalDeviceFea
     return device;
 }
 
-VK::QueueData VK::getQueues(VkDevice &device, QueueIndices &queue_indices) {
+VK::QueueData VK::getQueues(VkDevice device, const QueueIndices &queue_indices) {
     VK::QueueData queues;
     
     if (queue_indices.graphics.has_value()) {
@@ -458,7 +480,7 @@ VK::QueueData VK::getQueues(VkDevice &device, QueueIndices &queue_indices) {
 //Swapchain
 //----------------------------------------
 
-VK::SwapchainSupportData VK::getSwapchainSupport(VkSurfaceKHR &surface, VkPhysicalDevice &physical_device) {
+VK::SwapchainSupportData VK::getSwapchainSupport(VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
     SwapchainSupportData swapchain_support;
     
     //---Surface capabilities---
@@ -483,22 +505,22 @@ VK::SwapchainSupportData VK::getSwapchainSupport(VkSurfaceKHR &surface, VkPhysic
     return swapchain_support;
 }
 
-VkSurfaceFormatKHR VK::selectSwapSurfaceFormat(SwapchainSupportData &support) {
+VkSurfaceFormatKHR VK::selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &formats) {
     //---Surface format---
     //      The internal format for the vulkan surface
     //      It might seem weird to use BGRA instead of RGBA, but displays usually use this pixel data format instead
     //      Vulkan automatically converts our framebuffers to this space so we don't need to worry
     //      We also select a nonlinear SRGB color space to correctly represent images
     //      If all fails, it will still select a format, but it might not be the perfect one
-    for (VkSurfaceFormatKHR fmt : support.formats) {
+    for (const VkSurfaceFormatKHR &fmt : formats) {
         if (fmt.format == VK_FORMAT_B8G8R8A8_SRGB && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             return fmt;
     }
     log::warn("A non ideal format has been selected for the swap surface, since BGRA SRGB is not supported. You might experience that the graphics present in unexpected colors. Please check the GPU support for ideal representation.");
-    return support.formats[0];
+    return formats[0];
 }
 
-VkPresentModeKHR VK::selectSwapPresentMode(SwapchainSupportData &support) {
+VkPresentModeKHR VK::selectSwapPresentMode(const std::vector<VkPresentModeKHR> &modes) {
     //---Surface present mode---
     //      The way the buffers are swaped to the screen
     //      - Fifo: Vsync, when the queue is full the program waits
@@ -506,7 +528,7 @@ VkPresentModeKHR VK::selectSwapPresentMode(SwapchainSupportData &support) {
     //      Not all GPUs support mailbox (for example integrated Intel GPUs), so while it is preferred, Fifo can be used as well
     //      Maybe in the future offer the user the opportunity to choose the desired mode
     
-    for (VkPresentModeKHR mode : support.present_modes) {
+    for (const VkPresentModeKHR &mode : modes) {
         if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
             log::graphics("Present mode: Mailbox");
             return VK_PRESENT_MODE_MAILBOX_KHR;
@@ -517,27 +539,27 @@ VkPresentModeKHR VK::selectSwapPresentMode(SwapchainSupportData &support) {
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D VK::selectSwapExtent(SwapchainSupportData &support, WindowData &win) {
+VkExtent2D VK::selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const WindowData &win) {
     //---Surface extent---
     //      This is the drawable are on the screen
     //      If the current extent is UINT32_MAX, we should calculate the actual extent using WindowData
     //      and clamp it to the min and max supported extent by the GPU
-    if (support.capabilities.currentExtent.width != UINT32_MAX)
-        return support.capabilities.currentExtent;
+    if (capabilities.currentExtent.width != UINT32_MAX)
+        return capabilities.currentExtent;
     
     int w, h;
     SDL_Vulkan_GetDrawableSize(win.window, &w, &h);
     
     VkExtent2D actual_extent{ static_cast<ui32>(w), static_cast<ui32>(h) };
     
-    std::clamp(actual_extent.width, support.capabilities.minImageExtent.width, support.capabilities.maxImageExtent.width);
-    std::clamp(actual_extent.height, support.capabilities.minImageExtent.height, support.capabilities.maxImageExtent.height);
+    std::clamp(actual_extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+    std::clamp(actual_extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
     
     return actual_extent;
 }
 
-VkSwapchainData VK::createSwapchain(VkDevice &device, VkPhysicalDevice &physical_device, VkSurfaceKHR &surface,
-                                    QueueIndices &queue_indices, WindowData &win) {
+VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
+                                    const QueueIndices &queue_indices, const WindowData &win) {
     //---Swapchain---
     //      List of images that will get drawn to the screen by the render pipeline
     //      Swapchain data:
@@ -553,10 +575,10 @@ VkSwapchainData VK::createSwapchain(VkDevice &device, VkPhysicalDevice &physical
     
     //---Format, present mode and extent---
     SwapchainSupportData support = getSwapchainSupport(surface, physical_device);
-    VkSurfaceFormatKHR surface_format = selectSwapSurfaceFormat(support);
+    VkSurfaceFormatKHR surface_format = selectSwapSurfaceFormat(support.formats);
     swapchain.format = surface_format.format;
-    VkPresentModeKHR present_mode = selectSwapPresentMode(support);
-    swapchain.extent = selectSwapExtent(support, win);
+    VkPresentModeKHR present_mode = selectSwapPresentMode(support.present_modes);
+    swapchain.extent = selectSwapExtent(support.capabilities, win);
     
     
     //---Number of images---
@@ -618,19 +640,19 @@ VkSwapchainData VK::createSwapchain(VkDevice &device, VkPhysicalDevice &physical
     return swapchain;
 }
 
-void VK::recreateSwapchain(Vulkan &vk, WindowData &win) {
+void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //TODO: Refactor
     vkDeviceWaitIdle(vk.device);
     
     cleanSwapchain(vk);
     
     vk.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
-    vk.cmd.command_buffers["draw"] = VK::createDrawCommandBuffers(vk.device, vk.swapchain, vk.cmd); //TODO: Only reset buffers
+    vk.cmd.command_buffers["draw"] = VK::createDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd); //TODO: Only reset buffers
     
-    vk.swapchain.main_render_pass = createRenderPass(vk.device, vk.swapchain);
+    vk.swapchain.main_render_pass = createRenderPass(vk.device, vk.swapchain.format);
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
     
-    vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptor_set_layout);
+    //vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptor_set_layout);
     vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
     createUniformBuffers(vk);
@@ -638,28 +660,6 @@ void VK::recreateSwapchain(Vulkan &vk, WindowData &win) {
     createDescriptorSets(vk);
     
     recordDrawCommandBuffers(vk);
-}
-
-VkFormat VK::chooseSupportedFormat(VkPhysicalDevice &physical_device, const std::vector<VkFormat> &candidates,
-                                   VkImageTiling tiling, VkFormatFeatureFlags features) {
-    //---Choose supported format---
-    //      From a list of candidate formats in order of preference, select a supported VkFormat
-    
-    for (VkFormat format : candidates) {
-        VkFormatProperties props;
-        vkGetPhysicalDeviceFormatProperties(physical_device, format, &props);
-        
-        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
-            return format;
-        }
-        
-        if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
-            return format;
-        }
-    }
-    
-    log::error("Failed to find a suitable supported format");
-    return candidates[0];
 }
 
 VkFormat VK::getDepthFormat(Vulkan &vk) {
@@ -681,7 +681,7 @@ void VK::createDepthResources(Vulkan &vk) {
 //Commands
 //----------------------------------------
 
-std::map<str, VkCommandPool> VK::createCommandPools(VkDevice &device, QueueIndices &queue_indices, std::vector<str> keys,
+std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const QueueIndices &queue_indices, std::vector<str> keys,
                                                     std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags) {
     //---Command pools---
     //      Command buffers can be allocated inside them
@@ -717,19 +717,19 @@ std::map<str, VkCommandPool> VK::createCommandPools(VkDevice &device, QueueIndic
     return command_pools;
 }
 
-std::vector<VkCommandBuffer> VK::createDrawCommandBuffers(VkDevice &device, VkSwapchainData &swapchain, VkCommandData &cmd) {
+std::vector<VkCommandBuffer> VK::createDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd) {
     //---Command buffers---
     //      All vulkan commands must be executed inside a command buffer
     //      Here we create the command buffers we will use for drawing, and allocate them inside a command pool ("draw")
     //      We are creating one buffer per swapchain image
     
     std::vector<VkCommandBuffer> command_buffers;
-    command_buffers.resize(swapchain.size);
+    command_buffers.resize(swapchain_size);
     
     VkCommandBufferAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocate_info.commandPool = cmd.command_pools["draw"];
+    allocate_info.commandPool = cmd.command_pools.at("draw");
     allocate_info.commandBufferCount = (ui32)command_buffers.size();
     
     if (vkAllocateCommandBuffers(device, &allocate_info, command_buffers.data()) != VK_SUCCESS)
@@ -843,25 +843,25 @@ VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format) {
     return attachment;
 }
 
-VK::RenderPassCreateData VK::prepareRenderPass(VkSwapchainData &swapchain) {
+VK::RenderPassCreateData VK::prepareRenderPass(VkFormat format) {
     //---Combine all data required to create a render pass---
     RenderPassCreateData data;
     
     data.subpasses = { VK::createRenderSubpass() };
     data.dependencies = { VK::createRenderSubpassDependency() };
-    data.attachments = { VK::createRenderPassAttachment(swapchain.format) };
+    data.attachments = { VK::createRenderPassAttachment(format) };
     
     return data;
 }
 
-VkRenderPass VK::createRenderPass(VkDevice &device, VkSwapchainData &swapchain) {
+VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
     //      It will render to a framebuffer
     VkRenderPass render_pass;
     
-    RenderPassCreateData render_pass_data = VK::prepareRenderPass(swapchain);
+    RenderPassCreateData render_pass_data = VK::prepareRenderPass(format);
     
     VkRenderPassCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -882,7 +882,7 @@ VkRenderPass VK::createRenderPass(VkDevice &device, VkSwapchainData &swapchain) 
     return render_pass;
 }
 
-VkFramebuffer VK::createFramebuffer(VkDevice &device, VkRenderPass &render_pass, VkImageView &image_view, VkExtent2D &extent) {
+VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, VkImageView image_view, VkExtent2D extent) {
     //---Framebuffer---
     VkFramebuffer framebuffer;
     
@@ -908,7 +908,7 @@ VkFramebuffer VK::createFramebuffer(VkDevice &device, VkRenderPass &render_pass,
     return framebuffer;
 }
 
-std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice &device, VkSwapchainData &swapchain) {
+std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const VkSwapchainData &swapchain) {
     //---Framebuffers---
     std::vector<VkFramebuffer> framebuffers;
     framebuffers.resize(swapchain.size);
@@ -928,7 +928,7 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice &device, VkSwapchainD
 //Sync objects
 //----------------------------------------
 
-VkSyncData VK::createSyncObjects(VkDevice &device, VkSwapchainData &swapchain) {
+VkSyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
     //---Sync objects---
     //      Used to control the flow of operations when executing commands
     //      - Fence: GPU->CPU, we can wait from the CPU until a fence has finished on a GPU operation
@@ -955,7 +955,7 @@ VkSyncData VK::createSyncObjects(VkDevice &device, VkSwapchainData &swapchain) {
     //: Frame in flight, waits until the frame is not in flight and can be writter again
     sync.fences_in_flight.resize(MAX_FRAMES_IN_FLIGHT);
     //: Images in flight, we need to track for each swapchain image if a frame in flight is currently using it, has size of swapchain
-    sync.fences_images_in_flight.resize(swapchain.size, VK_NULL_HANDLE);
+    sync.fences_images_in_flight.resize(swapchain_size, VK_NULL_HANDLE);
     //: Default fence creation info, signaled bit means they start like they have already finished once
     VkFenceCreateInfo fence_info{};
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -985,7 +985,7 @@ VkSyncData VK::createSyncObjects(VkDevice &device, VkSwapchainData &swapchain) {
 //Pipeline
 //----------------------------------------
 
-ShaderData VK::createShaderData(VkDevice &device, str vert, str frag, str compute, str geometry) {
+ShaderData VK::createShaderData(VkDevice device, str vert, str frag, str compute, str geometry) {
     //---Shader data---
     //      Creates a shader data object from a list of locations for the different stages
     //      First it saves the locations, then it reads the code, and then gets the stage create info
@@ -1000,8 +1000,8 @@ ShaderData VK::createShaderData(VkDevice &device, str vert, str frag, str comput
     if (geometry != "" and not data.locations.geometry.has_value())
         data.locations.geometry = geometry;
     
-    data.code = Shader::readSPIRV(data);
-    data.stages = Shader::createShaderStages(data.code, device);
+    data.code = Shader::readSPIRV(data.locations);
+    data.stages = Shader::createShaderStages(device, data.code);
     
     return data;
 }
@@ -1021,7 +1021,7 @@ VkDescriptorSetLayoutBinding VK::prepareDescriptorSetLayoutBinding(VkShaderStage
     return layout_binding;
 }
 
-VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice &device, ShaderData &shader) {
+VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const ShaderCode &code) {
     //---Descriptor set layout---
     //      It is a blueprint for creating descriptor sets, specifies the number and type of descriptors in the GLSL shader
     //      Descriptors can be anything passed into a shader: uniforms, images, ...
@@ -1034,8 +1034,8 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice &device, ShaderData
     
     
     //---Vertex shader---
-    if (shader.code.vert.has_value()) {
-        ShaderCompiler compiler = Shader::getShaderCompiler(shader.code.vert.value());
+    if (code.vert.has_value()) {
+        ShaderCompiler compiler = Shader::getShaderCompiler(code.vert.value());
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -1049,8 +1049,8 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice &device, ShaderData
     
     
     //---Fragment shader---
-    if (shader.code.frag.has_value()) {
-        ShaderCompiler compiler = Shader::getShaderCompiler(shader.code.frag.value());
+    if (code.frag.has_value()) {
+        ShaderCompiler compiler = Shader::getShaderCompiler(code.frag.value());
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -1112,8 +1112,9 @@ VK::PipelineCreateInfo VK::preparePipelineCreateInfo(VkExtent2D extent) {
     return info;
 }
 
-VkPipelineVertexInputStateCreateInfo VK::preparePipelineCreateInfoVertexInput(std::vector<VkVertexInputBindingDescription> &binding,
-                                                                              std::vector<VkVertexInputAttributeDescription> &attributes) {
+VkPipelineVertexInputStateCreateInfo VK::preparePipelineCreateInfoVertexInput(
+    const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes) {
+    
     //---Vertex input info---
     //      Each vertex can have a different shape, this struct details it's structure
     //      It has two components, the binding and the attribute descriptions
@@ -1172,7 +1173,7 @@ VkRect2D VK::preparePipelineCreateInfoScissor(VkExtent2D extent) {
     return scissor;
 }
 
-VkPipelineViewportStateCreateInfo VK::preparePipelineCreateInfoViewportState(VkViewport &viewport, VkRect2D &scissor) {
+VkPipelineViewportStateCreateInfo VK::preparePipelineCreateInfoViewportState(const VkViewport &viewport, const VkRect2D &scissor) {
     //---Viewport state info---
     //      We combine the viewport and scissor into one vulkan info struct
     VkPipelineViewportStateCreateInfo viewport_state{};
@@ -1291,7 +1292,7 @@ VkPipelineColorBlendAttachmentState VK::preparePipelineCreateInfoColorBlendAttac
     return color_blend;
 }
 
-VkPipelineColorBlendStateCreateInfo VK::preparePipelineCreateInfoColorBlendState(VkPipelineColorBlendAttachmentState &attachment) {
+VkPipelineColorBlendStateCreateInfo VK::preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment) {
     //---Color blending info---
     //      Combines all the color blending attachments into one struct
     //      Note: each framebuffer can have a different attachment, right now we are only using one for all
@@ -1315,7 +1316,7 @@ VkPipelineColorBlendStateCreateInfo VK::preparePipelineCreateInfoColorBlendState
     return color_blend_state;
 }
 
-VkPipelineLayout VK::createPipelineLayout(VkDevice &device, VkDescriptorSetLayout &descriptor_set_layout) {
+VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout) {
     //---Pipeline layout---
     //      Holds the information of the descriptor set layouts that we created earlier
     //      This allows to reference uniforms or images at draw time and change them without recreating the pipeline
@@ -1338,7 +1339,8 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice &device, VkDescriptorSetLayou
     return pipeline_layout;
 }
 
-VkPipeline VK::createGraphicsPipeline(VkDevice &device, VkPipelineLayout &layout, VkSwapchainData &swapchain, ShaderStages &stages) {
+VkPipeline VK::createGraphicsPipeline(VkDevice device, const VkPipelineLayout &layout,
+                                      const VkSwapchainData &swapchain, const ShaderStages &stages) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
     //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
@@ -1800,7 +1802,7 @@ void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
     endSingleUseCommandBuffer(vk, command_buffer);
 }
 
-VkImageView VK::createImageView(VkDevice &device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format) {
+VkImageView VK::createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format) {
     VkImageViewCreateInfo create_info{};
     
     create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1975,7 +1977,6 @@ void VK::cleanSwapchain(Vulkan &vk) {
         vkFreeCommandBuffers(vk.device, vk.cmd.command_pools[key], (ui32)buffers.size(), buffers.data());
     
     vkDestroyPipeline(vk.device, vk.pipeline, nullptr);
-    vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
     vkDestroyRenderPass(vk.device, vk.swapchain.main_render_pass, nullptr);
     
     for (VkImageView view : vk.swapchain.image_views)
@@ -2002,6 +2003,7 @@ void API::clean(Vulkan &vk) {
     vkFreeMemory(vk.device, vk.test_image.memory, nullptr);
     vkDestroySampler(vk.device, vk.sampler, nullptr);
     
+    vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
     vkDestroyDescriptorSetLayout(vk.device, vk.descriptor_set_layout, nullptr);
     
     vkDestroyBuffer(vk.device, vk.vertex_buffer.buffer, nullptr);
