@@ -36,6 +36,12 @@ namespace Verse::Graphics::VK
     //----------------------------------------
 
 
+    //Memory
+    //----------------------------------------
+    VmaAllocator createMemoryAllocator(VkDevice device, VkPhysicalDevice physical_device, VkInstance instance);
+    //----------------------------------------
+
+
     //Swapchain
     //----------------------------------------
     SwapchainSupportData getSwapchainSupport(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
@@ -111,16 +117,17 @@ namespace Verse::Graphics::VK
 
     //Buffers
     //----------------------------------------
-    BufferData createBuffer(Vulkan &vk, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
-    ui32 getMemoryType(Vulkan &vk, ui32 filter, VkMemoryPropertyFlags properties);
+    BufferData createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory);
 
-    void createVertexBuffer(Vulkan &vk, const std::vector<Graphics::VertexData> &vertices);
-    void createIndexBuffer(Vulkan &vk, const std::vector<ui16> &indices);
+    BufferData createVertexBuffer(VkDevice device, VmaAllocator allocator,
+                                  const VkCommandData &cmd, const std::vector<Graphics::VertexData> &vertices);
+    BufferData createIndexBuffer(VkDevice device, VmaAllocator allocator,
+                                 const VkCommandData &cmd, const std::vector<ui16> &indices);
 
-    VkCommandBuffer beginSingleUseCommandBuffer(Vulkan &vk);
-    void endSingleUseCommandBuffer(Vulkan &vk, VkCommandBuffer command_buffer);
+    VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, const VkCommandData &cmd);
+    void endSingleUseCommandBuffer(VkDevice device, const VkCommandData &cmd, VkCommandBuffer command_buffer);
 
-    void copyBuffer(Vulkan &vk, VkBuffer src, VkBuffer dst, VkDeviceSize size);
+    void copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
     //----------------------------------------
 
 
@@ -158,6 +165,7 @@ namespace Verse::Graphics::VK
 
     //Cleanup
     //----------------------------------------
+    void cleanFrame();
     void cleanSwapchain(Vulkan &vk);
     //----------------------------------------
 }

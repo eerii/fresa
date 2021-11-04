@@ -9,6 +9,8 @@
 #include <vulkan/vulkan.h>
 #include <SDL2/SDL_vulkan.h>
 
+#include "vk_mem_alloc.h"
+
 #include <vector>
 #include <map>
 
@@ -72,6 +74,9 @@ namespace Verse::Graphics
         //----------------------------------------
         
         
+        //---Memory---
+        VmaAllocator allocator;
+        
         //---Swapchain---
         VkSwapchainData swapchain;
         
@@ -91,7 +96,6 @@ namespace Verse::Graphics
         
         VkPipeline pipeline;
         //----------------------------------------
-        
         
         //Buffers
         //----------------------------------------
@@ -117,10 +121,8 @@ namespace Verse::Graphics
         //----------------------------------------
         
         
-        //Debug
-        //----------------------------------------
+        //---Debug---
         VkDebugReportCallbackEXT debug_callback;
-        //----------------------------------------
     };
 }
 

@@ -4,6 +4,9 @@
 
 #ifdef USE_VULKAN
 
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+
 #include "r_vulkan_api.h"
 #include "r_api.h"
 
@@ -50,6 +53,10 @@ namespace {
         "VK_KHR_portability_subset",
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
+
+    std::vector<std::function<void()>> deletion_queue_program;
+    std::vector<std::function<void()>> deletion_queue_swapchain;
+    std::vector<std::function<void()>> deletion_queue_frame;
 }
 
 
@@ -80,6 +87,9 @@ Vulkan API::create(WindowData &win) {
     vk.device = VK::createDevice(vk.physical_device, vk.physical_device_features, vk.cmd.queue_indices);
     vk.cmd.queues = VK::getQueues(vk.device, vk.cmd.queue_indices);
     
+    //---Allocator---
+    vk.allocator = VK::createMemoryAllocator(vk.device, vk.physical_device, vk.instance);
+    
     //---Swapchain---
     vk.swapchain = VK::createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
     
@@ -107,19 +117,7 @@ Vulkan API::create(WindowData &win) {
     vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptor_set_layout);
     vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
-    
-    VK::createVertexBuffer(vk, vertices);
-    VK::createIndexBuffer(vk, indices);
-    
-    //Test image
-    VK::createSampler(vk);
-    vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
-    
-    VK::createUniformBuffers(vk);
-    VK::createDescriptorPool(vk);
-    VK::createDescriptorSets(vk);
-    
-    VK::recordDrawCommandBuffers(vk);
+    API::prepareResources(vk);
     
     log::graphics("");
     
@@ -197,6 +195,7 @@ VkInstance VK::createInstance(const WindowData &win) {
     if (vkCreateInstance(&instance_create_info, nullptr, &instance)!= VK_SUCCESS)
         log::error("Fatal error creating a vulkan instance");
     
+    deletion_queue_program.push_back([instance](){vkDestroyInstance(instance, nullptr);});
     return instance;
 }
 
@@ -208,6 +207,7 @@ VkSurfaceKHR VK::createSurface(VkInstance instance, const WindowData &win) {
     if (not SDL_Vulkan_CreateSurface(win.window, instance, &surface))
         log::error("Fatal error while creating a vulkan surface (from createSurface): %s", SDL_GetError());
     
+    deletion_queue_program.push_back([surface, instance](){vkDestroySurfaceKHR(instance, surface, nullptr);});
     return surface;
 }
 
@@ -450,6 +450,7 @@ VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeat
     if (vkCreateDevice(physical_device, &device_create_info, nullptr, &device)!= VK_SUCCESS)
         log::error("Error creating a vulkan logical device");
     
+    deletion_queue_program.push_back([device](){vkDestroyDevice(device, nullptr);});
     return device;
 }
 
@@ -471,6 +472,41 @@ VK::QueueData VK::getQueues(VkDevice device, const QueueIndices &queue_indices) 
     log::graphics("");
     
     return queues;
+}
+
+//----------------------------------------
+
+
+
+//Memory
+//----------------------------------------
+
+VmaAllocator VK::createMemoryAllocator(VkDevice device, VkPhysicalDevice physical_device, VkInstance instance) {
+    //---Memory allocation---
+    //      Memory management in vulkan is really tedious, since there are many memory types (CPU, GPU...) with different limitations and speeds
+    //      Buffers and images have to be accompained by a VkDeviceMemory which needs to be allocated by vkAllocateMemory
+    //      The problem is that it is discouraged to call vkAllocateMemory per buffer, since the number of allowed allocations is small
+    //          even on top tier hardware, for example, 4096 on a GTX 1080
+    //      The solution is to allocate big chunks of memory and then suballocate to each resource, using offsets and keeping track of
+    //          where each buffer resides and how big it is
+    //      This is hard to do right while avoiding fragmentation and overlaps, so we are integrating the Vulkan Memory Allocator library,
+    //          which takes care of the big chunk allocation and position for us. It is possible to write a smaller tool to help, but in an
+    //          attempt to keep the scope of the project manageable (says the one writing vulkan for a 2d tiny engine...) we'll leave it for now
+    //      Here we are creating the VmaAllocator object, which we will have to reference during buffer creation and will house the pools of
+    //          memory that we will be using
+    VmaAllocator allocator;
+    
+    VmaAllocatorCreateInfo create_info{};
+    create_info.vulkanApiVersion = VK_API_VERSION_1_1;
+    create_info.device = device;
+    create_info.physicalDevice = physical_device;
+    create_info.instance = instance;
+    
+    if (vmaCreateAllocator(&create_info, &allocator) != VK_SUCCESS)
+        log::error("Error creating the vulkan memory allocator");
+    
+    deletion_queue_program.push_back([allocator](){vmaDestroyAllocator(allocator);});
+    return allocator;
 }
 
 //----------------------------------------
@@ -655,11 +691,11 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptor_set_layout);
     vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
-    createUniformBuffers(vk);
-    createDescriptorPool(vk);
-    createDescriptorSets(vk);
+    //createUniformBuffers(vk);
+    //createDescriptorPool(vk);
+    //createDescriptorSets(vk);
     
-    recordDrawCommandBuffers(vk);
+    //recordDrawCommandBuffers(vk);
 }
 
 VkFormat VK::getDepthFormat(Vulkan &vk) {
@@ -713,6 +749,10 @@ std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const Queue
             log::error("Failed to create a vulkan command pool (%s)", key.c_str());
     }
     
+    deletion_queue_program.push_back([command_pools, device](){
+        for (auto [key, pool] : command_pools)
+            vkDestroyCommandPool(device, pool, nullptr);
+    });
     log::graphics("Created all vulkan command pools");
     return command_pools;
 }
@@ -742,7 +782,7 @@ std::vector<VkCommandBuffer> VK::createDrawCommandBuffers(VkDevice device, ui32 
 
 void VK::recordDrawCommandBuffers(Vulkan &vk) {
     //TODO: IMPROVE THIS
-    for (int i = 0; i < vk.cmd.command_buffers["draw"].size(); i++) {
+    /*for (int i = 0; i < vk.cmd.command_buffers["draw"].size(); i++) {
         VkCommandBufferBeginInfo begin_info{};
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         begin_info.flags = 0;
@@ -782,7 +822,7 @@ void VK::recordDrawCommandBuffers(Vulkan &vk) {
         
         if (vkEndCommandBuffer(vk.cmd.command_buffers["draw"][i]) != VK_SUCCESS)
             log::error("Failed to end recording on a vulkan command buffer");
-    }
+    }*/
 }
 
 //----------------------------------------
@@ -917,7 +957,6 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const VkSwapc
         framebuffers[i] = VK::createFramebuffer(device, swapchain.main_render_pass, swapchain.image_views[i], swapchain.extent);
     
     log::graphics("Created all vulkan framebuffers");
-    
     return framebuffers;
 }
 
@@ -974,6 +1013,14 @@ VkSyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
             log::error("Failed to create a vulkan fence (frame in flight)");
     }
     
+    
+    deletion_queue_program.push_back([device, sync](){
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            vkDestroySemaphore(device, sync.semaphores_image_available[i], nullptr);
+            vkDestroySemaphore(device, sync.semaphores_render_finished[i], nullptr);
+            vkDestroyFence(device, sync.fences_in_flight[i], nullptr);
+        }
+    });
     log::graphics("Created all vulkan sync objects");
     return sync;
 }
@@ -1393,7 +1440,33 @@ VkPipeline VK::createGraphicsPipeline(VkDevice device, const VkPipelineLayout &l
 //Buffers
 //----------------------------------------
 
-BufferData VK::createBuffer(Vulkan &vk, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
+void API::prepareResources(Vulkan &vk) {
+    //---Resource phase---
+    //      In this stage we will create the buffers and images that the program will use
+    //      Some won't change for the duration of the program (vertex buffers, images...) and some are placeholders that we will update in
+    //      a per frame basis, but it makes sense to allocate them now
+    
+    //---Unmutable buffers---
+    vk.vertex_buffer = VK::createVertexBuffer(vk.device, vk.allocator, vk.cmd, vertices);
+    vk.index_buffer = VK::createIndexBuffer(vk.device, vk.allocator, vk.cmd, indices);
+    vk.index_buffer_size = (ui32)indices.size();
+    
+    //Test image
+    //VK::createSampler(vk);
+    //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
+    
+    //VK::createUniformBuffers(vk);
+    //VK::createDescriptorPool(vk);
+    //VK::createDescriptorSets(vk);
+    
+    //TODO: Move elsewhere
+    //VK::recordDrawCommandBuffers(vk);
+}
+
+BufferData VK::createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory) {
+    //---Buffers---
+    //      These are regions of memory that store arbitrary data that the CPU, GPU or both can read
+    //      We are using Vulkan Memory Allocator for allocating their memory in a bigger pool
     BufferData data;
     
     VkBufferCreateInfo create_info{};
@@ -1402,93 +1475,74 @@ BufferData VK::createBuffer(Vulkan &vk, VkDeviceSize size, VkBufferUsageFlags us
     create_info.usage = usage;
     create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-    if (vkCreateBuffer(vk.device, &create_info, nullptr, &data.buffer) != VK_SUCCESS)
-        log::error("Failed to create a Vulkan Buffer");
+    VmaAllocationCreateInfo allocate_info{};
+    allocate_info.usage = memory;
     
-    VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(vk.device, data.buffer, &memory_requirements);
+    if (vmaCreateBuffer(allocator, &create_info, &allocate_info, &data.buffer, &data.allocation, nullptr) != VK_SUCCESS)
+        log::error("Failed to create a vulkan buffer");
     
-    VkMemoryAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocate_info.allocationSize = memory_requirements.size;
-    allocate_info.memoryTypeIndex = getMemoryType(vk, memory_requirements.memoryTypeBits, properties);
-    
-    //vkAllocate is discouraged for many components, see https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
-    if (vkAllocateMemory(vk.device, &allocate_info, nullptr, &data.memory) != VK_SUCCESS)
-        log::error("Failed to allocate Buffer Memory");
-    
-    vkBindBufferMemory(vk.device, data.buffer, data.memory, 0);
-    
+    deletion_queue_program.push_back([allocator, data](){
+        vmaDestroyBuffer(allocator, data.buffer, data.allocation);
+    });
     return data;
 }
 
-ui32 VK::getMemoryType(Vulkan &vk, ui32 filter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memory_properties;
-    vkGetPhysicalDeviceMemoryProperties(vk.physical_device, &memory_properties);
-    
-    for (ui32 i = 0; i < memory_properties.memoryTypeCount; i++) {
-        if ((filter & (1 << i)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties)
-            return i;
-    }
-    
-    log::error("Failed to find a suitable memory type");
-    return 0;
-}
-
-void VK::createVertexBuffer(Vulkan &vk, const std::vector<Graphics::VertexData> &vertices) {
+BufferData VK::createVertexBuffer(VkDevice device, VmaAllocator allocator,
+                                  const VkCommandData &cmd, const std::vector<Graphics::VertexData> &vertices) {
+    //
     VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
     
-    VkBufferUsageFlags staging_buffer_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    VkMemoryPropertyFlags staging_buffer_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    BufferData staging_buffer = createBuffer(vk, buffer_size, staging_buffer_usage, staging_buffer_properties);
+    BufferData staging_buffer = createBuffer(allocator, buffer_size,
+                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                             VMA_MEMORY_USAGE_CPU_ONLY);
     
     void* data;
-    vkMapMemory(vk.device, staging_buffer.memory, 0, buffer_size, 0, &data);
+    vmaMapMemory(allocator, staging_buffer.allocation, &data);
     memcpy(data, vertices.data(), (size_t) buffer_size);
-    vkUnmapMemory(vk.device, staging_buffer.memory);
+    vmaUnmapMemory(allocator, staging_buffer.allocation);
     
-    VkBufferUsageFlags buffer_usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    VkMemoryPropertyFlags buffer_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    vk.vertex_buffer = createBuffer(vk, buffer_size, buffer_usage, buffer_properties);
+    BufferData vertex_buffer = createBuffer(allocator, buffer_size,
+                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                            VMA_MEMORY_USAGE_GPU_ONLY);
     
-    copyBuffer(vk, staging_buffer.buffer, vk.vertex_buffer.buffer, buffer_size);
+    copyBuffer(device, cmd, staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
     
-    vkDestroyBuffer(vk.device, staging_buffer.buffer, nullptr);
-    vkFreeMemory(vk.device, staging_buffer.memory, nullptr);
+    vmaDestroyBuffer(allocator, staging_buffer.buffer, staging_buffer.allocation);
+    return vertex_buffer;
 }
 
-void VK::createIndexBuffer(Vulkan &vk, const std::vector<ui16> &indices) {
+BufferData VK::createIndexBuffer(VkDevice device, VmaAllocator allocator,
+                                 const VkCommandData &cmd, const std::vector<ui16> &indices) {
     VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
-    vk.index_buffer_size = (ui32)indices.size();
     
-    VkBufferUsageFlags staging_buffer_usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    VkMemoryPropertyFlags staging_buffer_properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    BufferData staging_buffer = createBuffer(vk, buffer_size, staging_buffer_usage, staging_buffer_properties);
+    BufferData staging_buffer = createBuffer(allocator, buffer_size,
+                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                             VMA_MEMORY_USAGE_CPU_ONLY);
     
     void* data;
-    vkMapMemory(vk.device, staging_buffer.memory, 0, buffer_size, 0, &data);
+    vmaMapMemory(allocator, staging_buffer.allocation, &data);
     memcpy(data, indices.data(), (size_t) buffer_size);
-    vkUnmapMemory(vk.device, staging_buffer.memory);
+    vmaUnmapMemory(allocator, staging_buffer.allocation);
     
-    VkBufferUsageFlags buffer_usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-    VkMemoryPropertyFlags buffer_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    vk.index_buffer = createBuffer(vk, buffer_size, buffer_usage, buffer_properties);
+    BufferData index_buffer = createBuffer(allocator, buffer_size,
+                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                           VMA_MEMORY_USAGE_GPU_ONLY);
     
-    copyBuffer(vk, staging_buffer.buffer, vk.index_buffer.buffer, buffer_size);
+    copyBuffer(device, cmd, staging_buffer.buffer, index_buffer.buffer, buffer_size);
     
-    vkDestroyBuffer(vk.device, staging_buffer.buffer, nullptr);
-    vkFreeMemory(vk.device, staging_buffer.memory, nullptr);
+    vmaDestroyBuffer(allocator, staging_buffer.buffer, staging_buffer.allocation);
+    return index_buffer;
 }
 
-VkCommandBuffer VK::beginSingleUseCommandBuffer(Vulkan &vk) {
+VkCommandBuffer VK::beginSingleUseCommandBuffer(VkDevice device, const VkCommandData &cmd) {
     VkCommandBufferAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocate_info.commandPool = vk.cmd.command_pools["temp"];
+    allocate_info.commandPool = cmd.command_pools.at("temp");
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocate_info.commandBufferCount = 1;
     
     VkCommandBuffer command_buffer;
-    vkAllocateCommandBuffers(vk.device, &allocate_info, &command_buffer);
+    vkAllocateCommandBuffers(device, &allocate_info, &command_buffer);
     
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -1498,21 +1552,21 @@ VkCommandBuffer VK::beginSingleUseCommandBuffer(Vulkan &vk) {
     return command_buffer;
 }
 
-void VK::endSingleUseCommandBuffer(Vulkan &vk, VkCommandBuffer command_buffer) {
+void VK::endSingleUseCommandBuffer(VkDevice device, const VkCommandData &cmd, VkCommandBuffer command_buffer) {
     vkEndCommandBuffer(command_buffer);
     
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &command_buffer;
-    vkQueueSubmit(vk.cmd.queues.graphics, 1, &submit_info, VK_NULL_HANDLE);
-    vkQueueWaitIdle(vk.cmd.queues.graphics);
+    vkQueueSubmit(cmd.queues.graphics, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(cmd.queues.graphics);
     
-    vkFreeCommandBuffers(vk.device, vk.cmd.command_pools["temp"], 1, &command_buffer);
+    vkFreeCommandBuffers(device, cmd.command_pools.at("temp"), 1, &command_buffer);
 }
 
-void VK::copyBuffer(Vulkan &vk, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
-    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk);
+void VK::copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd);
     
     VkBufferCopy copy_region{};
     copy_region.srcOffset = 0;
@@ -1520,7 +1574,7 @@ void VK::copyBuffer(Vulkan &vk, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
     copy_region.size = size;
     vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
     
-    endSingleUseCommandBuffer(vk, command_buffer);
+    endSingleUseCommandBuffer(device, cmd, command_buffer);
 }
 
 //----------------------------------------
@@ -1552,7 +1606,7 @@ void VK::createDescriptorPool(Vulkan &vk) {
 }
 
 void VK::createDescriptorSets(Vulkan &vk) {
-    std::vector<VkDescriptorSetLayout> layouts(vk.swapchain.images.size(), vk.descriptor_set_layout);
+    /*std::vector<VkDescriptorSetLayout> layouts(vk.swapchain.images.size(), vk.descriptor_set_layout);
     
     VkDescriptorSetAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1601,11 +1655,11 @@ void VK::createDescriptorSets(Vulkan &vk) {
         write_descriptors[1].pTexelBufferView = nullptr;
         
         vkUpdateDescriptorSets(vk.device, (ui32)write_descriptors.size(), write_descriptors.data(), 0, nullptr);
-    }
+    }*/
 }
 
 void VK::createUniformBuffers(Vulkan &vk) {
-    VkDeviceSize buffer_size = sizeof(VK::UniformBufferObject);
+    /*VkDeviceSize buffer_size = sizeof(VK::UniformBufferObject);
     
     vk.uniform_buffers.resize(vk.swapchain.images.size());
     
@@ -1615,13 +1669,13 @@ void VK::createUniformBuffers(Vulkan &vk) {
     for (int i = 0; i < vk.swapchain.images.size(); i++)
         vk.uniform_buffers[i] = createBuffer(vk, buffer_size, usage_flags, memory_flags);
     
-    log::graphics("Created Vulkan Uniform Buffers");
+    log::graphics("Created Vulkan Uniform Buffers");*/
 }
 
 void VK::updateUniformBuffer(Vulkan &vk, ui32 current_image) {
     //EXAMPLE FUNCTION
     
-    static Clock::time_point start_time = time();
+    /*static Clock::time_point start_time = time();
     float t = sec(time() - start_time);
     
     VK::UniformBufferObject ubo{};
@@ -1636,7 +1690,7 @@ void VK::updateUniformBuffer(Vulkan &vk, ui32 current_image) {
     void* data;
     vkMapMemory(vk.device, vk.uniform_buffers[current_image].memory, 0, sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(vk.device, vk.uniform_buffers[current_image].memory);
+    vkUnmapMemory(vk.device, vk.uniform_buffers[current_image].memory);*/
 }
 
 //----------------------------------------
@@ -1647,7 +1701,7 @@ void VK::updateUniformBuffer(Vulkan &vk, ui32 current_image) {
 //----------------------------------------
 
 void API::createTexture(Vulkan &vk, TextureData &tex, ui8 *pixels) {
-    ui32 size = tex.w * tex.h * tex.ch * sizeof(ui8);
+    /*ui32 size = tex.w * tex.h * tex.ch * sizeof(ui8);
     
     VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     VkMemoryPropertyFlags memory_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
@@ -1666,11 +1720,11 @@ void API::createTexture(Vulkan &vk, TextureData &tex, ui8 *pixels) {
     vk.image_view = VK::createImageView(vk.device, tex.image, VK_IMAGE_ASPECT_COLOR_BIT, tex.format);
     
     vkDestroyBuffer(vk.device, staging_buffer.buffer, nullptr);
-    vkFreeMemory(vk.device, staging_buffer.memory, nullptr);
+    vkFreeMemory(vk.device, staging_buffer.memory, nullptr);*/
 }
 
 void VK::createImage(Vulkan &vk, TextureData &tex, ui8 *pixels) {
-    VkImageCreateInfo create_info{};
+    /*VkImageCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     create_info.imageType = VK_IMAGE_TYPE_2D;
     create_info.extent.width = static_cast<ui32>(tex.w);
@@ -1721,11 +1775,11 @@ void VK::createImage(Vulkan &vk, TextureData &tex, ui8 *pixels) {
     if (vkAllocateMemory(vk.device, &allocate_info, nullptr, &tex.memory) != VK_SUCCESS)
         log::error("Failed to allocate memory for a Vulkan image");
     
-    vkBindImageMemory(vk.device, tex.image, tex.memory, 0);
+    vkBindImageMemory(vk.device, tex.image, tex.memory, 0);*/
 }
 
 void VK::transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_layout) {
-    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk);
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd);
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1776,13 +1830,13 @@ void VK::transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_l
     
     vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier); //TODO
     
-    endSingleUseCommandBuffer(vk, command_buffer);
+    endSingleUseCommandBuffer(vk.device, vk.cmd, command_buffer);
     
     tex.layout = new_layout;
 }
 
 void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
-    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk);
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd);
     
     VkBufferImageCopy copy_region{};
     copy_region.bufferOffset = 0;
@@ -1799,7 +1853,7 @@ void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
     
     vkCmdCopyBufferToImage(command_buffer, buffer.buffer, tex.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
     
-    endSingleUseCommandBuffer(vk, command_buffer);
+    endSingleUseCommandBuffer(vk.device, vk.cmd, command_buffer);
 }
 
 VkImageView VK::createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format) {
@@ -1870,7 +1924,7 @@ void VK::createSampler(Vulkan &vk) {
 //----------------------------------------
 
 void VK::renderFrame(Vulkan &vk, WindowData &win) {
-    vkWaitForFences(vk.device, 1, &vk.sync.fences_in_flight[vk.sync.current_frame], VK_TRUE, UINT64_MAX);
+    /*vkWaitForFences(vk.device, 1, &vk.sync.fences_in_flight[vk.sync.current_frame], VK_TRUE, UINT64_MAX);
     
     VkResult result;
     ui32 image_index;
@@ -1938,7 +1992,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
         log::error("Failed to present Swapchain Image");
     
     
-    vk.sync.current_frame = (vk.sync.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+    vk.sync.current_frame = (vk.sync.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;*/
 }
 
 //----------------------------------------
@@ -1969,6 +2023,12 @@ void API::resize(Vulkan &vk, WindowData &win) {
 //Cleanup
 //----------------------------------------
 
+void VK::cleanFrame() {
+    for (auto it = deletion_queue_frame.rbegin(); it != deletion_queue_frame.rend(); ++it)
+        (*it)();
+    deletion_queue_frame.clear();
+}
+
 void VK::cleanSwapchain(Vulkan &vk) {
     for (VkFramebuffer fb : vk.swapchain.framebuffers)
         vkDestroyFramebuffer(vk.device, fb, nullptr);
@@ -1984,12 +2044,16 @@ void VK::cleanSwapchain(Vulkan &vk) {
     
     vkDestroySwapchainKHR(vk.device, vk.swapchain.swapchain, nullptr);
     
-    for (BufferData buffer : vk.uniform_buffers) {
+    /*for (BufferData buffer : vk.uniform_buffers) {
         vkDestroyBuffer(vk.device, buffer.buffer, nullptr);
         vkFreeMemory(vk.device, buffer.memory, nullptr);
-    }
+    }*/
     
     vkDestroyDescriptorPool(vk.device, vk.descriptor_pool, nullptr);
+    
+    for (auto it = deletion_queue_swapchain.rbegin(); it != deletion_queue_swapchain.rend(); ++it)
+        (*it)();
+    deletion_queue_swapchain.clear();
 }
 
 void API::clean(Vulkan &vk) {
@@ -2006,25 +2070,9 @@ void API::clean(Vulkan &vk) {
     vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
     vkDestroyDescriptorSetLayout(vk.device, vk.descriptor_set_layout, nullptr);
     
-    vkDestroyBuffer(vk.device, vk.vertex_buffer.buffer, nullptr);
-    vkFreeMemory(vk.device, vk.vertex_buffer.memory, nullptr);
-    
-    vkDestroyBuffer(vk.device, vk.index_buffer.buffer, nullptr);
-    vkFreeMemory(vk.device, vk.index_buffer.memory, nullptr);
-    
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroySemaphore(vk.device, vk.sync.semaphores_image_available[i], nullptr);
-        vkDestroySemaphore(vk.device, vk.sync.semaphores_render_finished[i], nullptr);
-        vkDestroyFence(vk.device, vk.sync.fences_in_flight[i], nullptr);
-    }
-    
-    for (auto [key, pool] : vk.cmd.command_pools)
-        vkDestroyCommandPool(vk.device, pool, nullptr);
-    
-    vkDestroyDevice(vk.device, nullptr);
-    
-    vkDestroySurfaceKHR(vk.instance, vk.surface, nullptr);
-    vkDestroyInstance(vk.instance, nullptr);
+    for (auto it = deletion_queue_program.rbegin(); it != deletion_queue_program.rend(); ++it)
+        (*it)();
+    deletion_queue_program.clear();
     
     log::graphics("Cleaned up Vulkan");
 }
@@ -2033,7 +2081,7 @@ void API::clean(Vulkan &vk) {
 
 
 
-//DEBUG
+//Debug
 //----------------------------------------
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL vulkanReportFunc(

@@ -7,7 +7,6 @@
 #include "log.h"
 #include "ftime.h"
 #include "r_opengl.h"
-#include "r_vulkan.h"
 
 #define TRANSITION_TIME 500
 #define MAX_PALETTES 1024
