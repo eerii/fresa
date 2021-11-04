@@ -31,22 +31,22 @@ std::vector<char> Shader::readSPIRV(std::string filename) {
     return buffer;
 }
 
-ShaderCode Shader::readSPIRV(ShaderData &data) {
+ShaderCode Shader::readSPIRV(const ShaderLocations &locations) {
     ShaderCode code;
     
-    if (data.locations.vert.has_value())
-        code.vert = readSPIRV(data.locations.vert.value());
-    if (data.locations.frag.has_value())
-        code.frag = readSPIRV(data.locations.frag.value());
-    if (data.locations.compute.has_value())
-        code.compute = readSPIRV(data.locations.compute.value());
-    if (data.locations.geometry.has_value())
-        code.geometry = readSPIRV(data.locations.geometry.value());
+    if (locations.vert.has_value())
+        code.vert = readSPIRV(locations.vert.value());
+    if (locations.frag.has_value())
+        code.frag = readSPIRV(locations.frag.value());
+    if (locations.compute.has_value())
+        code.compute = readSPIRV(locations.compute.value());
+    if (locations.geometry.has_value())
+        code.geometry = readSPIRV(locations.geometry.value());
     
     return code;
 }
 
-VkShaderModule Shader::createShaderModule(std::vector<char> &code, VkDevice &device) {
+VkShaderModule Shader::createShaderModule(VkDevice device, const std::vector<char> &code) {
     VkShaderModuleCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     create_info.codeSize = code.size();
@@ -59,22 +59,22 @@ VkShaderModule Shader::createShaderModule(std::vector<char> &code, VkDevice &dev
     return shader_module;
 }
 
-ShaderStages Shader::createShaderStages(ShaderCode &code, VkDevice &device) {
+ShaderStages Shader::createShaderStages(VkDevice device, const ShaderCode &code) {
     ShaderStages stages;
     
     if (code.vert.has_value())
-        stages.vert = createShaderModule(code.vert.value(), device);
+        stages.vert = createShaderModule(device, code.vert.value());
     if (code.frag.has_value())
-        stages.frag = createShaderModule(code.frag.value(), device);
+        stages.frag = createShaderModule(device, code.frag.value());
     if (code.compute.has_value())
-        stages.compute = createShaderModule(code.compute.value(), device);
+        stages.compute = createShaderModule(device, code.compute.value());
     if (code.geometry.has_value())
-        stages.geometry = createShaderModule(code.geometry.value(), device);
+        stages.geometry = createShaderModule(device, code.geometry.value());
     
     return stages;
 }
 
-std::vector<VkPipelineShaderStageCreateInfo> Shader::getShaderStageInfo(ShaderStages &stages) {
+std::vector<VkPipelineShaderStageCreateInfo> Shader::getShaderStageInfo(const ShaderStages &stages) {
     std::vector<VkPipelineShaderStageCreateInfo> info;
     
     if (stages.vert.has_value()) {
@@ -125,7 +125,7 @@ std::vector<VkPipelineShaderStageCreateInfo> Shader::getShaderStageInfo(ShaderSt
     return info;
 }
 
-void Shader::destroyShaderStages(VkDevice &device, ShaderStages &stages) {
+void Shader::destroyShaderStages(VkDevice device, const ShaderStages &stages) {
     if (stages.vert.has_value())
         vkDestroyShaderModule(device, stages.vert.value(), nullptr);
     if (stages.frag.has_value())
@@ -136,7 +136,7 @@ void Shader::destroyShaderStages(VkDevice &device, ShaderStages &stages) {
         vkDestroyShaderModule(device, stages.geometry.value(), nullptr);
 }
 
-ShaderCompiler Shader::getShaderCompiler(std::vector<char> &code) {
+ShaderCompiler Shader::getShaderCompiler(const std::vector<char> &code) {
     std::vector<ui32> spirv;
     
     for (int i = 0; i < code.size() / 4; i++) {

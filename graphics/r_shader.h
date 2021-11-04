@@ -36,14 +36,14 @@ namespace Verse::Graphics::Shader
     #elif defined USE_VULKAN
 
     std::vector<char> readSPIRV(std::string filename);
-    ShaderCode readSPIRV(ShaderData &data);
+    ShaderCode readSPIRV(const ShaderLocations &locations);
 
-    VkShaderModule createShaderModule(std::vector<char> &code, VkDevice &device);
-    ShaderStages createShaderStages(ShaderCode &code, VkDevice &device);
+    VkShaderModule createShaderModule(VkDevice device, const std::vector<char> &code);
+    ShaderStages createShaderStages(VkDevice device, const ShaderCode &code);
 
-    std::vector<VkPipelineShaderStageCreateInfo> getShaderStageInfo(ShaderStages &stages);
-    void destroyShaderStages(VkDevice &device, ShaderStages &stages);
+    std::vector<VkPipelineShaderStageCreateInfo> getShaderStageInfo(const ShaderStages &stages);
+    void destroyShaderStages(VkDevice device, const ShaderStages &stages);
 
-    ShaderCompiler getShaderCompiler(std::vector<char> &code);
+    ShaderCompiler getShaderCompiler(const std::vector<char> &code);
     #endif
 }
