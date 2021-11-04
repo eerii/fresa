@@ -16,6 +16,8 @@ namespace Verse::Graphics::API
     void configure();
     GraphicsAPI create(WindowData &win);
 
+    void prepareResources(GraphicsAPI &api);
+
     void createTexture(GraphicsAPI &api, TextureData &tex, ui8* pixels);
     void resize(GraphicsAPI &api, WindowData &win);
 

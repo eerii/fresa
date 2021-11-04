@@ -9,6 +9,7 @@
 
 #ifdef USE_VULKAN
 #include <vulkan/vulkan.h>
+#include "vk_mem_alloc.h"
 #endif
 
 namespace Verse::Graphics
@@ -18,7 +19,7 @@ namespace Verse::Graphics
         ui32 id_;
         #elif defined USE_VULKAN
         VkBuffer buffer;
-        VkDeviceMemory memory;
+        VmaAllocation allocation;
         #endif
     };
 }

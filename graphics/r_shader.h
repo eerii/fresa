@@ -11,13 +11,8 @@
 
 #include "dtypes.h"
 
-#ifdef USE_OPENGL
 #include "r_opengl.h"
-#endif
-
-#ifdef USE_VULKAN
 #include "r_vulkan.h"
-#endif
 
 #include "r_shaderdata.h"
 
