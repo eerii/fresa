@@ -14,12 +14,14 @@ namespace Verse::Graphics::VK
     struct QueueIndices {
         std::optional<ui32> graphics;
         std::optional<ui32> present;
+        std::optional<ui32> transfer;
         std::optional<ui32> compute;
     };
 
     struct QueueData {
         VkQueue graphics;
         VkQueue present;
+        VkQueue transfer;
         VkQueue compute;
     };
 
