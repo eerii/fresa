@@ -57,6 +57,8 @@ namespace {
     std::vector<std::function<void()>> deletion_queue_program;
     std::vector<std::function<void()>> deletion_queue_swapchain;
     std::vector<std::function<void()>> deletion_queue_frame;
+
+    std::vector<VkDescriptorPoolSize> descriptor_pool_sizes{};
 }
 
 
@@ -95,8 +97,10 @@ Vulkan API::create(WindowData &win) {
     
     //---Command pools---
     vk.cmd.command_pools = VK::createCommandPools(vk.device, vk.cmd.queue_indices,
-                                                  {"draw", "temp"}, {}, {{"temp", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}});
-    vk.cmd.command_buffers["draw"] = VK::createDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
+        {"draw", "temp", "transfer"},
+        {{"transfer", vk.cmd.queue_indices.transfer.value()}},
+        {{"temp", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}, {"transfer", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}});
+    vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
     //---Render pass---
     vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format);
@@ -110,8 +114,10 @@ Vulkan API::create(WindowData &win) {
     //---Shader data---
     vk.shader = VK::createShaderData(vk.device, "res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
     
-    //---Descriptor set layout---
-    vk.descriptor_set_layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code);
+    //---Descriptor set---
+    vk.descriptor_set_layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
+    vk.descriptor_pool = VK::createDescriptorPool(vk.device);
+    VK::allocateDescriptorSets(vk);
     
     //---Pipeline---
     vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptor_set_layout);
@@ -387,8 +393,21 @@ VK::QueueIndices VK::getQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice phy
             continue;
         }
         
+        if (not queue_indices.transfer.has_value() and (queue_family_list[i].queueFlags & VK_QUEUE_TRANSFER_BIT)) {
+            queue_indices.transfer = i;
+            continue;
+        }
+        
         if (queue_indices.graphics.has_value() and queue_indices.present.has_value() and queue_indices.compute.has_value())
             break;
+    }
+    
+    if (not queue_indices.graphics.has_value())
+        log::error("No graphics queue was found! This is terrible aaaa :(((");
+    
+    if (not queue_indices.transfer.has_value()) {
+        log::warn("No transfer specific queue was found, using the graphics queue as the default");
+        queue_indices.transfer = queue_indices.graphics.value();
     }
     
     return queue_indices;
@@ -412,18 +431,20 @@ VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeat
         unique_queue_families.insert(queue_indices.present.value());
     if (queue_indices.compute.has_value())
         unique_queue_families.insert(queue_indices.compute.value());
+    if (queue_indices.transfer.has_value())
+        unique_queue_families.insert(queue_indices.transfer.value());
     log::graphics("Vulkan queue families: %d", unique_queue_families.size());
     
     int i = 0;
-    std::vector<float> priorities{ 1.0f, 1.0f, 0.5f };
+    std::vector<float> priorities{ 1.0f, 1.0f, 0.5f, 0.5f };
     
     for (ui32 family : unique_queue_families) {
-        VkDeviceQueueCreateInfo queue_graphics_info{};
-        queue_graphics_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queue_graphics_info.queueFamilyIndex = family;
-        queue_graphics_info.queueCount = 1;
-        queue_graphics_info.pQueuePriorities = &priorities[i];
-        queue_create_infos.push_back(queue_graphics_info);
+        VkDeviceQueueCreateInfo queue_info{};
+        queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queue_info.queueFamilyIndex = family;
+        queue_info.queueCount = 1;
+        queue_info.pQueuePriorities = &priorities[i];
+        queue_create_infos.push_back(queue_info);
         i++;
     }
     
@@ -468,6 +489,10 @@ VK::QueueData VK::getQueues(VkDevice device, const QueueIndices &queue_indices) 
     if (queue_indices.compute.has_value()) {
         vkGetDeviceQueue(device, queue_indices.compute.value(), 0, &queues.compute);
         log::graphics(" - Compute (%d)", queue_indices.compute.value());
+    }
+    if (queue_indices.transfer.has_value()) {
+        vkGetDeviceQueue(device, queue_indices.transfer.value(), 0, &queues.transfer);
+        log::graphics(" - Transfer (%d)", queue_indices.transfer.value());
     }
     log::graphics("");
     
@@ -683,7 +708,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     cleanSwapchain(vk);
     
     vk.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
-    vk.cmd.command_buffers["draw"] = VK::createDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd); //TODO: Only reset buffers
+    vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd); //TODO: Only reset buffers
     
     vk.swapchain.main_render_pass = createRenderPass(vk.device, vk.swapchain.format);
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
@@ -721,7 +746,7 @@ std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const Queue
                                                     std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags) {
     //---Command pools---
     //      Command buffers can be allocated inside them
-    //      We can have multiple command pools for different types of buffers, for example, "draw" and "temp"
+    //      We can have multiple command pools for different types of buffers, for example, "draw" and "transfer"
     //      Resetting the command pool is easier than individually resetting buffers
     
     std::map<str, VkCommandPool> command_pools;
@@ -757,7 +782,7 @@ std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const Queue
     return command_pools;
 }
 
-std::vector<VkCommandBuffer> VK::createDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd) {
+std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd) {
     //---Command buffers---
     //      All vulkan commands must be executed inside a command buffer
     //      Here we create the command buffers we will use for drawing, and allocate them inside a command pool ("draw")
@@ -775,20 +800,21 @@ std::vector<VkCommandBuffer> VK::createDrawCommandBuffers(VkDevice device, ui32 
     if (vkAllocateCommandBuffers(device, &allocate_info, command_buffers.data()) != VK_SUCCESS)
         log::error("Failed to allocate the vulkan main draw command buffers");
     
-    log::graphics("Created the vulkan draw command buffers");
+    log::graphics("Allocated the vulkan draw command buffers");
     
     return command_buffers;
 }
 
 void VK::recordDrawCommandBuffers(Vulkan &vk) {
     //TODO: IMPROVE THIS
-    /*for (int i = 0; i < vk.cmd.command_buffers["draw"].size(); i++) {
+    /*int i = 0;
+    for (const auto &buffer : vk.cmd.command_buffers["draw"]) {
         VkCommandBufferBeginInfo begin_info{};
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         begin_info.flags = 0;
         begin_info.pInheritanceInfo = nullptr;
         
-        if (vkBeginCommandBuffer(vk.cmd.command_buffers["draw"][i], &begin_info) != VK_SUCCESS)
+        if (vkBeginCommandBuffer(buffer, &begin_info) != VK_SUCCESS)
             log::error("Failed to begin recording on a vulkan command buffer");
         
         std::array<VkClearValue, 2> clear_values{};
@@ -804,25 +830,69 @@ void VK::recordDrawCommandBuffers(Vulkan &vk) {
         render_pass_info.clearValueCount = 2;
         render_pass_info.pClearValues = clear_values.data();
         
-        vkCmdBeginRenderPass(vk.cmd.command_buffers["draw"][i], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBeginRenderPass(buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
         
-        vkCmdBindPipeline(vk.cmd.command_buffers["draw"][i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline);
+        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline);
         
         VkBuffer vertex_buffers[]{ vk.vertex_buffer.buffer };
         VkDeviceSize offsets[]{ 0 };
-        vkCmdBindVertexBuffers(vk.cmd.command_buffers["draw"][i], 0, 1, vertex_buffers, offsets);
+        vkCmdBindVertexBuffers(buffer, 0, 1, vertex_buffers, offsets);
         
-        vkCmdBindIndexBuffer(vk.cmd.command_buffers["draw"][i], vk.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(buffer, vk.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
         
-        vkCmdBindDescriptorSets(vk.cmd.command_buffers["draw"][i], VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &vk.descriptor_sets[i], 0, nullptr);
+        vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &vk.descriptor_sets[i], 0, nullptr);
         
-        vkCmdDrawIndexed(vk.cmd.command_buffers["draw"][i], vk.index_buffer_size, 1, 0, 0, 0);
+        vkCmdDrawIndexed(buffer, vk.index_buffer_size, 1, 0, 0, 0);
         
-        vkCmdEndRenderPass(vk.cmd.command_buffers["draw"][i]);
+        vkCmdEndRenderPass(buffer);
         
-        if (vkEndCommandBuffer(vk.cmd.command_buffers["draw"][i]) != VK_SUCCESS)
+        if (vkEndCommandBuffer(buffer) != VK_SUCCESS)
             log::error("Failed to end recording on a vulkan command buffer");
+        i++;
     }*/
+}
+
+VkCommandBuffer VK::beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool) {
+    //---Begin command buffer (single use)---
+    //      Helper function which provides boilerplate for creating a single use command buffer
+    //      It has the VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT flag, and it is allocated in the "transfer" command pool
+    //      This with endSingleUseCommandBuffer() "sandwitches" the actual command code
+    
+    //: Allocation info
+    VkCommandBufferAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocate_info.commandPool = pool;
+    allocate_info.commandBufferCount = 1;
+    
+    //: Allocate command buffer
+    VkCommandBuffer command_buffer;
+    vkAllocateCommandBuffers(device, &allocate_info, &command_buffer);
+    
+    //: Begin recording the buffer
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+    
+    return command_buffer;
+}
+
+void VK::endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue) {
+    //---End command buffer (single use)---
+    //      Helper function that complements beginSingleUseCommandBuffer() and finishes recording on a single use command buffer
+    //      This part submits and frees the command buffer
+    //      TODO: Make the free command work at the end of the frame, maybe with syncronization
+    vkEndCommandBuffer(command_buffer);
+    
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffer;
+    vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+    
+    vkFreeCommandBuffers(device, pool, 1, &command_buffer);
 }
 
 //----------------------------------------
@@ -1051,83 +1121,6 @@ ShaderData VK::createShaderData(VkDevice device, str vert, str frag, str compute
     data.stages = Shader::createShaderStages(device, data.code);
     
     return data;
-}
-
-VkDescriptorSetLayoutBinding VK::prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding) {
-    //---Descriptor set layout binding---
-    //      One item of a descriptor set layout, it includes the stage (vertex, frag...),
-    //      the type of the descriptor (uniform, image...) and the binding position
-    VkDescriptorSetLayoutBinding layout_binding;
-    
-    layout_binding.binding = binding;
-    layout_binding.descriptorType = type;
-    layout_binding.descriptorCount = 1;
-    layout_binding.stageFlags = stage;
-    layout_binding.pImmutableSamplers = nullptr;
-    
-    return layout_binding;
-}
-
-VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const ShaderCode &code) {
-    //---Descriptor set layout---
-    //      It is a blueprint for creating descriptor sets, specifies the number and type of descriptors in the GLSL shader
-    //      Descriptors can be anything passed into a shader: uniforms, images, ...
-    //      We use SPIRV-cross to get reflection from the shaders themselves and create the descriptor layout automatically
-    VkDescriptorSetLayout layout;
-    std::vector<VkDescriptorSetLayoutBinding> layout_binding;
-    
-    log::graphics("");
-    log::graphics("Creating descriptor set layout...");
-    
-    
-    //---Vertex shader---
-    if (code.vert.has_value()) {
-        ShaderCompiler compiler = Shader::getShaderCompiler(code.vert.value());
-        ShaderResources resources = compiler.get_shader_resources();
-        
-        //: Uniform buffers
-        for (const auto &res : resources.uniform_buffers) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: Vertex", res.name.c_str(), binding);
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
-        }
-    }
-    
-    
-    //---Fragment shader---
-    if (code.frag.has_value()) {
-        ShaderCompiler compiler = Shader::getShaderCompiler(code.frag.value());
-        ShaderResources resources = compiler.get_shader_resources();
-        
-        //: Uniform buffers
-        for (const auto &res : resources.uniform_buffers) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: Fragment", res.name.c_str(), binding);
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
-        }
-        
-        //: Combined image samplers
-        for (const auto &res : resources.sampled_images) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Image (%s) - Binding : %d - Stage : Fragment", res.name.c_str(), binding);
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding));
-        }
-    }
-    
-    
-    //---Create the descriptor layout itself---
-    VkDescriptorSetLayoutCreateInfo create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    create_info.bindingCount = (ui32)layout_binding.size();
-    create_info.pBindings = layout_binding.data();
-    
-    if (vkCreateDescriptorSetLayout(device, &create_info, nullptr, &layout) != VK_SUCCESS)
-        log::error("Error creating a descriptor set layout, check shader refraction");
-    
-    return layout;
 }
 
 VK::PipelineCreateInfo VK::preparePipelineCreateInfo(VkExtent2D extent) {
@@ -1446,18 +1439,16 @@ void API::prepareResources(Vulkan &vk) {
     //      Some won't change for the duration of the program (vertex buffers, images...) and some are placeholders that we will update in
     //      a per frame basis, but it makes sense to allocate them now
     
-    //---Unmutable buffers---
+    //---Immutable buffers---
     vk.vertex_buffer = VK::createVertexBuffer(vk.device, vk.allocator, vk.cmd, vertices);
     vk.index_buffer = VK::createIndexBuffer(vk.device, vk.allocator, vk.cmd, indices);
     vk.index_buffer_size = (ui32)indices.size();
     
-    //Test image
+    
     //VK::createSampler(vk);
     //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
     
     //VK::createUniformBuffers(vk);
-    //VK::createDescriptorPool(vk);
-    //VK::createDescriptorSets(vk);
     
     //TODO: Move elsewhere
     //VK::recordDrawCommandBuffers(vk);
@@ -1481,92 +1472,93 @@ BufferData VK::createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferU
     if (vmaCreateBuffer(allocator, &create_info, &allocate_info, &data.buffer, &data.allocation, nullptr) != VK_SUCCESS)
         log::error("Failed to create a vulkan buffer");
     
-    deletion_queue_program.push_back([allocator, data](){
-        vmaDestroyBuffer(allocator, data.buffer, data.allocation);
-    });
     return data;
 }
 
 BufferData VK::createVertexBuffer(VkDevice device, VmaAllocator allocator,
                                   const VkCommandData &cmd, const std::vector<Graphics::VertexData> &vertices) {
-    //
+    //---Vertex buffer---
+    //      Buffer that holds the vertex information for the shaders to use.
+    //      It has a VertexData struct per vertex of the mesh, which can contain properties like position, color, uv, normals...
+    //      The properties are described automatically using reflection in an attribute description in the pipeline
     VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
     
+    //: Staging buffer
+    //      We want to make the vertex buffer accessible to the GPU in the most efficient way, so we use a staging buffer
+    //      This is created in CPU only memory, in which we can easily map the vertex data
     BufferData staging_buffer = createBuffer(allocator, buffer_size,
                                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                              VMA_MEMORY_USAGE_CPU_ONLY);
     
+    //: Map vertices to staging buffer
     void* data;
     vmaMapMemory(allocator, staging_buffer.allocation, &data);
     memcpy(data, vertices.data(), (size_t) buffer_size);
     vmaUnmapMemory(allocator, staging_buffer.allocation);
     
+    //: Vertex buffer
+    //      The most efficient memory for GPU access is VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, or its rough equivalent, VMA_MEMORY_USAGE_GPU_ONLY
+    //      This memory type can't be access from the CPU
     BufferData vertex_buffer = createBuffer(allocator, buffer_size,
                                             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                             VMA_MEMORY_USAGE_GPU_ONLY);
     
+    //: Copy from staging to vertex
+    //      Since we can't access the vertex buffer memory from the CPU, we will use vkCmdCopyBuffer(), which will execute on a queue
+    //      and move data between the staging and vertex buffer
     copyBuffer(device, cmd, staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
     
+    //: Delete helpers (staging now, vertex when the program finishes)
     vmaDestroyBuffer(allocator, staging_buffer.buffer, staging_buffer.allocation);
+    deletion_queue_program.push_back([allocator, vertex_buffer](){
+        vmaDestroyBuffer(allocator, vertex_buffer.buffer, vertex_buffer.allocation);
+    });
+    
     return vertex_buffer;
 }
 
 BufferData VK::createIndexBuffer(VkDevice device, VmaAllocator allocator,
                                  const VkCommandData &cmd, const std::vector<ui16> &indices) {
+    //---Index buffer---
+    //      This buffer contains a list of indices, which allows to draw complex meshes without repeating vertices
+    //      A simple example, while a square only has 4 vertices, 6 vertices are needed for the 2 triangles, and it only gets worse from there
+    //      An index buffer solves this by having a list of which vertices to use, avoiding vertex repetition
+    //      The creating process is very similar to the above vertex buffer, using a staging buffer
     VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
     
+    //: Staging buffer
     BufferData staging_buffer = createBuffer(allocator, buffer_size,
                                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                              VMA_MEMORY_USAGE_CPU_ONLY);
     
+    //: Map indices to staging buffer
     void* data;
     vmaMapMemory(allocator, staging_buffer.allocation, &data);
     memcpy(data, indices.data(), (size_t) buffer_size);
     vmaUnmapMemory(allocator, staging_buffer.allocation);
     
+    //: Index buffer
     BufferData index_buffer = createBuffer(allocator, buffer_size,
                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                            VMA_MEMORY_USAGE_GPU_ONLY);
     
+    //: Copy from staging to index
     copyBuffer(device, cmd, staging_buffer.buffer, index_buffer.buffer, buffer_size);
     
+    //: Delete helpers (staging now, index when the program finishes)
     vmaDestroyBuffer(allocator, staging_buffer.buffer, staging_buffer.allocation);
+    deletion_queue_program.push_back([allocator, index_buffer](){
+        vmaDestroyBuffer(allocator, index_buffer.buffer, index_buffer.allocation);
+    });
+    
     return index_buffer;
 }
 
-VkCommandBuffer VK::beginSingleUseCommandBuffer(VkDevice device, const VkCommandData &cmd) {
-    VkCommandBufferAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocate_info.commandPool = cmd.command_pools.at("temp");
-    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocate_info.commandBufferCount = 1;
-    
-    VkCommandBuffer command_buffer;
-    vkAllocateCommandBuffers(device, &allocate_info, &command_buffer);
-    
-    VkCommandBufferBeginInfo begin_info{};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(command_buffer, &begin_info);
-    
-    return command_buffer;
-}
-
-void VK::endSingleUseCommandBuffer(VkDevice device, const VkCommandData &cmd, VkCommandBuffer command_buffer) {
-    vkEndCommandBuffer(command_buffer);
-    
-    VkSubmitInfo submit_info{};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
-    vkQueueSubmit(cmd.queues.graphics, 1, &submit_info, VK_NULL_HANDLE);
-    vkQueueWaitIdle(cmd.queues.graphics);
-    
-    vkFreeCommandBuffers(device, cmd.command_pools.at("temp"), 1, &command_buffer);
-}
-
 void VK::copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
-    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd);
+    //---Copy buffer---
+    //      Simple function that creates a command buffer to copy the memory from one buffer to another
+    //      Very helpful when using staging buffers to move information from CPU to GPU only memory (can be done in reverse)
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd.command_pools.at("transfer"));
     
     VkBufferCopy copy_region{};
     copy_region.srcOffset = 0;
@@ -1574,7 +1566,7 @@ void VK::copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkB
     copy_region.size = size;
     vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
     
-    endSingleUseCommandBuffer(device, cmd, command_buffer);
+    endSingleUseCommandBuffer(device, command_buffer, cmd.command_pools.at("transfer"), cmd.queues.transfer);
 }
 
 //----------------------------------------
@@ -1584,43 +1576,159 @@ void VK::copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkB
 //Uniforms
 //----------------------------------------
 
-void VK::createDescriptorPool(Vulkan &vk) {
-    std::array<VkDescriptorPoolSize, 2> pool_sizes{};
+VkDescriptorSetLayoutBinding VK::prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding) {
+    //---Descriptor set layout binding---
+    //      One item of a descriptor set layout, it includes the stage (vertex, frag...),
+    //      the type of the descriptor (uniform, image...) and the binding position
+    VkDescriptorSetLayoutBinding layout_binding;
     
-    pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_sizes[0].descriptorCount = (ui32)vk.swapchain.images.size();
+    layout_binding.binding = binding;
+    layout_binding.descriptorType = type;
+    layout_binding.descriptorCount = 1;
+    layout_binding.stageFlags = stage;
+    layout_binding.pImmutableSamplers = nullptr;
     
-    pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    pool_sizes[1].descriptorCount = (ui32)vk.swapchain.images.size();
-    
-    VkDescriptorPoolCreateInfo create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    create_info.poolSizeCount = (ui32)pool_sizes.size();
-    create_info.pPoolSizes = pool_sizes.data();
-    create_info.maxSets = (ui32)vk.swapchain.images.size();
-    
-    if (vkCreateDescriptorPool(vk.device, &create_info, nullptr, &vk.descriptor_pool) != VK_SUCCESS)
-        log::error("Failed to create a Vulkan Descriptor Pool");
-    
-    log::graphics("Created a Vulkan Descriptor Pool");
+    return layout_binding;
 }
 
-void VK::createDescriptorSets(Vulkan &vk) {
-    /*std::vector<VkDescriptorSetLayout> layouts(vk.swapchain.images.size(), vk.descriptor_set_layout);
+VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const ShaderCode &code, ui32 swapchain_size) {
+    //---Descriptor set layout---
+    //      It is a blueprint for creating descriptor sets, specifies the number and type of descriptors in the GLSL shader
+    //      Descriptors can be anything passed into a shader: uniforms, images, ...
+    //      We use SPIRV-cross to get reflection from the shaders themselves and create the descriptor layout automatically
+    VkDescriptorSetLayout layout;
+    std::vector<VkDescriptorSetLayoutBinding> layout_binding;
+    
+    log::graphics("");
+    log::graphics("Creating descriptor set layout...");
+    
+    ui32 uniform_count = 0;
+    ui32 image_sampler_count = 0;
+    
+    //---Vertex shader---
+    if (code.vert.has_value()) {
+        ShaderCompiler compiler = Shader::getShaderCompiler(code.vert.value());
+        ShaderResources resources = compiler.get_shader_resources();
+        
+        //: Uniform buffers
+        for (const auto &res : resources.uniform_buffers) {
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: Vertex", res.name.c_str(), binding);
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
+            uniform_count++;
+        }
+    }
+    
+    //---Fragment shader---
+    if (code.frag.has_value()) {
+        ShaderCompiler compiler = Shader::getShaderCompiler(code.frag.value());
+        ShaderResources resources = compiler.get_shader_resources();
+        
+        //: Uniform buffers
+        for (const auto &res : resources.uniform_buffers) {
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: Fragment", res.name.c_str(), binding);
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
+            uniform_count++;
+        }
+        
+        //: Combined image samplers
+        for (const auto &res : resources.sampled_images) {
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Image (%s) - Binding : %d - Stage : Fragment", res.name.c_str(), binding);
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding));
+            image_sampler_count++;
+        }
+    }
+    
+    //---Define the descriptor pool sizes---
+    //      This specifies how many resources of each type we need, and will be later used when creating a descriptor pool
+    //      We use the number of items of that type, times the number of images in the swapchain
+    if (uniform_count > 0)
+        descriptor_pool_sizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniform_count * swapchain_size});
+    if (image_sampler_count > 0)
+        descriptor_pool_sizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, image_sampler_count * swapchain_size});
+    
+    //---Create the descriptor layout itself---
+    VkDescriptorSetLayoutCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    create_info.bindingCount = (ui32)layout_binding.size();
+    create_info.pBindings = layout_binding.data();
+    
+    if (vkCreateDescriptorSetLayout(device, &create_info, nullptr, &layout) != VK_SUCCESS)
+        log::error("Error creating a descriptor set layout, check shader refraction");
+    
+    deletion_queue_program.push_back([device, layout](){ vkDestroyDescriptorSetLayout(device, layout, nullptr); });
+    return layout;
+}
+
+VkDescriptorPool VK::createDescriptorPool(VkDevice device) {
+    //---Descriptor pool---
+    //      A descriptor pool will house descriptor sets of various kinds
+    //      There are two types of usage for a descriptor pool:
+    //      - Allocate sets once at the start of the program, and then use them each time
+    //        This is what we are doing here, so we can know the exact pool size and destroy the pool at the end
+    //      - Allocate sets per frame, this can be implemented in the future
+    //        It can be cheap using VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT and resetting the entire pool per frame
+    //        We would have a list of descriptor pools with big sizes for each type of descriptor, and if an allocation fails,
+    //        just create another pool and add it to the list. At the end of the frame all of them get deleted.
+    VkDescriptorPool descriptor_pool;
+    
+    //: Create info
+    //      This uses the descriptor pool size from the list of sizes initialized in createDescriptorSetLayout() using SPIRV reflection
+    VkDescriptorPoolCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    create_info.poolSizeCount = (ui32)descriptor_pool_sizes.size();
+    create_info.pPoolSizes = descriptor_pool_sizes.data();
+    create_info.maxSets = std::accumulate(descriptor_pool_sizes.begin(), descriptor_pool_sizes.end(), 0,
+                                          [](ui32 sum, const VkDescriptorPoolSize &item){ return sum + item.descriptorCount; });
+    
+    //: Create descriptor pool
+    if (vkCreateDescriptorPool(device, &create_info, nullptr, &descriptor_pool) != VK_SUCCESS)
+        log::error("Failed to create a vulkan descriptor pool");
+    
+    //: Log the allowed types and respective sizes
+    log::graphics("");
+    log::graphics("Created a vulkan descriptor pool with sizes:");
+    for (const auto &item : descriptor_pool_sizes) {
+        str name = [item](){
+            switch (item.type) {
+                case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                    return "Uniform";
+                case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+                    return "Image sampler";
+                default:
+                    return "";
+            }
+        }();
+        log::graphics(" - %s: %d", name.c_str(), item.descriptorCount);
+    }
+    log::graphics("");
+    
+    deletion_queue_program.push_back([device, descriptor_pool](){ vkDestroyDescriptorPool(device, descriptor_pool, nullptr); });
+    return descriptor_pool;
+}
+
+void VK::allocateDescriptorSets(Vulkan &vk) {
+    //TODO: HERE
+    std::vector<VkDescriptorSetLayout> layouts(vk.swapchain.size, vk.descriptor_set_layout);
     
     VkDescriptorSetAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocate_info.descriptorPool = vk.descriptor_pool;
-    allocate_info.descriptorSetCount = static_cast<ui32>(vk.swapchain.images.size());
+    allocate_info.descriptorSetCount = vk.swapchain.size;
     allocate_info.pSetLayouts = layouts.data();
     
     vk.descriptor_sets.resize(vk.swapchain.images.size());
     if (vkAllocateDescriptorSets(vk.device, &allocate_info, vk.descriptor_sets.data()) != VK_SUCCESS)
-        log::error("Failed to allocate Vulkan Descriptor Sets");
+        log::error("Failed to allocate vulkan descriptor sets");
     
-    log::graphics("Allocated Vulkan Descriptor Sets");
+    log::graphics("Allocated vulkan descriptor sets");
     
-    for (int i = 0; i < vk.swapchain.images.size(); i++) {
+    /*for (int i = 0; i < vk.swapchain.images.size(); i++) {
         VkDescriptorBufferInfo buffer_info{};
         buffer_info.buffer = vk.uniform_buffers[i].buffer;
         buffer_info.offset = 0;
@@ -1779,7 +1887,7 @@ void VK::createImage(Vulkan &vk, TextureData &tex, ui8 *pixels) {
 }
 
 void VK::transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_layout) {
-    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd);
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("temp"));
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1830,13 +1938,13 @@ void VK::transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_l
     
     vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier); //TODO
     
-    endSingleUseCommandBuffer(vk.device, vk.cmd, command_buffer);
+    endSingleUseCommandBuffer(vk.device, command_buffer, vk.cmd.command_pools.at("temp"), vk.cmd.queues.graphics);
     
     tex.layout = new_layout;
 }
 
 void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
-    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd);
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("transfer"));
     
     VkBufferImageCopy copy_region{};
     copy_region.bufferOffset = 0;
@@ -1853,7 +1961,7 @@ void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
     
     vkCmdCopyBufferToImage(command_buffer, buffer.buffer, tex.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
     
-    endSingleUseCommandBuffer(vk.device, vk.cmd, command_buffer);
+    endSingleUseCommandBuffer(vk.device, command_buffer, vk.cmd.command_pools.at("transfer"), vk.cmd.queues.transfer);
 }
 
 VkImageView VK::createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format) {
@@ -2049,8 +2157,6 @@ void VK::cleanSwapchain(Vulkan &vk) {
         vkFreeMemory(vk.device, buffer.memory, nullptr);
     }*/
     
-    vkDestroyDescriptorPool(vk.device, vk.descriptor_pool, nullptr);
-    
     for (auto it = deletion_queue_swapchain.rbegin(); it != deletion_queue_swapchain.rend(); ++it)
         (*it)();
     deletion_queue_swapchain.clear();
@@ -2068,7 +2174,6 @@ void API::clean(Vulkan &vk) {
     vkDestroySampler(vk.device, vk.sampler, nullptr);
     
     vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
-    vkDestroyDescriptorSetLayout(vk.device, vk.descriptor_set_layout, nullptr);
     
     for (auto it = deletion_queue_program.rbegin(); it != deletion_queue_program.rend(); ++it)
         (*it)();

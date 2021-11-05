@@ -64,8 +64,11 @@ namespace Verse::Graphics::VK
     std::map<str, VkCommandPool> createCommandPools(VkDevice device, const QueueIndices &queue_indices, std::vector<str> keys,
                                                     std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags);
 
-    std::vector<VkCommandBuffer> createDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd);
+    std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd);
     void recordDrawCommandBuffers(Vulkan &vk);
+
+    VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
+    void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
     //----------------------------------------
 
 
@@ -92,9 +95,6 @@ namespace Verse::Graphics::VK
     //Pipeline
     //----------------------------------------
     ShaderData createShaderData(VkDevice device, str vert = "", str frag = "", str compute = "", str geometry = "");
-
-    VkDescriptorSetLayoutBinding prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding);
-    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, const ShaderCode &code);
 
     PipelineCreateInfo preparePipelineCreateInfo(VkExtent2D extent);
     VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
@@ -124,17 +124,17 @@ namespace Verse::Graphics::VK
     BufferData createIndexBuffer(VkDevice device, VmaAllocator allocator,
                                  const VkCommandData &cmd, const std::vector<ui16> &indices);
 
-    VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, const VkCommandData &cmd);
-    void endSingleUseCommandBuffer(VkDevice device, const VkCommandData &cmd, VkCommandBuffer command_buffer);
-
     void copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
     //----------------------------------------
 
 
     //Uniforms
     //----------------------------------------
-    void createDescriptorPool(Vulkan &vk);
-    void createDescriptorSets(Vulkan &vk);
+    VkDescriptorSetLayoutBinding prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding);
+    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, const ShaderCode &code, ui32 swapchain_size);
+
+    VkDescriptorPool createDescriptorPool(VkDevice device);
+    void allocateDescriptorSets(Vulkan &vk);
 
     void createUniformBuffers(Vulkan &vk);
     void updateUniformBuffer(Vulkan &vk, ui32 current_image);

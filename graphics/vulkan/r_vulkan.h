@@ -91,9 +91,7 @@ namespace Verse::Graphics
         //----------------------------------------
         ShaderData shader;
         
-        VkDescriptorSetLayout descriptor_set_layout;
         VkPipelineLayout pipeline_layout;
-        
         VkPipeline pipeline;
         //----------------------------------------
         
@@ -109,6 +107,7 @@ namespace Verse::Graphics
         //----------------------------------------
         std::vector<BufferData> uniform_buffers;
         VkDescriptorPool descriptor_pool;
+        VkDescriptorSetLayout descriptor_set_layout;
         std::vector<VkDescriptorSet> descriptor_sets;
         //----------------------------------------
         
