@@ -59,6 +59,12 @@ namespace Verse::Graphics
         ui8 current_frame;
     };
 
+    struct VkDescriptorSetData {
+        VkDescriptorSetLayout layout;
+        VkDescriptorPool pool;
+        std::vector<VkDescriptorSet> sets;
+    };
+
     struct Vulkan {
         //Device
         //----------------------------------------
@@ -95,20 +101,18 @@ namespace Verse::Graphics
         VkPipeline pipeline;
         //----------------------------------------
         
+        
+        //---Descriptors---
+        VkDescriptorSetData descriptors;
+        
+        
         //Buffers
         //----------------------------------------
         BufferData vertex_buffer;
         BufferData index_buffer;
         ui32 index_buffer_size;
-        //----------------------------------------
         
-        
-        //Uniforms
-        //----------------------------------------
         std::vector<BufferData> uniform_buffers;
-        VkDescriptorPool descriptor_pool;
-        VkDescriptorSetLayout descriptor_set_layout;
-        std::vector<VkDescriptorSet> descriptor_sets;
         //----------------------------------------
         
         

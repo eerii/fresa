@@ -55,6 +55,7 @@ namespace {
     };
 
     std::vector<std::function<void()>> deletion_queue_program;
+    std::vector<std::function<void()>> deletion_queue_swapchain_extra;
     std::vector<std::function<void()>> deletion_queue_swapchain;
     std::vector<std::function<void()>> deletion_queue_frame;
 
@@ -99,7 +100,9 @@ Vulkan API::create(WindowData &win) {
     vk.cmd.command_pools = VK::createCommandPools(vk.device, vk.cmd.queue_indices,
         {"draw", "temp", "transfer"},
         {{"transfer", vk.cmd.queue_indices.transfer.value()}},
-        {{"temp", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}, {"transfer", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}});
+        {{"draw", VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT},
+         {"temp", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT},
+         {"transfer", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}});
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
     //---Render pass---
@@ -115,19 +118,49 @@ Vulkan API::create(WindowData &win) {
     vk.shader = VK::createShaderData(vk.device, "res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
     
     //---Descriptor set---
-    vk.descriptor_set_layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
-    vk.descriptor_pool = VK::createDescriptorPool(vk.device);
-    VK::allocateDescriptorSets(vk);
+    vk.descriptors.layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
+    vk.descriptors.pool = VK::createDescriptorPool(vk.device);
+    vk.descriptors.sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pool, vk.swapchain.size);
     
     //---Pipeline---
-    vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptor_set_layout);
+    vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptors.layout);
     vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
+    //---Create resources---
     API::prepareResources(vk);
+    
+    //---Record command buffers---
+    for (int i = 0; i < vk.swapchain.size; i++)
+        VK::recordDrawCommandBuffer(vk, i);
     
     log::graphics("");
     
     return vk;
+}
+
+void API::prepareResources(Vulkan &vk) {
+    //---Resource phase---
+    //      In this stage we will create the buffers and images that the program will use
+    //      Some won't change for the duration of the program (vertex buffers, images...) and some are placeholders that we will update in
+    //      a per frame basis, but it makes sense to allocate them now
+    
+    //---Immutable buffers---
+    //      Allocated and filled up now
+    vk.vertex_buffer = VK::createVertexBuffer(vk.device, vk.allocator, vk.cmd, vertices);
+    vk.index_buffer = VK::createIndexBuffer(vk.device, vk.allocator, vk.cmd, indices);
+    vk.index_buffer_size = (ui32)indices.size();
+    
+    //---Uniform buffers---
+    //      Allocated now and updated every frame
+    vk.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
+    
+    //---Images---
+    //VK::createSampler(vk);
+    //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
+    
+    //---Update descriptor sets---
+    //      After creating all the resources, they need to be added to the descriptor sets
+    VK::updateDescriptorSets(vk.device, vk.descriptors.sets, vk.swapchain.size, vk.uniform_buffers);
 }
 
 //----------------------------------------
@@ -697,30 +730,77 @@ VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_d
         swapchain.image_views[i] = createImageView(device, swapchain.images[i], VK_IMAGE_ASPECT_COLOR_BIT, swapchain.format);
     
     
+    //---Deletion queue---
+    deletion_queue_swapchain.push_back([swapchain, device](){
+        for (VkImageView view : swapchain.image_views)
+            vkDestroyImageView(device, view, nullptr);
+        vkDestroySwapchainKHR(device, swapchain.swapchain, nullptr);
+    });
+    
     log::graphics("Created a vulkan swapchain");
     return swapchain;
 }
 
 void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
-    //TODO: Refactor
+    //---Recreate swapchain---
+    //      When the swapchain is no longer actual, for example on window resize, we need to recreate it
+    
+    //: Save previous size to avoid recreating non necessary things
+    ui32 previous_size = vk.swapchain.size;
+    
+    //: Wait for draw operations to finish
     vkDeviceWaitIdle(vk.device);
     
-    cleanSwapchain(vk);
+    //: Clean previous swapchain
+    for (auto it = deletion_queue_swapchain.rbegin(); it != deletion_queue_swapchain.rend(); ++it)
+        (*it)();
+    deletion_queue_swapchain.clear();
     
+    //---Swapchain---
     vk.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
-    vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd); //TODO: Only reset buffers
     
-    vk.swapchain.main_render_pass = createRenderPass(vk.device, vk.swapchain.format);
+    //: Clean objects that depend on the swapchain size
+    if (previous_size != vk.swapchain.size) {
+        for (auto it = deletion_queue_swapchain_extra.rbegin(); it != deletion_queue_swapchain_extra.rend(); ++it)
+            (*it)();
+        deletion_queue_swapchain_extra.clear();
+    }
+    
+    //---Command buffer allocation---
+    vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
+    
+    //---Render pass---
+    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format);
+    
+    //---Framebuffers---
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
     
-    //vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptor_set_layout);
+    //---Sync objects---
+    if (previous_size != vk.swapchain.size)
+        vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
+    
     vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
-    //createUniformBuffers(vk);
-    //createDescriptorPool(vk);
-    //createDescriptorSets(vk);
+    if (previous_size != vk.swapchain.size) {
+    //---Descriptor set---
+        vk.descriptors.layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
+        vk.descriptors.pool = VK::createDescriptorPool(vk.device);
+        vk.descriptors.sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pool, vk.swapchain.size);
     
-    //recordDrawCommandBuffers(vk);
+    //---Pipeline---
+        vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptors.layout);
+        vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
+        
+    //---Uniform buffers---
+        vk.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
+        
+    //---Update descriptors---
+        VK::updateDescriptorSets(vk.device, vk.descriptors.sets, vk.swapchain.size, vk.uniform_buffers);
+    }
+    
+    //---Record command buffers---
+    for (int i = 0; i < vk.swapchain.size; i++)
+        VK::recordDrawCommandBuffer(vk, i);
 }
 
 VkFormat VK::getDepthFormat(Vulkan &vk) {
@@ -802,54 +882,81 @@ std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui3
     
     log::graphics("Allocated the vulkan draw command buffers");
     
+    deletion_queue_swapchain.push_back([cmd, command_buffers, device](){
+        vkFreeCommandBuffers(device, cmd.command_pools.at("draw"), (ui32)command_buffers.size(), command_buffers.data());
+    });
     return command_buffers;
 }
 
-void VK::recordDrawCommandBuffers(Vulkan &vk) {
-    //TODO: IMPROVE THIS
-    /*int i = 0;
-    for (const auto &buffer : vk.cmd.command_buffers["draw"]) {
-        VkCommandBufferBeginInfo begin_info{};
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags = 0;
-        begin_info.pInheritanceInfo = nullptr;
-        
-        if (vkBeginCommandBuffer(buffer, &begin_info) != VK_SUCCESS)
-            log::error("Failed to begin recording on a vulkan command buffer");
-        
-        std::array<VkClearValue, 2> clear_values{};
-        clear_values[0].color = {0.01f, 0.01f, 0.05f, 1.0f};
-        clear_values[1].depthStencil = {1.0f, 0};
-        
-        VkRenderPassBeginInfo render_pass_info{};
-        render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        render_pass_info.renderPass = vk.swapchain.main_render_pass;
-        render_pass_info.framebuffer = vk.swapchain.framebuffers[i];
-        render_pass_info.renderArea.offset = {0, 0};
-        render_pass_info.renderArea.extent = vk.swapchain.extent;
-        render_pass_info.clearValueCount = 2;
-        render_pass_info.pClearValues = clear_values.data();
-        
-        vkCmdBeginRenderPass(buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-        
-        vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline);
-        
-        VkBuffer vertex_buffers[]{ vk.vertex_buffer.buffer };
-        VkDeviceSize offsets[]{ 0 };
-        vkCmdBindVertexBuffers(buffer, 0, 1, vertex_buffers, offsets);
-        
-        vkCmdBindIndexBuffer(buffer, vk.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
-        
-        vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &vk.descriptor_sets[i], 0, nullptr);
-        
-        vkCmdDrawIndexed(buffer, vk.index_buffer_size, 1, 0, 0, 0);
-        
-        vkCmdEndRenderPass(buffer);
-        
-        if (vkEndCommandBuffer(buffer) != VK_SUCCESS)
-            log::error("Failed to end recording on a vulkan command buffer");
-        i++;
-    }*/
+void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFramebuffer framebuffer,
+                                VkRenderPass render_pass, VkExtent2D extent) {
+    //---Begin draw command buffer---
+    
+    //:
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = 0;
+    begin_info.pInheritanceInfo = nullptr;
+    
+    //:
+    if (vkBeginCommandBuffer(cmd, &begin_info) != VK_SUCCESS)
+        log::error("Failed to begin recording on a vulkan command buffer");
+    
+    //:
+    std::array<VkClearValue, 2> clear_values{};
+    clear_values[0].color = {0.01f, 0.01f, 0.05f, 1.0f};
+    clear_values[1].depthStencil = {1.0f, 0};
+    
+    //:
+    VkRenderPassBeginInfo render_pass_info{};
+    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_info.renderPass = render_pass;
+    render_pass_info.framebuffer = framebuffer;
+    render_pass_info.renderArea.offset = {0, 0};
+    render_pass_info.renderArea.extent = extent;
+    render_pass_info.clearValueCount = 2;
+    render_pass_info.pClearValues = clear_values.data();
+    
+    vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    
+    //:
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+}
+
+void VK::endDrawCommandBuffer(VkCommandBuffer cmd, ui32 index_size) {
+    //---End draw command buffer---
+    
+    //:
+    vkCmdDrawIndexed(cmd, index_size, 1, 0, 0, 0);
+    
+    //:
+    vkCmdEndRenderPass(cmd);
+    if (vkEndCommandBuffer(cmd) != VK_SUCCESS)
+        log::error("Failed to end recording on a vulkan command buffer");
+}
+
+void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
+    //---Draw command buffer---
+    
+    const VkCommandBuffer &cmd = vk.cmd.command_buffers.at("draw")[current];
+    
+    //: TODO: WRITE THIS
+    VK::beginDrawCommandBuffer(cmd, vk.pipeline, vk.swapchain.framebuffers[current],
+                               vk.swapchain.main_render_pass, vk.swapchain.extent);
+    
+    //:
+    VkBuffer vertex_buffers[]{ vk.vertex_buffer.buffer };
+    VkDeviceSize offsets[]{ 0 };
+    vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
+    
+    //:
+    vkCmdBindIndexBuffer(cmd, vk.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+    
+    //:
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &vk.descriptors.sets[current], 0, nullptr);
+    
+    //:
+    VK::endDrawCommandBuffer(cmd, vk.index_buffer_size);
 }
 
 VkCommandBuffer VK::beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool) {
@@ -988,6 +1095,7 @@ VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format) {
     if (vkCreateRenderPass(device, &create_info, nullptr, &render_pass) != VK_SUCCESS)
         log::error("Error creating a vulkan render pass");
     
+    deletion_queue_swapchain.push_back([render_pass, device](){ vkDestroyRenderPass(device, render_pass, nullptr); });
     log::graphics("Created a vulkan render pass");
     return render_pass;
 }
@@ -1026,6 +1134,10 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const VkSwapc
     for (int i = 0; i < swapchain.size; i++)
         framebuffers[i] = VK::createFramebuffer(device, swapchain.main_render_pass, swapchain.image_views[i], swapchain.extent);
     
+    deletion_queue_swapchain.push_back([framebuffers, device](){
+        for (VkFramebuffer fb : framebuffers)
+            vkDestroyFramebuffer(device, fb, nullptr);
+    });
     log::graphics("Created all vulkan framebuffers");
     return framebuffers;
 }
@@ -1375,6 +1487,7 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
     if (vkCreatePipelineLayout(device, &create_info, nullptr, &pipeline_layout) != VK_SUCCESS)
         log::error("Error creating a vulkan pipeline layout");
     
+    deletion_queue_program.push_back([pipeline_layout, device](){ vkDestroyPipelineLayout(device, pipeline_layout, nullptr); });
     log::graphics("Created a vulkan pipeline layout");
     return pipeline_layout;
 }
@@ -1422,6 +1535,7 @@ VkPipeline VK::createGraphicsPipeline(VkDevice device, const VkPipelineLayout &l
     if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline) != VK_SUCCESS)
         log::error("Error while creating a vulkan graphics pipeline");
     
+    deletion_queue_swapchain.push_back([pipeline, device](){ vkDestroyPipeline(device, pipeline, nullptr); });
     log::graphics("Created a vulkan graphics pipeline");
     return pipeline;
 }
@@ -1432,27 +1546,6 @@ VkPipeline VK::createGraphicsPipeline(VkDevice device, const VkPipelineLayout &l
 
 //Buffers
 //----------------------------------------
-
-void API::prepareResources(Vulkan &vk) {
-    //---Resource phase---
-    //      In this stage we will create the buffers and images that the program will use
-    //      Some won't change for the duration of the program (vertex buffers, images...) and some are placeholders that we will update in
-    //      a per frame basis, but it makes sense to allocate them now
-    
-    //---Immutable buffers---
-    vk.vertex_buffer = VK::createVertexBuffer(vk.device, vk.allocator, vk.cmd, vertices);
-    vk.index_buffer = VK::createIndexBuffer(vk.device, vk.allocator, vk.cmd, indices);
-    vk.index_buffer_size = (ui32)indices.size();
-    
-    
-    //VK::createSampler(vk);
-    //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
-    
-    //VK::createUniformBuffers(vk);
-    
-    //TODO: Move elsewhere
-    //VK::recordDrawCommandBuffers(vk);
-}
 
 BufferData VK::createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory) {
     //---Buffers---
@@ -1573,7 +1666,7 @@ void VK::copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkB
 
 
 
-//Uniforms
+//Descriptors
 //----------------------------------------
 
 VkDescriptorSetLayoutBinding VK::prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding) {
@@ -1647,6 +1740,7 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const Shade
     //---Define the descriptor pool sizes---
     //      This specifies how many resources of each type we need, and will be later used when creating a descriptor pool
     //      We use the number of items of that type, times the number of images in the swapchain
+    descriptor_pool_sizes.clear();
     if (uniform_count > 0)
         descriptor_pool_sizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniform_count * swapchain_size});
     if (image_sampler_count > 0)
@@ -1712,93 +1806,118 @@ VkDescriptorPool VK::createDescriptorPool(VkDevice device) {
     return descriptor_pool;
 }
 
-void VK::allocateDescriptorSets(Vulkan &vk) {
-    //TODO: HERE
-    std::vector<VkDescriptorSetLayout> layouts(vk.swapchain.size, vk.descriptor_set_layout);
+std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescriptorSetLayout layout,
+                                                        VkDescriptorPool pool, ui32 swapchain_size) {
+    //---Descriptor sets---
+    //      These objects can be thought as a pointer to a resource that the shader can access, for example an image sampler or uniform bufffer
+    //      We allocate one set per swapchain image since multiple frames can be in flight at the same time
+    std::vector<VkDescriptorSet> descriptor_sets(swapchain_size);
     
+    //: Allocate information
     VkDescriptorSetAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocate_info.descriptorPool = vk.descriptor_pool;
-    allocate_info.descriptorSetCount = vk.swapchain.size;
+    allocate_info.descriptorPool = pool;
+    allocate_info.descriptorSetCount = swapchain_size;
+    std::vector<VkDescriptorSetLayout> layouts(swapchain_size, layout);
     allocate_info.pSetLayouts = layouts.data();
     
-    vk.descriptor_sets.resize(vk.swapchain.images.size());
-    if (vkAllocateDescriptorSets(vk.device, &allocate_info, vk.descriptor_sets.data()) != VK_SUCCESS)
+    //: Create the descriptor set
+    if (vkAllocateDescriptorSets(device, &allocate_info, descriptor_sets.data()) != VK_SUCCESS)
         log::error("Failed to allocate vulkan descriptor sets");
     
+    //: No need for cleanup since they get destroyed with the pool
     log::graphics("Allocated vulkan descriptor sets");
-    
-    /*for (int i = 0; i < vk.swapchain.images.size(); i++) {
-        VkDescriptorBufferInfo buffer_info{};
-        buffer_info.buffer = vk.uniform_buffers[i].buffer;
-        buffer_info.offset = 0;
-        buffer_info.range = VK_WHOLE_SIZE; //Also possible to use sizeof(VK::UniformBufferObject);
-        
-        //TODO: make this editable and not depend on vk objects
-        VkDescriptorImageInfo image_info{};
-        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        image_info.imageView = vk.image_view;
-        image_info.sampler = vk.sampler;
-        
-        std::array<VkWriteDescriptorSet, 2> write_descriptors{};
-        
-        write_descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write_descriptors[0].dstSet = vk.descriptor_sets[i];
-        write_descriptors[0].dstBinding = 0; //Binding, specified in the shader
-        write_descriptors[0].dstArrayElement = 0;
-        write_descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        write_descriptors[0].descriptorCount = 1;
-        write_descriptors[0].pBufferInfo = &buffer_info;
-        write_descriptors[0].pImageInfo = nullptr;
-        write_descriptors[0].pTexelBufferView = nullptr;
-        
-        write_descriptors[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write_descriptors[1].dstSet = vk.descriptor_sets[i];
-        write_descriptors[1].dstBinding = 1;
-        write_descriptors[1].dstArrayElement = 0;
-        write_descriptors[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        write_descriptors[1].descriptorCount = 1;
-        write_descriptors[1].pBufferInfo = nullptr;
-        write_descriptors[1].pImageInfo = &image_info;
-        write_descriptors[1].pTexelBufferView = nullptr;
-        
-        vkUpdateDescriptorSets(vk.device, (ui32)write_descriptors.size(), write_descriptors.data(), 0, nullptr);
-    }*/
+    return descriptor_sets;
 }
 
-void VK::createUniformBuffers(Vulkan &vk) {
-    /*VkDeviceSize buffer_size = sizeof(VK::UniformBufferObject);
+VK::WriteDescriptorBuffer VK::createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer) {
+    WriteDescriptorBuffer write_descriptor{};
     
-    vk.uniform_buffers.resize(vk.swapchain.images.size());
+    write_descriptor.info.buffer = uniform_buffer.buffer;
+    write_descriptor.info.offset = 0;
+    write_descriptor.info.range = VK_WHOLE_SIZE;
+    
+    write_descriptor.write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_descriptor.write.dstSet = descriptor_set;
+    write_descriptor.write.dstBinding = binding;
+    write_descriptor.write.dstArrayElement = 0;
+    write_descriptor.write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    write_descriptor.write.descriptorCount = 1;
+    write_descriptor.write.pBufferInfo = &write_descriptor.info;
+    write_descriptor.write.pImageInfo = nullptr;
+    write_descriptor.write.pTexelBufferView = nullptr;
+    
+    return write_descriptor;
+}
+
+VK::WriteDescriptorImage VK::createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,
+                                                                       VkImageView image_view, VkSampler sampler) {
+    WriteDescriptorImage write_descriptor{};
+    
+    write_descriptor.info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    write_descriptor.info.imageView = image_view;
+    write_descriptor.info.sampler = sampler;
+    
+    write_descriptor.write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_descriptor.write.dstSet = descriptor_set;
+    write_descriptor.write.dstBinding = binding;
+    write_descriptor.write.dstArrayElement = 0;
+    write_descriptor.write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write_descriptor.write.descriptorCount = 1;
+    write_descriptor.write.pBufferInfo = nullptr;
+    write_descriptor.write.pImageInfo = &write_descriptor.info;
+    write_descriptor.write.pTexelBufferView = nullptr;
+    
+    return write_descriptor;
+}
+
+void VK::updateDescriptorSets(VkDevice device, const std::vector<VkDescriptorSet> &descriptor_sets, ui32 swapchain_size,
+                              const std::vector<BufferData> &uniform_buffers) {
+    for (int i = 0; i < swapchain_size; i++) {
+        std::vector<VkWriteDescriptorSet> write_descriptors;
+        
+        auto uniform_write_descriptor = createWriteDescriptorUniformBuffer(descriptor_sets[i], 0, uniform_buffers[i]);
+        write_descriptors.push_back(uniform_write_descriptor.write);
+        
+        //auto image_sampler_write_descriptor = createWriteDescriptorCombinedImageSampler(descriptor_sets[i], 1, image_view[i], sampler);
+        //write_descriptors.push_back(image_sampler_write_descriptor.write);
+        
+        vkUpdateDescriptorSets(device, (ui32)write_descriptors.size(), write_descriptors.data(), 0, nullptr);
+    }
+    
+    log::graphics("Updated descriptor sets");
+}
+
+//----------------------------------------
+
+
+
+//Uniforms
+//----------------------------------------
+
+std::vector<BufferData> VK::createUniformBuffers(VmaAllocator allocator, ui32 swapchain_size) {
+    //---Uniform buffers---
+    //      Appart from per vertex data, we might want to pass "constants" to a shader program
+    //      An example of this could be projection, view and model matrices that can be used as a camera
+    //      We do this using uniform buffers, that we need to create descriptor sets for, and the pass them to the shader
+    //      The creation process is identical to other buffers, but we want them to have memory accessible to both the CPU and GPU
+    //      This way we can update them every frame with new information
+    //      We need to have one buffer per swapchain image so we can work on multiple images at a time
+    //      Another possibility for passing data to shaders are push constant, which we will implement in the future
+    std::vector<BufferData> uniform_buffers;
+    VkDeviceSize buffer_size = sizeof(VK::UniformBufferObject);
     
     VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    VkMemoryPropertyFlags memory_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    VmaMemoryUsage memory_flags = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    for (int i = 0; i < swapchain_size; i++)
+        uniform_buffers.push_back(createBuffer(allocator, buffer_size, usage_flags, memory_flags));
     
-    for (int i = 0; i < vk.swapchain.images.size(); i++)
-        vk.uniform_buffers[i] = createBuffer(vk, buffer_size, usage_flags, memory_flags);
-    
-    log::graphics("Created Vulkan Uniform Buffers");*/
-}
-
-void VK::updateUniformBuffer(Vulkan &vk, ui32 current_image) {
-    //EXAMPLE FUNCTION
-    
-    /*static Clock::time_point start_time = time();
-    float t = sec(time() - start_time);
-    
-    VK::UniformBufferObject ubo{};
-    
-    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
-    ubo.model = glm::rotate(ubo.model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.model = glm::translate(ubo.model, glm::vec3(0.0f, 0.0f, 0.3f * std::sin(t * 1.570796f)));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), vk.swapchain.extent.width / (float) vk.swapchain.extent.height, 0.1f, 10.0f);
-    ubo.proj[1][1] *= -1;
-    
-    void* data;
-    vkMapMemory(vk.device, vk.uniform_buffers[current_image].memory, 0, sizeof(ubo), 0, &data);
-    memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(vk.device, vk.uniform_buffers[current_image].memory);*/
+    deletion_queue_program.push_back([allocator, uniform_buffers](){
+        for (const auto &buffer : uniform_buffers)
+            vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
+    });
+    log::graphics("Created vulkan uniform buffers");
+    return uniform_buffers;
 }
 
 //----------------------------------------
@@ -1887,7 +2006,7 @@ void VK::createImage(Vulkan &vk, TextureData &tex, ui8 *pixels) {
 }
 
 void VK::transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_layout) {
-    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("temp"));
+    /*VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("temp"));
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1940,11 +2059,11 @@ void VK::transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_l
     
     endSingleUseCommandBuffer(vk.device, command_buffer, vk.cmd.command_pools.at("temp"), vk.cmd.queues.graphics);
     
-    tex.layout = new_layout;
+    tex.layout = new_layout;*/
 }
 
 void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
-    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("transfer"));
+    /*VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("transfer"));
     
     VkBufferImageCopy copy_region{};
     copy_region.bufferOffset = 0;
@@ -1961,7 +2080,7 @@ void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
     
     vkCmdCopyBufferToImage(command_buffer, buffer.buffer, tex.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
     
-    endSingleUseCommandBuffer(vk.device, command_buffer, vk.cmd.command_pools.at("transfer"), vk.cmd.queues.transfer);
+    endSingleUseCommandBuffer(vk.device, command_buffer, vk.cmd.command_pools.at("transfer"), vk.cmd.queues.transfer);*/
 }
 
 VkImageView VK::createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format) {
@@ -1992,7 +2111,7 @@ VkImageView VK::createImageView(VkDevice device, VkImage image, VkImageAspectFla
 }
 
 void VK::createSampler(Vulkan &vk) {
-    VkSamplerCreateInfo create_info{};
+    /*VkSamplerCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     
     create_info.magFilter = VK_FILTER_NEAREST; //This is for pixel art, change to linear for interpolation
@@ -2004,14 +2123,14 @@ void VK::createSampler(Vulkan &vk) {
     create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     
     create_info.anisotropyEnable = VK_FALSE;
-    create_info.maxAnisotropy = 1.0f;
+    create_info.maxAnisotropy = 1.0f;*/
     
     //Enable for anisotropy, as well as device features in createDevice()
     /*VkPhysicalDeviceProperties properties{};
     vkGetPhysicalDeviceProperties(vk.physical_device, &properties);
     create_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;*/
     
-    create_info.unnormalizedCoordinates = VK_FALSE;
+    /*create_info.unnormalizedCoordinates = VK_FALSE;
     create_info.compareEnable = VK_FALSE;
     create_info.compareOp = VK_COMPARE_OP_ALWAYS;
     
@@ -2021,7 +2140,7 @@ void VK::createSampler(Vulkan &vk) {
     create_info.maxLod = 0.0f;
     
     if (vkCreateSampler(vk.device, &create_info, nullptr, &vk.sampler) != VK_SUCCESS)
-        log::error("Error creating a Vulkan image sampler");
+        log::error("Error creating a Vulkan image sampler");*/
 }
 
 //----------------------------------------
@@ -2031,32 +2150,36 @@ void VK::createSampler(Vulkan &vk) {
 //Render
 //----------------------------------------
 
-void VK::renderFrame(Vulkan &vk, WindowData &win) {
-    /*vkWaitForFences(vk.device, 1, &vk.sync.fences_in_flight[vk.sync.current_frame], VK_TRUE, UINT64_MAX);
-    
-    VkResult result;
+ui32 VK::startRender(VkDevice device, const VkSwapchainData &swapchain, VkSyncData &sync) {
+    //---Start rendering---
+    //      TODO: .
     ui32 image_index;
-    result = vkAcquireNextImageKHR(vk.device, vk.swapchain.swapchain, UINT64_MAX, vk.sync.semaphores_image_available[vk.sync.current_frame], VK_NULL_HANDLE, &image_index);
+    
+    vkWaitForFences(device, 1, &sync.fences_in_flight[sync.current_frame], VK_TRUE, UINT64_MAX);
+    
+    VkResult result = vkAcquireNextImageKHR(device, swapchain.swapchain, UINT64_MAX,
+                                            sync.semaphores_image_available[sync.current_frame], VK_NULL_HANDLE, &image_index);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        recreateSwapchain(vk, win);
-        return;
-    }
-    if (result != VK_SUCCESS and result != VK_SUBOPTIMAL_KHR) {
-        log::error("Failed to acquire Swapchain Image");
+        //TODO: recreateSwapchain(vk, win);
+        return UINT32_MAX;
     }
     
+    if (result != VK_SUCCESS and result != VK_SUBOPTIMAL_KHR)
+        log::error("Failed to acquire swapchain image");
     
-    if (vk.sync.fences_images_in_flight[image_index] != VK_NULL_HANDLE)
-        vkWaitForFences(vk.device, 1, &vk.sync.fences_images_in_flight[image_index], VK_TRUE, UINT64_MAX);
-    vk.sync.fences_images_in_flight[image_index] = vk.sync.fences_in_flight[vk.sync.current_frame];
+    if (sync.fences_images_in_flight[image_index] != VK_NULL_HANDLE)
+        vkWaitForFences(device, 1, &sync.fences_images_in_flight[image_index], VK_TRUE, UINT64_MAX);
     
+    sync.fences_images_in_flight[image_index] = sync.fences_in_flight[sync.current_frame];
+    
+    return image_index;
+}
+
+void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
     VkSemaphore wait_semaphores[]{ vk.sync.semaphores_image_available[vk.sync.current_frame] };
     VkPipelineStageFlags wait_stages[]{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished[vk.sync.current_frame] };
-    
-    
-    updateUniformBuffer(vk, image_index);
     
     
     VkSubmitInfo submit_info{};
@@ -2067,7 +2190,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
     submit_info.pWaitDstStageMask = wait_stages;
     
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &vk.cmd.command_buffers["draw"][image_index];
+    submit_info.pCommandBuffers = &vk.cmd.command_buffers["draw"][index];
     
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
@@ -2088,11 +2211,11 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
     VkSwapchainKHR swapchains[]{ vk.swapchain.swapchain };
     present_info.swapchainCount = 1;
     present_info.pSwapchains = swapchains;
-    present_info.pImageIndices = &image_index;
+    present_info.pImageIndices = &index;
     present_info.pResults = nullptr;
     
     
-    result = vkQueuePresentKHR(vk.cmd.queues.present, &present_info);
+    VkResult result = vkQueuePresentKHR(vk.cmd.queues.present, &present_info);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR or result == VK_SUBOPTIMAL_KHR)
         recreateSwapchain(vk, win);
@@ -2100,7 +2223,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
         log::error("Failed to present Swapchain Image");
     
     
-    vk.sync.current_frame = (vk.sync.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;*/
+    vk.sync.current_frame = (vk.sync.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 //----------------------------------------
@@ -2110,7 +2233,26 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
 //----------------------------------------
 
 void API::renderTest(WindowData &win, RenderData &render) {
-    VK::renderFrame(render.api, win);
+    //---Example update---
+    //:
+    static Clock::time_point start_time = time();
+    float t = sec(time() - start_time);
+    
+    VK::UniformBufferObject ubo{};
+    
+    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
+    ubo.model = glm::rotate(ubo.model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::translate(ubo.model, glm::vec3(0.0f, 0.0f, 0.3f * std::sin(t * 1.570796f)));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
+    ubo.proj[1][1] *= -1;
+    //:
+    
+    ui32 index = VK::startRender(render.api.device, render.api.swapchain, render.api.sync);
+    
+    VK::updateUniformBuffer(render.api.allocator, render.api.uniform_buffers[index], ubo);
+    
+    VK::renderFrame(render.api, win, index);
 }
 
 //----------------------------------------
@@ -2131,50 +2273,29 @@ void API::resize(Vulkan &vk, WindowData &win) {
 //Cleanup
 //----------------------------------------
 
-void VK::cleanFrame() {
-    for (auto it = deletion_queue_frame.rbegin(); it != deletion_queue_frame.rend(); ++it)
-        (*it)();
-    deletion_queue_frame.clear();
-}
-
-void VK::cleanSwapchain(Vulkan &vk) {
-    for (VkFramebuffer fb : vk.swapchain.framebuffers)
-        vkDestroyFramebuffer(vk.device, fb, nullptr);
-    
-    for (auto [key, buffers] : vk.cmd.command_buffers)
-        vkFreeCommandBuffers(vk.device, vk.cmd.command_pools[key], (ui32)buffers.size(), buffers.data());
-    
-    vkDestroyPipeline(vk.device, vk.pipeline, nullptr);
-    vkDestroyRenderPass(vk.device, vk.swapchain.main_render_pass, nullptr);
-    
-    for (VkImageView view : vk.swapchain.image_views)
-        vkDestroyImageView(vk.device, view, nullptr);
-    
-    vkDestroySwapchainKHR(vk.device, vk.swapchain.swapchain, nullptr);
-    
-    /*for (BufferData buffer : vk.uniform_buffers) {
-        vkDestroyBuffer(vk.device, buffer.buffer, nullptr);
-        vkFreeMemory(vk.device, buffer.memory, nullptr);
-    }*/
-    
-    for (auto it = deletion_queue_swapchain.rbegin(); it != deletion_queue_swapchain.rend(); ++it)
-        (*it)();
-    deletion_queue_swapchain.clear();
-}
-
 void API::clean(Vulkan &vk) {
     vkDeviceWaitIdle(vk.device);
     
-    VK::cleanSwapchain(vk);
+    //: Delete swapchain objects
+    for (auto it = deletion_queue_swapchain.rbegin(); it != deletion_queue_swapchain.rend(); ++it)
+        (*it)();
+    
+    //: Delete objects that depend on swapchain size
+    deletion_queue_swapchain.clear();
+    for (auto it = deletion_queue_swapchain_extra.rbegin(); it != deletion_queue_swapchain_extra.rend(); ++it)
+        (*it)();
+    deletion_queue_swapchain_extra.clear();
+    
+    //: Delete shader stages
     Shader::destroyShaderStages(vk.device, vk.shader.stages);
     
+    //TODO: MOVE
     vkDestroyImageView(vk.device, vk.image_view, nullptr);
     vkDestroyImage(vk.device, vk.test_image.image, nullptr);
     vkFreeMemory(vk.device, vk.test_image.memory, nullptr);
     vkDestroySampler(vk.device, vk.sampler, nullptr);
     
-    vkDestroyPipelineLayout(vk.device, vk.pipeline_layout, nullptr);
-    
+    //: Delete program resources
     for (auto it = deletion_queue_program.rbegin(); it != deletion_queue_program.rend(); ++it)
         (*it)();
     deletion_queue_program.clear();
