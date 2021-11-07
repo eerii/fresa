@@ -55,7 +55,7 @@ namespace {
     };
 
     std::vector<std::function<void()>> deletion_queue_program;
-    std::vector<std::function<void()>> deletion_queue_swapchain_extra;
+    std::vector<std::function<void()>> deletion_queue_size_change;
     std::vector<std::function<void()>> deletion_queue_swapchain;
     std::vector<std::function<void()>> deletion_queue_frame;
 
@@ -132,8 +132,6 @@ Vulkan API::create(WindowData &win) {
     //---Record command buffers---
     for (int i = 0; i < vk.swapchain.size; i++)
         VK::recordDrawCommandBuffer(vk, i);
-    
-    log::graphics("");
     
     return vk;
 }
@@ -744,6 +742,14 @@ VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_d
 void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //---Recreate swapchain---
     //      When the swapchain is no longer actual, for example on window resize, we need to recreate it
+    //      This begins by waiting for draw operations to finish, and then cleaning the resources that depend on the swapchain
+    //      After recreating the swapchain, we can check if its size changed
+    //      At the current stage this is very unlikely, but if it happened, we should recreate all the objects that depend on this size
+    //      We can use deletion_queue_size_change to delete the resources and then allocate them again
+    log::graphics("");
+    log::graphics("Recreating swapchain...");
+    log::graphics("---");
+    log::graphics("");
     
     //: Save previous size to avoid recreating non necessary things
     ui32 previous_size = vk.swapchain.size;
@@ -759,46 +765,46 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //---Swapchain---
     vk.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
     
-    //: Clean objects that depend on the swapchain size
-    if (previous_size != vk.swapchain.size) {
-        for (auto it = deletion_queue_swapchain_extra.rbegin(); it != deletion_queue_swapchain_extra.rend(); ++it)
-            (*it)();
-        deletion_queue_swapchain_extra.clear();
-    }
-    
-    //---Command buffer allocation---
+    //: Command buffer allocation
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
-    //---Render pass---
+    //: Render pass
     vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format);
     
-    //---Framebuffers---
+    //: Framebuffers
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
     
-    //---Sync objects---
+    //: Sync objects
     if (previous_size != vk.swapchain.size)
         vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
+    //: Pipeline
     vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
+    //---Objects that depend on the swapchain size---
     if (previous_size != vk.swapchain.size) {
-    //---Descriptor set---
+        //: Clean
+        for (auto it = deletion_queue_size_change.rbegin(); it != deletion_queue_size_change.rend(); ++it)
+            (*it)();
+        deletion_queue_size_change.clear();
+        
+        //: Descriptor set
         vk.descriptors.layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
         vk.descriptors.pool = VK::createDescriptorPool(vk.device);
         vk.descriptors.sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pool, vk.swapchain.size);
     
-    //---Pipeline---
+        //: Pipeline
         vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptors.layout);
         vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
         
-    //---Uniform buffers---
+        //: Uniform buffers
         vk.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
         
-    //---Update descriptors---
+        //: Update descriptors
         VK::updateDescriptorSets(vk.device, vk.descriptors.sets, vk.swapchain.size, vk.uniform_buffers);
     }
     
-    //---Record command buffers---
+    //: Record draw command buffers
     for (int i = 0; i < vk.swapchain.size; i++)
         VK::recordDrawCommandBuffer(vk, i);
 }
@@ -812,7 +818,7 @@ VkFormat VK::getDepthFormat(Vulkan &vk) {
 
 void VK::createDepthResources(Vulkan &vk) {
     //---Depth resources---
-    //PENDING
+    //TODO: PENDING
 }
 
 //----------------------------------------
@@ -891,23 +897,24 @@ std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui3
 void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFramebuffer framebuffer,
                                 VkRenderPass render_pass, VkExtent2D extent) {
     //---Begin draw command buffer---
+    //      Helper function for creating drawing command buffers
+    //      It begins a command buffer and a render pass, adds clear values and binds the graphics pipeline
     
-    //:
+    //: Begin buffer
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = 0;
     begin_info.pInheritanceInfo = nullptr;
     
-    //:
     if (vkBeginCommandBuffer(cmd, &begin_info) != VK_SUCCESS)
         log::error("Failed to begin recording on a vulkan command buffer");
     
-    //:
+    //: Clear values
     std::array<VkClearValue, 2> clear_values{};
     clear_values[0].color = {0.01f, 0.01f, 0.05f, 1.0f};
     clear_values[1].depthStencil = {1.0f, 0};
     
-    //:
+    //: Begin render pass
     VkRenderPassBeginInfo render_pass_info{};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     render_pass_info.renderPass = render_pass;
@@ -919,17 +926,19 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFram
     
     vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
     
-    //:
+    //: Bind pipeline
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 }
 
 void VK::endDrawCommandBuffer(VkCommandBuffer cmd, ui32 index_size) {
     //---End draw command buffer---
+    //      Helper function for creating drawing command buffers
+    //      It draws the indexed vertex buffer and finishes the render pass and command buffer
     
-    //:
+    //: Draw vertices
     vkCmdDrawIndexed(cmd, index_size, 1, 0, 0, 0);
     
-    //:
+    //: End command buffer and render pass
     vkCmdEndRenderPass(cmd);
     if (vkEndCommandBuffer(cmd) != VK_SUCCESS)
         log::error("Failed to end recording on a vulkan command buffer");
@@ -937,25 +946,27 @@ void VK::endDrawCommandBuffer(VkCommandBuffer cmd, ui32 index_size) {
 
 void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     //---Draw command buffer---
-    
+    //      We are going to use a command buffer for drawing
+    //      It needs to bind the vertex and index buffers, as well as the descriptor sets that map the shader inputs such as uniforms
+    //      We also have helper functions for begin and end the drawing buffer so it is easier to create different drawings
     const VkCommandBuffer &cmd = vk.cmd.command_buffers.at("draw")[current];
     
-    //: TODO: WRITE THIS
+    //: Begin command buffer and render pass
     VK::beginDrawCommandBuffer(cmd, vk.pipeline, vk.swapchain.framebuffers[current],
                                vk.swapchain.main_render_pass, vk.swapchain.extent);
     
-    //:
+    //: Vertex buffer
     VkBuffer vertex_buffers[]{ vk.vertex_buffer.buffer };
     VkDeviceSize offsets[]{ 0 };
     vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
     
-    //:
+    //: Index buffer
     vkCmdBindIndexBuffer(cmd, vk.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
     
-    //:
+    //: Descriptor set
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &vk.descriptors.sets[current], 0, nullptr);
     
-    //:
+    //: End command buffer and render pass
     VK::endDrawCommandBuffer(cmd, vk.index_buffer_size);
 }
 
@@ -1426,7 +1437,6 @@ VkPipelineColorBlendAttachmentState VK::preparePipelineCreateInfoColorBlendAttac
     //          final_color.rgb = new_color.a * new_color.rgb + (1 - new_color.a) * old_color.rgb;
     //          final_color.a = new_color.a;
     //      This still needs testing and possible tweaking
-    
     VkPipelineColorBlendAttachmentState color_blend{};
     
     color_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -1449,7 +1459,6 @@ VkPipelineColorBlendStateCreateInfo VK::preparePipelineCreateInfoColorBlendState
     //      Combines all the color blending attachments into one struct
     //      Note: each framebuffer can have a different attachment, right now we are only using one for all
     //      Here logic operations can be specified manually, but we will use vulkan's blend attachments to handle blending
-    
     VkPipelineColorBlendStateCreateInfo color_blend_state{};
 
     color_blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -2150,7 +2159,7 @@ void VK::createSampler(Vulkan &vk) {
 //Render
 //----------------------------------------
 
-ui32 VK::startRender(VkDevice device, const VkSwapchainData &swapchain, VkSyncData &sync) {
+ui32 VK::startRender(VkDevice device, const VkSwapchainData &swapchain, VkSyncData &sync, std::function<void()> recreate_swapchain) {
     //---Start rendering---
     //      TODO: .
     ui32 image_index;
@@ -2161,7 +2170,7 @@ ui32 VK::startRender(VkDevice device, const VkSwapchainData &swapchain, VkSyncDa
                                             sync.semaphores_image_available[sync.current_frame], VK_NULL_HANDLE, &image_index);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        //TODO: recreateSwapchain(vk, win);
+        recreate_swapchain();
         return UINT32_MAX;
     }
     
@@ -2248,7 +2257,8 @@ void API::renderTest(WindowData &win, RenderData &render) {
     ubo.proj[1][1] *= -1;
     //:
     
-    ui32 index = VK::startRender(render.api.device, render.api.swapchain, render.api.sync);
+    ui32 index = VK::startRender(render.api.device, render.api.swapchain, render.api.sync,
+                                 [&render, &win](){ VK::recreateSwapchain(render.api, win); });
     
     VK::updateUniformBuffer(render.api.allocator, render.api.uniform_buffers[index], ubo);
     
@@ -2282,9 +2292,9 @@ void API::clean(Vulkan &vk) {
     
     //: Delete objects that depend on swapchain size
     deletion_queue_swapchain.clear();
-    for (auto it = deletion_queue_swapchain_extra.rbegin(); it != deletion_queue_swapchain_extra.rend(); ++it)
+    for (auto it = deletion_queue_size_change.rbegin(); it != deletion_queue_size_change.rend(); ++it)
         (*it)();
-    deletion_queue_swapchain_extra.clear();
+    deletion_queue_size_change.clear();
     
     //: Delete shader stages
     Shader::destroyShaderStages(vk.device, vk.shader.stages);
