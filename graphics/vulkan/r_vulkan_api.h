@@ -176,7 +176,7 @@ namespace Verse::Graphics::VK
 
     //Render
     //----------------------------------------
-    ui32 startRender(VkDevice device, const VkSwapchainData &swapchain, VkSyncData &sync);
+    ui32 startRender(VkDevice device, const VkSwapchainData &swapchain, VkSyncData &sync, std::function<void()> recreate_swapchain);
     void renderFrame(Vulkan &vk, WindowData &win, ui32 index);
     //----------------------------------------
 
