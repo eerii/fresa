@@ -65,7 +65,10 @@ namespace Verse::Graphics::VK
                                                     std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags);
 
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd);
-    void recordDrawCommandBuffers(Vulkan &vk);
+    void beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFramebuffer framebuffer,
+                                VkRenderPass render_pass, VkExtent2D extent);
+    void endDrawCommandBuffer(VkCommandBuffer cmd, ui32 index_size);
+    void recordDrawCommandBuffer(const Vulkan &vk, ui32 current);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
     void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
@@ -128,16 +131,35 @@ namespace Verse::Graphics::VK
     //----------------------------------------
 
 
-    //Uniforms
+    //Descriptors
     //----------------------------------------
     VkDescriptorSetLayoutBinding prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding);
     VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, const ShaderCode &code, ui32 swapchain_size);
 
     VkDescriptorPool createDescriptorPool(VkDevice device);
-    void allocateDescriptorSets(Vulkan &vk);
 
-    void createUniformBuffers(Vulkan &vk);
-    void updateUniformBuffer(Vulkan &vk, ui32 current_image);
+    std::vector<VkDescriptorSet> allocateDescriptorSets(VkDevice device, VkDescriptorSetLayout layout,
+                                                        VkDescriptorPool pool, ui32 swapchain_size);
+
+    WriteDescriptorBuffer createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer);
+    WriteDescriptorImage createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,
+                                                                   VkImageView image_view, VkSampler sampler);
+    void updateDescriptorSets(VkDevice device, const std::vector<VkDescriptorSet> &descriptor_sets, ui32 swapchain_size,
+                              const std::vector<BufferData> &uniform_buffers);
+    //----------------------------------------
+
+
+    //Uniforms
+    //----------------------------------------
+    std::vector<BufferData> createUniformBuffers(VmaAllocator allocator, ui32 swapchain_size);
+
+    template<typename T>
+    void updateUniformBuffer(VmaAllocator allocator, BufferData buffer, T ubo) {
+        void* data;
+        vmaMapMemory(allocator, buffer.allocation, &data);
+        memcpy(data, &ubo, sizeof(ubo));
+        vmaUnmapMemory(allocator, buffer.allocation);
+    }
     //----------------------------------------
 
 
@@ -154,19 +176,14 @@ namespace Verse::Graphics::VK
 
     //Render
     //----------------------------------------
-    void renderFrame(Vulkan &vk, WindowData &win);
+    ui32 startRender(VkDevice device, const VkSwapchainData &swapchain, VkSyncData &sync);
+    void renderFrame(Vulkan &vk, WindowData &win, ui32 index);
     //----------------------------------------
 
 
     //Debug
     //----------------------------------------
     VkDebugReportCallbackEXT createDebug(VkInstance &instance);
-    //----------------------------------------
-
-    //Cleanup
-    //----------------------------------------
-    void cleanFrame();
-    void cleanSwapchain(Vulkan &vk);
     //----------------------------------------
 }
 

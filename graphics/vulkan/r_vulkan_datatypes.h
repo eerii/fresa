@@ -54,6 +54,16 @@ namespace Verse::Graphics::VK
         std::vector<VkVertexInputAttributeDescription> vertex_input_attribute_descriptions;
     };
 
+    struct WriteDescriptorBuffer {
+        VkDescriptorBufferInfo info;
+        VkWriteDescriptorSet write;
+    };
+
+    struct WriteDescriptorImage {
+        VkDescriptorImageInfo info;
+        VkWriteDescriptorSet write;
+    };
+
     struct UniformBufferObject {
         glm::mat4 model;
         glm::mat4 view;
