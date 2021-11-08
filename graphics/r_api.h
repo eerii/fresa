@@ -10,6 +10,7 @@
 #include "r_windowdata.h"
 #include "r_renderdata.h"
 #include "r_texturedata.h"
+#include "r_bufferdata.h"
 
 namespace Verse::Graphics::API
 {
@@ -17,6 +18,10 @@ namespace Verse::Graphics::API
     GraphicsAPI create(WindowData &win);
 
     void prepareResources(GraphicsAPI &api);
+
+    BufferData createVertexBuffer(const GraphicsAPI &api, const std::vector<Graphics::VertexData> &vertices);
+    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
+    DrawData createDrawData(const GraphicsAPI &api, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices);
 
     void createTexture(GraphicsAPI &api, TextureData &tex, ui8* pixels);
     void resize(GraphicsAPI &api, WindowData &win);

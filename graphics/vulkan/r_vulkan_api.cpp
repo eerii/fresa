@@ -13,6 +13,7 @@
 #include "r_shader.h"
 #include "r_vertex.h"
 #include "r_textures.h"
+#include "r_graphics.h"
 
 #include "ftime.h"
 #include "config.h"
@@ -44,6 +45,8 @@ namespace {
         4, 0, 5, 0, 1, 5,
         5, 6, 4, 6, 7, 4,
     };
+
+    DrawID draw_data_test;
 
     const std::vector<const char*> validation_layers{
         "VK_LAYER_KHRONOS_validation"
@@ -126,13 +129,6 @@ Vulkan API::create(WindowData &win) {
     vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptors.layout);
     vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
-    //---Create resources---
-    API::prepareResources(vk);
-    
-    //---Record command buffers---
-    for (int i = 0; i < vk.swapchain.size; i++)
-        VK::recordDrawCommandBuffer(vk, i);
-    
     return vk;
 }
 
@@ -144,9 +140,7 @@ void API::prepareResources(Vulkan &vk) {
     
     //---Immutable buffers---
     //      Allocated and filled up now
-    vk.vertex_buffer = VK::createVertexBuffer(vk.device, vk.allocator, vk.cmd, vertices);
-    vk.index_buffer = VK::createIndexBuffer(vk.device, vk.allocator, vk.cmd, indices);
-    vk.index_buffer_size = (ui32)indices.size();
+    draw_data_test = createDrawData(vertices, indices);
     
     //---Uniform buffers---
     //      Allocated now and updated every frame
@@ -159,6 +153,21 @@ void API::prepareResources(Vulkan &vk) {
     //---Update descriptor sets---
     //      After creating all the resources, they need to be added to the descriptor sets
     VK::updateDescriptorSets(vk.device, vk.descriptors.sets, vk.swapchain.size, vk.uniform_buffers);
+    
+    //---Record command buffers---
+    for (int i = 0; i < vk.swapchain.size; i++)
+        VK::recordDrawCommandBuffer(vk, i, getDrawData(draw_data_test));
+}
+
+//TODO: MOVE, COMMENT, IMPLEMENT
+DrawData API::createDrawData(const Vulkan &vk, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
+    DrawData data;
+    
+    data.vertex_buffer = API::createVertexBuffer(vk, vertices);
+    data.index_buffer = API::createIndexBuffer(vk, indices);
+    data.index_size = (ui32)indices.size();
+    
+    return data;
 }
 
 //----------------------------------------
@@ -806,7 +815,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     
     //: Record draw command buffers
     for (int i = 0; i < vk.swapchain.size; i++)
-        VK::recordDrawCommandBuffer(vk, i);
+        VK::recordDrawCommandBuffer(vk, i, getDrawData(draw_data_test));
 }
 
 VkFormat VK::getDepthFormat(Vulkan &vk) {
@@ -944,7 +953,7 @@ void VK::endDrawCommandBuffer(VkCommandBuffer cmd, ui32 index_size) {
         log::error("Failed to end recording on a vulkan command buffer");
 }
 
-void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
+void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, const DrawData *data) {
     //---Draw command buffer---
     //      We are going to use a command buffer for drawing
     //      It needs to bind the vertex and index buffers, as well as the descriptor sets that map the shader inputs such as uniforms
@@ -956,18 +965,18 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
                                vk.swapchain.main_render_pass, vk.swapchain.extent);
     
     //: Vertex buffer
-    VkBuffer vertex_buffers[]{ vk.vertex_buffer.buffer };
+    VkBuffer vertex_buffers[]{ data->vertex_buffer.buffer };
     VkDeviceSize offsets[]{ 0 };
     vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
     
     //: Index buffer
-    vkCmdBindIndexBuffer(cmd, vk.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(cmd, data->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
     
     //: Descriptor set
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &vk.descriptors.sets[current], 0, nullptr);
     
     //: End command buffer and render pass
-    VK::endDrawCommandBuffer(cmd, vk.index_buffer_size);
+    VK::endDrawCommandBuffer(cmd, data->index_size);
 }
 
 VkCommandBuffer VK::beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool) {
@@ -1577,8 +1586,7 @@ BufferData VK::createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferU
     return data;
 }
 
-BufferData VK::createVertexBuffer(VkDevice device, VmaAllocator allocator,
-                                  const VkCommandData &cmd, const std::vector<Graphics::VertexData> &vertices) {
+BufferData API::createVertexBuffer(const Vulkan &vk, const std::vector<Graphics::VertexData> &vertices) {
     //---Vertex buffer---
     //      Buffer that holds the vertex information for the shaders to use.
     //      It has a VertexData struct per vertex of the mesh, which can contain properties like position, color, uv, normals...
@@ -1588,39 +1596,38 @@ BufferData VK::createVertexBuffer(VkDevice device, VmaAllocator allocator,
     //: Staging buffer
     //      We want to make the vertex buffer accessible to the GPU in the most efficient way, so we use a staging buffer
     //      This is created in CPU only memory, in which we can easily map the vertex data
-    BufferData staging_buffer = createBuffer(allocator, buffer_size,
-                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                             VMA_MEMORY_USAGE_CPU_ONLY);
+    BufferData staging_buffer = VK::createBuffer(vk.allocator, buffer_size,
+                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                 VMA_MEMORY_USAGE_CPU_ONLY);
     
     //: Map vertices to staging buffer
     void* data;
-    vmaMapMemory(allocator, staging_buffer.allocation, &data);
+    vmaMapMemory(vk.allocator, staging_buffer.allocation, &data);
     memcpy(data, vertices.data(), (size_t) buffer_size);
-    vmaUnmapMemory(allocator, staging_buffer.allocation);
+    vmaUnmapMemory(vk.allocator, staging_buffer.allocation);
     
     //: Vertex buffer
     //      The most efficient memory for GPU access is VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, or its rough equivalent, VMA_MEMORY_USAGE_GPU_ONLY
     //      This memory type can't be access from the CPU
-    BufferData vertex_buffer = createBuffer(allocator, buffer_size,
-                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                            VMA_MEMORY_USAGE_GPU_ONLY);
+    BufferData vertex_buffer = VK::createBuffer(vk.allocator, buffer_size,
+                                                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                VMA_MEMORY_USAGE_GPU_ONLY);
     
     //: Copy from staging to vertex
     //      Since we can't access the vertex buffer memory from the CPU, we will use vkCmdCopyBuffer(), which will execute on a queue
     //      and move data between the staging and vertex buffer
-    copyBuffer(device, cmd, staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
+    VK::copyBuffer(vk.device, vk.cmd, staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
     
     //: Delete helpers (staging now, vertex when the program finishes)
-    vmaDestroyBuffer(allocator, staging_buffer.buffer, staging_buffer.allocation);
-    deletion_queue_program.push_back([allocator, vertex_buffer](){
-        vmaDestroyBuffer(allocator, vertex_buffer.buffer, vertex_buffer.allocation);
+    vmaDestroyBuffer(vk.allocator, staging_buffer.buffer, staging_buffer.allocation);
+    deletion_queue_program.push_back([vk, vertex_buffer](){
+        vmaDestroyBuffer(vk.allocator, vertex_buffer.buffer, vertex_buffer.allocation);
     });
     
     return vertex_buffer;
 }
 
-BufferData VK::createIndexBuffer(VkDevice device, VmaAllocator allocator,
-                                 const VkCommandData &cmd, const std::vector<ui16> &indices) {
+BufferData API::createIndexBuffer(const Vulkan &vk, const std::vector<ui16> &indices) {
     //---Index buffer---
     //      This buffer contains a list of indices, which allows to draw complex meshes without repeating vertices
     //      A simple example, while a square only has 4 vertices, 6 vertices are needed for the 2 triangles, and it only gets worse from there
@@ -1629,28 +1636,28 @@ BufferData VK::createIndexBuffer(VkDevice device, VmaAllocator allocator,
     VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
     
     //: Staging buffer
-    BufferData staging_buffer = createBuffer(allocator, buffer_size,
+    BufferData staging_buffer = VK::createBuffer(vk.allocator, buffer_size,
                                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                              VMA_MEMORY_USAGE_CPU_ONLY);
     
     //: Map indices to staging buffer
     void* data;
-    vmaMapMemory(allocator, staging_buffer.allocation, &data);
+    vmaMapMemory(vk.allocator, staging_buffer.allocation, &data);
     memcpy(data, indices.data(), (size_t) buffer_size);
-    vmaUnmapMemory(allocator, staging_buffer.allocation);
+    vmaUnmapMemory(vk.allocator, staging_buffer.allocation);
     
     //: Index buffer
-    BufferData index_buffer = createBuffer(allocator, buffer_size,
+    BufferData index_buffer = VK::createBuffer(vk.allocator, buffer_size,
                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                            VMA_MEMORY_USAGE_GPU_ONLY);
     
     //: Copy from staging to index
-    copyBuffer(device, cmd, staging_buffer.buffer, index_buffer.buffer, buffer_size);
+    VK::copyBuffer(vk.device, vk.cmd, staging_buffer.buffer, index_buffer.buffer, buffer_size);
     
     //: Delete helpers (staging now, index when the program finishes)
-    vmaDestroyBuffer(allocator, staging_buffer.buffer, staging_buffer.allocation);
-    deletion_queue_program.push_back([allocator, index_buffer](){
-        vmaDestroyBuffer(allocator, index_buffer.buffer, index_buffer.allocation);
+    vmaDestroyBuffer(vk.allocator, staging_buffer.buffer, staging_buffer.allocation);
+    deletion_queue_program.push_back([vk, index_buffer](){
+        vmaDestroyBuffer(vk.allocator, index_buffer.buffer, index_buffer.allocation);
     });
     
     return index_buffer;
