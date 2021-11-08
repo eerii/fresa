@@ -24,12 +24,12 @@ namespace Verse::Graphics::Vertex
         
         ui32 offset = 0;
         Reflection::forEach(V{}, [&](auto &&x, ui8 level, const char* name){
-            if (level == 1) { //Is a member of VertexData
+            if (level == 1) {
                 int i = (int)attribute_descriptions.size();
                 attribute_descriptions.resize(i + 1);
                 
                 attribute_descriptions[i].binding = 0;
-                attribute_descriptions[i].location = i; //Needs to be in order
+                attribute_descriptions[i].location = i;
                 
                 int size = sizeof(x);
                 if (size % 4 != 0 or size < 4 or size > 16)

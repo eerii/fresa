@@ -13,4 +13,7 @@ namespace Verse::Graphics
     bool stop();
 
     void onResize(Vec2<> size);
+
+    DrawID createDrawData(const std::vector<VertexData> &vertices, const std::vector<ui16> &indices);
+    DrawData* getDrawData(DrawID id_);
 }

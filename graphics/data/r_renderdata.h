@@ -7,6 +7,9 @@
 #include "r_vulkan.h"
 #include "r_opengl.h"
 
+#include "r_drawdata.h"
+#include <map>
+
 namespace Verse::Graphics
 {
     #if defined USE_VULKAN
@@ -17,6 +20,9 @@ namespace Verse::Graphics
 
     struct RenderData {
         GraphicsAPI api;
+        
+        std::map<DrawID, DrawData> draw;
+        
         Vec2<> resolution;
         ui16 scale;
         bool vsync;

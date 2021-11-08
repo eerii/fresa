@@ -11,12 +11,18 @@
 
 namespace Verse::Graphics
 {
+    //Needs to be ordered the same way as the shader
     struct VertexData {
         Serialize(VertexData, pos, color);
         glm::vec3 pos;
         glm::vec3 color;
     };
-    //Needs to be ordered the same way as the shader
+    
+    struct VertexDataTexture {
+        Serialize(VertexDataTexture, pos, uv);
+        glm::vec3 pos;
+        glm::vec2 uv;
+    };
 
     enum VertexFormat {
         VERTEX_FORMAT_R_F = 1,

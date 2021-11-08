@@ -12,6 +12,7 @@
 #include "r_vertexdata.h"
 #include "r_bufferdata.h"
 #include "r_texturedata.h"
+#include "r_drawdata.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
@@ -68,7 +69,7 @@ namespace Verse::Graphics::VK
     void beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFramebuffer framebuffer,
                                 VkRenderPass render_pass, VkExtent2D extent);
     void endDrawCommandBuffer(VkCommandBuffer cmd, ui32 index_size);
-    void recordDrawCommandBuffer(const Vulkan &vk, ui32 current);
+    void recordDrawCommandBuffer(const Vulkan &vk, ui32 current, const DrawData *data);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
     void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
@@ -121,12 +122,6 @@ namespace Verse::Graphics::VK
     //Buffers
     //----------------------------------------
     BufferData createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory);
-
-    BufferData createVertexBuffer(VkDevice device, VmaAllocator allocator,
-                                  const VkCommandData &cmd, const std::vector<Graphics::VertexData> &vertices);
-    BufferData createIndexBuffer(VkDevice device, VmaAllocator allocator,
-                                 const VkCommandData &cmd, const std::vector<ui16> &indices);
-
     void copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
     //----------------------------------------
 

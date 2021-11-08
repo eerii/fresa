@@ -108,10 +108,6 @@ namespace Verse::Graphics
         
         //Buffers
         //----------------------------------------
-        BufferData vertex_buffer;
-        BufferData index_buffer;
-        ui32 index_buffer_size;
-        
         std::vector<BufferData> uniform_buffers;
         //----------------------------------------
         
