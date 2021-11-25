@@ -15,8 +15,6 @@ using namespace Graphics;
 namespace {
     WindowData win;
     RenderData render;
-
-    DrawID last_id;
 }
 
 bool Graphics::init() {
@@ -30,9 +28,6 @@ bool Graphics::init() {
     
     //Create renderer
     render = Renderer::create(win, Conf::resolution);
-    
-    //Create static resources TODO: IMPROVE
-    API::prepareResources(render.api);
     
     return true;
 }
@@ -66,18 +61,4 @@ void Graphics::onResize(Vec2<> size) {
     
     //Pass the resize command to the API
     API::resize(render.api, win);
-}
-
-DrawID Graphics::createDrawData(const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
-    //TODO: Convert into a more efficient pool allocator
-    DrawID id = last_id++;
-    while (render.draw.find(id) != render.draw.end())
-        id++;
-    render.draw[id] = API::createDrawData(render.api, vertices, indices);
-    return id;
-}
-
-DrawData* Graphics::getDrawData(DrawID id_) {
-    //TODO: Error checking
-    return &render.draw.at(id_);
 }

@@ -26,28 +26,6 @@ using namespace Verse;
 using namespace Graphics;
 
 namespace {
-    const std::vector<VertexData> vertices = {
-        {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
-        {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
-        {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
-        {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
-        {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}}, //Red
-        {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
-        {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
-        {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
-    };
-
-    const std::vector<ui16> indices = {
-        0, 3, 1, 3, 2, 1,
-        1, 2, 5, 2, 6, 5,
-        4, 7, 0, 7, 3, 0,
-        3, 7, 2, 7, 6, 2,
-        4, 0, 5, 0, 1, 5,
-        5, 6, 4, 6, 7, 4,
-    };
-
-    DrawID draw_data_test;
-
     const std::vector<const char*> validation_layers{
         "VK_LAYER_KHRONOS_validation"
     };
@@ -63,6 +41,8 @@ namespace {
     std::vector<std::function<void()>> deletion_queue_frame;
 
     std::vector<VkDescriptorPoolSize> descriptor_pool_sizes{};
+
+    bool buffers_recorded = false;
 }
 
 
@@ -129,21 +109,7 @@ Vulkan API::create(WindowData &win) {
     vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptors.layout);
     vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
-    return vk;
-}
-
-void API::prepareResources(Vulkan &vk) {
-    //---Resource phase---
-    //      In this stage we will create the buffers and images that the program will use
-    //      Some won't change for the duration of the program (vertex buffers, images...) and some are placeholders that we will update in
-    //      a per frame basis, but it makes sense to allocate them now
-    
-    //---Immutable buffers---
-    //      Allocated and filled up now
-    draw_data_test = createDrawData(vertices, indices);
-    
     //---Uniform buffers---
-    //      Allocated now and updated every frame
     vk.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
     
     //---Images---
@@ -151,12 +117,9 @@ void API::prepareResources(Vulkan &vk) {
     //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
     
     //---Update descriptor sets---
-    //      After creating all the resources, they need to be added to the descriptor sets
     VK::updateDescriptorSets(vk.device, vk.descriptors.sets, vk.swapchain.size, vk.uniform_buffers);
     
-    //---Record command buffers---
-    for (int i = 0; i < vk.swapchain.size; i++)
-        VK::recordDrawCommandBuffer(vk, i, getDrawData(draw_data_test));
+    return vk;
 }
 
 //TODO: MOVE, COMMENT, IMPLEMENT
@@ -776,6 +739,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     
     //: Command buffer allocation
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
+    buffers_recorded = false;
     
     //: Render pass
     vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format);
@@ -812,10 +776,6 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         //: Update descriptors
         VK::updateDescriptorSets(vk.device, vk.descriptors.sets, vk.swapchain.size, vk.uniform_buffers);
     }
-    
-    //: Record draw command buffers
-    for (int i = 0; i < vk.swapchain.size; i++)
-        VK::recordDrawCommandBuffer(vk, i, getDrawData(draw_data_test));
 }
 
 VkFormat VK::getDepthFormat(Vulkan &vk) {
@@ -2248,7 +2208,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
 //Test
 //----------------------------------------
 
-void API::renderTest(WindowData &win, RenderData &render) {
+void API::renderTest(WindowData &win, RenderData &render, const DrawData* draw_data) {
     //---Example update---
     //:
     static Clock::time_point start_time = time();
@@ -2263,6 +2223,13 @@ void API::renderTest(WindowData &win, RenderData &render) {
     ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
     //:
+    
+    //: Record draw command buffers TODO: CHANGE
+    if (not buffers_recorded) {
+        for (int i = 0; i < render.api.swapchain.size; i++)
+            VK::recordDrawCommandBuffer(render.api, i, draw_data);
+        buffers_recorded = true;
+    }
     
     ui32 index = VK::startRender(render.api.device, render.api.swapchain, render.api.sync,
                                  [&render, &win](){ VK::recreateSwapchain(render.api, win); });
