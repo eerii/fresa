@@ -61,8 +61,7 @@ namespace Verse::Graphics
 
     struct VkDescriptorSetData {
         VkDescriptorSetLayout layout;
-        VkDescriptorPool pool;
-        std::vector<VkDescriptorSet> sets;
+        std::vector<VkDescriptorPool> pools;
     };
 
     struct Vulkan {
@@ -104,12 +103,6 @@ namespace Verse::Graphics
         
         //---Descriptors---
         VkDescriptorSetData descriptors;
-        
-        
-        //Buffers
-        //----------------------------------------
-        std::vector<BufferData> uniform_buffers;
-        //----------------------------------------
         
         
         //Images

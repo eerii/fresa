@@ -19,17 +19,17 @@ namespace Verse::Graphics::API
 
     BufferData createVertexBuffer(const GraphicsAPI &api, const std::vector<Graphics::VertexData> &vertices);
     BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
-    DrawData createDrawData(const GraphicsAPI &api, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices);
-    DrawID registerDrawData(const GraphicsAPI &api, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices);
+    DrawData createDrawData(GraphicsAPI &api, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices);
+    DrawID registerDrawData(GraphicsAPI &api, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices);
     inline std::map<DrawID, DrawData> draw_data{};
 
     void createTexture(GraphicsAPI &api, TextureData &tex, ui8* pixels);
     void resize(GraphicsAPI &api, WindowData &win);
 
-    void draw(const TextureData &tex, DrawID draw_id);
-    inline std::map<const TextureData*, std::vector<const DrawData*>> draw_queue{};
+    void draw(const TextureData &tex, DrawID draw_id, VK::UniformBufferObject ubo);
+    inline std::map<const TextureData*, std::vector<std::pair<const DrawData*, VK::UniformBufferObject>>> draw_queue{};
 
-    void renderTest(WindowData &win, RenderData &render, const DrawData* draw_data);
+    void renderTest(WindowData &win, RenderData &render);
 
     void clean(GraphicsAPI &api);
 }

@@ -5,7 +5,6 @@
 #include "r_graphics.h"
 
 #include "r_window.h"
-#include "r_next_renderer.h"
 
 #include "ftime.h"
 
@@ -14,7 +13,7 @@ using namespace Graphics;
 
 namespace {
     WindowData win;
-    RenderData render;
+    RenderData render; //TODO: MOVE API OUT OF HERE
 }
 
 bool Graphics::init() {
@@ -26,20 +25,28 @@ bool Graphics::init() {
     str name = Conf::name + " - Version " + version;
     win = Window::create(Conf::window_size, name);
     
-    //Create renderer
-    render = Renderer::create(win, Conf::resolution);
+    //Create renderer api
+    render.api = API::create(win);
+    
+    //Calculate resolution and scale
+    render.resolution = Conf::window_size;
+    Vec2<float> ratios = win.size.to<float>() / render.resolution.to<float>();
+    render.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
+    
+    //V-Sync
+    render.vsync = true;
     
     return true;
 }
 
 bool Graphics::update() {
-    Renderer::test(win, render);
+    API::renderTest(win, render);
     
     return true;
 }
 
 bool Graphics::stop() {
-    Renderer::clean(render);
+    API::clean(render.api);
     
     return true;
 }
