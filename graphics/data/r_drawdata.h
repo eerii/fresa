@@ -15,5 +15,7 @@ namespace Verse::Graphics
         BufferData vertex_buffer;
         BufferData index_buffer;
         ui32 index_size;
+        std::vector<BufferData> uniform_buffers;
+        std::vector<VkDescriptorSet> descriptor_sets;
     };
 }

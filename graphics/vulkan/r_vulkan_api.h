@@ -68,8 +68,7 @@ namespace Verse::Graphics::VK
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd);
     void beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFramebuffer framebuffer,
                                 VkRenderPass render_pass, VkExtent2D extent);
-    void endDrawCommandBuffer(VkCommandBuffer cmd, ui32 index_size);
-    void recordDrawCommandBuffer(const Vulkan &vk, ui32 current, const DrawData *data);
+    void recordDrawCommandBuffer(const Vulkan &vk, ui32 current);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
     void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
@@ -134,7 +133,7 @@ namespace Verse::Graphics::VK
     VkDescriptorPool createDescriptorPool(VkDevice device);
 
     std::vector<VkDescriptorSet> allocateDescriptorSets(VkDevice device, VkDescriptorSetLayout layout,
-                                                        VkDescriptorPool pool, ui32 swapchain_size);
+                                                        std::vector<VkDescriptorPool> &pools, ui32 swapchain_size);
 
     WriteDescriptorBuffer createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer);
     WriteDescriptorImage createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,

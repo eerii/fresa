@@ -22,6 +22,8 @@
 #include <numeric>
 #include <glm/gtc/matrix_transform.hpp>
 
+#define MAX_POOL_SETS 1024
+
 using namespace Verse;
 using namespace Graphics;
 
@@ -41,8 +43,6 @@ namespace {
     std::vector<std::function<void()>> deletion_queue_frame;
 
     std::vector<VkDescriptorPoolSize> descriptor_pool_sizes{};
-
-    bool buffers_recorded = false;
 }
 
 
@@ -100,35 +100,34 @@ Vulkan API::create(WindowData &win) {
     //---Shader data---
     vk.shader = VK::createShaderData(vk.device, "res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
     
-    //---Descriptor set---
+    //---Descriptor pool---
     vk.descriptors.layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
-    vk.descriptors.pool = VK::createDescriptorPool(vk.device);
-    vk.descriptors.sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pool, vk.swapchain.size);
+    vk.descriptors.pools.push_back(VK::createDescriptorPool(vk.device));
     
     //---Pipeline---
     vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptors.layout);
     vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
     
-    //---Uniform buffers---
-    vk.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
-    
-    //---Images---
-    //VK::createSampler(vk);
-    //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
-    
-    //---Update descriptor sets---
-    VK::updateDescriptorSets(vk.device, vk.descriptors.sets, vk.swapchain.size, vk.uniform_buffers);
-    
     return vk;
 }
 
-//TODO: MOVE, COMMENT, IMPLEMENT
-DrawData API::createDrawData(const Vulkan &vk, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
+//TODO: COMMENT, IMPLEMENT
+DrawData API::createDrawData(Vulkan &vk, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
     DrawData data;
     
     data.vertex_buffer = API::createVertexBuffer(vk, vertices);
     data.index_buffer = API::createIndexBuffer(vk, indices);
     data.index_size = (ui32)indices.size();
+    
+    data.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pools, vk.swapchain.size);
+    
+    data.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
+    
+    //---Images---
+    //VK::createSampler(vk);
+    //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
+    
+    VK::updateDescriptorSets(vk.device, data.descriptor_sets, vk.swapchain.size, data.uniform_buffers);
     
     return data;
 }
@@ -739,7 +738,6 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     
     //: Command buffer allocation
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
-    buffers_recorded = false;
     
     //: Render pass
     vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format);
@@ -763,18 +761,19 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         
         //: Descriptor set
         vk.descriptors.layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
-        vk.descriptors.pool = VK::createDescriptorPool(vk.device);
-        vk.descriptors.sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pool, vk.swapchain.size);
+        vk.descriptors.pools.clear();
+        vk.descriptors.pools.push_back(VK::createDescriptorPool(vk.device));
     
         //: Pipeline
         vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptors.layout);
         vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
         
-        //: Uniform buffers
-        vk.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
-        
-        //: Update descriptors
-        VK::updateDescriptorSets(vk.device, vk.descriptors.sets, vk.swapchain.size, vk.uniform_buffers);
+        //: Update draw data
+        for (auto &[id, data] : API::draw_data) {
+            data.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pools, vk.swapchain.size);
+            data.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
+            VK::updateDescriptorSets(vk.device, data.descriptor_sets, vk.swapchain.size, data.uniform_buffers);
+        }
     }
 }
 
@@ -899,21 +898,7 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFram
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 }
 
-void VK::endDrawCommandBuffer(VkCommandBuffer cmd, ui32 index_size) {
-    //---End draw command buffer---
-    //      Helper function for creating drawing command buffers
-    //      It draws the indexed vertex buffer and finishes the render pass and command buffer
-    
-    //: Draw vertices
-    vkCmdDrawIndexed(cmd, index_size, 1, 0, 0, 0);
-    
-    //: End command buffer and render pass
-    vkCmdEndRenderPass(cmd);
-    if (vkEndCommandBuffer(cmd) != VK_SUCCESS)
-        log::error("Failed to end recording on a vulkan command buffer");
-}
-
-void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, const DrawData *data) {
+void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     //---Draw command buffer---
     //      We are going to use a command buffer for drawing
     //      It needs to bind the vertex and index buffers, as well as the descriptor sets that map the shader inputs such as uniforms
@@ -924,19 +909,29 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, const DrawData 
     VK::beginDrawCommandBuffer(cmd, vk.pipeline, vk.swapchain.framebuffers[current],
                                vk.swapchain.main_render_pass, vk.swapchain.extent);
     
-    //: Vertex buffer
-    VkBuffer vertex_buffers[]{ data->vertex_buffer.buffer };
-    VkDeviceSize offsets[]{ 0 };
-    vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
-    
-    //: Index buffer
-    vkCmdBindIndexBuffer(cmd, data->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
-    
-    //: Descriptor set
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &vk.descriptors.sets[current], 0, nullptr);
+    //: Add all the draw calls (Optimize this in the future for a single mesh)
+    for (const auto &[tex, draw] : API::draw_queue) {
+        for (const auto &[data, ubo] : draw) {
+            //: Vertex buffer
+            VkBuffer vertex_buffers[]{ data->vertex_buffer.buffer };
+            VkDeviceSize offsets[]{ 0 };
+            vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
+            
+            //: Index buffer
+            vkCmdBindIndexBuffer(cmd, data->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+            
+            //: Descriptor set
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &data->descriptor_sets[current], 0, nullptr);
+            
+            //: Draw vertices
+            vkCmdDrawIndexed(cmd, data->index_size, 1, 0, 0, 0);
+        }
+    }
     
     //: End command buffer and render pass
-    VK::endDrawCommandBuffer(cmd, data->index_size);
+    vkCmdEndRenderPass(cmd);
+    if (vkEndCommandBuffer(cmd) != VK_SUCCESS)
+        log::error("Failed to end recording on a vulkan command buffer");
 }
 
 VkCommandBuffer VK::beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool) {
@@ -1718,9 +1713,9 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const Shade
     //      We use the number of items of that type, times the number of images in the swapchain
     descriptor_pool_sizes.clear();
     if (uniform_count > 0)
-        descriptor_pool_sizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniform_count * swapchain_size});
+        descriptor_pool_sizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniform_count * MAX_POOL_SETS});
     if (image_sampler_count > 0)
-        descriptor_pool_sizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, image_sampler_count * swapchain_size});
+        descriptor_pool_sizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, image_sampler_count * MAX_POOL_SETS});
     
     //---Create the descriptor layout itself---
     VkDescriptorSetLayoutCreateInfo create_info{};
@@ -1753,8 +1748,9 @@ VkDescriptorPool VK::createDescriptorPool(VkDevice device) {
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     create_info.poolSizeCount = (ui32)descriptor_pool_sizes.size();
     create_info.pPoolSizes = descriptor_pool_sizes.data();
-    create_info.maxSets = std::accumulate(descriptor_pool_sizes.begin(), descriptor_pool_sizes.end(), 0,
-                                          [](ui32 sum, const VkDescriptorPoolSize &item){ return sum + item.descriptorCount; });
+    create_info.maxSets = MAX_POOL_SETS;
+    /*std::accumulate(descriptor_pool_sizes.begin(), descriptor_pool_sizes.end(), 0,
+     [](ui32 sum, const VkDescriptorPoolSize &item){ return sum + item.descriptorCount; });*/
     
     //: Create descriptor pool
     if (vkCreateDescriptorPool(device, &create_info, nullptr, &descriptor_pool) != VK_SUCCESS)
@@ -1783,7 +1779,7 @@ VkDescriptorPool VK::createDescriptorPool(VkDevice device) {
 }
 
 std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescriptorSetLayout layout,
-                                                        VkDescriptorPool pool, ui32 swapchain_size) {
+                                                        std::vector<VkDescriptorPool> &pools, ui32 swapchain_size) {
     //---Descriptor sets---
     //      These objects can be thought as a pointer to a resource that the shader can access, for example an image sampler or uniform bufffer
     //      We allocate one set per swapchain image since multiple frames can be in flight at the same time
@@ -1792,14 +1788,20 @@ std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescr
     //: Allocate information
     VkDescriptorSetAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocate_info.descriptorPool = pool;
+    allocate_info.descriptorPool = pools.back();
     allocate_info.descriptorSetCount = swapchain_size;
     std::vector<VkDescriptorSetLayout> layouts(swapchain_size, layout);
     allocate_info.pSetLayouts = layouts.data();
     
     //: Create the descriptor set
-    if (vkAllocateDescriptorSets(device, &allocate_info, descriptor_sets.data()) != VK_SUCCESS)
-        log::error("Failed to allocate vulkan descriptor sets");
+    if (vkAllocateDescriptorSets(device, &allocate_info, descriptor_sets.data()) != VK_SUCCESS) {
+        pools.push_back(VK::createDescriptorPool(device));
+        log::info("Created a new vulkan descriptor pool");
+        allocate_info.descriptorPool = pools.back();
+        
+        if (vkAllocateDescriptorSets(device, &allocate_info, descriptor_sets.data()) != VK_SUCCESS)
+            log::error("Failed to allocate vulkan descriptor sets");
+    }
     
     //: No need for cleanup since they get destroyed with the pool
     log::graphics("Allocated vulkan descriptor sets");
@@ -2208,35 +2210,75 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
 //Test
 //----------------------------------------
 
-void API::renderTest(WindowData &win, RenderData &render, const DrawData* draw_data) {
+namespace {
+    const std::vector<VertexData> vertices = {
+        {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
+        {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
+        {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
+        {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
+        {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}}, //Red
+        {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
+        {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
+        {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
+    };
+
+    const std::vector<ui16> indices = {
+        0, 3, 1, 3, 2, 1,
+        1, 2, 5, 2, 6, 5,
+        4, 7, 0, 7, 3, 0,
+        3, 7, 2, 7, 6, 2,
+        4, 0, 5, 0, 1, 5,
+        5, 6, 4, 6, 7, 4,
+    };
+}
+
+void API::renderTest(WindowData &win, RenderData &render) {
     //---Example update---
-    //:
+    static DrawID test_draw_id = API::registerDrawData(render.api, vertices, indices);
+    static DrawID test_draw_id_2 = API::registerDrawData(render.api, vertices, indices);
+    static TextureData test_texture_data{};
+    
+    //: Uniforms
     static Clock::time_point start_time = time();
     float t = sec(time() - start_time);
     
+    //Draw something for test (This would be called outside of the renderer)
     VK::UniformBufferObject ubo{};
     
-    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
+    ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.8f * std::sin(t * 1.570796f)));
+    ubo.model = glm::scale(ubo.model, glm::vec3(0.4f, 0.4f, 0.4f));
     ubo.model = glm::rotate(ubo.model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.model = glm::translate(ubo.model, glm::vec3(0.0f, 0.0f, 0.3f * std::sin(t * 1.570796f)));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
-    //:
     
-    //: Record draw command buffers TODO: CHANGE
-    if (not buffers_recorded) {
-        for (int i = 0; i < render.api.swapchain.size; i++)
-            VK::recordDrawCommandBuffer(render.api, i, draw_data);
-        buffers_recorded = true;
-    }
+    API::draw(test_texture_data, test_draw_id, ubo);
     
+    ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.8f * std::sin(t * 1.570796f + 1.570796f)));
+    ubo.model = glm::scale(ubo.model, glm::vec3(0.4f, 0.4f, 0.4f));
+    ubo.model = glm::rotate(ubo.model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
+    
+    API::draw(test_texture_data, test_draw_id_2, ubo);
+    
+    //: Get the current image
     ui32 index = VK::startRender(render.api.device, render.api.swapchain, render.api.sync,
                                  [&render, &win](){ VK::recreateSwapchain(render.api, win); });
     
-    VK::updateUniformBuffer(render.api.allocator, render.api.uniform_buffers[index], ubo);
+    //: Update uniform buffers
+    for (const auto &[tex, draw] : API::draw_queue) {
+        for (const auto &[data, ubo] : draw) {
+            VK::updateUniformBuffer(render.api.allocator, data->uniform_buffers.at(index), ubo);
+        }
+    }
     
+    //: Record command buffers
+    VK::recordDrawCommandBuffer(render.api, index);
+    
+    //: Render the frame
     VK::renderFrame(render.api, win, index);
+    
+    //: Clear draw queue
+    API::draw_queue.clear();
 }
 
 //----------------------------------------
