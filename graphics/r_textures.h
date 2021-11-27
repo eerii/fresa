@@ -7,7 +7,7 @@
 #include "config.h"
 #include "component_list.h"
 
-#include "r_renderdata.h"
+#include "r_api.h"
 #include "r_texturedata.h"
 
 #include "stb_image.h"

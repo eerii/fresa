@@ -15,7 +15,6 @@
 #include "r_textures.h"
 #include "r_graphics.h"
 
-#include "ftime.h"
 #include "config.h"
 
 #include <set>
@@ -112,24 +111,40 @@ Vulkan API::create(WindowData &win) {
 }
 
 //TODO: COMMENT, IMPLEMENT
-DrawData API::createDrawData(Vulkan &vk, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
-    DrawData data;
+DrawBufferID API::registerDrawBuffer(Vulkan &vk, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
+    //TODO: Convert into a more efficient pool allocator
+    static DrawBufferID id = 0;
+    do id++;
+    while (draw_buffers.find(id) != draw_buffers.end());
     
-    data.vertex_buffer = API::createVertexBuffer(vk, vertices);
-    data.index_buffer = API::createIndexBuffer(vk, indices);
-    data.index_size = (ui32)indices.size();
+    draw_buffers[id] = DrawBuffer{};
     
-    data.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pools, vk.swapchain.size);
+    draw_buffers[id].vertex_buffer = API::createVertexBuffer(vk, vertices);
+    draw_buffers[id].index_buffer = API::createIndexBuffer(vk, indices);
+    draw_buffers[id].index_size = (ui32)indices.size();
     
-    data.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
+    return id;
+}
+
+DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer) {
+    static DrawBufferID id = 0;
+    do id++;
+    while (draw_data.find(id) != draw_data.end());
+    
+    draw_data[id] = DrawData{};
+    
+    draw_data[id].buffer_id = buffer;
+    
+    draw_data[id].descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pools, vk.swapchain.size);
+    draw_data[id].uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
     
     //---Images---
     //VK::createSampler(vk);
     //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
     
-    VK::updateDescriptorSets(vk.device, data.descriptor_sets, vk.swapchain.size, data.uniform_buffers);
+    VK::updateDescriptorSets(vk.device, draw_data[id].descriptor_sets, vk.swapchain.size, draw_data[id].uniform_buffers);
     
-    return data;
+    return id;
 }
 
 //----------------------------------------
@@ -911,20 +926,21 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     
     //: Add all the draw calls (Optimize this in the future for a single mesh)
     for (const auto &[tex, draw] : API::draw_queue) {
-        for (const auto &[data, ubo] : draw) {
+        for (const auto &item : draw) {
             //: Vertex buffer
-            VkBuffer vertex_buffers[]{ data->vertex_buffer.buffer };
+            VkBuffer vertex_buffers[]{ item.buffer->vertex_buffer.buffer };
             VkDeviceSize offsets[]{ 0 };
             vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
             
             //: Index buffer
-            vkCmdBindIndexBuffer(cmd, data->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+            vkCmdBindIndexBuffer(cmd, item.buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
             
             //: Descriptor set
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1, &data->descriptor_sets[current], 0, nullptr);
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1,
+                                    &item.data->descriptor_sets[current], 0, nullptr);
             
             //: Draw vertices
-            vkCmdDrawIndexed(cmd, data->index_size, 1, 0, 0, 0);
+            vkCmdDrawIndexed(cmd, item.buffer->index_size, 1, 0, 0, 0);
         }
     }
     
@@ -2210,72 +2226,30 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
 //Test
 //----------------------------------------
 
-namespace {
-    const std::vector<VertexData> vertices = {
-        {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
-        {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
-        {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
-        {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
-        {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}}, //Red
-        {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
-        {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
-        {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
-    };
-
-    const std::vector<ui16> indices = {
-        0, 3, 1, 3, 2, 1,
-        1, 2, 5, 2, 6, 5,
-        4, 7, 0, 7, 3, 0,
-        3, 7, 2, 7, 6, 2,
-        4, 0, 5, 0, 1, 5,
-        5, 6, 4, 6, 7, 4,
-    };
-}
-
-void API::renderTest(WindowData &win, RenderData &render) {
-    //---Example update---
-    static DrawID test_draw_id = API::registerDrawData(render.api, vertices, indices);
-    static DrawID test_draw_id_2 = API::registerDrawData(render.api, vertices, indices);
-    static TextureData test_texture_data{};
-    
-    //: Uniforms
-    static Clock::time_point start_time = time();
-    float t = sec(time() - start_time);
-    
-    //Draw something for test (This would be called outside of the renderer)
+void API::renderTest(Vulkan &vk, WindowData &win, RenderData &render) {
+    //TODO: Improve example
     VK::UniformBufferObject ubo{};
-    
-    ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.8f * std::sin(t * 1.570796f)));
-    ubo.model = glm::scale(ubo.model, glm::vec3(0.4f, 0.4f, 0.4f));
-    ubo.model = glm::rotate(ubo.model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
     
-    API::draw(test_texture_data, test_draw_id, ubo);
-    
-    ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.8f * std::sin(t * 1.570796f + 1.570796f)));
-    ubo.model = glm::scale(ubo.model, glm::vec3(0.4f, 0.4f, 0.4f));
-    ubo.model = glm::rotate(ubo.model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
-    
-    API::draw(test_texture_data, test_draw_id_2, ubo);
-    
     //: Get the current image
-    ui32 index = VK::startRender(render.api.device, render.api.swapchain, render.api.sync,
-                                 [&render, &win](){ VK::recreateSwapchain(render.api, win); });
+    ui32 index = VK::startRender(vk.device, vk.swapchain, vk.sync,
+                                 [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
     //: Update uniform buffers
     for (const auto &[tex, draw] : API::draw_queue) {
-        for (const auto &[data, ubo] : draw) {
-            VK::updateUniformBuffer(render.api.allocator, data->uniform_buffers.at(index), ubo);
+        for (const auto &item : draw) {
+            ubo.model = item.model;
+            VK::updateUniformBuffer(vk.allocator, item.data->uniform_buffers.at(index), ubo);
         }
     }
     
     //: Record command buffers
-    VK::recordDrawCommandBuffer(render.api, index);
+    VK::recordDrawCommandBuffer(vk, index);
     
     //: Render the frame
-    VK::renderFrame(render.api, win, index);
+    VK::renderFrame(vk, win, index);
     
     //: Clear draw queue
     API::draw_queue.clear();
