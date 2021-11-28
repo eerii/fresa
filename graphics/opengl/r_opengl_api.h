@@ -10,27 +10,23 @@
 
 #include "r_windowdata.h"
 #include "r_renderdata.h"
+#include "r_shaderdata.h"
 
 #include "r_vertex.h"
 
 namespace Verse::Graphics::GL
 {
+    using VAO = ui32;
+
     //Initialization
     //----------------------------------------
-    void createContext(OpenGL &gl, WindowData &win);
-    void createShaderData(OpenGL &gl);
-
-    void createFramebuffers(OpenGL &gl, WindowData &win);
-    void createVertexArrays(OpenGL &gl);
-    void validateShaderData(OpenGL &gl);
-    void configureProperties();
+    SDL_GLContext createContext(const WindowData &win);
+    ShaderData createShaderData(str name);
+    void validateShaderData(VAO &vao_id, const std::map<str, ShaderData> &shaders);
     //----------------------------------------
 
-
-    //Buffers
+    //Vertices
     //----------------------------------------
-    FramebufferData createFramebuffer(Vec2<> size, FramebufferType type);
-
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     VertexArrayData createVertexArray() {
         VertexArrayData vao;
@@ -39,6 +35,13 @@ namespace Verse::Graphics::GL
         glCheckError();
         return vao;
     }
+    void createVertexArrays(OpenGL &gl);
+    //----------------------------------------
+
+    //Buffers
+    //----------------------------------------
+    FramebufferData createFramebuffer(Vec2<> size, FramebufferType type);
+    void createFramebuffers(OpenGL &gl, WindowData &win);
 
     BufferData createBuffer(const VertexArrayData &vao, size_t size = 0, GLenum type = GL_UNIFORM_BUFFER, GLenum usage = GL_STATIC_DRAW);
 
@@ -55,7 +58,7 @@ namespace Verse::Graphics::GL
     //----------------------------------------
     namespace GUI
     {
-        void initImGUI(OpenGL &gl, WindowData &win);
+        void initImGUI(OpenGL &gl, const WindowData &win);
     }
     //----------------------------------------
 }

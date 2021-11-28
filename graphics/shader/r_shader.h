@@ -32,7 +32,7 @@ namespace Verse::Graphics::Shader
     ui8 compileShaderGL(const char* source, ui32 shader_type);
     ui8 compileProgramGL(str vert_source = "", str frag_source = "");
 
-    void validate(ShaderData &shader);
+    void validate(const ShaderData &shader);
     
     #elif defined USE_VULKAN
 

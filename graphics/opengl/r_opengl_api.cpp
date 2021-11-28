@@ -20,7 +20,12 @@ using namespace Graphics;
  Refactor OpenGL, make all functions return something like vulkan, and clean dependencies
  Clean graphics build log
  Draw takes a shader as parameter
+ Resize window opengl context
  */
+
+namespace {
+    std::vector<std::function<void()>> deletion_queue;
+}
 
 //Initialization
 //----------------------------------------
@@ -34,8 +39,8 @@ void API::configure() {
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
         #ifndef __APPLE__
-            SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-            SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
         #endif
     #endif
 }
@@ -43,31 +48,38 @@ void API::configure() {
 OpenGL API::create(WindowData &win) {
     OpenGL gl;
     
-    GL::createContext(gl, win);
+    gl.context = GL::createContext(win);
     GL::GUI::initImGUI(gl, win);
-    GL::createShaderData(gl);
+    
+    gl.shaders["test"] = GL::createShaderData("test");
     GL::createFramebuffers(gl, win);
     GL::createVertexArrays(gl);
-    GL::validateShaderData(gl);
-    GL::configureProperties();
+    
+    GL::validateShaderData(gl.vao.id_, gl.shaders);
     
     return gl;
 }
 
-void GL::createContext(OpenGL &gl, WindowData &win) {
-    gl.context = SDL_GL_CreateContext(win.window);
-    if (gl.context == nullptr) {
+SDL_GLContext GL::createContext(const WindowData &win) {
+    //---Context---
+    //      Contrary to Vulkan, OpenGL does a lot of this under the hood. The context can be thought as a compendium of all those things.
+    //      While in Vulkan we needed to initialize every single part of the graphics pipeline, in OpenGL we just create a context.
+    SDL_GLContext context = SDL_GL_CreateContext(win.window);
+    if (context == nullptr) {
         log::error("Error creating OpenGL Context: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
     }
-    if (SDL_GL_MakeCurrent(win.window, gl.context)) {
+    
+    //: Make the context active
+    if (SDL_GL_MakeCurrent(win.window, context)) {
         log::error("Error making OpenGL Context current: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
     }
     glCheckError();
     
+    //: Output some information
     log::graphics("---");
     log::graphics("Vendor:          %s", glGetString(GL_VENDOR));
     log::graphics("Renderer:        %s", glGetString(GL_RENDERER));
@@ -75,59 +87,75 @@ void GL::createContext(OpenGL &gl, WindowData &win) {
     log::graphics("GLSL Version:    %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
     log::graphics("---");
     glCheckError();
+    
+    //---Properties---
+    //: Blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    
+    //Depth test
+    glEnable(GL_DEPTH_TEST);
+    
+    return context;
 }
 
-void GL::createShaderData(OpenGL &gl) {
-    gl.shaders["test"] = Shader::createShaderData("res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
+ShaderData GL::createShaderData(str name) {
+    //---Prepare shaders---
+    //      In this step we are loading the shader "name" and creating all the important elements it needs
+    //      This includes reading the shader SPIR-V code, performing reflection on it and converting it to compatible GLSL
+    //      The final code is then used to create a GL program which contains the shader information and we can use for rendering
+    ShaderData data{};
     
-    ui32 uniform_count = 0;
-    //ui32 image_sampler_count = 0;
-    str vert_source, frag_source;
+    //: Shader data
+    //      Returns a ShaderData object which contains all the locations as well as the SPIR-V code
+    str vert_location = "res/shaders/" + name + "/" + name + ".vert.spv";
+    str frag_location = "res/shaders/" + name + "/" + name + ".frag.spv";
+    data = Shader::createShaderData(vert_location, frag_location);
     
-    //---Options---
+    //: Options
     spirv_cross::CompilerGLSL::Options options;
     options.version = 410; //: Max supported version
     options.es = false; //: Desktop OpenGL
     options.enable_420pack_extension = false; //: Strip binding of uniforms and samplers
+    
     //: Override for web
     #ifdef __EMSCRIPTEN__
     options.version = 300;
     options.es = true; //: Mobile OpenGL
     #endif
     
+    //: Variables where the GLSL converted code will be saved
+    str vert_source_glsl, frag_source_glsl;
+    
     //---Vertex shader---
-    if (gl.shaders["test"].code.vert.has_value()) {
-        ShaderCompiler compiler = Shader::getShaderCompiler(gl.shaders["test"].code.vert.value());
+    if (data.code.vert.has_value()) {
+        ShaderCompiler compiler = Shader::getShaderCompiler(data.code.vert.value());
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
-        for (const auto &res : resources.uniform_buffers) {
-            gl.shaders["test"].uniforms[res.name] = compiler.get_decoration(res.id, spv::DecorationBinding);
-            uniform_count++;
-        }
+        for (const auto &res : resources.uniform_buffers)
+            data.uniforms[res.name] = compiler.get_decoration(res.id, spv::DecorationBinding);
         
         //: Options
         compiler.set_common_options(options);
         
         //: Compile to GLSL
-        vert_source = compiler.compile();
+        vert_source_glsl = compiler.compile();
     }
     
     //---Fragment shader---
-    if (gl.shaders["test"].code.frag.has_value()) {
-        ShaderCompiler compiler = Shader::getShaderCompiler(gl.shaders["test"].code.frag.value());
+    if (data.code.frag.has_value()) {
+        ShaderCompiler compiler = Shader::getShaderCompiler(data.code.frag.value());
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
-        for (const auto &res : resources.uniform_buffers) {
-            gl.shaders["test"].uniforms[res.name] = compiler.get_decoration(res.id, spv::DecorationBinding);
-            uniform_count++;
-        }
+        for (const auto &res : resources.uniform_buffers)
+            data.uniforms[res.name] = compiler.get_decoration(res.id, spv::DecorationBinding);
         
         //: Combined image samplers
-        /*for (const auto &res : resources.sampled_images) {
-            image_sampler_count++;
-        }*/
+        /*for (const auto &res : resources.sampled_images)
+            str name = res.name;*/
         
         //: Add high precission float as a requirement for Web
         #ifdef __EMSCRIPTEN__
@@ -138,25 +166,28 @@ void GL::createShaderData(OpenGL &gl) {
         compiler.set_common_options(options);
         
         //: Compile to GLSL
-        frag_source = compiler.compile();
+        frag_source_glsl = compiler.compile();
     }
     
     //: Compile program
-    gl.shaders["test"].pid = Shader::compileProgramGL(vert_source, frag_source);
-    log::graphics("Program (test) ID: %d", gl.shaders["test"].pid);
+    ui32 pid = Shader::compileProgramGL(vert_source_glsl, frag_source_glsl);
+    data.pid = pid;
+    log::graphics("Program (test) ID: %d", data.pid);
     glCheckError();
     
     //: Set uniform bindings
     log::graphics("Uniform binding:");
-    for (auto &[name, temp]: gl.shaders["test"].uniforms) {
-        ui32 index = glGetUniformBlockIndex(gl.shaders["test"].pid, name.c_str());
-        glUniformBlockBinding(gl.shaders["test"].pid, index, temp);
+    for (auto &[name, temp]: data.uniforms) {
+        ui32 index = glGetUniformBlockIndex(data.pid, name.c_str());
+        glUniformBlockBinding(data.pid, index, temp);
         log::graphics(" - Uniform %s : Index %d, Binding %d", name.c_str(), index, temp);
         temp = index;
     }
     glCheckError();
     
+    deletion_queue.push_back([pid](){glDeleteProgram(pid);});
     log::graphics("---");
+    return data;
 }
 
 void GL::createFramebuffers(OpenGL &gl, WindowData &win) {
@@ -166,26 +197,16 @@ void GL::createFramebuffers(OpenGL &gl, WindowData &win) {
 
 void GL::createVertexArrays(OpenGL &gl) {
     gl.vao = GL::createVertexArray<VertexData>();
+    deletion_queue.push_back([&gl](){glDeleteVertexArrays(1, &gl.vao.id_);});
     log::graphics("Created OpenGL vertex arrays");
 }
 
-void GL::validateShaderData(OpenGL &gl) {
-    glBindVertexArray(gl.vao.id_);
-    for (auto &[key, s] : gl.shaders)
+void GL::validateShaderData(VAO &vao_id, const std::map<str, ShaderData> &shaders) {
+    //---Validate shaders---
+    glBindVertexArray(vao_id);
+    for (const auto &[key, s] : shaders)
         Shader::validate(s);
     glBindVertexArray(0);
-}
-
-void GL::configureProperties() {
-    //Blending
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    
-    //Depth test
-    glEnable(GL_DEPTH_TEST);
-    
-    glCheckError();
 }
 
 //----------------------------------------
@@ -247,6 +268,8 @@ BufferData GL::createBuffer(const VertexArrayData &vao, size_t size, GLenum type
     
     glCheckError();
     glBindVertexArray(0);
+    
+    //glDeleteBuffers(1, &gl.vbo.id_);
     
     return buffer;
 }
@@ -414,7 +437,7 @@ void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
 //GUI
 //----------------------------------------
 
-void GL::GUI::initImGUI(OpenGL &gl, WindowData &win) {
+void GL::GUI::initImGUI(OpenGL &gl, const WindowData &win) {
     #ifndef DISABLE_GUI
     gl.imgui_context = ImGui::CreateContext();
     if (gl.imgui_context == nullptr)
@@ -437,7 +460,7 @@ void GL::GUI::initImGUI(OpenGL &gl, WindowData &win) {
 //----------------------------------------
 
 void API::resize(OpenGL &gl, WindowData &win) {
-    
+    //TODO: WRITE THIS
 }
 
 //----------------------------------------
@@ -448,13 +471,9 @@ void API::resize(OpenGL &gl, WindowData &win) {
 //----------------------------------------
 
 void API::clean(OpenGL &gl) {
-    //glDeleteBuffers(1, &gl.vbo.id_);
-    
-    for(auto &[key, val] : gl.shaders) {
-        glDeleteProgram(val.pid);
-    }
-    
-    glDeleteVertexArrays(1, &gl.vao.id_);
+    for (auto it = deletion_queue.rbegin(); it != deletion_queue.rend(); ++it)
+        (*it)();
+    deletion_queue.clear();
     
     log::graphics("Cleaned up OpenGL");
 }
