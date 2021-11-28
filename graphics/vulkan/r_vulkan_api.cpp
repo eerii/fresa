@@ -97,7 +97,8 @@ Vulkan API::create(WindowData &win) {
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //---Shader data---
-    vk.shader = VK::createShaderData(vk.device, "res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
+    vk.shader = Shader::createShaderData("res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
+    vk.shader.stages = Shader::createShaderStages(vk.device, vk.shader.code);
     
     //---Descriptor pool---
     vk.descriptors.layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
@@ -127,7 +128,7 @@ DrawBufferID API::registerDrawBuffer(Vulkan &vk, const std::vector<VertexData> &
 }
 
 DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer) {
-    static DrawBufferID id = 0;
+    static DrawID id = 0;
     do id++;
     while (draw_data.find(id) != draw_data.end());
     
@@ -1205,27 +1206,6 @@ VkSyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
 //Pipeline
 //----------------------------------------
 
-ShaderData VK::createShaderData(VkDevice device, str vert, str frag, str compute, str geometry) {
-    //---Shader data---
-    //      Creates a shader data object from a list of locations for the different stages
-    //      First it saves the locations, then it reads the code, and then gets the stage create info
-    ShaderData data;
-    
-    if (vert != "" and not data.locations.vert.has_value())
-        data.locations.vert = vert;
-    if (frag != "" and not data.locations.frag.has_value())
-        data.locations.frag = frag;
-    if (compute != "" and not data.locations.compute.has_value())
-        data.locations.compute = compute;
-    if (geometry != "" and not data.locations.geometry.has_value())
-        data.locations.geometry = geometry;
-    
-    data.code = Shader::readSPIRV(data.locations);
-    data.stages = Shader::createShaderStages(device, data.code);
-    
-    return data;
-}
-
 VK::PipelineCreateInfo VK::preparePipelineCreateInfo(VkExtent2D extent) {
     //---Preprare pipeline info---
     //      Pipelines are huge objects in vulkan, and building them is both complicated and expensive
@@ -1899,7 +1879,7 @@ std::vector<BufferData> VK::createUniformBuffers(VmaAllocator allocator, ui32 sw
     //      We need to have one buffer per swapchain image so we can work on multiple images at a time
     //      Another possibility for passing data to shaders are push constant, which we will implement in the future
     std::vector<BufferData> uniform_buffers;
-    VkDeviceSize buffer_size = sizeof(VK::UniformBufferObject);
+    VkDeviceSize buffer_size = sizeof(UniformBufferObject);
     
     VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     VmaMemoryUsage memory_flags = VMA_MEMORY_USAGE_CPU_TO_GPU;
@@ -2228,7 +2208,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
 
 void API::renderTest(Vulkan &vk, WindowData &win, RenderData &render) {
     //TODO: Improve example
-    VK::UniformBufferObject ubo{};
+    UniformBufferObject ubo{};
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;

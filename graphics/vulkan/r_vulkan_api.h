@@ -97,8 +97,6 @@ namespace Verse::Graphics::VK
 
     //Pipeline
     //----------------------------------------
-    ShaderData createShaderData(VkDevice device, str vert = "", str frag = "", str compute = "", str geometry = "");
-
     PipelineCreateInfo preparePipelineCreateInfo(VkExtent2D extent);
     VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
         const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes);

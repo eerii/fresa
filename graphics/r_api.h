@@ -30,6 +30,7 @@ namespace Verse::Graphics::API
 
     BufferData createVertexBuffer(const GraphicsAPI &api, const std::vector<Graphics::VertexData> &vertices);
     BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
+
     DrawBufferID registerDrawBuffer(GraphicsAPI &api, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices);
     DrawID registerDrawData(GraphicsAPI &api, DrawBufferID buffer);
     inline std::map<DrawBufferID, DrawBuffer> draw_buffers{};

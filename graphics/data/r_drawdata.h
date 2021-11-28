@@ -22,12 +22,20 @@ namespace Verse::Graphics
     struct DrawData {
         DrawBufferID buffer_id;
         std::vector<BufferData> uniform_buffers;
+        #ifdef USE_VULKAN
         std::vector<VkDescriptorSet> descriptor_sets;
+        #endif
     };
 
     struct DrawQueueInfo {
         const DrawBuffer* buffer;
         const DrawData* data;
         glm::mat4 model;
+    };
+
+    struct UniformBufferObject {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 proj;
     };
 }

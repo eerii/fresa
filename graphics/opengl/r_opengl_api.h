@@ -17,18 +17,13 @@ namespace Verse::Graphics::GL
 {
     //Initialization
     //----------------------------------------
-    namespace Init
-    {
-        void createContext(OpenGL &gl, WindowData &win);
-        void createShaderData(OpenGL &gl);
-    
-        void createFramebuffers(OpenGL &gl, WindowData &win);
-        void createVertexArrays(OpenGL &gl);
-        void validateShaderData(OpenGL &gl);
-        void createVertexBuffers(OpenGL &gl);
-        void createIndexBuffer(OpenGL &gl);
-        void configureProperties();
-    }
+    void createContext(OpenGL &gl, WindowData &win);
+    void createShaderData(OpenGL &gl);
+
+    void createFramebuffers(OpenGL &gl, WindowData &win);
+    void createVertexArrays(OpenGL &gl);
+    void validateShaderData(OpenGL &gl);
+    void configureProperties();
     //----------------------------------------
 
 
@@ -45,8 +40,14 @@ namespace Verse::Graphics::GL
         return vao;
     }
 
-    BufferData createBuffer(VertexArrayData &vao);
-    BufferData createVertexBuffer(VertexArrayData &vao);
+    BufferData createBuffer(const VertexArrayData &vao, size_t size = 0, GLenum type = GL_UNIFORM_BUFFER, GLenum usage = GL_STATIC_DRAW);
+
+    template <typename T>
+    void updateUniformBuffer(BufferData buffer, const T* uniform) {
+        glBindBuffer(GL_UNIFORM_BUFFER, buffer.id_);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(T), uniform);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    };
     //----------------------------------------
 
 
