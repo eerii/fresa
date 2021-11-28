@@ -11,10 +11,16 @@
 #include "r_shader.h"
 
 #include <glm/ext.hpp>
-#include "ftime.h"
 
 using namespace Verse;
 using namespace Graphics;
+
+//TODO: ->
+/*
+ Refactor OpenGL, make all functions return something like vulkan, and clean dependencies
+ Clean graphics build log
+ Draw takes a shader as parameter
+ */
 
 //Initialization
 //----------------------------------------
@@ -37,20 +43,18 @@ void API::configure() {
 OpenGL API::create(WindowData &win) {
     OpenGL gl;
     
-    GL::Init::createContext(gl, win);
+    GL::createContext(gl, win);
     GL::GUI::initImGUI(gl, win);
-    GL::Init::createShaderData(gl);
-    GL::Init::createFramebuffers(gl, win);
-    GL::Init::createVertexArrays(gl);
-    GL::Init::validateShaderData(gl);
-    GL::Init::createVertexBuffers(gl);
-    GL::Init::createIndexBuffer(gl);
-    GL::Init::configureProperties();
+    GL::createShaderData(gl);
+    GL::createFramebuffers(gl, win);
+    GL::createVertexArrays(gl);
+    GL::validateShaderData(gl);
+    GL::configureProperties();
     
     return gl;
 }
 
-void GL::Init::createContext(OpenGL &gl, WindowData &win) {
+void GL::createContext(OpenGL &gl, WindowData &win) {
     gl.context = SDL_GL_CreateContext(win.window);
     if (gl.context == nullptr) {
         log::error("Error creating OpenGL Context: %s", SDL_GetError());
@@ -73,60 +77,106 @@ void GL::Init::createContext(OpenGL &gl, WindowData &win) {
     glCheckError();
 }
 
-void GL::Init::createShaderData(OpenGL &gl) {
-    //Hard coded for now
+void GL::createShaderData(OpenGL &gl) {
+    gl.shaders["test"] = Shader::createShaderData("res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
     
-    /*gl.shader_locations["render"] = {"mvp", "layer"};
-    gl.shader_locations["light"] = {"mvp", "light", "light_size", "light_distortion"};
-    gl.shader_locations["post"] = {"mvp", "use_light", "show_light", "tex", "light_tex"};
-    gl.shader_locations["text"] = {"mvp", "layer", "text_color", "same_color"};
-    gl.shader_locations["cam"] = {"mvp", "tex"};
-    gl.shader_locations["window"] = {"mvp", "tex", "is_background"};
-    gl.shader_locations["noise"] = {"mvp", "layer", "noise", "mask"};
-    gl.shader_locations["debug"] = {"mvp", "c"};*/
+    ui32 uniform_count = 0;
+    //ui32 image_sampler_count = 0;
+    str vert_source, frag_source;
     
-    gl.shader_locations["test_gl"] = {"mvp"};
-    //OpenGL needs version 410 core instead of 450, and uniforms do not have layout binding
+    //---Options---
+    spirv_cross::CompilerGLSL::Options options;
+    options.version = 410; //: Max supported version
+    options.es = false; //: Desktop OpenGL
+    options.enable_420pack_extension = false; //: Strip binding of uniforms and samplers
+    //: Override for web
+    #ifdef __EMSCRIPTEN__
+    options.version = 300;
+    options.es = true; //: Mobile OpenGL
+    #endif
     
-    for (auto &[key, loc] : gl.shader_locations) {
-        str vertex = "res/shaders/test/" + key + ".vertex"; //Remove the test
-        str frag = "res/shaders/test/" + key + ".frag";
-        gl.shaders[key] = Shader::create(vertex, frag, loc);
-        log::graphics("Program (%s) ID: %d", key.c_str(), gl.shaders[key].pid);
+    //---Vertex shader---
+    if (gl.shaders["test"].code.vert.has_value()) {
+        ShaderCompiler compiler = Shader::getShaderCompiler(gl.shaders["test"].code.vert.value());
+        ShaderResources resources = compiler.get_shader_resources();
+        
+        //: Uniform buffers
+        for (const auto &res : resources.uniform_buffers) {
+            gl.shaders["test"].uniforms[res.name] = compiler.get_decoration(res.id, spv::DecorationBinding);
+            uniform_count++;
+        }
+        
+        //: Options
+        compiler.set_common_options(options);
+        
+        //: Compile to GLSL
+        vert_source = compiler.compile();
     }
     
-    log::graphics("---");
+    //---Fragment shader---
+    if (gl.shaders["test"].code.frag.has_value()) {
+        ShaderCompiler compiler = Shader::getShaderCompiler(gl.shaders["test"].code.frag.value());
+        ShaderResources resources = compiler.get_shader_resources();
+        
+        //: Uniform buffers
+        for (const auto &res : resources.uniform_buffers) {
+            gl.shaders["test"].uniforms[res.name] = compiler.get_decoration(res.id, spv::DecorationBinding);
+            uniform_count++;
+        }
+        
+        //: Combined image samplers
+        /*for (const auto &res : resources.sampled_images) {
+            image_sampler_count++;
+        }*/
+        
+        //: Add high precission float as a requirement for Web
+        #ifdef __EMSCRIPTEN__
+        options.Highp = true;
+        #endif
+        
+        //: Options
+        compiler.set_common_options(options);
+        
+        //: Compile to GLSL
+        frag_source = compiler.compile();
+    }
+    
+    //: Compile program
+    gl.shaders["test"].pid = Shader::compileProgramGL(vert_source, frag_source);
+    log::graphics("Program (test) ID: %d", gl.shaders["test"].pid);
     glCheckError();
+    
+    //: Set uniform bindings
+    log::graphics("Uniform binding:");
+    for (auto &[name, temp]: gl.shaders["test"].uniforms) {
+        ui32 index = glGetUniformBlockIndex(gl.shaders["test"].pid, name.c_str());
+        glUniformBlockBinding(gl.shaders["test"].pid, index, temp);
+        log::graphics(" - Uniform %s : Index %d, Binding %d", name.c_str(), index, temp);
+        temp = index;
+    }
+    glCheckError();
+    
+    log::graphics("---");
 }
 
-void GL::Init::createFramebuffers(OpenGL &gl, WindowData &win) {
+void GL::createFramebuffers(OpenGL &gl, WindowData &win) {
     gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
     log::graphics("Created OpenGL framebuffers");
 }
 
-void GL::Init::createVertexArrays(OpenGL &gl) {
+void GL::createVertexArrays(OpenGL &gl) {
     gl.vao = GL::createVertexArray<VertexData>();
     log::graphics("Created OpenGL vertex arrays");
 }
 
-void GL::Init::validateShaderData(OpenGL &gl) {
+void GL::validateShaderData(OpenGL &gl) {
     glBindVertexArray(gl.vao.id_);
     for (auto &[key, s] : gl.shaders)
         Shader::validate(s);
     glBindVertexArray(0);
 }
 
-void GL::Init::createVertexBuffers(OpenGL &gl) {
-    gl.vbo = GL::createVertexBuffer(gl.vao);
-    log::graphics("Created OpenGL vertex buffers");
-}
-
-void GL::Init::createIndexBuffer(OpenGL &gl) {
-    gl.ibo = GL::createBuffer(gl.vao);
-    log::graphics("Created OpenGL index buffer");
-}
-
-void GL::Init::configureProperties() {
+void GL::configureProperties() {
     //Blending
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -183,33 +233,58 @@ FramebufferData GL::createFramebuffer(Vec2<> size, FramebufferType type) {
     return fb;
 }
 
-BufferData GL::createBuffer(VertexArrayData &vao) {
+BufferData GL::createBuffer(const VertexArrayData &vao, size_t size, GLenum type, GLenum usage) {
     BufferData buffer;
     
     glBindVertexArray(vao.id_);
     glGenBuffers(1, &buffer.id_);
+    
+    if (size > 0) {
+        glBindBuffer(type, buffer.id_);
+        glBufferData(type, size, nullptr, usage);
+        glBindBuffer(type, 0);
+    }
+    
+    glCheckError();
     glBindVertexArray(0);
     
     return buffer;
 }
 
-BufferData GL::createVertexBuffer(VertexArrayData &vao) {
-    BufferData vbo = createBuffer(vao);
+BufferData API::createVertexBuffer(const OpenGL &gl, const std::vector<Graphics::VertexData> &vertices) {
+    BufferData buffer = GL::createBuffer(gl.vao);
     
-    glBindVertexArray(vao.id_);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo.id_);
+    glBindVertexArray(gl.vao.id_);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer.id_);
     
-    for (const auto &attr : vao.attributes) {
+    for (const auto &attr : gl.vao.attributes) {
         ui32 size = (ui32)attr.format; //Assuming float
         glVertexAttribPointer(attr.location, size, GL_FLOAT, GL_FALSE, sizeof(VertexData), reinterpret_cast<void*>(attr.offset));
         glEnableVertexAttribArray(attr.location);
     }
-    glCheckError();
     
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(VertexData), vertices.data(), GL_STATIC_DRAW);
+    
+    glCheckError();
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     
-    return vbo;
+    return buffer;
+}
+
+BufferData API::createIndexBuffer(const OpenGL &gl, const std::vector<ui16> &indices) {
+    BufferData buffer = GL::createBuffer(gl.vao);
+    
+    glBindVertexArray(gl.vao.id_);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.id_);
+    
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(ui16), indices.data(), GL_STATIC_DRAW);
+    
+    glCheckError();
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    
+    return buffer;
 }
 
 //----------------------------------------
@@ -256,67 +331,80 @@ void API::createTexture(OpenGL &gl, TextureData &tex, ui8* pixels) {
 //Test
 //----------------------------------------
 
-namespace {
-    const std::vector<VertexData> vertices = {
-        {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
-        {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
-        {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
-        {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
-        {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}}, //Red
-        {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
-        {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
-        {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
-    };
-
-    const std::vector<ui16> indices = {
-        0, 1, 3, 3, 1, 2,
-        1, 5, 2, 2, 5, 6,
-        4, 0, 7, 7, 0, 3,
-        3, 2, 7, 7, 2, 6,
-        4, 5, 0, 0, 5, 1,
-        5, 4, 6, 6, 4, 7,
-    };
+//TODO: CHANGE THIS
+DrawBufferID API::registerDrawBuffer(OpenGL &gl, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
+    static DrawBufferID id = 0;
+    do id++;
+    while (draw_buffers.find(id) != draw_buffers.end());
+    
+    draw_buffers[id] = DrawBuffer{};
+    
+    draw_buffers[id].vertex_buffer = API::createVertexBuffer(gl, vertices);
+    draw_buffers[id].index_buffer = API::createIndexBuffer(gl, indices);
+    draw_buffers[id].index_size = (ui32)indices.size();
+    
+    return id;
 }
 
-void API::renderTest(WindowData &win, RenderData &render) {
-    //Clear
+DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer) {
+    static DrawID id = 0;
+    do id++;
+    while (draw_data.find(id) != draw_data.end());
+    
+    draw_data[id] = DrawData{};
+    
+    draw_data[id].buffer_id = buffer;
+    
+    draw_data[id].uniform_buffers = { GL::createBuffer(gl.vao, sizeof(UniformBufferObject), GL_UNIFORM_BUFFER, GL_STREAM_DRAW) };
+    
+    return id;
+}
+
+void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
+    //---Clear---
     glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    //No framebuffer
+    //---Prepare for drawing---
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glUseProgram(gl.shaders.at("test").pid);
+    glBindVertexArray(gl.vao.id_);
     
-    //Test shader
-    glUseProgram(render.api.shaders["test_gl"].pid);
+    //---Draw---
+    for (const auto &[tex, draw] : API::draw_queue) {
+        //...Todo bind texture
+        for (const auto &item : draw) {
+            //: Bind vertex and index buffers
+            glBindBuffer(GL_ARRAY_BUFFER, item.buffer->vertex_buffer.id_);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, item.buffer->index_buffer.id_);
+            
+            //...Uniforms (improve)
+            UniformBufferObject ubo{};
+            ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
+            ubo.model = item.model;
+            
+            //: Update uniforms
+            GL::updateUniformBuffer(item.data->uniform_buffers[0], &ubo);
+            
+            //: Upload uniforms
+            for (auto &[name, index] : gl.shaders["test"].uniforms) {
+                // TODO: Improve, add type reflection
+                if (name == "UniformBufferObject")
+                    glBindBufferBase(GL_UNIFORM_BUFFER, index, item.data->uniform_buffers[0].id_);
+            }
+            
+            //: Draw
+            glDrawElements(GL_TRIANGLES, item.buffer->index_size, GL_UNSIGNED_SHORT, (void*)0);
+        }
+    }
     
-    //Bind VAO, VBO and IBO
-    glBindVertexArray(render.api.vao.id_);
-    glBindBuffer(GL_ARRAY_BUFFER, render.api.vbo.id_);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, render.api.ibo.id_);
-    
-    //Buffer data
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(VertexData), vertices.data(), GL_STATIC_DRAW); //This can be done in advance
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(ui16), indices.data(), GL_STATIC_DRAW);
-    
-    //Matrices (improve)
-    static Clock::time_point start_time = time();
-    float t = sec(time() - start_time);
-    
-    glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
-    model = glm::rotate(model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
-    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.3f * std::sin(t * 1.570796f)));
-    glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
-    glm::mat4 mvp = proj * view * model;
-    
-    glUniformMatrix4fv(render.api.shaders["test_gl"].locations["mvp"], 1, GL_FALSE, glm::value_ptr(mvp));
-    
-    //Draw (add indexed)
-    glDrawElements(GL_TRIANGLES, (ui32)indices.size(), GL_UNSIGNED_SHORT, (void*)0);
-    
-    //Present
+    //---Present---
     SDL_GL_SetSwapInterval(0); //See if it is needed all frames
     SDL_GL_SwapWindow(win.window);
+    
+    //---Clear drawing queue---
+    API::draw_queue.clear();
 }
 
 //----------------------------------------
@@ -360,8 +448,7 @@ void API::resize(OpenGL &gl, WindowData &win) {
 //----------------------------------------
 
 void API::clean(OpenGL &gl) {
-    glDeleteBuffers(1, &gl.vbo.id_);
-    glDeleteBuffers(1, &gl.ibo.id_);
+    //glDeleteBuffers(1, &gl.vbo.id_);
     
     for(auto &[key, val] : gl.shaders) {
         glDeleteProgram(val.pid);

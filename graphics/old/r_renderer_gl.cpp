@@ -337,7 +337,7 @@ void Graphics::Renderer::renderText(Config &c, TextureData &data, float r, float
 //fb_post, tex_post (c.resolution) using shaders[S_POST]
 //-----------------------------------------
 void Graphics::Renderer::renderLight(Config &c) {
-    //Render Target: fb_render
+    /*//Render Target: fb_render
     glBindFramebuffer(GL_FRAMEBUFFER, fb_light);
     glUseProgram(gl->shaders["light"].pid);
     glCheckError();
@@ -365,11 +365,11 @@ void Graphics::Renderer::renderLight(Config &c) {
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    glCheckError();
+    glCheckError();*/
 }
 
 void Graphics::Renderer::renderPost(Config &c) {
-    //Render Target: fb_post
+    /*//Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
     glUseProgram(gl->shaders["post"].pid);
     glCheckError();
@@ -404,7 +404,7 @@ void Graphics::Renderer::renderPost(Config &c) {
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    glCheckError();
+    glCheckError();*/
 }
 //-----------------------------------------
 
@@ -414,7 +414,7 @@ void Graphics::Renderer::renderPost(Config &c) {
 //fb_cam, tex_cam (c.resolution * c.render_scale) using shaders[S_CAM]
 //-----------------------------------------
 void Graphics::Renderer::renderCam(Config &c) {
-    glViewport(0, 0, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale);
+    /*glViewport(0, 0, c.resolution.x * c.render_scale, c.resolution.y * c.render_scale);
     
     //Render Target: fb_cam
     glBindFramebuffer(GL_FRAMEBUFFER, fb_cam);
@@ -444,7 +444,7 @@ void Graphics::Renderer::renderCam(Config &c) {
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    glCheckError();
+    glCheckError();*/
 }
 //-----------------------------------------
 
@@ -454,7 +454,7 @@ void Graphics::Renderer::renderCam(Config &c) {
 //directly to window (c.window_size) using shaders[S_WINDOW]
 //-----------------------------------------
 void Graphics::Renderer::renderWindow(Config &c) {
-    glViewport(0, 0, c.window_size.x, c.window_size.y);
+    /*glViewport(0, 0, c.window_size.x, c.window_size.y);
     
     //Render Target: Window (fb 0)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -492,7 +492,7 @@ void Graphics::Renderer::renderWindow(Config &c) {
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    glCheckError();
+    glCheckError();*/
 }
 //-----------------------------------------
 
@@ -502,7 +502,7 @@ void Graphics::Renderer::renderWindow(Config &c) {
 //OTHER RENDERERS
 //-----------------------------------------
 void Graphics::Renderer::renderTest(WindowData &win) {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    /*glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(gl->shaders["cam"].pid);
     glCheckError();
     
@@ -531,11 +531,11 @@ void Graphics::Renderer::renderTest(WindowData &win) {
     glCheckError();
     
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glCheckError();
+    glCheckError();*/
 }
 
 void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<> col, bool colliding) {
-    //Render Target: fb_post
+    /*//Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
     glUseProgram(gl->shaders["debug"].pid);
     glCheckError();
@@ -575,11 +575,11 @@ void Graphics::Renderer::renderDebugCollider(Config &c, Rect2<> col, bool collid
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    glCheckError();
+    glCheckError();*/
 }
 
 void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2<> pos, ui16 radius, bool colliding) {
-    //Render Target: fb_post
+    /*//Render Target: fb_post
     glBindFramebuffer(GL_FRAMEBUFFER, fb_post);
     glUseProgram(gl->shaders["debug"].pid);
     glCheckError();
@@ -615,7 +615,7 @@ void Graphics::Renderer::renderDebugColliderCircle(Config &c, Vec2<> pos, ui16 r
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindVertexArray(0);
-    glCheckError();
+    glCheckError();*/
 }
 //-----------------------------------------
 

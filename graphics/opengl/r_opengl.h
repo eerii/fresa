@@ -42,12 +42,9 @@ namespace Verse::Graphics
         SDL_GLContext context;
         
         std::map<str, ShaderData> shaders;
-        std::map<str, std::vector<str>> shader_locations;
         
         FramebufferData framebuffer;
         VertexArrayData vao;
-        BufferData vbo;
-        BufferData ibo;
         
         #ifndef DISABLE_GUI
         ImGuiContext* imgui_context;
