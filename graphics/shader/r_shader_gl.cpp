@@ -102,7 +102,7 @@ ui8 Shader::compileProgramGL(str vert_source, str frag_source) {
     return pid;
 }
 
-void Shader::validate(ShaderData &shader) {
+void Shader::validate(const ShaderData &shader) {
     glValidateProgram(shader.pid);
     
     int program_valid = GL_FALSE;
