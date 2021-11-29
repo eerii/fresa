@@ -111,43 +111,6 @@ Vulkan API::create(WindowData &win) {
     return vk;
 }
 
-//TODO: COMMENT, IMPLEMENT
-DrawBufferID API::registerDrawBuffer(Vulkan &vk, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
-    //TODO: Convert into a more efficient pool allocator
-    static DrawBufferID id = 0;
-    do id++;
-    while (draw_buffers.find(id) != draw_buffers.end());
-    
-    draw_buffers[id] = DrawBuffer{};
-    
-    draw_buffers[id].vertex_buffer = API::createVertexBuffer(vk, vertices);
-    draw_buffers[id].index_buffer = API::createIndexBuffer(vk, indices);
-    draw_buffers[id].index_size = (ui32)indices.size();
-    
-    return id;
-}
-
-DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer) {
-    static DrawID id = 0;
-    do id++;
-    while (draw_data.find(id) != draw_data.end());
-    
-    draw_data[id] = DrawData{};
-    
-    draw_data[id].buffer_id = buffer;
-    
-    draw_data[id].descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pools, vk.swapchain.size);
-    draw_data[id].uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
-    
-    //---Images---
-    //VK::createSampler(vk);
-    //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
-    
-    VK::updateDescriptorSets(vk.device, draw_data[id].descriptor_sets, vk.swapchain.size, draw_data[id].uniform_buffers);
-    
-    return id;
-}
-
 //----------------------------------------
 
 
@@ -2115,6 +2078,50 @@ void VK::createSampler(Vulkan &vk) {
     
     if (vkCreateSampler(vk.device, &create_info, nullptr, &vk.sampler) != VK_SUCCESS)
         log::error("Error creating a Vulkan image sampler");*/
+}
+
+//----------------------------------------
+
+
+
+//Draw
+//----------------------------------------
+
+//TODO: COMMENT, IMPLEMENT
+DrawBufferID API::registerDrawBuffer(Vulkan &vk, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
+    //TODO: Convert into a more efficient pool allocator
+    static DrawBufferID id = 0;
+    do id++;
+    while (draw_buffers.find(id) != draw_buffers.end());
+    
+    draw_buffers[id] = DrawBuffer{};
+    
+    draw_buffers[id].vertex_buffer = API::createVertexBuffer(vk, vertices);
+    draw_buffers[id].index_buffer = API::createIndexBuffer(vk, indices);
+    draw_buffers[id].index_size = (ui32)indices.size();
+    
+    return id;
+}
+
+DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer) {
+    static DrawID id = 0;
+    do id++;
+    while (draw_data.find(id) != draw_data.end());
+    
+    draw_data[id] = DrawData{};
+    
+    draw_data[id].buffer_id = buffer;
+    
+    draw_data[id].descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pools, vk.swapchain.size);
+    draw_data[id].uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
+    
+    //---Images---
+    //VK::createSampler(vk);
+    //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
+    
+    VK::updateDescriptorSets(vk.device, draw_data[id].descriptor_sets, vk.swapchain.size, draw_data[id].uniform_buffers);
+    
+    return id;
 }
 
 //----------------------------------------

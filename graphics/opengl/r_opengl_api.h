@@ -22,28 +22,28 @@ namespace Verse::Graphics::GL
     //----------------------------------------
     SDL_GLContext createContext(const WindowData &win);
     ShaderData createShaderData(str name);
-    void validateShaderData(VAO &vao_id, const std::map<str, ShaderData> &shaders);
+    void validateShaderData(VAO vao_id, const std::map<str, ShaderData> &shaders);
     //----------------------------------------
 
     //Vertices
     //----------------------------------------
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     VertexArrayData createVertexArray() {
+        //---Vertex array---
+        //      Stores the layout of per vertex data that will be passed to the shader later
         VertexArrayData vao;
         glGenVertexArrays(1, &vao.id_);
         vao.attributes = Vertex::getAttributeDescriptions<V>();
         glCheckError();
         return vao;
     }
-    void createVertexArrays(OpenGL &gl);
     //----------------------------------------
 
     //Buffers
     //----------------------------------------
     FramebufferData createFramebuffer(Vec2<> size, FramebufferType type);
-    void createFramebuffers(OpenGL &gl, WindowData &win);
 
-    BufferData createBuffer(const VertexArrayData &vao, size_t size = 0, GLenum type = GL_UNIFORM_BUFFER, GLenum usage = GL_STATIC_DRAW);
+    BufferData createBuffer(size_t size = 0, GLenum type = GL_UNIFORM_BUFFER, GLenum usage = GL_STATIC_DRAW);
 
     template <typename T>
     void updateUniformBuffer(BufferData buffer, const T* uniform) {
