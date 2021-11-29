@@ -86,7 +86,3 @@ float Math::to_sRGB(float c) {
 float Math::to_linear(float c) {
     return c <= 0.04045f ? c / 12.92f : pow((c + 0.055f) / 1.055f, 2.4f);
 }
-
-glm::vec3 Math::linear_color(float r, float g, float b) {
-    return glm::vec3(to_linear(r), to_linear(g), to_linear(b));
-}

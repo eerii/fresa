@@ -11,7 +11,6 @@
 
 #include "log.h"
 
-#include "r_textures.h"
 #include "system_list.h"
 #include "controller_list.h"
 

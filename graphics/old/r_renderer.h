@@ -8,10 +8,10 @@
 
 #include "r_windowdata.h"
 #include "r_renderdata.h"
+#include "r_api.h"
 
 #include "config.h"
 #include "r_vertex.h"
-#include "r_textures.h"
 
 #define BORDER_WIDTH 2
 

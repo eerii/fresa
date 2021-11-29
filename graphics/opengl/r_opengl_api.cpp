@@ -9,7 +9,6 @@
 
 #include "r_window.h"
 #include "r_shader.h"
-#include "fmath.h"
 
 #include <glm/ext.hpp>
 
@@ -354,13 +353,13 @@ DrawBufferID API::registerDrawBuffer(OpenGL &gl, const std::vector<VertexData> &
     //TODO: Comment
     static DrawBufferID id = 0;
     do id++;
-    while (draw_buffers.find(id) != draw_buffers.end());
+    while (draw_buffer_data.find(id) != draw_buffer_data.end());
     
-    draw_buffers[id] = DrawBuffer{};
+    draw_buffer_data[id] = DrawBufferData{};
     
-    draw_buffers[id].vertex_buffer = API::createVertexBuffer(gl, vertices);
-    draw_buffers[id].index_buffer = API::createIndexBuffer(gl, indices);
-    draw_buffers[id].index_size = (ui32)indices.size();
+    draw_buffer_data[id].vertex_buffer = API::createVertexBuffer(gl, vertices);
+    draw_buffer_data[id].index_buffer = API::createIndexBuffer(gl, indices);
+    draw_buffer_data[id].index_size = (ui32)indices.size();
     
     return id;
 }
@@ -387,11 +386,8 @@ DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer) {
 //----------------------------------------
 
 void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
-    glEnable(GL_FRAMEBUFFER_SRGB);
-    
     //---Clear---
-    glm::vec3 color = Math::linear_color(0.01f, 0.01f, 0.05f);
-    glClearColor(color.r, color.g, color.b, 1.0f);
+    glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //---Prepare for drawing---
@@ -434,8 +430,6 @@ void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
     
     //---Clear drawing queue---
     API::draw_queue.clear();
-    
-    glDisable(GL_FRAMEBUFFER_SRGB);
 }
 
 //----------------------------------------
