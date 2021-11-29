@@ -55,12 +55,12 @@ bool Graphics::update() {
     glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.8f * std::sin(t * 1.570796f)));
     model = glm::scale(model, glm::vec3(0.4f, 0.4f, 0.4f));
     model = glm::rotate(model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
-    API::draw(test_texture_data, test_draw_id, model);
+    draw(test_texture_data, test_draw_id, model);
     
     glm::mat4 model2 = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.8f * std::sin(t * 1.570796f + 1.570796f)));
     model2 = glm::scale(model2, glm::vec3(0.4f, 0.4f, 0.4f));
     model2 = glm::rotate(model2, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
-    API::draw(test_texture_data, test_draw_id_2, model2);
+    draw(test_texture_data, test_draw_id_2, model2);
     
     //: Render
     API::renderTest(api, win, render);
@@ -106,4 +106,20 @@ DrawID Graphics::getDrawID_Cube() {
 DrawID Graphics::getDrawID_Rect() {
     static DrawBufferID rect_buffer = API::registerDrawBuffer(api, VerticesDefinitions::rect_vertices, VerticesDefinitions::rect_indices);
     return API::registerDrawData(api, rect_buffer);
+}
+
+void Graphics::draw(const TextureData &tex, const DrawID draw_id, glm::mat4 model) {
+    DrawQueueInfo queue_info{};
+    
+    queue_info.data = &API::draw_data.at(draw_id);
+    if (queue_info.data == nullptr)
+        log::error("Tried to draw an object with a null pointer draw data");
+    
+    queue_info.buffer = &API::draw_buffers.at(queue_info.data->buffer_id);
+    if (queue_info.buffer == nullptr)
+        log::error("Tried to draw an object with a null pointer draw buffer");
+    
+    queue_info.model = model;
+    
+    API::draw_queue[&tex].push_back(queue_info);
 }

@@ -9,6 +9,7 @@
 
 #include "r_window.h"
 #include "r_shader.h"
+#include "fmath.h"
 
 #include <glm/ext.hpp>
 
@@ -110,9 +111,7 @@ ShaderData GL::createShaderData(str name) {
     
     //: Shader data
     //      Returns a ShaderData object which contains all the locations as well as the SPIR-V code
-    str vert_location = "res/shaders/" + name + "/" + name + ".vert.spv";
-    str frag_location = "res/shaders/" + name + "/" + name + ".frag.spv";
-    data = Shader::createShaderData(vert_location, frag_location);
+    data = Shader::createShaderData(name);
     
     //: Options
     spirv_cross::CompilerGLSL::Options options;
@@ -388,8 +387,11 @@ DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer) {
 //----------------------------------------
 
 void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
+    glEnable(GL_FRAMEBUFFER_SRGB);
+    
     //---Clear---
-    glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
+    glm::vec3 color = Math::linear_color(0.01f, 0.01f, 0.05f);
+    glClearColor(color.r, color.g, color.b, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //---Prepare for drawing---
@@ -432,6 +434,8 @@ void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
     
     //---Clear drawing queue---
     API::draw_queue.clear();
+    
+    glDisable(GL_FRAMEBUFFER_SRGB);
 }
 
 //----------------------------------------

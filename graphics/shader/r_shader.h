@@ -20,7 +20,7 @@
 
 namespace Verse::Graphics::Shader
 {
-    ShaderData createShaderData(str vert = "", str frag = "", str compute = "", str geometry = "");
+    ShaderData createShaderData(str name);
 
     std::vector<char> readSPIRV(std::string filename);
     ShaderCode readSPIRV(const ShaderLocations &locations);
