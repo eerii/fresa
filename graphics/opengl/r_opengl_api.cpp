@@ -52,8 +52,9 @@ OpenGL API::create(WindowData &win) {
     GL::GUI::initImGUI(gl, win);
     
     gl.shaders["test"] = GL::createShaderData("test");
-    GL::createFramebuffers(gl, win);
-    GL::createVertexArrays(gl);
+    gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
+    gl.vao = GL::createVertexArray<VertexData>();
+    deletion_queue.push_back([&gl](){glDeleteVertexArrays(1, &gl.vao.id_);});
     
     GL::validateShaderData(gl.vao.id_, gl.shaders);
     
@@ -190,18 +191,7 @@ ShaderData GL::createShaderData(str name) {
     return data;
 }
 
-void GL::createFramebuffers(OpenGL &gl, WindowData &win) {
-    gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
-    log::graphics("Created OpenGL framebuffers");
-}
-
-void GL::createVertexArrays(OpenGL &gl) {
-    gl.vao = GL::createVertexArray<VertexData>();
-    deletion_queue.push_back([&gl](){glDeleteVertexArrays(1, &gl.vao.id_);});
-    log::graphics("Created OpenGL vertex arrays");
-}
-
-void GL::validateShaderData(VAO &vao_id, const std::map<str, ShaderData> &shaders) {
+void GL::validateShaderData(VAO vao_id, const std::map<str, ShaderData> &shaders) {
     //---Validate shaders---
     glBindVertexArray(vao_id);
     for (const auto &[key, s] : shaders)
@@ -217,6 +207,9 @@ void GL::validateShaderData(VAO &vao_id, const std::map<str, ShaderData> &shader
 //----------------------------------------
 
 FramebufferData GL::createFramebuffer(Vec2<> size, FramebufferType type) {
+    //---Framebuffer---
+    //      A texture that you can draw to, useful for multi step shader pipelines
+    //      It can have a color, depth or both attachments
     FramebufferData fb;
     
     glGenFramebuffers(1, &fb.id_);
@@ -254,10 +247,13 @@ FramebufferData GL::createFramebuffer(Vec2<> size, FramebufferType type) {
     return fb;
 }
 
-BufferData GL::createBuffer(const VertexArrayData &vao, size_t size, GLenum type, GLenum usage) {
+BufferData GL::createBuffer(size_t size, GLenum type, GLenum usage) {
+    //---Buffer object---
+    //      Base structure that holds data
+    //      It can be extended into a vertex buffer, index buffer or uniform buffer
+    //      In the latter case, extra parameters can be passed for memory allocation
     BufferData buffer;
     
-    glBindVertexArray(vao.id_);
     glGenBuffers(1, &buffer.id_);
     
     if (size > 0) {
@@ -267,15 +263,16 @@ BufferData GL::createBuffer(const VertexArrayData &vao, size_t size, GLenum type
     }
     
     glCheckError();
-    glBindVertexArray(0);
     
-    //glDeleteBuffers(1, &gl.vbo.id_);
-    
+    deletion_queue.push_back([buffer](){glDeleteBuffers(1, &buffer.id_);});
     return buffer;
 }
 
 BufferData API::createVertexBuffer(const OpenGL &gl, const std::vector<Graphics::VertexData> &vertices) {
-    BufferData buffer = GL::createBuffer(gl.vao);
+    //---Vertex buffer---
+    //      It holds the vertices for the vertex shader to read, as well as the attribute specification
+    //      It needs to be tied to the vertex array object (vao)
+    BufferData buffer = GL::createBuffer();
     
     glBindVertexArray(gl.vao.id_);
     glBindBuffer(GL_ARRAY_BUFFER, buffer.id_);
@@ -296,16 +293,16 @@ BufferData API::createVertexBuffer(const OpenGL &gl, const std::vector<Graphics:
 }
 
 BufferData API::createIndexBuffer(const OpenGL &gl, const std::vector<ui16> &indices) {
-    BufferData buffer = GL::createBuffer(gl.vao);
+    //---Index buffer---
+    //      We are going to draw the mesh indexed, which means that vertex data is not repeated and we need a list of which vertices to draw
+    BufferData buffer = GL::createBuffer();
     
-    glBindVertexArray(gl.vao.id_);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.id_);
     
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(ui16), indices.data(), GL_STATIC_DRAW);
     
     glCheckError();
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
     
     return buffer;
 }
@@ -351,11 +348,11 @@ void API::createTexture(OpenGL &gl, TextureData &tex, ui8* pixels) {
 
 
 
-//Test
+//Draw
 //----------------------------------------
 
-//TODO: CHANGE THIS
 DrawBufferID API::registerDrawBuffer(OpenGL &gl, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
+    //TODO: Comment
     static DrawBufferID id = 0;
     do id++;
     while (draw_buffers.find(id) != draw_buffers.end());
@@ -378,10 +375,17 @@ DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer) {
     
     draw_data[id].buffer_id = buffer;
     
-    draw_data[id].uniform_buffers = { GL::createBuffer(gl.vao, sizeof(UniformBufferObject), GL_UNIFORM_BUFFER, GL_STREAM_DRAW) };
+    draw_data[id].uniform_buffers = { GL::createBuffer(sizeof(UniformBufferObject), GL_UNIFORM_BUFFER, GL_STREAM_DRAW) };
     
     return id;
 }
+
+//----------------------------------------
+
+
+
+//Test
+//----------------------------------------
 
 void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
     //---Clear---
