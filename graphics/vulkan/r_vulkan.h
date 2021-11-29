@@ -16,7 +16,6 @@
 
 #include "r_vulkan_datatypes.h"
 #include "r_bufferdata.h"
-#include "r_texturedata.h"
 #include "r_shaderdata.h"
 
 namespace Verse::Graphics
@@ -105,12 +104,8 @@ namespace Verse::Graphics
         VkDescriptorSetData descriptors;
         
         
-        //Images
-        //----------------------------------------
-        TextureData test_image;
-        VkImageView image_view;
+        //---Images---
         VkSampler sampler;
-        //----------------------------------------
         
         
         //---Debug---

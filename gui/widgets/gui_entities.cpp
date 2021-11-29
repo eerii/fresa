@@ -4,7 +4,6 @@
 
 #include "gui_entities.h"
 #include "gui_types.h"
-#include "r_textures.h"
 #include "r_window.h"
 
 #include "log.h"

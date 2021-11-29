@@ -12,7 +12,6 @@
 
 #include "r_shader.h"
 #include "r_vertex.h"
-#include "r_textures.h"
 #include "r_graphics.h"
 
 #include "config.h"
@@ -107,6 +106,9 @@ Vulkan API::create(WindowData &win) {
     //---Pipeline---
     vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptors.layout);
     vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
+    
+    //---Image sampler---
+    vk.sampler = VK::createSampler(vk.device);
     
     return vk;
 }
@@ -552,10 +554,10 @@ VkSurfaceFormatKHR VK::selectSwapSurfaceFormat(const std::vector<VkSurfaceFormat
     //      The internal format for the vulkan surface
     //      It might seem weird to use BGRA instead of RGBA, but displays usually use this pixel data format instead
     //      Vulkan automatically converts our framebuffers to this space so we don't need to worry
-    //      We also select a nonlinear SRGB color space to correctly represent images
+    //      We should use an SRGB format, but we will stick with UNORM for now for testing purposes TODO: SRGB
     //      If all fails, it will still select a format, but it might not be the perfect one
     for (const VkSurfaceFormatKHR &fmt : formats) {
-        if (fmt.format == VK_FORMAT_B8G8R8A8_SRGB && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        if (fmt.format == VK_FORMAT_B8G8R8A8_UNORM && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             return fmt;
     }
     log::warn("A non ideal format has been selected for the swap surface, since BGRA UNORM is not supported. You might experience that the graphics present in unexpected colors. Please check the GPU support for ideal representation.");
@@ -605,7 +607,7 @@ VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_d
     //---Swapchain---
     //      List of images that will get drawn to the screen by the render pipeline
     //      Swapchain data:
-    //      - VkFormat format: Image format of the swapchain, usually B8G8R8A8_SRGB
+    //      - VkFormat format: Image format of the swapchain, usually B8G8R8A8_SRGB or B8G8R8A8_UNORM
     //      - VkExtent2D extent: The size of the draw area
     //      - VkSwapchainKHR swapchain: Actual swapchain object
     //      - std::vector<VkImage> images: List of swapchain images
@@ -751,7 +753,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         for (auto &[id, data] : API::draw_data) {
             data.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pools, vk.swapchain.size);
             data.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
-            VK::updateDescriptorSets(vk.device, data.descriptor_sets, vk.swapchain.size, data.uniform_buffers);
+            API::updateDescriptorSets(vk, &data);
         }
     }
 }
@@ -858,8 +860,7 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFram
     
     //: Clear values
     std::array<VkClearValue, 2> clear_values{};
-    glm::vec3 color = Math::linear_color(0.01f, 0.01f, 0.05f);
-    clear_values[0].color = {color.r, color.g, color.b, 1.0f};
+    clear_values[0].color = {0.01f, 0.01f, 0.05f, 1.0f};
     clear_values[1].depthStencil = {1.0f, 0};
     
     //: Begin render pass
@@ -890,7 +891,7 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
                                vk.swapchain.main_render_pass, vk.swapchain.extent);
     
     //: Add all the draw calls (Optimize this in the future for a single mesh)
-    for (const auto &[tex, draw] : API::draw_queue) {
+    for (const auto &[tex, draw] : API::draw_queue_textures) {
         for (const auto &item : draw) {
             //: Vertex buffer
             VkBuffer vertex_buffers[]{ item.buffer->vertex_buffer.buffer };
@@ -1809,18 +1810,21 @@ VK::WriteDescriptorImage VK::createWriteDescriptorCombinedImageSampler(VkDescrip
     return write_descriptor;
 }
 
-void VK::updateDescriptorSets(VkDevice device, const std::vector<VkDescriptorSet> &descriptor_sets, ui32 swapchain_size,
-                              const std::vector<BufferData> &uniform_buffers) {
-    for (int i = 0; i < swapchain_size; i++) {
+void API::updateDescriptorSets(const Vulkan &vk, const DrawData* draw) {
+    //TODO: COMMENT
+    for (int i = 0; i < vk.swapchain.size; i++) {
         std::vector<VkWriteDescriptorSet> write_descriptors;
         
-        auto uniform_write_descriptor = createWriteDescriptorUniformBuffer(descriptor_sets[i], 0, uniform_buffers[i]);
+        auto uniform_write_descriptor = VK::createWriteDescriptorUniformBuffer(draw->descriptor_sets[i], 0, draw->uniform_buffers[i]);
         write_descriptors.push_back(uniform_write_descriptor.write);
         
-        //auto image_sampler_write_descriptor = createWriteDescriptorCombinedImageSampler(descriptor_sets[i], 1, image_view[i], sampler);
-        //write_descriptors.push_back(image_sampler_write_descriptor.write);
+        if (draw->texture_id.has_value()) {
+            const TextureData* tex = &API::texture_data.at(draw->texture_id.value());
+            auto image_write_descriptor = VK::createWriteDescriptorCombinedImageSampler(draw->descriptor_sets[i], 1, tex->image_view, vk.sampler);
+            write_descriptors.push_back(image_write_descriptor.write);
+        }
         
-        vkUpdateDescriptorSets(device, (ui32)write_descriptors.size(), write_descriptors.data(), 0, nullptr);
+        vkUpdateDescriptorSets(vk.device, (ui32)write_descriptors.size(), write_descriptors.data(), 0, nullptr);
     }
     
     log::graphics("Updated descriptor sets");
@@ -1865,86 +1869,108 @@ std::vector<BufferData> VK::createUniformBuffers(VmaAllocator allocator, ui32 sw
 //Images
 //----------------------------------------
 
-void API::createTexture(Vulkan &vk, TextureData &tex, ui8 *pixels) {
-    /*ui32 size = tex.w * tex.h * tex.ch * sizeof(ui8);
+TextureID API::registerTexture(const Vulkan &vk, Vec2<> size, Channels ch, ui8* pixels) {
+    //---Create texture---
+    static TextureID id = 0;
+    do id++;
+    while (texture_data.find(id) != texture_data.end());
     
-    VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    VkMemoryPropertyFlags memory_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    BufferData staging_buffer = VK::createBuffer(vk, size, usage_flags, memory_flags);
+    texture_data[id] = TextureData{};
     
+    //: Size
+    texture_data[id].w = size.x;
+    texture_data[id].h = size.y;
+    
+    //: Format
+    texture_data[id].format = [ch](){
+        switch(ch) {
+            case TEXTURE_CHANNELS_G:
+                return VK_FORMAT_R8_UNORM;
+            case TEXTURE_CHANNELS_GA:
+                return VK_FORMAT_R8G8_UNORM;
+            case TEXTURE_CHANNELS_RGB:
+                return VK_FORMAT_R8G8B8_UNORM;
+            case TEXTURE_CHANNELS_RGBA:
+                return VK_FORMAT_R8G8B8A8_UNORM;
+        }
+    }();
+    texture_data[id].ch = (int)ch;
+    
+    //: Layout (changed later)
+    texture_data[id].layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    
+    //: Image
+    auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, texture_data[id].format, texture_data[id].layout);
+    texture_data[id].image = i_;
+    texture_data[id].allocation = a_;
+    
+    //: Staging buffer
+    VkDeviceSize buffer_size = size.x * size.y * (int)ch * sizeof(ui8);
+    BufferData staging_buffer = VK::createBuffer(vk.allocator, buffer_size,
+                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                 VMA_MEMORY_USAGE_CPU_ONLY);
+    
+    //: Map pixels to staging buffer
     void* data;
-    vkMapMemory(vk.device, staging_buffer.memory, 0, size, 0, &data);
-    memcpy(data, pixels, static_cast<size_t>(size));
-    vkUnmapMemory(vk.device, staging_buffer.memory);
+    vmaMapMemory(vk.allocator, staging_buffer.allocation, &data);
+    memcpy(data, pixels, (size_t) buffer_size);
+    vmaUnmapMemory(vk.allocator, staging_buffer.allocation);
     
-    VK::createImage(vk, tex, pixels);
-    VK::transitionImageLayout(vk, tex, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    VK::copyBufferToImage(vk, staging_buffer, tex);
-    VK::transitionImageLayout(vk, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    //: Copy from staging buffer to image and transition to read only layout
+    VK::transitionImageLayout(vk.device, vk.cmd, texture_data[id], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VK::copyBufferToImage(vk.device, vk.cmd, staging_buffer, texture_data[id]);
+    VK::transitionImageLayout(vk.device, vk.cmd, texture_data[id], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     
-    vk.image_view = VK::createImageView(vk.device, tex.image, VK_IMAGE_ASPECT_COLOR_BIT, tex.format);
+    //: Image view
+    texture_data[id].image_view = VK::createImageView(vk.device, texture_data[id].image, VK_IMAGE_ASPECT_COLOR_BIT, texture_data[id].format);
+    deletion_queue_program.push_back([&vk](){ vkDestroyImageView(vk.device, texture_data[id].image_view, nullptr); });
     
-    vkDestroyBuffer(vk.device, staging_buffer.buffer, nullptr);
-    vkFreeMemory(vk.device, staging_buffer.memory, nullptr);*/
+    //: Delete staging buffer
+    vmaDestroyBuffer(vk.allocator, staging_buffer.buffer, staging_buffer.allocation);
+    
+    return id;
 }
 
-void VK::createImage(Vulkan &vk, TextureData &tex, ui8 *pixels) {
-    /*VkImageCreateInfo create_info{};
+std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory,
+                                                  Vec2<> size, VkFormat format, VkImageLayout layout) {
+    //TODO: COMMENT
+    VkImage image;
+    VmaAllocation allocation;
+    
+    VkImageCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     create_info.imageType = VK_IMAGE_TYPE_2D;
-    create_info.extent.width = static_cast<ui32>(tex.w);
-    create_info.extent.height = static_cast<ui32>(tex.h);
+    create_info.extent.width = static_cast<ui32>(size.x);
+    create_info.extent.height = static_cast<ui32>(size.y);
     create_info.extent.depth = 1;
     create_info.mipLevels = 1;
     create_info.arrayLayers = 1;
     
-    //This way the image can't be access directly, but it is better for performance
-    create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-    
-    tex.format = [tex](){
-        switch(tex.ch) {
-            case 1:
-                return VK_FORMAT_R8_SRGB;
-            case 2:
-                return VK_FORMAT_R8G8_SRGB;
-            case 3:
-                return VK_FORMAT_R8G8B8_SRGB;
-            default:
-                return VK_FORMAT_R8G8B8A8_SRGB;
-        }
-        //Is it necessary to test for alternatives?
-    }();
-    create_info.format = tex.format;
-    
-    tex.layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    create_info.initialLayout = tex.layout;
-    
+    create_info.tiling = VK_IMAGE_TILING_OPTIMAL; //This way the image can't be access directly, but it is better for performance
+    create_info.format = format;
+    create_info.initialLayout = layout;
     create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
     create_info.samples = VK_SAMPLE_COUNT_1_BIT;
     create_info.flags = 0;
     
-    if (vkCreateImage(vk.device, &create_info, nullptr, &tex.image) != VK_SUCCESS)
-        log::error("Failed to create a Vulkan image");
+    VmaAllocationCreateInfo allocate_info{};
+    allocate_info.usage = memory;
     
+    if (vmaCreateImage(allocator, &create_info, &allocate_info, &image, &allocation, nullptr) != VK_SUCCESS)
+        log::error("Failed to create a vulkan image");
     
-    VkMemoryRequirements memory_requirements;
-    vkGetImageMemoryRequirements(vk.device, tex.image, &memory_requirements);
+    deletion_queue_program.push_back([allocator, image, allocation](){
+        vmaDestroyImage(allocator, image, allocation);
+    });
     
-    VkMemoryAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocate_info.allocationSize = memory_requirements.size;
-    allocate_info.memoryTypeIndex = getMemoryType(vk, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    
-    if (vkAllocateMemory(vk.device, &allocate_info, nullptr, &tex.memory) != VK_SUCCESS)
-        log::error("Failed to allocate memory for a Vulkan image");
-    
-    vkBindImageMemory(vk.device, tex.image, tex.memory, 0);*/
+    return std::pair<VkImage, VmaAllocation>{image, allocation};
 }
 
-void VK::transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_layout) {
-    /*VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("temp"));
+void VK::transitionImageLayout(VkDevice device, const VkCommandData &cmd, TextureData &tex, VkImageLayout new_layout) {
+    //TODO: COMMENT
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd.command_pools.at("temp"));
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1993,15 +2019,16 @@ void VK::transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_l
         }
     }();
     
-    vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier); //TODO
+    vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
     
-    endSingleUseCommandBuffer(vk.device, command_buffer, vk.cmd.command_pools.at("temp"), vk.cmd.queues.graphics);
+    endSingleUseCommandBuffer(device, command_buffer, cmd.command_pools.at("temp"), cmd.queues.graphics);
     
-    tex.layout = new_layout;*/
+    tex.layout = new_layout;
 }
 
-void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
-    /*VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("transfer"));
+void VK::copyBufferToImage(VkDevice device, const VkCommandData &cmd, BufferData &buffer, TextureData &tex) {
+    //TODO: COMMENT
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd.command_pools.at("transfer"));
     
     VkBufferImageCopy copy_region{};
     copy_region.bufferOffset = 0;
@@ -2018,10 +2045,11 @@ void VK::copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex) {
     
     vkCmdCopyBufferToImage(command_buffer, buffer.buffer, tex.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region);
     
-    endSingleUseCommandBuffer(vk.device, command_buffer, vk.cmd.command_pools.at("transfer"), vk.cmd.queues.transfer);*/
+    endSingleUseCommandBuffer(device, command_buffer, cmd.command_pools.at("transfer"), cmd.queues.transfer);
 }
 
 VkImageView VK::createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format) {
+    //TODO: COMMENT
     VkImageViewCreateInfo create_info{};
     
     create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -2043,13 +2071,16 @@ VkImageView VK::createImageView(VkDevice device, VkImage image, VkImageAspectFla
     
     VkImageView image_view;
     if (vkCreateImageView(device, &create_info, nullptr, &image_view)!= VK_SUCCESS)
-        log::error("Error creating a Vulkan image view");
+        log::error("Error creating a vulkan image view");
     
     return image_view;
 }
 
-void VK::createSampler(Vulkan &vk) {
-    /*VkSamplerCreateInfo create_info{};
+VkSampler VK::createSampler(VkDevice device) {
+    //TODO: COMMENT
+    VkSampler sampler;
+    
+    VkSamplerCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     
     create_info.magFilter = VK_FILTER_NEAREST; //This is for pixel art, change to linear for interpolation
@@ -2061,14 +2092,14 @@ void VK::createSampler(Vulkan &vk) {
     create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     
     create_info.anisotropyEnable = VK_FALSE;
-    create_info.maxAnisotropy = 1.0f;*/
+    create_info.maxAnisotropy = 1.0f;
     
     //Enable for anisotropy, as well as device features in createDevice()
     /*VkPhysicalDeviceProperties properties{};
     vkGetPhysicalDeviceProperties(vk.physical_device, &properties);
     create_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;*/
     
-    /*create_info.unnormalizedCoordinates = VK_FALSE;
+    create_info.unnormalizedCoordinates = VK_FALSE;
     create_info.compareEnable = VK_FALSE;
     create_info.compareOp = VK_COMPARE_OP_ALWAYS;
     
@@ -2077,8 +2108,11 @@ void VK::createSampler(Vulkan &vk) {
     create_info.minLod = 0.0f;
     create_info.maxLod = 0.0f;
     
-    if (vkCreateSampler(vk.device, &create_info, nullptr, &vk.sampler) != VK_SUCCESS)
-        log::error("Error creating a Vulkan image sampler");*/
+    if (vkCreateSampler(device, &create_info, nullptr, &sampler) != VK_SUCCESS)
+        log::error("Error creating a Vulkan image sampler");
+    
+    deletion_queue_program.push_back([device, sampler](){ vkDestroySampler(device, sampler, nullptr); });
+    return sampler;
 }
 
 //----------------------------------------
@@ -2089,17 +2123,17 @@ void VK::createSampler(Vulkan &vk) {
 //----------------------------------------
 
 //TODO: COMMENT, IMPLEMENT
-DrawBufferID API::registerDrawBuffer(Vulkan &vk, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
+DrawBufferID API::registerDrawBuffer(const Vulkan &vk, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
     //TODO: Convert into a more efficient pool allocator
     static DrawBufferID id = 0;
     do id++;
-    while (draw_buffers.find(id) != draw_buffers.end());
+    while (draw_buffer_data.find(id) != draw_buffer_data.end());
     
-    draw_buffers[id] = DrawBuffer{};
+    draw_buffer_data[id] = DrawBufferData{};
     
-    draw_buffers[id].vertex_buffer = API::createVertexBuffer(vk, vertices);
-    draw_buffers[id].index_buffer = API::createIndexBuffer(vk, indices);
-    draw_buffers[id].index_size = (ui32)indices.size();
+    draw_buffer_data[id].vertex_buffer = API::createVertexBuffer(vk, vertices);
+    draw_buffer_data[id].index_buffer = API::createIndexBuffer(vk, indices);
+    draw_buffer_data[id].index_size = (ui32)indices.size();
     
     return id;
 }
@@ -2115,12 +2149,6 @@ DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer) {
     
     draw_data[id].descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pools, vk.swapchain.size);
     draw_data[id].uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
-    
-    //---Images---
-    //VK::createSampler(vk);
-    //vk.test_image = Texture::load(vk, "res/graphics/texture.png", Texture::TEXTURE_CHANNELS_RGBA);
-    
-    VK::updateDescriptorSets(vk.device, draw_data[id].descriptor_sets, vk.swapchain.size, draw_data[id].uniform_buffers);
     
     return id;
 }
@@ -2217,7 +2245,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
 void API::renderTest(Vulkan &vk, WindowData &win, RenderData &render) {
     //TODO: Improve example
     UniformBufferObject ubo{};
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
     
@@ -2226,7 +2254,7 @@ void API::renderTest(Vulkan &vk, WindowData &win, RenderData &render) {
                                  [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
     //: Update uniform buffers
-    for (const auto &[tex, draw] : API::draw_queue) {
+    for (const auto &[tex, draw] : API::draw_queue_textures) {
         for (const auto &item : draw) {
             ubo.model = item.model;
             VK::updateUniformBuffer(vk.allocator, item.data->uniform_buffers.at(index), ubo);
@@ -2240,7 +2268,7 @@ void API::renderTest(Vulkan &vk, WindowData &win, RenderData &render) {
     VK::renderFrame(vk, win, index);
     
     //: Clear draw queue
-    API::draw_queue.clear();
+    API::draw_queue_textures.clear();
 }
 
 //----------------------------------------
@@ -2276,12 +2304,6 @@ void API::clean(Vulkan &vk) {
     
     //: Delete shader stages
     Shader::destroyShaderStages(vk.device, vk.shader.stages);
-    
-    //TODO: MOVE
-    vkDestroyImageView(vk.device, vk.image_view, nullptr);
-    vkDestroyImage(vk.device, vk.test_image.image, nullptr);
-    vkFreeMemory(vk.device, vk.test_image.memory, nullptr);
-    vkDestroySampler(vk.device, vk.sampler, nullptr);
     
     //: Delete program resources
     for (auto it = deletion_queue_program.rbegin(); it != deletion_queue_program.rend(); ++it)

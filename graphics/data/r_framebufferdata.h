@@ -6,7 +6,7 @@
 
 #include "dtypes.h"
 #include "r_bufferdata.h"
-#include "r_texturedata.h"
+#include "r_drawdata.h"
 
 namespace Verse::Graphics
 {

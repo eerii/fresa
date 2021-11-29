@@ -10,7 +10,6 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype_fresa.h"
 
-#include "r_textures.h"
 #include "log.h"
 
 using namespace Verse;
@@ -67,5 +66,5 @@ void Graphics::Font::render(Component::Text* text) {
         x += roundf(kern * scale);
     }
     
-    Graphics::Texture::createTexture(bitmap.data(), text->tex_data, text->bitmap_size.x, text->bitmap_size.y, false);
+    //TEXTURE Graphics::Texture::createTexture(bitmap.data(), text->tex_data, text->bitmap_size.x, text->bitmap_size.y, false);
 }

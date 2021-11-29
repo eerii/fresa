@@ -11,7 +11,6 @@
 #include "r_windowdata.h"
 #include "r_vertexdata.h"
 #include "r_bufferdata.h"
-#include "r_texturedata.h"
 #include "r_drawdata.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
@@ -136,8 +135,6 @@ namespace Verse::Graphics::VK
     WriteDescriptorBuffer createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer);
     WriteDescriptorImage createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,
                                                                    VkImageView image_view, VkSampler sampler);
-    void updateDescriptorSets(VkDevice device, const std::vector<VkDescriptorSet> &descriptor_sets, ui32 swapchain_size,
-                              const std::vector<BufferData> &uniform_buffers);
     //----------------------------------------
 
 
@@ -157,12 +154,13 @@ namespace Verse::Graphics::VK
 
     //Images
     //----------------------------------------
-    void createImage(Vulkan &vk, TextureData &tex, ui8 *pixels);
-    void transitionImageLayout(Vulkan &vk, TextureData &tex, VkImageLayout new_layout);
-    void copyBufferToImage(Vulkan &vk, BufferData &buffer, TextureData &tex);
+    std::pair<VkImage, VmaAllocation> createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory,
+                                                  Vec2<> size, VkFormat format, VkImageLayout layout);
+    void transitionImageLayout(VkDevice device, const VkCommandData &cmd, TextureData &tex, VkImageLayout new_layout);
+    void copyBufferToImage(VkDevice device, const VkCommandData &cmd, BufferData &buffer, TextureData &tex);
 
     VkImageView createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
-    void createSampler(Vulkan &vk);
+    VkSampler createSampler(VkDevice device);
     //----------------------------------------
 
 

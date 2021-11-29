@@ -15,5 +15,4 @@ namespace Verse::Math
     float smoothDamp(float current, float target, float &current_vel, float time, float max_speed, float delta_time);
     float to_sRGB(float c);
     float to_linear(float c);
-    glm::vec3 linear_color(float r, float g, float b);
 }
