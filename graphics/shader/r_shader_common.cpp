@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include <vector>
+#include <filesystem>
 
 #include "log.h"
 
@@ -44,20 +45,25 @@ ShaderCode Shader::readSPIRV(const ShaderLocations &locations) {
     return code;
 }
 
-ShaderData Shader::createShaderData(str vert, str frag, str compute, str geometry) {
+ShaderData Shader::createShaderData(str name) {
     //---Shader data---
     //      Creates a shader data object from a list of locations for the different stages
     //      First it saves the locations, then it reads the code, and then gets the stage create info
     ShaderData data;
     
-    if (vert != "" and not data.locations.vert.has_value())
-        data.locations.vert = vert;
-    if (frag != "" and not data.locations.frag.has_value())
-        data.locations.frag = frag;
-    if (compute != "" and not data.locations.compute.has_value())
-        data.locations.compute = compute;
-    if (geometry != "" and not data.locations.geometry.has_value())
-        data.locations.geometry = geometry;
+    std::filesystem::path vert_location{"res/shaders/" + name + "/" + name + ".vert.spv"};
+    std::filesystem::path frag_location{"res/shaders/" + name + "/" + name + ".frag.spv"};
+    std::filesystem::path compute_location{"res/shaders/" + name + "/" + name + ".compute.spv"};
+    std::filesystem::path geometry_location{"res/shaders/" + name + "/" + name + ".geometry.spv"};
+    
+    if (std::filesystem::exists(vert_location))
+        data.locations.vert = vert_location.string();
+    if (std::filesystem::exists(frag_location))
+        data.locations.frag = frag_location.string();
+    if (std::filesystem::exists(compute_location))
+        data.locations.compute = compute_location.string();
+    if (std::filesystem::exists(geometry_location))
+        data.locations.geometry = geometry_location.string();
     
     data.code = Shader::readSPIRV(data.locations);
     

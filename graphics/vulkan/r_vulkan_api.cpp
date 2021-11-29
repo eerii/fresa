@@ -97,7 +97,7 @@ Vulkan API::create(WindowData &win) {
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //---Shader data---
-    vk.shader = Shader::createShaderData("res/shaders/test/test.vert.spv", "res/shaders/test/test.frag.spv");
+    vk.shader = Shader::createShaderData("test");
     vk.shader.stages = Shader::createShaderStages(vk.device, vk.shader.code);
     
     //---Descriptor pool---
@@ -558,7 +558,7 @@ VkSurfaceFormatKHR VK::selectSwapSurfaceFormat(const std::vector<VkSurfaceFormat
         if (fmt.format == VK_FORMAT_B8G8R8A8_SRGB && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             return fmt;
     }
-    log::warn("A non ideal format has been selected for the swap surface, since BGRA SRGB is not supported. You might experience that the graphics present in unexpected colors. Please check the GPU support for ideal representation.");
+    log::warn("A non ideal format has been selected for the swap surface, since BGRA UNORM is not supported. You might experience that the graphics present in unexpected colors. Please check the GPU support for ideal representation.");
     return formats[0];
 }
 
@@ -858,7 +858,8 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFram
     
     //: Clear values
     std::array<VkClearValue, 2> clear_values{};
-    clear_values[0].color = {0.01f, 0.01f, 0.05f, 1.0f};
+    glm::vec3 color = Math::linear_color(0.01f, 0.01f, 0.05f);
+    clear_values[0].color = {color.r, color.g, color.b, 1.0f};
     clear_values[1].depthStencil = {1.0f, 0};
     
     //: Begin render pass
