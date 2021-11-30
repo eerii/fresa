@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -10,7 +10,7 @@
 #include "scene.h"
 #include "component_list.h"
 
-namespace Verse
+namespace Fresa
 {
     struct Conf {
         static str name;
@@ -20,7 +20,7 @@ namespace Verse
     };
 }
 
-namespace Verse
+namespace Fresa
 {
     struct Config {
         Vec2<> resolution;

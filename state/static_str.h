@@ -1,10 +1,10 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
 #pragma once
 
-namespace Verse
+namespace Fresa
 {
     //Array manipulation
     template <typename T, std::size_t N, std::size_t... I>
@@ -100,9 +100,9 @@ namespace Testing {
     [[maybe_unused]] constexpr void testToStdArray()
     {
         constexpr int input[] = {1, 2, 3};
-        constexpr auto output = Verse::toArray(input);
+        constexpr auto output = Fresa::toArray(input);
         constexpr std::array<const int, 3> expected = {1, 2, 3};
-        static_assert(Verse::areArraysEqual(expected, output));
+        static_assert(Fresa::areArraysEqual(expected, output));
     }
 
     [[maybe_unused]] constexpr void testJoin()
@@ -110,7 +110,7 @@ namespace Testing {
         constexpr std::array inputA = {1, 2, 3};
         constexpr std::array inputB = {4, 5};
         constexpr std::array expected = {1, 2, 3, 4, 5};
-        static_assert(Verse::areArraysEqual(expected, Verse::joinArrays(inputA, inputB)));
+        static_assert(Fresa::areArraysEqual(expected, Fresa::joinArrays(inputA, inputB)));
     }
 
     [[maybe_unused]] constexpr void testResize()
@@ -118,42 +118,42 @@ namespace Testing {
         constexpr std::array input = {1, 2, 3};
         constexpr std::array expectedShorter = {1, 2};
         constexpr std::array expectedLonger = {1, 2, 3, 0};
-        static_assert(Verse::areArraysEqual(expectedShorter, Verse::resizeArray<2>(input)));
-        static_assert(Verse::areArraysEqual(expectedLonger, Verse::resizeArray<4>(input)));
+        static_assert(Fresa::areArraysEqual(expectedShorter, Fresa::resizeArray<2>(input)));
+        static_assert(Fresa::areArraysEqual(expectedLonger, Fresa::resizeArray<4>(input)));
     }
     
     [[maybe_unused]] constexpr void testAdding()
     {
-        constexpr Verse::Str ls{"abc"};
-        constexpr Verse::Str rs{"de"};
-        constexpr Verse::Str expected{"abcde"};
+        constexpr Fresa::Str ls{"abc"};
+        constexpr Fresa::Str rs{"de"};
+        constexpr Fresa::Str expected{"abcde"};
         static_assert(expected == ls + rs);
     }
     
     [[maybe_unused]] constexpr void testLength()
     {
-        constexpr Verse::Str ls{"abc"};
+        constexpr Fresa::Str ls{"abc"};
         constexpr size_t expected{3};
         static_assert(ls.length() == expected);
     }
 
     [[maybe_unused]] constexpr void test0Length()
     {
-        constexpr Verse::Str ls{""};
+        constexpr Fresa::Str ls{""};
         constexpr size_t expected{0};
         static_assert(ls.length() == expected);
     }
 
     [[maybe_unused]] constexpr void testChangeLength()
     {
-        constexpr Verse::Str shorter{"abc"};
-        constexpr Verse::Str longer{"abcdef"};
-        constexpr Verse::Str empty{""};
+        constexpr Fresa::Str shorter{"abc"};
+        constexpr Fresa::Str longer{"abcdef"};
+        constexpr Fresa::Str empty{""};
 
         constexpr size_t l{5};
-        constexpr Verse::Str expectedShorter{"abcxx"};
-        constexpr Verse::Str expectedLonger {"abcde"};
-        constexpr Verse::Str expectedEmpty  {"zzzzz"};
+        constexpr Fresa::Str expectedShorter{"abcxx"};
+        constexpr Fresa::Str expectedLonger {"abcde"};
+        constexpr Fresa::Str expectedEmpty  {"zzzzz"};
 
         constexpr auto res = shorter.changeLength<l>('x');
 

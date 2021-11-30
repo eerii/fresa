@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -34,7 +34,7 @@
 #define GL_STACK_OVERFLOW 0x0503
 #define GL_STACK_UNDERFLOW 0x0504
 
-namespace Verse::Graphics
+namespace Fresa::Graphics
 {
     struct OpenGL {
         SDL_GLContext context;

@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -12,7 +12,7 @@
 
 #include "log.h"
 
-using namespace Verse;
+using namespace Fresa;
 
 void Graphics::Font::load(FontInfo* font, str path) {
     std::filesystem::path font_path{path};

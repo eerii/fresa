@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -13,7 +13,7 @@
 
 #include "r_dtypes.h"
 
-namespace Verse::Graphics
+namespace Fresa::Graphics
 {
     struct VkSwapchainData {
         VkFormat format;

@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -9,7 +9,7 @@
 
 #ifndef DISABLE_GUI
 
-namespace Verse::Gui
+namespace Fresa::Gui
 {
 
 inline void draw_label(str label, EntityID eid = 0) {

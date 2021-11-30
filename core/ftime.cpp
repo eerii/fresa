@@ -1,10 +1,10 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
 #include "ftime.h"
 
-using namespace Verse;
+using namespace Fresa;
 
 namespace {
     TimerID last_timer_id = 0;
@@ -16,11 +16,11 @@ Clock::time_point Time::next = {};
 
 std::map<TimerID, Timer> Time::timers = {};
 
-Clock::time_point Verse::time() {
+Clock::time_point Fresa::time() {
     return Clock::now();
 }
 
-TimerID Verse::setTimer(ui32 ms) {
+TimerID Fresa::setTimer(ui32 ms) {
     TimerID timer_id = last_timer_id + 1;
     
     while (Time::timers.find(timer_id) != Time::timers.end())
@@ -32,7 +32,7 @@ TimerID Verse::setTimer(ui32 ms) {
     return timer_id;
 }
 
-bool Verse::checkTimer(TimerID timer, float game_speed) {
+bool Fresa::checkTimer(TimerID timer, float game_speed) {
     if (Time::timers.find(timer) == Time::timers.end())
         return false;
     
@@ -46,7 +46,7 @@ bool Verse::checkTimer(TimerID timer, float game_speed) {
     return done;
 }
 
-Duration Verse::getTimerRemainder(TimerID timer) {
+Duration Fresa::getTimerRemainder(TimerID timer) {
     if (Time::timers.find(timer) == Time::timers.end())
         return Duration(0);
     
@@ -56,18 +56,18 @@ Duration Verse::getTimerRemainder(TimerID timer) {
     return Time::timers[timer].duration - delta;
 }
 
-void Verse::stopTimer(TimerID timer) {
+void Fresa::stopTimer(TimerID timer) {
     Time::timers.erase(timer);
 }
 
-double Verse::ns(Duration duration) {
+double Fresa::ns(Duration duration) {
     return duration.count();
 }
 
-double Verse::ms(Duration duration) {
+double Fresa::ms(Duration duration) {
     return duration.count() * 1.0e-6;
 }
 
-double Verse::sec(Duration duration) {
+double Fresa::sec(Duration duration) {
     return duration.count() * 1.0e-9;
 }

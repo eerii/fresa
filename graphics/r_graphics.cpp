@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -14,7 +14,7 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
-using namespace Verse;
+using namespace Fresa;
 using namespace Graphics;
 
 namespace {

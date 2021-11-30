@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -7,7 +7,7 @@
 #include "r_opengl.h"
 #include "r_vulkan.h"
 
-namespace Verse::Graphics
+namespace Fresa::Graphics
 {
 #if defined USE_VULKAN
     using GraphicsAPI = Vulkan;
@@ -16,7 +16,7 @@ namespace Verse::Graphics
 #endif
 }
 
-namespace Verse::Graphics::API
+namespace Fresa::Graphics::API
 {
     void configure();
     GraphicsAPI create(WindowData &win);
