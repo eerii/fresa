@@ -4,17 +4,8 @@
 
 #pragma once
 
-#include "r_vulkan_api.h"
-#include "r_opengl_api.h"
-
-#include "r_windowdata.h"
-#include "r_renderdata.h"
-#include "r_drawdata.h"
-#include "r_bufferdata.h"
-#include "r_shaderdata.h"
-#include "r_vertexdata.h"
-
-#include "log.h"
+#include "r_opengl.h"
+#include "r_vulkan.h"
 
 namespace Verse::Graphics
 {
@@ -50,7 +41,41 @@ namespace Verse::Graphics::API
 
     void resize(GraphicsAPI &api, WindowData &win);
 
-    void renderTest(GraphicsAPI &api, WindowData &win, RenderData &render);
+    void renderTest(GraphicsAPI &api, WindowData &win);
 
     void clean(GraphicsAPI &api);
+
+    //---Templates---
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    std::vector<VertexAttributeDescription> getAttributeDescriptions() {
+        std::vector<VertexAttributeDescription> attribute_descriptions = {};
+        
+        log::graphics("");
+        log::graphics("Creating attribute descriptions...");
+        
+        ui32 offset = 0;
+        Reflection::forEach(V{}, [&](auto &&x, ui8 level, const char* name){
+            if (level == 1) {
+                int i = (int)attribute_descriptions.size();
+                attribute_descriptions.resize(i + 1);
+                
+                attribute_descriptions[i].binding = 0;
+                attribute_descriptions[i].location = i;
+                
+                int size = sizeof(x);
+                if (size % 4 != 0 or size < 4 or size > 16)
+                    log::error("Vertex data has an invalid size %d", size);
+                attribute_descriptions[i].format = (VertexFormat)(size / 4);
+                
+                attribute_descriptions[i].offset = offset;
+                
+                log::graphics(" - Attribute %s [%d] - Format : %d - Size : %d - Offset %d", name, i, attribute_descriptions[i].format, size, offset);
+                
+                offset += sizeof(x);
+            }
+        });
+        
+        log::graphics("");
+        return attribute_descriptions;
+    }
 }

@@ -24,16 +24,9 @@
 
 #endif
 
-#include "r_shaderdata.h"
-#include "r_bufferdata.h"
-#include "r_framebufferdata.h"
-#include "r_vertexdata.h"
+#include "r_dtypes.h"
 
 #include "gui.h"
-
-#include <map>
-#include <iostream>
-#include <string>
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define glCheckError() glCheckError_(__FILENAME__, __LINE__)

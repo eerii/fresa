@@ -4,10 +4,7 @@
 
 #pragma once
 
-#include <array>
-
-#include "r_windowdata.h"
-#include "r_renderdata.h"
+#include "r_dtypes.h"
 #include "r_api.h"
 
 #include "config.h"

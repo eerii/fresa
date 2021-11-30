@@ -14,7 +14,6 @@
 #include <tuple>
 #include <ostream>
 #include <string_view>
-#include "ecs.h"
 
 #define Serialize(Type, ...) \
 \
@@ -50,7 +49,6 @@ template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Refl
 friend bool operator< (const OT& lhs, const OT& rhs) { return ::Verse::Reflection::less(lhs, rhs); } \
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_print, OT>, int> = 0> \
 friend std::ostream& operator<<(std::ostream& os, const OT& t) { ::Verse::Reflection::printYAML<1>(os, t); return os; }
-
 
 //TODO: This function can register components using ecs.cpp getID, and also save the name for later usage in the actual type (reflection)
 //I need to make ecs.cpp not include component_list and fix it up a bit

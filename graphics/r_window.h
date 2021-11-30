@@ -5,7 +5,7 @@
 #pragma once
 
 #include "config.h"
-#include "r_windowdata.h"
+#include "r_dtypes.h"
 
 namespace Verse::Graphics::Window
 {

@@ -5,11 +5,9 @@
 #ifdef USE_OPENGL
 
 #include "r_opengl_api.h"
-#include "r_api.h"
 
 #include "r_window.h"
 
-#include <glm/ext.hpp>
 #include <fstream>
 #include <streambuf>
 
@@ -510,7 +508,7 @@ void API::updateDescriptorSets(const OpenGL &gl, const DrawData* draw) { }
 //Test
 //----------------------------------------
 
-void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
+void API::renderTest(OpenGL &gl, WindowData &win) {
     //---Clear---
     glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

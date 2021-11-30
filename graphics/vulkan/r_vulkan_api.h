@@ -6,13 +6,7 @@
 
 #ifdef USE_VULKAN
 
-#include "r_vulkan.h"
-
-#include "r_windowdata.h"
-#include "r_vertexdata.h"
-#include "r_bufferdata.h"
-#include "r_drawdata.h"
-#include "r_shaderdata.h"
+#include "r_api.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 

@@ -6,6 +6,9 @@
 
 #include <SDL2/SDL.h>
 #include <string>
+#include <vector>
+#include <array>
+#include <map>
 
 namespace Verse
 {

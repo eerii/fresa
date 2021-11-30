@@ -6,12 +6,7 @@
 
 #ifdef USE_OPENGL
 
-#include "r_opengl.h"
-
-#include "r_windowdata.h"
-#include "r_renderdata.h"
-#include "r_shaderdata.h"
-#include "r_vertexdata.h"
+#include "r_api.h"
 
 namespace Verse::Graphics::GL
 {
