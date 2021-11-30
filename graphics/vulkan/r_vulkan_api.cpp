@@ -80,8 +80,12 @@ Vulkan API::create(WindowData &win) {
          {"transfer", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}});
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
+    //---Depth texture---
+    vk.swapchain.depth_texture = VK::createDepthTexture(vk.device, vk.allocator, vk.physical_device, vk.cmd,
+                                                        Vec2<>(vk.swapchain.extent.width, vk.swapchain.extent.height));
+    
     //---Render pass---
-    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format);
+    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format, vk.swapchain.depth_texture.format);
     
     //---Framebuffers---
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
@@ -714,8 +718,12 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //: Command buffer allocation
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
+    //: Depth texture
+    vk.swapchain.depth_texture = VK::createDepthTexture(vk.device, vk.allocator, vk.physical_device, vk.cmd,
+                                                        Vec2<>(vk.swapchain.extent.width, vk.swapchain.extent.height));
+    
     //: Render pass
-    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format);
+    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format, vk.swapchain.depth_texture.format);
     
     //: Framebuffers
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
@@ -750,18 +758,6 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
             API::updateDescriptorSets(vk, &data);
         }
     }
-}
-
-VkFormat VK::getDepthFormat(Vulkan &vk) {
-    //---Choose depth format---
-    //      Get the most appropiate format for the depth images of the framebuffer
-    return chooseSupportedFormat(vk.physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
-                                 VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-}
-
-void VK::createDepthResources(Vulkan &vk) {
-    //---Depth resources---
-    //TODO: PENDING
 }
 
 //----------------------------------------
@@ -864,7 +860,7 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFram
     render_pass_info.framebuffer = framebuffer;
     render_pass_info.renderArea.offset = {0, 0};
     render_pass_info.renderArea.extent = extent;
-    render_pass_info.clearValueCount = 2;
+    render_pass_info.clearValueCount = (ui32)clear_values.size();
     render_pass_info.pClearValues = clear_values.data();
     
     vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
@@ -967,11 +963,17 @@ VkSubpassDescription VK::createRenderSubpass() {
     color_attachment_ref.attachment = 0;
     color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     
+    VkAttachmentReference depth_attachment_ref{};
+    
+    depth_attachment_ref.attachment = 1;
+    depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    
     VkSubpassDescription subpass{};
     
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &color_attachment_ref;
+    subpass.pDepthStencilAttachment = &depth_attachment_ref;
     
     return subpass;
 }
@@ -983,11 +985,11 @@ VkSubpassDependency VK::createRenderSubpassDependency() {
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
     
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     dependency.srcAccessMask = 0;
     
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     
     return dependency;
 }
@@ -1011,25 +1013,44 @@ VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format) {
     return attachment;
 }
 
-VkRenderPassCreateData VK::prepareRenderPass(VkFormat format) {
+VkAttachmentDescription VK::createRenderPassDepthAttachment(VkFormat format) {
+    //---Render pass attachment---
+    VkAttachmentDescription attachment{};
+    
+    attachment.format = format;
+    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    
+    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    
+    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    
+    attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    
+    return attachment;
+}
+
+VkRenderPassCreateData VK::prepareRenderPass(VkFormat format, VkFormat depth_format) {
     //---Combine all data required to create a render pass---
     VkRenderPassCreateData data;
     
     data.subpasses = { VK::createRenderSubpass() };
     data.dependencies = { VK::createRenderSubpassDependency() };
-    data.attachments = { VK::createRenderPassAttachment(format) };
+    data.attachments = { VK::createRenderPassAttachment(format), VK::createRenderPassDepthAttachment(depth_format) };
     
     return data;
 }
 
-VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format) {
+VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
     //      It will render to a framebuffer
     VkRenderPass render_pass;
     
-    VkRenderPassCreateData render_pass_data = VK::prepareRenderPass(format);
+    VkRenderPassCreateData render_pass_data = VK::prepareRenderPass(format, depth_format);
     
     VkRenderPassCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -1051,7 +1072,7 @@ VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format) {
     return render_pass;
 }
 
-VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, VkImageView image_view, VkExtent2D extent) {
+VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent) {
     //---Framebuffer---
     VkFramebuffer framebuffer;
     
@@ -1062,8 +1083,8 @@ VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, V
     create_info.renderPass = render_pass;
     
     //: The image view it will be rendering to
-    create_info.attachmentCount = 1;
-    create_info.pAttachments = &image_view;
+    create_info.attachmentCount = (ui32)attachments.size();
+    create_info.pAttachments = attachments.data();
     
     //: Size and layers
     create_info.width = extent.width;
@@ -1082,8 +1103,10 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const VkSwapc
     std::vector<VkFramebuffer> framebuffers;
     framebuffers.resize(swapchain.size);
     
-    for (int i = 0; i < swapchain.size; i++)
-        framebuffers[i] = VK::createFramebuffer(device, swapchain.main_render_pass, swapchain.image_views[i], swapchain.extent);
+    for (int i = 0; i < swapchain.size; i++) {
+        std::vector<VkImageView> attachments = { swapchain.image_views[i], swapchain.depth_texture.image_view };
+        framebuffers[i] = VK::createFramebuffer(device, swapchain.main_render_pass, attachments, swapchain.extent);
+    }
     
     deletion_queue_swapchain.push_back([framebuffers, device](){
         for (VkFramebuffer fb : framebuffers)
@@ -1991,7 +2014,8 @@ TextureID API::registerTexture(const Vulkan &vk, Vec2<> size, Channels ch, ui8* 
     texture_data[id].layout = VK_IMAGE_LAYOUT_UNDEFINED;
     
     //: Image
-    auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, texture_data[id].format, texture_data[id].layout);
+    auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, texture_data[id].format, texture_data[id].layout,
+                                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
     texture_data[id].image = i_;
     texture_data[id].allocation = a_;
     
@@ -2023,7 +2047,7 @@ TextureID API::registerTexture(const Vulkan &vk, Vec2<> size, Channels ch, ui8* 
 }
 
 std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory,
-                                                  Vec2<> size, VkFormat format, VkImageLayout layout) {
+                                                  Vec2<> size, VkFormat format, VkImageLayout layout, VkImageUsageFlags usage) {
     //TODO: COMMENT
     VkImage image;
     VmaAllocation allocation;
@@ -2040,7 +2064,7 @@ std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator 
     create_info.tiling = VK_IMAGE_TILING_OPTIMAL; //This way the image can't be access directly, but it is better for performance
     create_info.format = format;
     create_info.initialLayout = layout;
-    create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    create_info.usage = usage;
     create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
     create_info.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -2073,7 +2097,15 @@ void VK::transitionImageLayout(VkDevice device, const VkCommandData &cmd, Textur
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.aspectMask = [&tex, new_layout]() -> VkImageAspectFlagBits {
+        if (new_layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+            return VK_IMAGE_ASPECT_COLOR_BIT;
+        
+        if (hasDepthStencilComponent(tex.format))
+            return (VkImageAspectFlagBits)(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+        
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+    }();
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -2082,7 +2114,7 @@ void VK::transitionImageLayout(VkDevice device, const VkCommandData &cmd, Textur
     VkPipelineStageFlags src_stage;
     VkPipelineStageFlags dst_stage;
     
-    barrier.srcAccessMask = [tex, &src_stage](){
+    barrier.srcAccessMask = [&tex, &src_stage](){
         switch (tex.layout) {
             case VK_IMAGE_LAYOUT_UNDEFINED:
                 src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -2104,6 +2136,9 @@ void VK::transitionImageLayout(VkDevice device, const VkCommandData &cmd, Textur
             case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
                 dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
                 return VK_ACCESS_SHADER_READ_BIT;
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+                dst_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+                return (VkAccessFlagBits)(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
             default:
                 log::warn("Not a valid dst access mask in image layout transition");
                 return (VkAccessFlagBits)0;
@@ -2244,6 +2279,55 @@ DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer) {
     return id;
 }
 
+//----------------------------------------
+
+
+
+//Depth
+//----------------------------------------
+VkFormat VK::getDepthFormat(VkPhysicalDevice physical_device) {
+    //---Choose depth format---
+    //      Get the most appropiate format for the depth images of the framebuffer
+    return chooseSupportedFormat(physical_device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+                                 VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+bool VK::hasDepthStencilComponent(VkFormat format) {
+    //---Checks if depth texture has stencil component---
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
+TextureData VK::createDepthTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
+                                   const VkCommandData &cmd, Vec2<> size) {
+    //---Depth texture---
+    TextureData data{};
+    
+    //: Format
+    data.format = getDepthFormat(physical_device);
+    data.ch = 0;
+    
+    //: Size
+    data.w = size.x;
+    data.h = size.y;
+    
+    //: Layout (changed later)
+    data.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    
+    //: Image
+    auto [i_, a_] = VK::createImage(device, allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, data.format,
+                                    data.layout, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    data.image = i_;
+    data.allocation = a_;
+    
+    //: Image view
+    data.image_view = VK::createImageView(device, data.image, VK_IMAGE_ASPECT_DEPTH_BIT, data.format);
+    deletion_queue_program.push_back([device, data](){ vkDestroyImageView(device, data.image_view, nullptr); });
+    
+    //: (Optional) Transition image layout
+    transitionImageLayout(device, cmd, data, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    
+    return data;
+}
 //----------------------------------------
 
 

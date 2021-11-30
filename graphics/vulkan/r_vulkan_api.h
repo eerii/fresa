@@ -48,9 +48,6 @@ namespace Fresa::Graphics::VK
     VkSwapchainData createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
                                     const VkQueueIndices &queue_indices, const WindowData &win);
     void recreateSwapchain(Vulkan &vk, const WindowData &win);
-
-    VkFormat getDepthFormat(Vulkan &vk);
-    void createDepthResources(Vulkan &vk);
     //----------------------------------------
 
 
@@ -127,11 +124,12 @@ namespace Fresa::Graphics::VK
     VkSubpassDescription createRenderSubpass();
     VkSubpassDependency createRenderSubpassDependency();
     VkAttachmentDescription createRenderPassAttachment(VkFormat format);
-    VkRenderPassCreateData prepareRenderPass(VkFormat format);
+    VkAttachmentDescription createRenderPassDepthAttachment(VkFormat format);
+    VkRenderPassCreateData prepareRenderPass(VkFormat format, VkFormat depth_format);
 
-    VkRenderPass createRenderPass(VkDevice device, VkFormat format);
+    VkRenderPass createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format);
 
-    VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, VkImageView image_view, VkExtent2D extent);
+    VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
     std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const VkSwapchainData &swapchain);
     //----------------------------------------
 
@@ -203,12 +201,21 @@ namespace Fresa::Graphics::VK
     //Images
     //----------------------------------------
     std::pair<VkImage, VmaAllocation> createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory,
-                                                  Vec2<> size, VkFormat format, VkImageLayout layout);
+                                                  Vec2<> size, VkFormat format, VkImageLayout layout, VkImageUsageFlags usage);
     void transitionImageLayout(VkDevice device, const VkCommandData &cmd, TextureData &tex, VkImageLayout new_layout);
     void copyBufferToImage(VkDevice device, const VkCommandData &cmd, BufferData &buffer, TextureData &tex);
 
     VkImageView createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
     VkSampler createSampler(VkDevice device);
+    //----------------------------------------
+
+
+    //Depth
+    //----------------------------------------
+    VkFormat getDepthFormat(VkPhysicalDevice physical_device);
+    bool hasDepthStencilComponent(VkFormat format);
+    TextureData createDepthTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
+                                   const VkCommandData &cmd, Vec2<> size);
     //----------------------------------------
 
 
