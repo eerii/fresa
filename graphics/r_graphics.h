@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -6,7 +6,7 @@
 
 #include "r_api.h"
 
-namespace Verse::Graphics
+namespace Fresa::Graphics
 {
     bool init();
     bool update();
@@ -25,7 +25,7 @@ namespace Verse::Graphics
     void draw(const DrawID draw_id, glm::mat4 model);
 }
 
-namespace Verse::Graphics::VerticesDefinitions {
+namespace Fresa::Graphics::VerticesDefinitions {
     inline const std::vector<VertexData> cube_vertices = {
         {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}, {0.0f, 0.0f}}, //Light
         {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}, {0.0f, 0.0f}}, //Teal

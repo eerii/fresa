@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -9,7 +9,7 @@
 
 #include "log.h"
 
-using namespace Verse;
+using namespace Fresa;
 
 bool Math::checkAABB(Rect2<> &a, Rect2<> &b) {
     return (a.x < b.x + b.w) and

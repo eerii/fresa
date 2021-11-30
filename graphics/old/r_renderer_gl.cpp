@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -22,7 +22,7 @@
 #define CLIPPING_FAR -1000.0f
 #define CLIPPING_NEAR 1000.0f
 
-using namespace Verse;
+using namespace Fresa;
 using namespace Graphics;
 using namespace glm;
 

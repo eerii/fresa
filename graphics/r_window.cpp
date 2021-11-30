@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -19,7 +19,7 @@
     #define RENDERER_NAME "OpenGL"
 #endif
 
-using namespace Verse;
+using namespace Fresa;
 using namespace Graphics;
 
 WindowData Graphics::Window::create(Vec2<> size, str name) {

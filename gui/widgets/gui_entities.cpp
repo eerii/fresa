@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -11,7 +11,7 @@
 #include "serialization.h"
 #include "input.h"
 
-using namespace Verse;
+using namespace Fresa;
 
 namespace {
     ui32 n = 0;

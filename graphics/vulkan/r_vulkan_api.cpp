@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -16,7 +16,7 @@
 
 #define MAX_POOL_SETS 1024
 
-using namespace Verse;
+using namespace Fresa;
 using namespace Graphics;
 
 namespace {

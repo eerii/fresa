@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -7,7 +7,7 @@
 #include "dtypes.h"
 #include <chrono>
 
-namespace Verse
+namespace Fresa
 {
     using Clock = std::chrono::steady_clock;
     using Duration = std::chrono::nanoseconds;

@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -8,7 +8,7 @@
 
 #include "config.h"
 
-namespace Verse::Serialization
+namespace Fresa::Serialization
 {
     void loadYAML(str name, YAML::Node &file);
     void writeYAML(str name, YAML::Node &file);
@@ -56,15 +56,15 @@ namespace Verse::Serialization
 namespace YAML
 {
     template<typename T>
-    struct convert<Verse::Vec2<T>> {
-      static Node encode(const Verse::Vec2<T>& rhs) {
+    struct convert<Fresa::Vec2<T>> {
+      static Node encode(const Fresa::Vec2<T>& rhs) {
         Node node;
         node.push_back(rhs.x);
         node.push_back(rhs.y);
         return node;
       }
 
-      static bool decode(const Node& node, Verse::Vec2<T>& rhs) {
+      static bool decode(const Node& node, Fresa::Vec2<T>& rhs) {
         if(!node.IsSequence() || node.size() != 2) {
           return false;
         }
@@ -76,8 +76,8 @@ namespace YAML
     };
 
     template<typename T>
-    struct convert<Verse::Rect2<T>> {
-      static Node encode(const Verse::Rect2<T>& rhs) {
+    struct convert<Fresa::Rect2<T>> {
+      static Node encode(const Fresa::Rect2<T>& rhs) {
         Node node;
         node.push_back(*rhs.x);
         node.push_back(*rhs.y);
@@ -86,12 +86,12 @@ namespace YAML
         return node;
       }
 
-      static bool decode(const Node& node, Verse::Rect2<T>& rhs) {
+      static bool decode(const Node& node, Fresa::Rect2<T>& rhs) {
         if(!node.IsSequence() || node.size() != 4) {
           return false;
         }
           
-        rhs = Verse::Rect2(node[0].as<T>(), node[1].as<T>(), node[2].as<T>(), node[3].as<T>());
+        rhs = Fresa::Rect2(node[0].as<T>(), node[1].as<T>(), node[2].as<T>(), node[3].as<T>());
         return true;
         }
     };

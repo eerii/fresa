@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -11,7 +11,7 @@
 #define TRANSITION_TIME 500
 #define MAX_PALETTES 1024
 
-using namespace Verse;
+using namespace Fresa;
 
 namespace {
     ui16 previous_palette = 0;
@@ -49,7 +49,7 @@ void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
 
 #endif
 
-void Verse::Graphics::Palette::switchPalette(Config &c) {
+void Fresa::Graphics::Palette::switchPalette(Config &c) {
     /*if (previous_palette == c.palette_index) {
         switch_palette_time = 0;
         transition_percent = 0.0;
@@ -72,7 +72,7 @@ void Verse::Graphics::Palette::switchPalette(Config &c) {
     previous_palette = c.palette_index;
 }
 
-void Verse::Graphics::Palette::setPaletteInterval(int w) {
+void Fresa::Graphics::Palette::setPaletteInterval(int w) {
     if (w == 0)
         return;
     palette_interval = 1.0f / (float)w;

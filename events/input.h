@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -225,7 +225,7 @@
     DEFINE_KEY(RightAlt, 230) \
     DEFINE_KEY(RightGui, 231) \
 
-namespace Verse
+namespace Fresa
 {
     namespace Input
     {
