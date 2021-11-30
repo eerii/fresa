@@ -13,7 +13,6 @@
 
 #include "gui.h"
 
-#include "r_shader.h"
 #include "r_palette.h"
 #include "r_window.h"
 #include "system_list.h"
@@ -72,7 +71,7 @@ namespace {
 //CREATE
 //-----------------------------------------
 void Graphics::Renderer::create(OpenGL *api, Config &c) {
-    log::debug("Creating renderer");
+    /*log::debug("Creating renderer");
     
     gl = api;
     
@@ -184,7 +183,7 @@ void Graphics::Renderer::create(OpenGL *api, Config &c) {
     glCheckError();
     
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glCheckError();
+    glCheckError();*/
 }
 //-----------------------------------------
 

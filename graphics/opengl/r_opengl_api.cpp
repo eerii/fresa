@@ -8,9 +8,10 @@
 #include "r_api.h"
 
 #include "r_window.h"
-#include "r_shader.h"
 
 #include <glm/ext.hpp>
+#include <fstream>
+#include <streambuf>
 
 using namespace Verse;
 using namespace Graphics;
@@ -51,7 +52,7 @@ OpenGL API::create(WindowData &win) {
     gl.context = GL::createContext(win);
     GL::GUI::initImGUI(gl, win);
     
-    gl.shaders["test"] = GL::createShaderData("test");
+    gl.shaders["test"] = GL::createShaderDataGL("test");
     gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
     gl.vao = GL::createVertexArray<VertexData>();
     deletion_queue.push_back([&gl](){glDeleteVertexArrays(1, &gl.vao.id_);});
@@ -101,7 +102,7 @@ SDL_GLContext GL::createContext(const WindowData &win) {
     return context;
 }
 
-ShaderData GL::createShaderData(str name) {
+ShaderData GL::createShaderDataGL(str name) {
     //---Prepare shaders---
     //      In this step we are loading the shader "name" and creating all the important elements it needs
     //      This includes reading the shader SPIR-V code, performing reflection on it and converting it to compatible GLSL
@@ -110,7 +111,7 @@ ShaderData GL::createShaderData(str name) {
     
     //: Shader data
     //      Returns a ShaderData object which contains all the locations as well as the SPIR-V code
-    data = Shader::createShaderData(name);
+    data = API::createShaderData(name);
     
     //: Options
     spirv_cross::CompilerGLSL::Options options;
@@ -129,7 +130,7 @@ ShaderData GL::createShaderData(str name) {
     
     //---Vertex shader---
     if (data.code.vert.has_value()) {
-        ShaderCompiler compiler = Shader::getShaderCompiler(data.code.vert.value());
+        ShaderCompiler compiler = API::getShaderCompiler(data.code.vert.value());
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -145,7 +146,7 @@ ShaderData GL::createShaderData(str name) {
     
     //---Fragment shader---
     if (data.code.frag.has_value()) {
-        ShaderCompiler compiler = Shader::getShaderCompiler(data.code.frag.value());
+        ShaderCompiler compiler = API::getShaderCompiler(data.code.frag.value());
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -169,7 +170,7 @@ ShaderData GL::createShaderData(str name) {
     }
     
     //: Compile program
-    ui32 pid = Shader::compileProgramGL(vert_source_glsl, frag_source_glsl);
+    ui32 pid = GL::compileProgram(vert_source_glsl, frag_source_glsl);
     data.pid = pid;
     log::graphics("Program (test) ID: %d", data.pid);
     glCheckError();
@@ -189,11 +190,118 @@ ShaderData GL::createShaderData(str name) {
     return data;
 }
 
+ui8 GL::compileShader(const char* source, ui32 shader_type) {
+    //CREATE SHADER FROM SOURCE
+    ui8 id = glCreateShader(shader_type);
+    glShaderSource(id, 1, &source, NULL);
+    //COMPILE SHADER
+    glCompileShader(id);
+
+    //ERROR HANDLING
+    int shader_compiled = GL_FALSE;
+    glGetShaderiv(id, GL_COMPILE_STATUS, &shader_compiled);
+    if(shader_compiled != GL_TRUE) {
+        std::cerr << "Shader Compilation Error, ID: " << id << std::endl;
+        
+        int log_len;
+        glGetShaderiv(id, GL_INFO_LOG_LENGTH, &log_len);
+        if (log_len > 0) {
+            char *log = (char*)malloc(log_len);
+            glGetShaderInfoLog(id, log_len, &log_len, log);
+            
+            std::cerr << "Shader compile log: " << log << std::endl;
+            free(log);
+        }
+        glDeleteShader(id);
+        return 0;
+    }
+    
+    log::graphics("Shader Compiled Correctly, ID: %d", id);
+    return id;
+}
+
+ui8 GL::compileProgram(str vert_source, str frag_source) {
+    ui8 pid = 0;
+    ui8 vert_shader = 0;
+    ui8 frag_shader = 0;
+
+    pid = (ui8)glCreateProgram();
+    if (pid == 0) {
+        log::error("Program creation failed");
+        return 0;
+    }
+
+    //COMPILE VERTEX SHADER
+    if (vert_source.size() > 0)
+        vert_shader = compileShader(vert_source.c_str(), GL_VERTEX_SHADER);
+    
+    //COMPILE FRAGMENT SHADER
+    if (frag_source.size() > 0)
+        frag_shader = compileShader(frag_source.c_str(), GL_FRAGMENT_SHADER);
+
+    //ATTACH TO PROGRAM
+    if (vert_source.size() > 0)
+        glAttachShader(pid, vert_shader);
+    if (frag_source.size() > 0)
+        glAttachShader(pid, frag_shader);
+    glLinkProgram(pid);
+    
+    int program_linked = GL_FALSE;
+    glGetProgramiv(pid, GL_LINK_STATUS, &program_linked);
+    if(program_linked != GL_TRUE) {
+        std::cerr << "Program Compilation Error, ID: " << pid << std::endl;
+        
+        int log_len;
+        glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &log_len);
+        if (log_len > 0) {
+            char* log = (char*)malloc(log_len * sizeof(char));
+            glGetProgramInfoLog(pid, log_len, &log_len, log);
+            
+            std::cerr << "Program compile log: " << log << std::endl;
+            free(log);
+        }
+        glDeleteProgram(pid);
+        return 0;
+    }
+    
+    //DELETE SHADERS
+    if(vert_source.size() > 0)
+        glDeleteShader(vert_shader);
+    if(frag_source.size() > 0)
+        glDeleteShader(frag_shader);
+    
+    GLenum e(glGetError());
+    while (e != GL_NO_ERROR) {
+       log::error("OpenGL Error during Compile Shader Program: %d");
+    }
+    
+    return pid;
+}
+
 void GL::validateShaderData(VAO vao_id, const std::map<str, ShaderData> &shaders) {
     //---Validate shaders---
     glBindVertexArray(vao_id);
-    for (const auto &[key, s] : shaders)
-        Shader::validate(s);
+    for (const auto &[key, s] : shaders) {
+        glValidateProgram(s.pid);
+        
+        int program_valid = GL_FALSE;
+        glGetProgramiv(s.pid, GL_VALIDATE_STATUS, &program_valid);
+        if(program_valid != GL_TRUE) {
+            int log_len;
+            glGetProgramiv(s.pid, GL_INFO_LOG_LENGTH, &log_len);
+            if (log_len > 0) {
+                char* log = (char*)malloc(log_len * sizeof(char));
+                glGetProgramInfoLog(s.pid, log_len, &log_len, log);
+                
+                std::cout << "[ ERROR ]: Program compile log: " << log << std::endl;
+                free(log);
+            }
+            glDeleteProgram(s.pid);
+            
+            log::error("Program Validation Error, ID: %d", s.pid);
+            return;
+        }
+    }
     glBindVertexArray(0);
 }
 
@@ -312,13 +420,26 @@ BufferData API::createIndexBuffer(const OpenGL &gl, const std::vector<ui16> &ind
 //Images
 //----------------------------------------
 
-void API::createTexture(OpenGL &gl, TextureData &tex, ui8* pixels) {
-    glGenTextures(1, &tex.id_);
+TextureID API::registerTexture(const OpenGL &gl, Vec2<> size, Channels ch, ui8* pixels) {
+    //---Create texture---
+    static TextureID id = 0;
+    do id++;
+    while (texture_data.find(id) != texture_data.end());
     
-    glBindTexture(GL_TEXTURE_2D, tex.id_);
+    texture_data[id] = TextureData{};
     
-    auto channels = [tex](){
-        switch(tex.ch) {
+    //: Parameters
+    texture_data[id].w = size.x;
+    texture_data[id].h = size.y;
+    texture_data[id].ch = (int)ch;
+    
+    //: Create
+    glGenTextures(1, &texture_data[id].id_);
+    
+    glBindTexture(GL_TEXTURE_2D, texture_data[id].id_);
+    
+    auto channels = [ch](){
+        switch(ch) {
             case 1:
                 #ifdef __EMSCRIPTEN__
                 return GL_LUMINANCE;
@@ -334,12 +455,14 @@ void API::createTexture(OpenGL &gl, TextureData &tex, ui8* pixels) {
         }
     }();
     
-    glTexImage2D(GL_TEXTURE_2D, 0, channels, tex.w, tex.h, 0, channels, GL_UNSIGNED_BYTE, pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, channels, size.x, size.y, 0, channels, GL_UNSIGNED_BYTE, pixels);
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     
     glBindTexture(GL_TEXTURE_2D, 0);
+    
+    return id;
 }
 
 //----------------------------------------
@@ -349,7 +472,7 @@ void API::createTexture(OpenGL &gl, TextureData &tex, ui8* pixels) {
 //Draw
 //----------------------------------------
 
-DrawBufferID API::registerDrawBuffer(OpenGL &gl, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
+DrawBufferID API::registerDrawBuffer(const OpenGL &gl, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
     //TODO: Comment
     static DrawBufferID id = 0;
     do id++;
@@ -378,6 +501,8 @@ DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer) {
     return id;
 }
 
+void API::updateDescriptorSets(const OpenGL &gl, const DrawData* draw) { }
+
 //----------------------------------------
 
 
@@ -393,10 +518,10 @@ void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
     //---Prepare for drawing---
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(gl.shaders.at("test").pid);
-    glBindVertexArray(gl.vao.id_);
+    glBindVertexArray(gl.vao.id_); //TODO: The VAO might need to be per Draw Buffer, and binding vertex buffers later might not be necessary
     
     //---Draw---
-    for (const auto &[tex, draw] : API::draw_queue) {
+    for (const auto &[tex, draw] : API::draw_queue_textures) {
         //...Todo bind texture
         for (const auto &item : draw) {
             //: Bind vertex and index buffers
@@ -405,7 +530,7 @@ void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
             
             //...Uniforms (improve)
             UniformBufferObject ubo{};
-            ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            ubo.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
             ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
             ubo.model = item.model;
             
@@ -429,7 +554,7 @@ void API::renderTest(OpenGL &gl, WindowData &win, RenderData &render) {
     SDL_GL_SwapWindow(win.window);
     
     //---Clear drawing queue---
-    API::draw_queue.clear();
+    API::draw_queue_textures.clear();
 }
 
 //----------------------------------------

@@ -2,7 +2,7 @@
 //by jose pazos perez
 //all rights reserved uwu
 
-#include "r_shader.h"
+#include "r_api.h"
 
 #include <fstream>
 #include <vector>
@@ -13,7 +13,9 @@
 using namespace Verse;
 using namespace Graphics;
 
-std::vector<char> Shader::readSPIRV(std::string filename) {
+//Common API calls for Vulkan and OpenGL
+
+std::vector<char> API::readSPIRV(std::string filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
     if (!file.is_open())
@@ -30,7 +32,7 @@ std::vector<char> Shader::readSPIRV(std::string filename) {
     return buffer;
 }
 
-ShaderCode Shader::readSPIRV(const ShaderLocations &locations) {
+ShaderCode API::readSPIRV(const ShaderLocations &locations) {
     ShaderCode code;
     
     if (locations.vert.has_value())
@@ -45,7 +47,7 @@ ShaderCode Shader::readSPIRV(const ShaderLocations &locations) {
     return code;
 }
 
-ShaderData Shader::createShaderData(str name) {
+ShaderData API::createShaderData(str name) {
     //---Shader data---
     //      Creates a shader data object from a list of locations for the different stages
     //      First it saves the locations, then it reads the code, and then gets the stage create info
@@ -65,12 +67,12 @@ ShaderData Shader::createShaderData(str name) {
     if (std::filesystem::exists(geometry_location))
         data.locations.geometry = geometry_location.string();
     
-    data.code = Shader::readSPIRV(data.locations);
+    data.code = API::readSPIRV(data.locations);
     
     return data;
 }
 
-ShaderCompiler Shader::getShaderCompiler(const std::vector<char> &code) {
+ShaderCompiler API::getShaderCompiler(const std::vector<char> &code) {
     std::vector<ui32> spirv;
     
     for (int i = 0; i < code.size() / 4; i++) {
