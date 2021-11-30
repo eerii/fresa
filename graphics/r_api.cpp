@@ -5,7 +5,6 @@
 #include "r_api.h"
 
 #include <fstream>
-#include <vector>
 #include <filesystem>
 
 #include "log.h"

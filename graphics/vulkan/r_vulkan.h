@@ -11,14 +11,7 @@
 
 #include "vk_mem_alloc.h"
 
-#include <vector>
-#include <map>
-#include <optional>
-#include <array>
-#include <glm/glm.hpp>
-
-#include "r_bufferdata.h"
-#include "r_shaderdata.h"
+#include "r_dtypes.h"
 
 namespace Verse::Graphics
 {

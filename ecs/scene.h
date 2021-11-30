@@ -7,8 +7,6 @@
 #include "ecs.h"
 #include "cpool.h"
 
-#include <vector>
-
 namespace Verse
 {
     struct Scene{

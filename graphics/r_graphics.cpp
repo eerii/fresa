@@ -8,7 +8,6 @@
 
 #include "ftime.h"
 #include <filesystem>
-#include <glm/gtc/matrix_transform.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -20,7 +19,6 @@ using namespace Graphics;
 
 namespace {
     WindowData win;
-    RenderData render;
     GraphicsAPI api;
 
     std::map<str, TextureID> texture_locations{};
@@ -37,14 +35,6 @@ bool Graphics::init() {
     
     //Create renderer api
     api = API::create(win);
-    
-    //Calculate resolution and scale
-    render.resolution = Conf::window_size;
-    Vec2<float> ratios = win.size.to<float>() / render.resolution.to<float>();
-    render.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
-    
-    //V-Sync
-    render.vsync = true;
     
     return true;
 }
@@ -120,7 +110,7 @@ bool Graphics::update() {
     draw(test_draw_id_2, model2);
     
     //: Render
-    API::renderTest(api, win, render);
+    API::renderTest(api, win);
     
     return true;
 }
@@ -136,8 +126,8 @@ void Graphics::onResize(Vec2<> size) {
     win.size = size;
     
     //Adjust render scale
-    Vec2<float> ratios = win.size.to<float>() / render.resolution.to<float>();
-    render.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
+    Vec2<float> ratios = win.size.to<float>() / win.resolution.to<float>();
+    win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
     
     //GUI adjustment
     #ifndef DISABLE_GUI

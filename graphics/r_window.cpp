@@ -50,6 +50,14 @@ WindowData Graphics::Window::create(Vec2<> size, str name) {
     win.refresh_rate = getRefreshRate(win);
     log::graphics("Refresh Rate: %d", win.refresh_rate);
     
+    //Calculate resolution and scale
+    win.resolution = Conf::window_size;
+    Vec2<float> ratios = win.size.to<float>() / win.resolution.to<float>();
+    win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
+    
+    //V-Sync
+    win.vsync = true;
+    
     return win;
 }
 

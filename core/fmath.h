@@ -5,7 +5,6 @@
 #pragma once
 
 #include "dtypes.h"
-#include <glm/glm.hpp>
 
 namespace Verse::Math
 {
