@@ -10,10 +10,6 @@
 #include "r_vulkan_api.h"
 #include "r_api.h"
 
-#include "r_shader.h"
-#include "r_vertex.h"
-#include "r_graphics.h"
-
 #include "config.h"
 
 #include <set>
@@ -96,8 +92,8 @@ Vulkan API::create(WindowData &win) {
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //---Shader data---
-    vk.shader = Shader::createShaderData("test");
-    vk.shader.stages = Shader::createShaderStages(vk.device, vk.shader.code);
+    vk.shader = API::createShaderData("test");
+    vk.shader.stages = VK::createShaderStages(vk.device, vk.shader.code);
     
     //---Descriptor pool---
     vk.descriptors.layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
@@ -227,7 +223,7 @@ ui16 VK::ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physical_devi
     //---Queues---
     //      Different execution ports of the GPU, command buffers are submitted here
     //      There are different spetialized queue families, such as present and graphics
-    QueueIndices queue_indices = getQueueFamilies(surface, physical_device);
+    VkQueueIndices queue_indices = getQueueFamilies(surface, physical_device);
     if (queue_indices.compute.has_value())
         score += 16;
     if (not queue_indices.present.has_value())
@@ -255,7 +251,7 @@ ui16 VK::ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physical_devi
     
     //---Swapchain---
     //      Make sure that the device supports swapchain presentation
-    VK::SwapchainSupportData swapchain_support = VK::getSwapchainSupport(surface, physical_device);
+    VkSwapchainSupportData swapchain_support = VK::getSwapchainSupport(surface, physical_device);
     if (swapchain_support.formats.empty() or swapchain_support.present_modes.empty())
         return 0;
     
@@ -337,7 +333,7 @@ VkFormat VK::chooseSupportedFormat(VkPhysicalDevice physical_device, const std::
     return candidates[0];
 }
 
-VK::QueueIndices VK::getQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
+VkQueueIndices VK::getQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
     //---Queues---
     //      Different execution ports of the GPU, command buffers are submitted here
     //      There are different spetialized queue families, such as present, graphics and compute
@@ -351,13 +347,13 @@ VK::QueueIndices VK::getQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice phy
     
     
     //---Select desired queues---
-    //      Using the QueueIndices struct, which has 3 std::optional indices, for:
+    //      Using the VkQueueIndices struct, which has 3 std::optional indices, for:
     //          - Graphics: pipeline operations, including vertex/fragment shaders and drawing
     //          - Present: send framebuffers to the screen
     //          - Compute: for compute shaders
     //      Not all queues are needed, and in the future more queues can be created for multithread support
     //      Made so present and graphics queue can be the same
-    QueueIndices queue_indices;
+    VkQueueIndices queue_indices;
     for (int i = 0; i < queue_family_list.size(); i++) {
         if (not queue_indices.present.has_value()) {
             VkBool32 present_support = false;
@@ -397,7 +393,7 @@ VK::QueueIndices VK::getQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice phy
 }
 
 VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeatures physical_device_features,
-                          const QueueIndices &queue_indices) {
+                          const VkQueueIndices &queue_indices) {
     //---Logical device---
     //      Vulkan GPU driver, it encapsulates the physical device
     //      Needs to be passed to almost every Vulkan function
@@ -458,8 +454,8 @@ VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeat
     return device;
 }
 
-VK::QueueData VK::getQueues(VkDevice device, const QueueIndices &queue_indices) {
-    VK::QueueData queues;
+VkQueueData VK::getQueues(VkDevice device, const VkQueueIndices &queue_indices) {
+    VkQueueData queues;
     
     if (queue_indices.graphics.has_value()) {
         vkGetDeviceQueue(device, queue_indices.graphics.value(), 0, &queues.graphics);
@@ -524,8 +520,8 @@ VmaAllocator VK::createMemoryAllocator(VkDevice device, VkPhysicalDevice physica
 //Swapchain
 //----------------------------------------
 
-VK::SwapchainSupportData VK::getSwapchainSupport(VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
-    SwapchainSupportData swapchain_support;
+VkSwapchainSupportData VK::getSwapchainSupport(VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
+    VkSwapchainSupportData swapchain_support;
     
     //---Surface capabilities---
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &swapchain_support.capabilities);
@@ -603,7 +599,7 @@ VkExtent2D VK::selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const Win
 }
 
 VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
-                                    const QueueIndices &queue_indices, const WindowData &win) {
+                                    const VkQueueIndices &queue_indices, const WindowData &win) {
     //---Swapchain---
     //      List of images that will get drawn to the screen by the render pipeline
     //      Swapchain data:
@@ -618,7 +614,7 @@ VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_d
     
     
     //---Format, present mode and extent---
-    SwapchainSupportData support = getSwapchainSupport(surface, physical_device);
+    VkSwapchainSupportData support = getSwapchainSupport(surface, physical_device);
     VkSurfaceFormatKHR surface_format = selectSwapSurfaceFormat(support.formats);
     swapchain.format = surface_format.format;
     VkPresentModeKHR present_mode = selectSwapPresentMode(support.present_modes);
@@ -777,7 +773,7 @@ void VK::createDepthResources(Vulkan &vk) {
 //Commands
 //----------------------------------------
 
-std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const QueueIndices &queue_indices, std::vector<str> keys,
+std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const VkQueueIndices &queue_indices, std::vector<str> keys,
                                                     std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags) {
     //---Command pools---
     //      Command buffers can be allocated inside them
@@ -1017,9 +1013,9 @@ VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format) {
     return attachment;
 }
 
-VK::RenderPassCreateData VK::prepareRenderPass(VkFormat format) {
+VkRenderPassCreateData VK::prepareRenderPass(VkFormat format) {
     //---Combine all data required to create a render pass---
-    RenderPassCreateData data;
+    VkRenderPassCreateData data;
     
     data.subpasses = { VK::createRenderSubpass() };
     data.dependencies = { VK::createRenderSubpassDependency() };
@@ -1035,7 +1031,7 @@ VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format) {
     //      It will render to a framebuffer
     VkRenderPass render_pass;
     
-    RenderPassCreateData render_pass_data = VK::prepareRenderPass(format);
+    VkRenderPassCreateData render_pass_data = VK::prepareRenderPass(format);
     
     VkRenderPassCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -1097,6 +1093,103 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const VkSwapc
     });
     log::graphics("Created all vulkan framebuffers");
     return framebuffers;
+}
+
+//----------------------------------------
+
+
+
+//Shaders
+//----------------------------------------
+
+VkShaderModule VK::createShaderModule(VkDevice device, const std::vector<char> &code) {
+    VkShaderModuleCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.codeSize = code.size();
+    create_info.pCode = reinterpret_cast<const ui32*>(code.data());
+    
+    VkShaderModule shader_module;
+    if (vkCreateShaderModule(device, &create_info, nullptr, &shader_module) != VK_SUCCESS)
+        log::error("Error creating a Vulkan Shader Module");
+        
+    return shader_module;
+}
+
+ShaderStages VK::createShaderStages(VkDevice device, const ShaderCode &code) {
+    ShaderStages stages;
+    
+    if (code.vert.has_value())
+        stages.vert = createShaderModule(device, code.vert.value());
+    if (code.frag.has_value())
+        stages.frag = createShaderModule(device, code.frag.value());
+    if (code.compute.has_value())
+        stages.compute = createShaderModule(device, code.compute.value());
+    if (code.geometry.has_value())
+        stages.geometry = createShaderModule(device, code.geometry.value());
+    
+    return stages;
+}
+
+std::vector<VkPipelineShaderStageCreateInfo> VK::getShaderStageInfo(const ShaderStages &stages) {
+    std::vector<VkPipelineShaderStageCreateInfo> info;
+    
+    if (stages.vert.has_value()) {
+        VkPipelineShaderStageCreateInfo vert_stage_info = {};
+        
+        vert_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vert_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vert_stage_info.module = stages.vert.value();
+        vert_stage_info.pName = "main";
+        vert_stage_info.pSpecializationInfo = nullptr; //You can customize shader variable values at compile time
+        
+        info.push_back(vert_stage_info);
+    }
+    
+    if (stages.frag.has_value()) {
+        VkPipelineShaderStageCreateInfo frag_stage_info = {};
+        
+        frag_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        frag_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        frag_stage_info.module = stages.frag.value();
+        frag_stage_info.pName = "main";
+        
+        info.push_back(frag_stage_info);
+    }
+    
+    if (stages.compute.has_value()) {
+        VkPipelineShaderStageCreateInfo compute_stage_info = {};
+        
+        compute_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        compute_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+        compute_stage_info.module = stages.compute.value();
+        compute_stage_info.pName = "main";
+        
+        info.push_back(compute_stage_info);
+    }
+    
+    if (stages.geometry.has_value()) {
+        VkPipelineShaderStageCreateInfo geometry_stage_info = {};
+        
+        geometry_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        geometry_stage_info.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
+        geometry_stage_info.module = stages.geometry.value();
+        geometry_stage_info.pName = "main";
+        
+        info.push_back(geometry_stage_info);
+    }
+    
+    return info;
+}
+
+void VK::destroyShaderStages(VkDevice device, const ShaderStages &stages) {
+    if (stages.vert.has_value())
+        vkDestroyShaderModule(device, stages.vert.value(), nullptr);
+    if (stages.frag.has_value())
+        vkDestroyShaderModule(device, stages.frag.value(), nullptr);
+    if (stages.compute.has_value())
+        vkDestroyShaderModule(device, stages.compute.value(), nullptr);
+    if (stages.geometry.has_value())
+        vkDestroyShaderModule(device, stages.geometry.value(), nullptr);
 }
 
 //----------------------------------------
@@ -1171,15 +1264,15 @@ VkSyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
 //Pipeline
 //----------------------------------------
 
-VK::PipelineCreateInfo VK::preparePipelineCreateInfo(VkExtent2D extent) {
+VkPipelineCreateInfo VK::preparePipelineCreateInfo(VkExtent2D extent) {
     //---Preprare pipeline info---
     //      Pipelines are huge objects in vulkan, and building them is both complicated and expensive
     //      There is a lot of configuration needed, so this with all the helper functions attempt to break it down into manageable components
     //      Each function explains itself, so refer to them for reference
-    PipelineCreateInfo info;
+    VkPipelineCreateInfo info;
     
-    info.vertex_input_binding_description = Vertex::getBindingDescriptionVK<VertexData>();
-    info.vertex_input_attribute_descriptions = Vertex::getAttributeDescriptionsVK<VertexData>();
+    info.vertex_input_binding_description = VK::getBindingDescriptions<VertexData>();
+    info.vertex_input_attribute_descriptions = VK::getAttributeDescriptions<VertexData>();
     info.vertex_input = preparePipelineCreateInfoVertexInput(info.vertex_input_binding_description, info.vertex_input_attribute_descriptions);
     
     info.input_assembly = preparePipelineCreateInfoInputAssembly();
@@ -1438,12 +1531,12 @@ VkPipeline VK::createGraphicsPipeline(VkDevice device, const VkPipelineLayout &l
     create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     
     //: Shader stages
-    std::vector<VkPipelineShaderStageCreateInfo> stage_info = Graphics::Shader::getShaderStageInfo(stages);
+    std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(stages);
     create_info.stageCount = (int)stage_info.size();
     create_info.pStages = stage_info.data();
     
     //: Pipeline info
-    PipelineCreateInfo pipeline_create_info = preparePipelineCreateInfo(swapchain.extent);
+    VkPipelineCreateInfo pipeline_create_info = preparePipelineCreateInfo(swapchain.extent);
     create_info.pVertexInputState = &pipeline_create_info.vertex_input;
     create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
     create_info.pViewportState = &pipeline_create_info.viewport_state;
@@ -1632,7 +1725,7 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const Shade
     
     //---Vertex shader---
     if (code.vert.has_value()) {
-        ShaderCompiler compiler = Shader::getShaderCompiler(code.vert.value());
+        ShaderCompiler compiler = API::getShaderCompiler(code.vert.value());
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -1647,7 +1740,7 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const Shade
     
     //---Fragment shader---
     if (code.frag.has_value()) {
-        ShaderCompiler compiler = Shader::getShaderCompiler(code.frag.value());
+        ShaderCompiler compiler = API::getShaderCompiler(code.frag.value());
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -1769,7 +1862,7 @@ std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescr
     return descriptor_sets;
 }
 
-VK::WriteDescriptorBuffer VK::createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer) {
+WriteDescriptorBuffer VK::createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer) {
     WriteDescriptorBuffer write_descriptor{};
     
     write_descriptor.info.buffer = uniform_buffer.buffer;
@@ -1789,7 +1882,7 @@ VK::WriteDescriptorBuffer VK::createWriteDescriptorUniformBuffer(VkDescriptorSet
     return write_descriptor;
 }
 
-VK::WriteDescriptorImage VK::createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,
+WriteDescriptorImage VK::createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,
                                                                        VkImageView image_view, VkSampler sampler) {
     WriteDescriptorImage write_descriptor{};
     
@@ -2303,7 +2396,7 @@ void API::clean(Vulkan &vk) {
     deletion_queue_size_change.clear();
     
     //: Delete shader stages
-    Shader::destroyShaderStages(vk.device, vk.shader.stages);
+    VK::destroyShaderStages(vk.device, vk.shader.stages);
     
     //: Delete program resources
     for (auto it = deletion_queue_program.rbegin(); it != deletion_queue_program.rend(); ++it)

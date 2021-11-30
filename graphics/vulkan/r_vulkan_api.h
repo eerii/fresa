@@ -12,6 +12,7 @@
 #include "r_vertexdata.h"
 #include "r_bufferdata.h"
 #include "r_drawdata.h"
+#include "r_shaderdata.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
@@ -30,9 +31,9 @@ namespace Verse::Graphics::VK
                                    VkImageTiling tiling, VkFormatFeatureFlags features);
 
     VkDevice createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeatures physical_device_features,
-                          const QueueIndices &queue_indices);
-    QueueIndices getQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
-    QueueData getQueues(VkDevice device, const QueueIndices &queue_indices);
+                          const VkQueueIndices &queue_indices);
+    VkQueueIndices getQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
+    VkQueueData getQueues(VkDevice device, const VkQueueIndices &queue_indices);
     //----------------------------------------
 
 
@@ -44,14 +45,14 @@ namespace Verse::Graphics::VK
 
     //Swapchain
     //----------------------------------------
-    SwapchainSupportData getSwapchainSupport(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
+    VkSwapchainSupportData getSwapchainSupport(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
     
     VkSurfaceFormatKHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &formats);
     VkPresentModeKHR selectSwapPresentMode(const std::vector<VkPresentModeKHR> &modes);
     VkExtent2D selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const WindowData &win);
     
     VkSwapchainData createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
-                                    const QueueIndices &queue_indices, const WindowData &win);
+                                    const VkQueueIndices &queue_indices, const WindowData &win);
     void recreateSwapchain(Vulkan &vk, const WindowData &win);
 
     VkFormat getDepthFormat(Vulkan &vk);
@@ -61,7 +62,7 @@ namespace Verse::Graphics::VK
 
     //Commands
     //----------------------------------------
-    std::map<str, VkCommandPool> createCommandPools(VkDevice device, const QueueIndices &queue_indices, std::vector<str> keys,
+    std::map<str, VkCommandPool> createCommandPools(VkDevice device, const VkQueueIndices &queue_indices, std::vector<str> keys,
                                                     std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags);
 
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd);
@@ -74,12 +75,65 @@ namespace Verse::Graphics::VK
     //----------------------------------------
 
 
+    //Shaders
+    //----------------------------------------
+    VkShaderModule createShaderModule(VkDevice device, const std::vector<char> &code);
+    ShaderStages createShaderStages(VkDevice device, const ShaderCode &code);
+
+    std::vector<VkPipelineShaderStageCreateInfo> getShaderStageInfo(const ShaderStages &stages);
+    void destroyShaderStages(VkDevice device, const ShaderStages &stages);
+
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    std::vector<VkVertexInputBindingDescription> getBindingDescriptions() {
+        std::vector<VkVertexInputBindingDescription> binding_descriptions;
+        
+        VkVertexInputBindingDescription v;
+        v.binding = 0;
+        v.stride = sizeof(V);
+        v.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        
+        binding_descriptions.push_back(v);
+        
+        return binding_descriptions;
+    }
+
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+        std::vector<VertexAttributeDescription> attr_v = API::getAttributeDescriptions<V>();
+        std::vector<VkVertexInputAttributeDescription> attr;
+        attr.resize(attr_v.size());
+        std::transform(attr_v.begin(), attr_v.end(), attr.begin(), [](const auto &a){
+            VkVertexInputAttributeDescription v;
+            v.binding = a.binding;
+            v.location = a.location;
+            v.offset = a.offset;
+            switch (a.format) {
+                case VERTEX_FORMAT_R_F:
+                    v.format = VK_FORMAT_R32_SFLOAT; break;
+                case VERTEX_FORMAT_RG_F:
+                    v.format = VK_FORMAT_R32G32_SFLOAT; break;
+                case VERTEX_FORMAT_RGB_F:
+                    v.format = VK_FORMAT_R32G32B32_SFLOAT; break;
+                case VERTEX_FORMAT_RGBA_F:
+                    v.format = VK_FORMAT_R32G32B32A32_SFLOAT; break;
+                default:
+                    v.format = VK_FORMAT_R32_SFLOAT; break;
+            }
+            return v;
+        });
+        return attr;
+        //Expand to allow multiple vertex descriptions, use it so the user can pass multiple
+        //template arguments and they will be created for each of them
+    }
+    //----------------------------------------
+
+
     //Render pass
     //----------------------------------------
     VkSubpassDescription createRenderSubpass();
     VkSubpassDependency createRenderSubpassDependency();
     VkAttachmentDescription createRenderPassAttachment(VkFormat format);
-    RenderPassCreateData prepareRenderPass(VkFormat format);
+    VkRenderPassCreateData prepareRenderPass(VkFormat format);
 
     VkRenderPass createRenderPass(VkDevice device, VkFormat format);
 
@@ -96,7 +150,7 @@ namespace Verse::Graphics::VK
 
     //Pipeline
     //----------------------------------------
-    PipelineCreateInfo preparePipelineCreateInfo(VkExtent2D extent);
+    VkPipelineCreateInfo preparePipelineCreateInfo(VkExtent2D extent);
     VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
         const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes);
     VkPipelineInputAssemblyStateCreateInfo preparePipelineCreateInfoInputAssembly();

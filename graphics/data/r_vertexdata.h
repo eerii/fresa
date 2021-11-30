@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "log.h"
 #include "reflection.h"
 
 #include <glm/glm.hpp>
@@ -39,4 +40,40 @@ namespace Verse::Graphics
         std::vector<VertexAttributeDescription> attributes;
     };
     #endif
+
+    namespace API
+    {
+        template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+        std::vector<VertexAttributeDescription> getAttributeDescriptions() {
+            std::vector<VertexAttributeDescription> attribute_descriptions = {};
+            
+            log::graphics("");
+            log::graphics("Creating attribute descriptions...");
+            
+            ui32 offset = 0;
+            Reflection::forEach(V{}, [&](auto &&x, ui8 level, const char* name){
+                if (level == 1) {
+                    int i = (int)attribute_descriptions.size();
+                    attribute_descriptions.resize(i + 1);
+                    
+                    attribute_descriptions[i].binding = 0;
+                    attribute_descriptions[i].location = i;
+                    
+                    int size = sizeof(x);
+                    if (size % 4 != 0 or size < 4 or size > 16)
+                        log::error("Vertex data has an invalid size %d", size);
+                    attribute_descriptions[i].format = (VertexFormat)(size / 4);
+                    
+                    attribute_descriptions[i].offset = offset;
+                    
+                    log::graphics(" - Attribute %s [%d] - Format : %d - Size : %d - Offset %d", name, i, attribute_descriptions[i].format, size, offset);
+                    
+                    offset += sizeof(x);
+                }
+            });
+            
+            log::graphics("");
+            return attribute_descriptions;
+        }
+    }
 }

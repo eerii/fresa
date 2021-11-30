@@ -13,8 +13,10 @@
 
 #include <vector>
 #include <map>
+#include <optional>
+#include <array>
+#include <glm/glm.hpp>
 
-#include "r_vulkan_datatypes.h"
 #include "r_bufferdata.h"
 #include "r_shaderdata.h"
 
@@ -40,12 +42,26 @@ namespace Verse::Graphics
         std::vector<VkFramebuffer> framebuffers;
     };
 
+    struct VkQueueIndices {
+        std::optional<ui32> graphics;
+        std::optional<ui32> present;
+        std::optional<ui32> transfer;
+        std::optional<ui32> compute;
+    };
+
+    struct VkQueueData {
+        VkQueue graphics;
+        VkQueue present;
+        VkQueue transfer;
+        VkQueue compute;
+    };
+
     struct VkCommandData {
         std::map<str, VkCommandPool> command_pools;
         std::map<str, std::vector<VkCommandBuffer>> command_buffers;
         
-        VK::QueueIndices queue_indices;
-        VK::QueueData queues;
+        VkQueueIndices queue_indices;
+        VkQueueData queues;
     };
 
     struct VkSyncData {
@@ -61,6 +77,45 @@ namespace Verse::Graphics
     struct VkDescriptorSetData {
         VkDescriptorSetLayout layout;
         std::vector<VkDescriptorPool> pools;
+    };
+
+    struct VkSwapchainSupportData {
+        VkSurfaceCapabilitiesKHR capabilities;
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR> present_modes;
+    };
+
+    struct VkRenderPassCreateData {
+        std::vector<VkSubpassDescription> subpasses;
+        std::vector<VkSubpassDependency> dependencies;
+        std::vector<VkAttachmentDescription> attachments;
+    };
+
+    struct VkPipelineCreateInfo {
+        VkPipelineVertexInputStateCreateInfo vertex_input;
+        VkPipelineInputAssemblyStateCreateInfo input_assembly;
+        VkPipelineRasterizationStateCreateInfo rasterizer;
+        VkPipelineMultisampleStateCreateInfo multisampling;
+        VkPipelineDepthStencilStateCreateInfo depth_stencil;
+        VkPipelineColorBlendAttachmentState color_blend_attachment;
+        VkPipelineColorBlendStateCreateInfo color_blend_state;
+        
+        VkPipelineViewportStateCreateInfo viewport_state;
+        VkViewport viewport;
+        VkRect2D scissor;
+        
+        std::vector<VkVertexInputBindingDescription> vertex_input_binding_description;
+        std::vector<VkVertexInputAttributeDescription> vertex_input_attribute_descriptions;
+    };
+
+    struct WriteDescriptorBuffer {
+        VkDescriptorBufferInfo info;
+        VkWriteDescriptorSet write;
+    };
+
+    struct WriteDescriptorImage {
+        VkDescriptorImageInfo info;
+        VkWriteDescriptorSet write;
     };
 
     struct Vulkan {

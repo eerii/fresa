@@ -11,8 +11,7 @@
 #include "r_windowdata.h"
 #include "r_renderdata.h"
 #include "r_shaderdata.h"
-
-#include "r_vertex.h"
+#include "r_vertexdata.h"
 
 namespace Verse::Graphics::GL
 {
@@ -21,7 +20,13 @@ namespace Verse::Graphics::GL
     //Initialization
     //----------------------------------------
     SDL_GLContext createContext(const WindowData &win);
-    ShaderData createShaderData(str name);
+    //----------------------------------------
+
+    //Shaders
+    //----------------------------------------
+    ShaderData createShaderDataGL(str name);
+    ui8 compileShader(const char* source, ui32 shader_type);
+    ui8 compileProgram(str vert_source = "", str frag_source = "");
     void validateShaderData(VAO vao_id, const std::map<str, ShaderData> &shaders);
     //----------------------------------------
 
@@ -33,7 +38,7 @@ namespace Verse::Graphics::GL
         //      Stores the layout of per vertex data that will be passed to the shader later
         VertexArrayData vao;
         glGenVertexArrays(1, &vao.id_);
-        vao.attributes = Vertex::getAttributeDescriptions<V>();
+        vao.attributes = API::getAttributeDescriptions<V>();
         glCheckError();
         return vao;
     }
@@ -52,7 +57,6 @@ namespace Verse::Graphics::GL
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
     };
     //----------------------------------------
-
 
     //GUI
     //----------------------------------------

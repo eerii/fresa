@@ -11,6 +11,8 @@
 #include "r_renderdata.h"
 #include "r_drawdata.h"
 #include "r_bufferdata.h"
+#include "r_shaderdata.h"
+#include "r_vertexdata.h"
 
 #include "log.h"
 
@@ -40,6 +42,11 @@ namespace Verse::Graphics::API
     inline std::map<const TextureData*, std::vector<DrawQueueInfo>> draw_queue_textures{};
 
     void updateDescriptorSets(const GraphicsAPI &api, const DrawData* draw);
+
+    std::vector<char> readSPIRV(std::string filename);
+    ShaderCode readSPIRV(const ShaderLocations &locations);
+    ShaderData createShaderData(str name);
+    ShaderCompiler getShaderCompiler(const std::vector<char> &code);
 
     void resize(GraphicsAPI &api, WindowData &win);
 

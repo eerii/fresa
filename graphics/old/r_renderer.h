@@ -11,7 +11,6 @@
 #include "r_api.h"
 
 #include "config.h"
-#include "r_vertex.h"
 
 #define BORDER_WIDTH 2
 
