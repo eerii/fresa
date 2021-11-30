@@ -14,14 +14,6 @@
 using namespace Fresa;
 using namespace Graphics;
 
-//TODO: ->
-/*
- Refactor OpenGL, make all functions return something like vulkan, and clean dependencies
- Clean graphics build log
- Draw takes a shader as parameter
- Resize window opengl context
- */
-
 namespace {
     std::vector<std::function<void()>> deletion_queue;
 }

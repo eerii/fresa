@@ -26,9 +26,7 @@ namespace Fresa::Graphics
         std::vector<VkImage> images;
         std::vector<VkImageView> image_views;
         
-        VkImage depth_image;
-        VkDeviceMemory depth_image_memory;
-        VkImageView depth_image_view;
+        TextureData depth_texture;
         
         VkRenderPass main_render_pass;
         

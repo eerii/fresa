@@ -78,10 +78,15 @@ bool Graphics::update() {
     float t = sec(time() - start_time);
     
     //Draw something for test (This would be called outside of the renderer)
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.8f * std::sin(t * 1.570796f)));
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.0f + 0.8f * std::sin(t * 1.570796f)));
     model = glm::scale(model, glm::vec3(0.6f, 0.6f, 0.6f));
     model = glm::rotate(model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
     draw(test_draw_id, model);
+    
+    glm::mat4 model2 = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1.0f + 0.8f * std::sin(t * 1.570796f + 1.570796f)));
+    model2 = glm::scale(model2, glm::vec3(0.5f, 0.5f, 0.5f));
+    model2 = glm::rotate(model2, -t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
+    draw(test_draw_id_2, model2);
     
     glm::mat4 model3 = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
     double s = 0.1 * std::sin(t * 0.25f * 1.570796) + 0.2;
@@ -103,11 +108,6 @@ bool Graphics::update() {
         draw(id, model);
         i++;
     }
-    
-    glm::mat4 model2 = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.8f * std::sin(t * 1.570796f + 1.570796f)));
-    model2 = glm::scale(model2, glm::vec3(0.6f, 0.6f, 0.6f));
-    model2 = glm::rotate(model2, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
-    draw(test_draw_id_2, model2);
     
     //: Render
     API::renderTest(api, win);
