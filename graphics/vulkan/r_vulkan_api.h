@@ -165,6 +165,8 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
     BufferData createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory);
     void copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
+    BufferData createVertexBuffer(const GraphicsAPI &api, const std::vector<Graphics::VertexData> &vertices);
+    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
     //----------------------------------------
 
 

@@ -42,7 +42,6 @@ namespace Fresa::Graphics
         std::map<str, ShaderData> shaders;
         
         FramebufferData framebuffer;
-        VertexArrayData vao;
         
         #ifndef DISABLE_GUI
         ImGuiContext* imgui_context;

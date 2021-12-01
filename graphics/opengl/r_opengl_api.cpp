@@ -44,10 +44,10 @@ OpenGL API::create(WindowData &win) {
     
     gl.shaders["test"] = GL::createShaderDataGL("test");
     gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
-    gl.vao = GL::createVertexArray<VertexData>();
-    deletion_queue.push_back([&gl](){glDeleteVertexArrays(1, &gl.vao.id_);});
     
-    GL::validateShaderData(gl.vao.id_, gl.shaders);
+    VertexArrayData temp_vao = GL::createVertexArray<VertexData>(); //Needed for shader validation
+    deletion_queue.push_back([temp_vao](){glDeleteVertexArrays(1, &temp_vao.id_);});
+    GL::validateShaderData(temp_vao.id_, gl.shaders);
     
     return gl;
 }
@@ -268,7 +268,7 @@ ui8 GL::compileProgram(str vert_source, str frag_source) {
     return pid;
 }
 
-void GL::validateShaderData(VAO vao_id, const std::map<str, ShaderData> &shaders) {
+void GL::validateShaderData(ui32 vao_id, const std::map<str, ShaderData> &shaders) {
     //---Validate shaders---
     glBindVertexArray(vao_id);
     for (const auto &[key, s] : shaders) {
@@ -364,16 +364,17 @@ BufferData GL::createBuffer(size_t size, GLenum type, GLenum usage) {
     return buffer;
 }
 
-BufferData API::createVertexBuffer(const OpenGL &gl, const std::vector<Graphics::VertexData> &vertices) {
+std::pair<BufferData, ui32> GL::createVertexBuffer(const OpenGL &gl, const std::vector<Graphics::VertexData> &vertices) {
     //---Vertex buffer---
-    //      It holds the vertices for the vertex shader to read, as well as the attribute specification
+    //      It holds the vertices for the vertex shader to read
     //      It needs to be tied to the vertex array object (vao)
-    BufferData buffer = GL::createBuffer();
+    VertexArrayData vao = GL::createVertexArray<VertexData>();
+    glBindVertexArray(vao.id_);
     
-    glBindVertexArray(gl.vao.id_);
+    BufferData buffer = GL::createBuffer();
     glBindBuffer(GL_ARRAY_BUFFER, buffer.id_);
     
-    for (const auto &attr : gl.vao.attributes) {
+    for (const auto &attr : vao.attributes) {
         ui32 size = (ui32)attr.format; //Assuming float
         glVertexAttribPointer(attr.location, size, GL_FLOAT, GL_FALSE, sizeof(VertexData), reinterpret_cast<void*>(attr.offset));
         glEnableVertexAttribArray(attr.location);
@@ -385,10 +386,10 @@ BufferData API::createVertexBuffer(const OpenGL &gl, const std::vector<Graphics:
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     
-    return buffer;
+    return {buffer, vao.id_};
 }
 
-BufferData API::createIndexBuffer(const OpenGL &gl, const std::vector<ui16> &indices) {
+BufferData GL::createIndexBuffer(const OpenGL &gl, const std::vector<ui16> &indices) {
     //---Index buffer---
     //      We are going to draw the mesh indexed, which means that vertex data is not repeated and we need a list of which vertices to draw
     BufferData buffer = GL::createBuffer();
@@ -470,8 +471,10 @@ DrawBufferID API::registerDrawBuffer(const OpenGL &gl, const std::vector<VertexD
     
     draw_buffer_data[id] = DrawBufferData{};
     
-    draw_buffer_data[id].vertex_buffer = API::createVertexBuffer(gl, vertices);
-    draw_buffer_data[id].index_buffer = API::createIndexBuffer(gl, indices);
+    auto [vb_, vao_] = GL::createVertexBuffer(gl, vertices);
+    draw_buffer_data[id].vertex_buffer = vb_;
+    draw_buffer_data[id].vao = vao_;
+    draw_buffer_data[id].index_buffer = GL::createIndexBuffer(gl, indices);
     draw_buffer_data[id].index_size = (ui32)indices.size();
     
     return id;
@@ -508,36 +511,44 @@ void API::renderTest(OpenGL &gl, WindowData &win) {
     //---Prepare for drawing---
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(gl.shaders.at("test").pid);
-    glBindVertexArray(gl.vao.id_); //TODO: The VAO might need to be per Draw Buffer, and binding vertex buffers later might not be necessary
     
     //---Draw---
-    for (const auto &[tex, draw] : API::draw_queue_textures) {
-        //...Todo bind texture
-        for (const auto &item : draw) {
-            //: Bind vertex and index buffers
-            glBindBuffer(GL_ARRAY_BUFFER, item.buffer->vertex_buffer.id_);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, item.buffer->index_buffer.id_);
+    for (const auto &[buffer, queue] : API::draw_queue_textures) {
+        //: Bind VAO
+        glBindVertexArray(buffer->vao);
+        
+        //: Bind vertex and index buffers
+        glBindBuffer(GL_ARRAY_BUFFER, buffer->vertex_buffer.id_);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->index_buffer.id_);
+        
+        for (const auto &[tex, draw] : queue) {
+            //...Bind texture
+            glBindTexture(GL_TEXTURE_2D, tex->id_);
             
-            //...Uniforms (improve)
-            UniformBufferObject ubo{};
-            ubo.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-            ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
-            ubo.model = item.model;
-            
-            //: Update uniforms
-            GL::updateUniformBuffer(item.data->uniform_buffers[0], &ubo);
-            
-            //: Upload uniforms
-            for (auto &[name, index] : gl.shaders["test"].uniforms) {
-                // TODO: Improve, add type reflection
-                if (name == "UniformBufferObject")
-                    glBindBufferBase(GL_UNIFORM_BUFFER, index, item.data->uniform_buffers[0].id_);
+            for (const auto &[data, model] : draw) {
+                //...Uniforms (improve)
+                UniformBufferObject ubo{};
+                ubo.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+                ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
+                ubo.model = model;
+                
+                //: Update uniforms
+                GL::updateUniformBuffer(data->uniform_buffers[0], &ubo);
+                
+                //: Upload uniforms
+                for (auto &[name, index] : gl.shaders["test"].uniforms) {
+                    // TODO: Improve, add type reflection
+                    if (name == "UniformBufferObject")
+                        glBindBufferBase(GL_UNIFORM_BUFFER, index, data->uniform_buffers[0].id_);
+                }
+                
+                //: Draw
+                glDrawElements(GL_TRIANGLES, buffer->index_size, GL_UNSIGNED_SHORT, (void*)0);
             }
-            
-            //: Draw
-            glDrawElements(GL_TRIANGLES, item.buffer->index_size, GL_UNSIGNED_SHORT, (void*)0);
         }
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
+    glBindVertexArray(0);
     
     //---Present---
     SDL_GL_SetSwapInterval(0); //See if it is needed all frames

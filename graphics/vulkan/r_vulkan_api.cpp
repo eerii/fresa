@@ -881,22 +881,24 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
                                vk.swapchain.main_render_pass, vk.swapchain.extent);
     
     //: Add all the draw calls (Optimize this in the future for a single mesh)
-    for (const auto &[tex, draw] : API::draw_queue_textures) {
-        for (const auto &item : draw) {
-            //: Vertex buffer
-            VkBuffer vertex_buffers[]{ item.buffer->vertex_buffer.buffer };
-            VkDeviceSize offsets[]{ 0 };
-            vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
-            
-            //: Index buffer
-            vkCmdBindIndexBuffer(cmd, item.buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
-            
-            //: Descriptor set
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1,
-                                    &item.data->descriptor_sets[current], 0, nullptr);
-            
-            //: Draw vertices
-            vkCmdDrawIndexed(cmd, item.buffer->index_size, 1, 0, 0, 0);
+    for (const auto &[buffer, queue] : API::draw_queue_textures) {
+        //: Vertex buffer
+        VkBuffer vertex_buffers[]{ buffer->vertex_buffer.buffer };
+        VkDeviceSize offsets[]{ 0 };
+        vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
+        
+        //: Index buffer
+        vkCmdBindIndexBuffer(cmd, buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+        
+        for (const auto &[tex, draw] : queue) {
+            for (const auto &[data, model] : draw) {
+                //: Descriptor set
+                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1,
+                                        &data->descriptor_sets[current], 0, nullptr);
+
+                //: Draw vertices
+                vkCmdDrawIndexed(cmd, buffer->index_size, 1, 0, 0, 0);
+            }
         }
     }
     
@@ -1616,7 +1618,7 @@ BufferData VK::createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferU
     return data;
 }
 
-BufferData API::createVertexBuffer(const Vulkan &vk, const std::vector<Graphics::VertexData> &vertices) {
+BufferData VK::createVertexBuffer(const Vulkan &vk, const std::vector<Graphics::VertexData> &vertices) {
     //---Vertex buffer---
     //      Buffer that holds the vertex information for the shaders to use.
     //      It has a VertexData struct per vertex of the mesh, which can contain properties like position, color, uv, normals...
@@ -1657,7 +1659,7 @@ BufferData API::createVertexBuffer(const Vulkan &vk, const std::vector<Graphics:
     return vertex_buffer;
 }
 
-BufferData API::createIndexBuffer(const Vulkan &vk, const std::vector<ui16> &indices) {
+BufferData VK::createIndexBuffer(const Vulkan &vk, const std::vector<ui16> &indices) {
     //---Index buffer---
     //      This buffer contains a list of indices, which allows to draw complex meshes without repeating vertices
     //      A simple example, while a square only has 4 vertices, 6 vertices are needed for the 2 triangles, and it only gets worse from there
@@ -2257,8 +2259,8 @@ DrawBufferID API::registerDrawBuffer(const Vulkan &vk, const std::vector<VertexD
     
     draw_buffer_data[id] = DrawBufferData{};
     
-    draw_buffer_data[id].vertex_buffer = API::createVertexBuffer(vk, vertices);
-    draw_buffer_data[id].index_buffer = API::createIndexBuffer(vk, indices);
+    draw_buffer_data[id].vertex_buffer = VK::createVertexBuffer(vk, vertices);
+    draw_buffer_data[id].index_buffer = VK::createIndexBuffer(vk, indices);
     draw_buffer_data[id].index_size = (ui32)indices.size();
     
     return id;
@@ -2429,10 +2431,12 @@ void API::renderTest(Vulkan &vk, WindowData &win) {
                                  [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
     //: Update uniform buffers
-    for (const auto &[tex, draw] : API::draw_queue_textures) {
-        for (const auto &item : draw) {
-            ubo.model = item.model;
-            VK::updateUniformBuffer(vk.allocator, item.data->uniform_buffers.at(index), ubo);
+    for (const auto &[buffer, queue] : API::draw_queue_textures) {
+        for (const auto &[tex, draw] : queue) {
+            for (const auto &[data, model] : draw) {
+                ubo.model = model;
+                VK::updateUniformBuffer(vk.allocator, data->uniform_buffers.at(index), ubo);
+            }
         }
     }
     

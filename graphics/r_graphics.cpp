@@ -204,23 +204,19 @@ void Graphics::unbindTexture(DrawID draw_id) {
 }
 
 void Graphics::draw(const DrawID draw_id, glm::mat4 model) {
-    DrawQueueInfo queue_info{};
-    
-    queue_info.data = &API::draw_data.at(draw_id);
-    if (queue_info.data == nullptr)
+    DrawQueueData queue_data = {&API::draw_data.at(draw_id), model};
+    if (queue_data.first == nullptr)
         log::error("Tried to draw an object with a null pointer draw data");
     
-    queue_info.buffer = &API::draw_buffer_data.at(queue_info.data->buffer_id);
-    if (queue_info.buffer == nullptr)
+    const DrawBufferData* buffer = &API::draw_buffer_data.at(queue_data.first->buffer_id);
+    if (buffer == nullptr)
         log::error("Tried to draw an object with a null pointer draw buffer");
     
-    queue_info.model = model;
-    
-    if (queue_info.data->texture_id.has_value()) {
-        const TextureData* tex = &API::texture_data.at(queue_info.data->texture_id.value());
+    if (queue_data.first->texture_id.has_value()) {
+        const TextureData* tex = &API::texture_data.at(queue_data.first->texture_id.value());
         if (tex == nullptr)
             log::error("Tried to draw an object with an invalid texture id");
-        API::draw_queue_textures[tex].push_back(queue_info);
+        API::draw_queue_textures[buffer][tex].push_back(queue_data);
         return;
     }
     

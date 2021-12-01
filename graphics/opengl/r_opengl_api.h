@@ -10,8 +10,6 @@
 
 namespace Fresa::Graphics::GL
 {
-    using VAO = ui32;
-
     //Initialization
     //----------------------------------------
     SDL_GLContext createContext(const WindowData &win);
@@ -22,7 +20,7 @@ namespace Fresa::Graphics::GL
     ShaderData createShaderDataGL(str name);
     ui8 compileShader(const char* source, ui32 shader_type);
     ui8 compileProgram(str vert_source = "", str frag_source = "");
-    void validateShaderData(VAO vao_id, const std::map<str, ShaderData> &shaders);
+    void validateShaderData(ui32 vao_id, const std::map<str, ShaderData> &shaders);
     //----------------------------------------
 
     //Vertices
@@ -34,6 +32,7 @@ namespace Fresa::Graphics::GL
         VertexArrayData vao;
         glGenVertexArrays(1, &vao.id_);
         vao.attributes = API::getAttributeDescriptions<V>();
+        
         glCheckError();
         return vao;
     }
@@ -51,6 +50,10 @@ namespace Fresa::Graphics::GL
         glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(T), uniform);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
     };
+
+    std::pair<BufferData, ui32> createVertexBuffer(const GraphicsAPI &api, const std::vector<Graphics::VertexData> &vertices);
+    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
+    
     //----------------------------------------
 
     //GUI
