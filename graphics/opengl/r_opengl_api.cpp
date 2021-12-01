@@ -524,7 +524,7 @@ void API::renderTest(OpenGL &gl, WindowData &win) {
     glUseProgram(gl.shaders.at("test").pid);
     
     //---Draw---
-    for (const auto &[buffer, queue] : API::draw_queue_textures) {
+    for (const auto &[buffer, queue] : API::draw_queue) {
         //: Bind VAO
         glBindVertexArray(buffer->vao);
         
@@ -534,7 +534,10 @@ void API::renderTest(OpenGL &gl, WindowData &win) {
         
         for (const auto &[tex, draw] : queue) {
             //...Bind texture
-            glBindTexture(GL_TEXTURE_2D, tex->id_);
+            if (tex == &no_texture)
+                glBindTexture(GL_TEXTURE_2D, 0);
+            else
+                glBindTexture(GL_TEXTURE_2D, tex->id_);
             
             for (const auto &[data, model] : draw) {
                 //...Uniforms (improve)
@@ -557,7 +560,6 @@ void API::renderTest(OpenGL &gl, WindowData &win) {
                 glDrawElements(GL_TRIANGLES, buffer->index_size, GL_UNSIGNED_SHORT, (void*)0);
             }
         }
-        glBindTexture(GL_TEXTURE_2D, 0);
     }
     glBindVertexArray(0);
     
@@ -566,7 +568,7 @@ void API::renderTest(OpenGL &gl, WindowData &win) {
     SDL_GL_SwapWindow(win.window);
     
     //---Clear drawing queue---
-    API::draw_queue_textures.clear();
+    API::draw_queue.clear();
 }
 
 //----------------------------------------

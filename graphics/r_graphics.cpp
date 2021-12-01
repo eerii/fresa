@@ -46,7 +46,7 @@ bool Graphics::update() {
     
     static DrawID test_draw_id = getDrawID_Rect();
     static DrawID test_draw_id_2 = getDrawID_Cube();
-    static DrawID test_draw_id_3 = getDrawID_Cube();
+    static DrawID test_draw_id_3 = getDrawID_Cube(SHADER_DRAW_2);
     const std::vector<VertexData> rect_vertices_2 = {
         {{-1.f, -1.f, 0.f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
         {{1.f, -1.f, 0.f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
@@ -140,19 +140,19 @@ void Graphics::onResize(Vec2<> size) {
     API::resize(api, win);
 }
 
-DrawID Graphics::getDrawID(const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
+DrawID Graphics::getDrawID(const std::vector<VertexData> &vertices, const std::vector<ui16> &indices, DrawShaders shader) {
     DrawBufferID buffer = API::registerDrawBuffer(api, vertices, indices);
-    return API::registerDrawData(api, buffer);
+    return API::registerDrawData(api, buffer, shader);
 }
 
-DrawID Graphics::getDrawID_Cube() {
+DrawID Graphics::getDrawID_Cube(DrawShaders shader) {
     static DrawBufferID cube_buffer = API::registerDrawBuffer(api, VerticesDefinitions::cube_vertices, VerticesDefinitions::cube_indices);
-    return API::registerDrawData(api, cube_buffer);
+    return API::registerDrawData(api, cube_buffer, shader);
 }
 
-DrawID Graphics::getDrawID_Rect() {
+DrawID Graphics::getDrawID_Rect(DrawShaders shader) {
     static DrawBufferID rect_buffer = API::registerDrawBuffer(api, VerticesDefinitions::rect_vertices, VerticesDefinitions::rect_indices);
-    return API::registerDrawData(api, rect_buffer);
+    return API::registerDrawData(api, rect_buffer, shader);
 }
 
 TextureID Graphics::getTextureID(str path, Channels ch) {
@@ -212,13 +212,14 @@ void Graphics::draw(const DrawID draw_id, glm::mat4 model) {
     if (buffer == nullptr)
         log::error("Tried to draw an object with a null pointer draw buffer");
     
+    const TextureData* tex;
     if (queue_data.first->texture_id.has_value()) {
-        const TextureData* tex = &API::texture_data.at(queue_data.first->texture_id.value());
+        tex = &API::texture_data.at(queue_data.first->texture_id.value());
         if (tex == nullptr)
             log::error("Tried to draw an object with an invalid texture id");
-        API::draw_queue_textures[buffer][tex].push_back(queue_data);
-        return;
+    } else {
+        tex = &no_texture;
     }
     
-    log::warn("The queue for non textured objects is not implemented yet"); //TODO: .
+    API::draw_queue[queue_data.first->shader][buffer][tex].push_back(queue_data);
 }

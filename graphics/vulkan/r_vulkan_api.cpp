@@ -88,22 +88,23 @@ Vulkan API::create(WindowData &win) {
     vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format, vk.swapchain.depth_texture.format);
     
     //---Framebuffers---
+    vk.swapchain.extra_textures = {
+        VK::createTexture(vk.device, vk.allocator, vk.physical_device, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                          VK_IMAGE_ASPECT_COLOR_BIT, win.size, vk.swapchain.format, TEXTURE_CHANNELS_RGBA)
+    };
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
     
     //---Sync objects---
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
-    //---Shader data---
-    vk.shader = API::createShaderData("test");
-    vk.shader.stages = VK::createShaderStages(vk.device, vk.shader.code);
-    
-    //---Descriptor pool---
-    vk.descriptors.layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
-    vk.descriptors.pools.push_back(VK::createDescriptorPool(vk.device));
-    
-    //---Pipeline---
-    vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptors.layout);
-    vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
+    //---Pipelines---
+    for (auto &[shader, name] : draw_shader_names)
+        vk.draw_pipelines[shader] = VK::createPipeline(vk.device, vk.swapchain, name);
+    for (auto &[shader, name] : post_shader_names) {
+        vk.post_pipelines[shader] = VK::createPipeline(vk.device, vk.swapchain, name);
+        vk.post_descriptor_sets[shader] = VK::allocateDescriptorSets(vk.device, vk.post_pipelines.at(shader).descriptor_layout,
+                                                                     vk.post_pipelines.at(shader).descriptor_pools, vk.swapchain.size);
+    }
     
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
@@ -610,10 +611,8 @@ VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_d
     //      - VkSwapchainKHR swapchain: Actual swapchain object
     //      - std::vector<VkImage> images: List of swapchain images
     //      - std::vector<VkImageView> image_views: List of their respective image views
-    //      - TODO: Depth data
     
     VkSwapchainData swapchain;
-    
     
     //---Format, present mode and extent---
     VkSwapchainSupportData support = getSwapchainSupport(surface, physical_device);
@@ -733,7 +732,13 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //: Pipeline
-    vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
+    for (auto &[shader, data] : vk.draw_pipelines)
+        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, vk.swapchain, data.shader.stages);
+    for (auto &[shader, name] : post_shader_names) {
+        vk.post_pipelines[shader] = VK::createPipeline(vk.device, vk.swapchain, name);
+        vk.post_descriptor_sets[shader] = VK::allocateDescriptorSets(vk.device, vk.post_pipelines.at(shader).descriptor_layout,
+                                                                     vk.post_pipelines.at(shader).descriptor_pools, vk.swapchain.size);
+    }
     
     //---Objects that depend on the swapchain size---
     if (previous_size != vk.swapchain.size) {
@@ -742,20 +747,21 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
             (*it)();
         deletion_queue_size_change.clear();
         
-        //: Descriptor set
-        vk.descriptors.layout = VK::createDescriptorSetLayout(vk.device, vk.shader.code, vk.swapchain.size);
-        vk.descriptors.pools.clear();
-        vk.descriptors.pools.push_back(VK::createDescriptorPool(vk.device));
-    
-        //: Pipeline
-        vk.pipeline_layout = VK::createPipelineLayout(vk.device, vk.descriptors.layout);
-        vk.pipeline = VK::createGraphicsPipeline(vk.device, vk.pipeline_layout, vk.swapchain, vk.shader.stages);
+        //: Recreate pipelines
+        for (auto &[shader, data] : vk.draw_pipelines)
+            recreatePipeline(vk, data);
+        for (auto &[shader, data] : vk.post_pipelines) {
+            recreatePipeline(vk, data);
+            vk.post_descriptor_sets[shader] = VK::allocateDescriptorSets(vk.device, vk.post_pipelines.at(shader).descriptor_layout,
+                                                                         vk.post_pipelines.at(shader).descriptor_pools, vk.swapchain.size);
+        }
         
         //: Update draw data
-        for (auto &[id, data] : API::draw_data) {
-            data.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pools, vk.swapchain.size);
-            data.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
-            API::updateDescriptorSets(vk, &data);
+        for (auto &[id, draw] : API::draw_data) {
+            draw.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.draw_pipelines.at(draw.shader).descriptor_layout,
+                                                              vk.draw_pipelines.at(draw.shader).descriptor_pools, vk.swapchain.size);
+            draw.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
+            API::updateDescriptorSets(vk, &draw);
         }
     }
 }
@@ -833,7 +839,7 @@ std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui3
     return command_buffers;
 }
 
-void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFramebuffer framebuffer,
+void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, VkFramebuffer framebuffer,
                                 VkRenderPass render_pass, VkExtent2D extent) {
     //---Begin draw command buffer---
     //      Helper function for creating drawing command buffers
@@ -864,12 +870,9 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFram
     render_pass_info.pClearValues = clear_values.data();
     
     vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-    
-    //: Bind pipeline
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 }
 
-void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
+void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders shader) {
     //---Draw command buffer---
     //      We are going to use a command buffer for drawing
     //      It needs to bind the vertex and index buffers, as well as the descriptor sets that map the shader inputs such as uniforms
@@ -877,30 +880,37 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     const VkCommandBuffer &cmd = vk.cmd.command_buffers.at("draw")[current];
     
     //: Begin command buffer and render pass
-    VK::beginDrawCommandBuffer(cmd, vk.pipeline, vk.swapchain.framebuffers[current],
+    VK::beginDrawCommandBuffer(cmd, vk.swapchain.framebuffers[current],
                                vk.swapchain.main_render_pass, vk.swapchain.extent);
     
     //: Add all the draw calls (Optimize this in the future for a single mesh)
-    for (const auto &[buffer, queue] : API::draw_queue_textures) {
-        //: Vertex buffer
-        VkBuffer vertex_buffers[]{ buffer->vertex_buffer.buffer };
-        VkDeviceSize offsets[]{ 0 };
-        vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
+    for (const auto &[shader, queue_buffer] : API::draw_queue) {
+        //: Bind pipeline
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.draw_pipelines.at(shader).pipeline);
         
-        //: Index buffer
-        vkCmdBindIndexBuffer(cmd, buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
-        
-        for (const auto &[tex, draw] : queue) {
-            for (const auto &[data, model] : draw) {
-                //: Descriptor set
-                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipeline_layout, 0, 1,
-                                        &data->descriptor_sets[current], 0, nullptr);
+        for (const auto &[buffer, queue_tex] : queue_buffer) {
+            //: Vertex buffer
+            VkBuffer vertex_buffers[]{ buffer->vertex_buffer.buffer };
+            VkDeviceSize offsets[]{ 0 };
+            vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
+            
+            //: Index buffer
+            vkCmdBindIndexBuffer(cmd, buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+            
+            for (const auto &[tex, queue_draw] : queue_tex) {
+                for (const auto &[data, model] : queue_draw) {
+                    //: Descriptor set
+                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.draw_pipelines.at(shader).pipeline_layout, 0, 1,
+                                            &data->descriptor_sets[current], 0, nullptr);
 
-                //: Draw vertices
-                vkCmdDrawIndexed(cmd, buffer->index_size, 1, 0, 0, 0);
+                    //: Draw vertices
+                    vkCmdDrawIndexed(cmd, buffer->index_size, 1, 0, 0, 0);
+                }
             }
         }
     }
+    
+    vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
     
     //: End command buffer and render pass
     vkCmdEndRenderPass(cmd);
@@ -958,42 +968,45 @@ void VK::endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buff
 //Render Pass
 //----------------------------------------
 
-VkSubpassDescription VK::createRenderSubpass() {
-    //---Render subpass---
-    VkAttachmentReference color_attachment_ref{};
-    
-    color_attachment_ref.attachment = 0;
-    color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    
-    VkAttachmentReference depth_attachment_ref{};
-    
-    depth_attachment_ref.attachment = 1;
-    depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    
-    VkSubpassDescription subpass{};
-    
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &color_attachment_ref;
-    subpass.pDepthStencilAttachment = &depth_attachment_ref;
-    
-    return subpass;
-}
-
-VkSubpassDependency VK::createRenderSubpassDependency() {
+VkSubpassDependency VK::createRenderSubpassDependency(ui32 src, ui32 dst,
+                                                      VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage,
+                                                      VkAccessFlagBits src_access, VkAccessFlagBits dst_access) {
     //---Render subpass dependency---
     VkSubpassDependency dependency{};
     
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
+    dependency.srcSubpass = src;
+    dependency.dstSubpass = dst;
     
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.srcAccessMask = 0;
+    dependency.srcStageMask = src_stage;
+    dependency.srcAccessMask = src_access;
     
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependency.dstStageMask = dst_stage;
+    dependency.dstAccessMask = dst_access;
     
     return dependency;
+}
+
+VkAttachmentReference VK::createRenderSubpassAttachmentReference(ui32 index, VkImageLayout layout) {
+    //---Render subpass attachment reference---
+    VkAttachmentReference ref{};
+    
+    ref.attachment = index;
+    ref.layout = layout;
+    
+    return ref;
+}
+
+VkSubpassDescription VK::createRenderSubpass(const std::vector<VkAttachmentReference> &color, const std::optional<VkAttachmentReference> &depth) {
+    //---Render subpass description---
+    VkSubpassDescription subpass{};
+    
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = (ui32)color.size();
+    subpass.pColorAttachments = color.data();
+    if (depth.has_value())
+        subpass.pDepthStencilAttachment = &depth.value();
+    
+    return subpass;
 }
 
 VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format) {
@@ -1034,25 +1047,51 @@ VkAttachmentDescription VK::createRenderPassDepthAttachment(VkFormat format) {
     return attachment;
 }
 
-VkRenderPassCreateData VK::prepareRenderPass(VkFormat format, VkFormat depth_format) {
-    //---Combine all data required to create a render pass---
-    VkRenderPassCreateData data;
-    
-    data.subpasses = { VK::createRenderSubpass() };
-    data.dependencies = { VK::createRenderSubpassDependency() };
-    data.attachments = { VK::createRenderPassAttachment(format), VK::createRenderPassDepthAttachment(depth_format) };
-    
-    return data;
-}
-
 VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
     //      It will render to a framebuffer
     VkRenderPass render_pass;
+    VkRenderPassCreateData render_pass_data{};
     
-    VkRenderPassCreateData render_pass_data = VK::prepareRenderPass(format, depth_format);
+    //---Attachments---
+    render_pass_data.attachments = { VK::createRenderPassAttachment(format), VK::createRenderPassDepthAttachment(depth_format) };
+    std::vector<VkAttachmentReference> color = { createRenderSubpassAttachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) };
+    std::optional<VkAttachmentReference> depth = createRenderSubpassAttachmentReference(1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    
+    //---Subpasses---
+    //      Very basic for now, it can have one draw subpass and multiple post subpasses (right now they all have the same data and only color)
+    
+    render_pass_data.subpasses.push_back(createRenderSubpass(color, depth));
+    render_pass_data.dependencies.push_back(VK::createRenderSubpassDependency(
+        VK_SUBPASS_EXTERNAL, 0,
+        //: src stage
+        VkPipelineStageFlagBits(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT),
+        //: dst stage
+        VkPipelineStageFlagBits(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT),
+        //: src access
+        VkAccessFlagBits(0),
+        //: dst access
+        VkAccessFlagBits(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)));
+    
+    int i = 1;
+    for (auto s : post_shader_names) {
+        render_pass_data.subpasses.push_back(createRenderSubpass(color));
+        render_pass_data.dependencies.push_back(VK::createRenderSubpassDependency(
+            i - 1, i,
+            //: src stage
+            VkPipelineStageFlagBits(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
+            //: dst stage
+            VkPipelineStageFlagBits(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT),
+            //: src access
+            VkAccessFlagBits(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT),
+            //: dst access
+            VkAccessFlagBits(VK_ACCESS_SHADER_READ_BIT)));
+        i++;
+    }
+    
+    //---Create render pass---
     
     VkRenderPassCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -1070,7 +1109,8 @@ VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format, VkFormat dep
         log::error("Error creating a vulkan render pass");
     
     deletion_queue_swapchain.push_back([render_pass, device](){ vkDestroyRenderPass(device, render_pass, nullptr); });
-    log::graphics("Created a vulkan render pass");
+    log::graphics("Created a vulkan render pass with %d subpasses and %d attachments",
+                  render_pass_data.subpasses.size(), render_pass_data.attachments.size());
     return render_pass;
 }
 
@@ -1100,13 +1140,15 @@ VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, s
     return framebuffer;
 }
 
-std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const VkSwapchainData &swapchain) {
+std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const VkSwapchainData &swapchain, std::vector<VkImageView> extra_attachments) {
     //---Framebuffers---
     std::vector<VkFramebuffer> framebuffers;
     framebuffers.resize(swapchain.size);
     
     for (int i = 0; i < swapchain.size; i++) {
         std::vector<VkImageView> attachments = { swapchain.image_views[i], swapchain.depth_texture.image_view };
+        for (auto a : extra_attachments)
+            attachments.push_back(a);
         framebuffers[i] = VK::createFramebuffer(device, swapchain.main_render_pass, attachments, swapchain.extent);
     }
     
@@ -1150,6 +1192,7 @@ ShaderStages VK::createShaderStages(VkDevice device, const ShaderCode &code) {
     if (code.geometry.has_value())
         stages.geometry = createShaderModule(device, code.geometry.value());
     
+    deletion_queue_program.push_back([device, stages](){ VK::destroyShaderStages(device, stages); });
     return stages;
 }
 
@@ -1277,6 +1320,7 @@ VkSyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
         }
     });
     log::graphics("Created all vulkan sync objects");
+    log::graphics("");
     return sync;
 }
 
@@ -1542,7 +1586,7 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
     return pipeline_layout;
 }
 
-VkPipeline VK::createGraphicsPipeline(VkDevice device, const VkPipelineLayout &layout,
+VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLayout &layout,
                                       const VkSwapchainData &swapchain, const ShaderStages &stages) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
@@ -1587,7 +1631,40 @@ VkPipeline VK::createGraphicsPipeline(VkDevice device, const VkPipelineLayout &l
     
     deletion_queue_swapchain.push_back([pipeline, device](){ vkDestroyPipeline(device, pipeline, nullptr); });
     log::graphics("Created a vulkan graphics pipeline");
+    log::graphics("");
     return pipeline;
+}
+
+VkPipelineData VK::createPipeline(VkDevice device, const VkSwapchainData &swapchain, str shader_name) {
+    VkPipelineData data;
+    
+    log::graphics("PIPELINE: %s", shader_name.c_str());
+    log::graphics("---");
+    
+    //---Shader data---
+    data.shader = API::createShaderData(shader_name);
+    data.shader.stages = VK::createShaderStages(device, data.shader.code);
+    
+    //---Descriptor pool---
+    data.descriptor_layout = VK::createDescriptorSetLayout(device, data.shader.code, swapchain.size);
+    data.descriptor_pools.push_back(VK::createDescriptorPool(device));
+    
+    //---Pipeline---
+    data.pipeline_layout = VK::createPipelineLayout(device, data.descriptor_layout);
+    data.pipeline = VK::createGraphicsPipelineObject(device, data.pipeline_layout, swapchain, data.shader.stages);
+    
+    return data;
+}
+
+void VK::recreatePipeline(const Vulkan &vk, VkPipelineData &data) {
+    //: Descriptor set
+    data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.shader.code, vk.swapchain.size);
+    data.descriptor_pools.clear();
+    data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device));
+
+    //: Pipeline
+    data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
+    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, vk.swapchain, data.shader.stages);
 }
 
 //----------------------------------------
@@ -1881,7 +1958,7 @@ std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescr
     }
     
     //: No need for cleanup since they get destroyed with the pool
-    log::graphics("Allocated vulkan descriptor sets");
+    //log::graphics("Allocated vulkan descriptor sets");
     return descriptor_sets;
 }
 
@@ -1943,7 +2020,7 @@ void API::updateDescriptorSets(const Vulkan &vk, const DrawData* draw) {
         vkUpdateDescriptorSets(vk.device, (ui32)write_descriptors.size(), write_descriptors.data(), 0, nullptr);
     }
     
-    log::graphics("Updated descriptor sets");
+    //log::graphics("Updated descriptor sets");
 }
 
 //----------------------------------------
@@ -1974,7 +2051,7 @@ std::vector<BufferData> VK::createUniformBuffers(VmaAllocator allocator, ui32 sw
         for (const auto &buffer : uniform_buffers)
             vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
     });
-    log::graphics("Created vulkan uniform buffers");
+    //log::graphics("Created vulkan uniform buffers");
     return uniform_buffers;
 }
 
@@ -1991,14 +2068,8 @@ TextureID API::registerTexture(const Vulkan &vk, Vec2<> size, Channels ch, ui8* 
     do id++;
     while (texture_data.find(id) != texture_data.end());
     
-    texture_data[id] = TextureData{};
-    
-    //: Size
-    texture_data[id].w = size.x;
-    texture_data[id].h = size.y;
-    
     //: Format
-    texture_data[id].format = [ch](){
+    VkFormat format = [ch](){
         switch(ch) {
             case TEXTURE_CHANNELS_G:
                 return VK_FORMAT_R8_UNORM;
@@ -2010,16 +2081,11 @@ TextureID API::registerTexture(const Vulkan &vk, Vec2<> size, Channels ch, ui8* 
                 return VK_FORMAT_R8G8B8A8_UNORM;
         }
     }();
-    texture_data[id].ch = (int)ch;
     
-    //: Layout (changed later)
-    texture_data[id].layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    
-    //: Image
-    auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, texture_data[id].format, texture_data[id].layout,
-                                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    texture_data[id].image = i_;
-    texture_data[id].allocation = a_;
+    //: Texture
+    texture_data[id] = VK::createTexture(vk.device, vk.allocator, vk.physical_device,
+                                         VkImageUsageFlagBits(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
+                                         VK_IMAGE_ASPECT_COLOR_BIT, size, format, ch);
     
     //: Staging buffer
     VkDeviceSize buffer_size = size.x * size.y * (int)ch * sizeof(ui8);
@@ -2038,14 +2104,39 @@ TextureID API::registerTexture(const Vulkan &vk, Vec2<> size, Channels ch, ui8* 
     VK::copyBufferToImage(vk.device, vk.cmd, staging_buffer, texture_data[id]);
     VK::transitionImageLayout(vk.device, vk.cmd, texture_data[id], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     
-    //: Image view
-    texture_data[id].image_view = VK::createImageView(vk.device, texture_data[id].image, VK_IMAGE_ASPECT_COLOR_BIT, texture_data[id].format);
-    deletion_queue_program.push_back([&vk](){ vkDestroyImageView(vk.device, texture_data[id].image_view, nullptr); });
-    
     //: Delete staging buffer
     vmaDestroyBuffer(vk.allocator, staging_buffer.buffer, staging_buffer.allocation);
     
     return id;
+}
+
+TextureData VK::createTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
+                              VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<> size, VkFormat format, Channels ch) {
+    //---Texture---
+    TextureData data{};
+    
+    //: Format
+    data.format = format;
+    data.ch = ch;
+    
+    //: Size
+    data.w = size.x;
+    data.h = size.y;
+    
+    //: Layout (changed later)
+    data.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    
+    //: Image
+    auto [i_, a_] = VK::createImage(device, allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, data.format,
+                                    data.layout, usage);
+    data.image = i_;
+    data.allocation = a_;
+    
+    //: Image view
+    data.image_view = VK::createImageView(device, data.image, aspect, data.format);
+    deletion_queue_program.push_back([device, data](){ vkDestroyImageView(device, data.image_view, nullptr); });
+    
+    return data;
 }
 
 std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory,
@@ -2266,7 +2357,7 @@ DrawBufferID API::registerDrawBuffer(const Vulkan &vk, const std::vector<VertexD
     return id;
 }
 
-DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer) {
+DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer, DrawShaders shader) {
     static DrawID id = 0;
     do id++;
     while (draw_data.find(id) != draw_data.end());
@@ -2275,8 +2366,10 @@ DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer) {
     
     draw_data[id].buffer_id = buffer;
     
-    draw_data[id].descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.descriptors.layout, vk.descriptors.pools, vk.swapchain.size);
+    draw_data[id].descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.draw_pipelines.at(shader).descriptor_layout,
+                                                               vk.draw_pipelines.at(shader).descriptor_pools, vk.swapchain.size);
     draw_data[id].uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
+    draw_data[id].shader = shader;
     
     return id;
 }
@@ -2302,28 +2395,8 @@ bool VK::hasDepthStencilComponent(VkFormat format) {
 TextureData VK::createDepthTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
                                    const VkCommandData &cmd, Vec2<> size) {
     //---Depth texture---
-    TextureData data{};
-    
-    //: Format
-    data.format = getDepthFormat(physical_device);
-    data.ch = 0;
-    
-    //: Size
-    data.w = size.x;
-    data.h = size.y;
-    
-    //: Layout (changed later)
-    data.layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    
-    //: Image
-    auto [i_, a_] = VK::createImage(device, allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, data.format,
-                                    data.layout, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
-    data.image = i_;
-    data.allocation = a_;
-    
-    //: Image view
-    data.image_view = VK::createImageView(device, data.image, VK_IMAGE_ASPECT_DEPTH_BIT, data.format);
-    deletion_queue_program.push_back([device, data](){ vkDestroyImageView(device, data.image_view, nullptr); });
+    TextureData data = createTexture(device, allocator, physical_device, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                     VK_IMAGE_ASPECT_DEPTH_BIT, size,  getDepthFormat(physical_device), Channels(0));
     
     //: (Optional) Transition image layout
     transitionImageLayout(device, cmd, data, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
@@ -2430,24 +2503,25 @@ void API::renderTest(Vulkan &vk, WindowData &win) {
     ui32 index = VK::startRender(vk.device, vk.swapchain, vk.sync,
                                  [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
-    //: Update uniform buffers
-    for (const auto &[buffer, queue] : API::draw_queue_textures) {
-        for (const auto &[tex, draw] : queue) {
-            for (const auto &[data, model] : draw) {
-                ubo.model = model;
-                VK::updateUniformBuffer(vk.allocator, data->uniform_buffers.at(index), ubo);
+    for (const auto &[shader, buffer_queue] : API::draw_queue) {
+        for (const auto &[buffer, tex_queue] : buffer_queue) {
+            for (const auto &[tex, draw_queue] : tex_queue) {
+                for (const auto &[data, model] : draw_queue) {
+                    //: Update uniform buffers
+                    ubo.model = model;
+                    VK::updateUniformBuffer(vk.allocator, data->uniform_buffers.at(index), ubo);
+                }
             }
         }
+        //: Record command buffers
+        VK::recordDrawCommandBuffer(vk, index, shader);
     }
-    
-    //: Record command buffers
-    VK::recordDrawCommandBuffer(vk, index);
     
     //: Render the frame
     VK::renderFrame(vk, win, index);
     
     //: Clear draw queue
-    API::draw_queue_textures.clear();
+    API::draw_queue.clear();
 }
 
 //----------------------------------------
@@ -2480,9 +2554,6 @@ void API::clean(Vulkan &vk) {
     for (auto it = deletion_queue_size_change.rbegin(); it != deletion_queue_size_change.rend(); ++it)
         (*it)();
     deletion_queue_size_change.clear();
-    
-    //: Delete shader stages
-    VK::destroyShaderStages(vk.device, vk.shader.stages);
     
     //: Delete program resources
     for (auto it = deletion_queue_program.rbegin(); it != deletion_queue_program.rend(); ++it)
