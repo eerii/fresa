@@ -193,12 +193,5 @@ namespace Fresa::Graphics
         VertexFormat format;
         ui32 offset;
     };
-
-    #ifdef USE_OPENGL
-    struct VertexArrayData {
-        ui32 id_;
-        std::vector<VertexAttributeDescription> attributes;
-    };
-    #endif
     //----------------------------------------
 }

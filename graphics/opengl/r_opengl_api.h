@@ -25,17 +25,7 @@ namespace Fresa::Graphics::GL
 
     //Vertices
     //----------------------------------------
-    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    VertexArrayData createVertexArray() {
-        //---Vertex array---
-        //      Stores the layout of per vertex data that will be passed to the shader later
-        VertexArrayData vao;
-        glGenVertexArrays(1, &vao.id_);
-        vao.attributes = API::getAttributeDescriptions<V>();
-        
-        glCheckError();
-        return vao;
-    }
+    ui32 createVertexArray();
     //----------------------------------------
 
     //Buffers

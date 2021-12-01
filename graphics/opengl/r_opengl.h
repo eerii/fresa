@@ -40,6 +40,7 @@ namespace Fresa::Graphics
         SDL_GLContext context;
         
         std::map<str, ShaderData> shaders;
+        std::vector<VertexAttributeDescription> attributes;
         
         FramebufferData framebuffer;
         
