@@ -50,6 +50,9 @@ namespace Fresa::Graphics
         BufferData vertex_buffer;
         BufferData index_buffer;
         ui32 index_size;
+        #ifdef USE_OPENGL
+        ui32 vao;
+        #endif
     };
     //----------------------------------------
 
@@ -157,12 +160,14 @@ namespace Fresa::Graphics
         std::vector<VkDescriptorSet> descriptor_sets;
         #endif
     };
-
-    struct DrawQueueInfo {
-        const DrawBufferData* buffer;
-        const DrawData* data;
-        glm::mat4 model;
-    };
+    
+    //: This is a hierarchical map for rendering
+    //  - Geometry data (vao, vertex buffer and index buffer)
+    //  - Textures
+    //  - Uniforms
+    //: I know it looks awfully convoluted, but it makes sense 
+    using DrawQueueData = std::pair<const DrawData*, glm::mat4>;
+    using DrawQueueMap = std::map<const DrawBufferData*, std::map<const TextureData*, std::vector<DrawQueueData>>>;
     //----------------------------------------
 
     //Vertex
