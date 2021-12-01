@@ -27,10 +27,21 @@ namespace Fresa::Graphics
         std::vector<VkImageView> image_views;
         
         TextureData depth_texture;
+        std::vector<TextureData> extra_textures;
         
         VkRenderPass main_render_pass;
         
         std::vector<VkFramebuffer> framebuffers;
+    };
+
+    struct VkPipelineData {
+        ShaderData shader;
+        
+        VkDescriptorSetLayout descriptor_layout;
+        std::vector<VkDescriptorPool> descriptor_pools;
+        
+        VkPipelineLayout pipeline_layout;
+        VkPipeline pipeline;
     };
 
     struct VkQueueIndices {
@@ -63,11 +74,6 @@ namespace Fresa::Graphics
         std::vector<VkFence> fences_images_in_flight;
         
         ui8 current_frame;
-    };
-
-    struct VkDescriptorSetData {
-        VkDescriptorSetLayout layout;
-        std::vector<VkDescriptorPool> pools;
     };
 
     struct VkSwapchainSupportData {
@@ -136,23 +142,13 @@ namespace Fresa::Graphics
         //---Sync---
         VkSyncData sync;
         
-        
-        //Pipeline
-        //----------------------------------------
-        ShaderData shader;
-        
-        VkPipelineLayout pipeline_layout;
-        VkPipeline pipeline;
-        //----------------------------------------
-        
-        
-        //---Descriptors---
-        VkDescriptorSetData descriptors;
-        
+        //---Pipelines---
+        std::map<DrawShaders, VkPipelineData> draw_pipelines;
+        std::map<PostShaders, VkPipelineData> post_pipelines;
+        std::map<PostShaders, std::vector<VkDescriptorSet>> post_descriptor_sets;
         
         //---Images---
         VkSampler sampler;
-        
         
         //---Debug---
         VkDebugReportCallbackEXT debug_callback;

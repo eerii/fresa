@@ -88,6 +88,8 @@ namespace Fresa::Graphics
         VkImageView image_view;
     #endif
     };
+
+    inline const TextureData no_texture{};
     //----------------------------------------
 
     //Framebuffer
@@ -112,6 +114,24 @@ namespace Fresa::Graphics
     //----------------------------------------
     using ShaderCompiler = spirv_cross::CompilerGLSL;
     using ShaderResources = spirv_cross::ShaderResources;
+
+    enum DrawShaders {
+        SHADER_DRAW,
+        SHADER_DRAW_2,
+    };
+
+    enum PostShaders {
+        SHADER_POST,
+    };
+
+    inline std::map<DrawShaders, str> draw_shader_names = {
+        {SHADER_DRAW, "test"},
+        {SHADER_DRAW_2, "test"},
+    };
+
+    inline std::map<PostShaders, str> post_shader_names = {
+        {SHADER_POST, "test"},
+    };
 
     struct ShaderLocations {
         std::optional<str> vert;
@@ -154,8 +174,9 @@ namespace Fresa::Graphics
 
     struct DrawData {
         DrawBufferID buffer_id;
-        std::vector<BufferData> uniform_buffers;
         std::optional<TextureID> texture_id;
+        DrawShaders shader;
+        std::vector<BufferData> uniform_buffers;
         #ifdef USE_VULKAN
         std::vector<VkDescriptorSet> descriptor_sets;
         #endif
@@ -167,7 +188,10 @@ namespace Fresa::Graphics
     //  - Uniforms
     //: I know it looks awfully convoluted, but it makes sense 
     using DrawQueueData = std::pair<const DrawData*, glm::mat4>;
-    using DrawQueueMap = std::map<const DrawBufferData*, std::map<const TextureData*, std::vector<DrawQueueData>>>;
+    using DrawQueueMapTextures = std::map<const TextureData*, std::vector<DrawQueueData>>;
+    using DrawQueueMapBuffers = std::map<const DrawBufferData*, DrawQueueMapTextures>;
+    using DrawQueueMap = std::map<DrawShaders, DrawQueueMapBuffers>;
+
     //----------------------------------------
 
     //Vertex

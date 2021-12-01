@@ -57,9 +57,8 @@ namespace Fresa::Graphics::VK
                                                     std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags);
 
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd);
-    void beginDrawCommandBuffer(VkCommandBuffer cmd, VkPipeline pipeline, VkFramebuffer framebuffer,
-                                VkRenderPass render_pass, VkExtent2D extent);
-    void recordDrawCommandBuffer(const Vulkan &vk, ui32 current);
+    void beginDrawCommandBuffer(VkCommandBuffer cmd, VkFramebuffer framebuffer, VkRenderPass render_pass, VkExtent2D extent);
+    void recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders shader);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
     void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
@@ -121,16 +120,22 @@ namespace Fresa::Graphics::VK
 
     //Render pass
     //----------------------------------------
-    VkSubpassDescription createRenderSubpass();
-    VkSubpassDependency createRenderSubpassDependency();
+    VkSubpassDependency createRenderSubpassDependency(ui32 src, ui32 dst,
+                                                      VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage,
+                                                      VkAccessFlagBits src_access, VkAccessFlagBits dst_access);
+    VkAttachmentReference createRenderSubpassAttachmentReference(ui32 index, VkImageLayout layout);
+    VkSubpassDescription createRenderSubpass(const std::vector<VkAttachmentReference> &color,
+                                             const std::optional<VkAttachmentReference> &depth = std::nullopt);
+
     VkAttachmentDescription createRenderPassAttachment(VkFormat format);
     VkAttachmentDescription createRenderPassDepthAttachment(VkFormat format);
-    VkRenderPassCreateData prepareRenderPass(VkFormat format, VkFormat depth_format);
 
+   
     VkRenderPass createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format);
 
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
-    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const VkSwapchainData &swapchain);
+    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const VkSwapchainData &swapchain,
+                                                  std::vector<VkImageView> extra_attachments = {});
     //----------------------------------------
 
 
@@ -156,8 +161,10 @@ namespace Fresa::Graphics::VK
     VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
     
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
-    VkPipeline createGraphicsPipeline(VkDevice device, const VkPipelineLayout &layout,
+    VkPipeline createGraphicsPipelineObject(VkDevice device, const VkPipelineLayout &layout,
                                       const VkSwapchainData &swapchain, const ShaderStages &stages);
+    VkPipelineData createPipeline(VkDevice device, const VkSwapchainData &swapchain, str shader_name);
+    void recreatePipeline(const Vulkan &vk, VkPipelineData &data);
     //----------------------------------------
 
 
@@ -183,6 +190,8 @@ namespace Fresa::Graphics::VK
     WriteDescriptorBuffer createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer);
     WriteDescriptorImage createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,
                                                                    VkImageView image_view, VkSampler sampler);
+
+    void updatePostDescriptorSets();
     //----------------------------------------
 
 
@@ -202,6 +211,8 @@ namespace Fresa::Graphics::VK
 
     //Images
     //----------------------------------------
+    TextureData createTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
+                              VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<> size, VkFormat format, Channels ch);
     std::pair<VkImage, VmaAllocation> createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory,
                                                   Vec2<> size, VkFormat format, VkImageLayout layout, VkImageUsageFlags usage);
     void transitionImageLayout(VkDevice device, const VkCommandData &cmd, TextureData &tex, VkImageLayout new_layout);
