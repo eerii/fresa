@@ -45,9 +45,11 @@ OpenGL API::create(WindowData &win) {
     gl.shaders["test"] = GL::createShaderDataGL("test");
     gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
     
-    VertexArrayData temp_vao = GL::createVertexArray<VertexData>(); //Needed for shader validation
-    deletion_queue.push_back([temp_vao](){glDeleteVertexArrays(1, &temp_vao.id_);});
-    GL::validateShaderData(temp_vao.id_, gl.shaders);
+    gl.attributes = API::getAttributeDescriptions<VertexData>();
+    
+    ui32 temp_vao = GL::createVertexArray(); //Needed for shader validation
+    deletion_queue.push_back([temp_vao](){glDeleteVertexArrays(1, &temp_vao);});
+    GL::validateShaderData(temp_vao, gl.shaders);
     
     return gl;
 }
@@ -58,26 +60,26 @@ SDL_GLContext GL::createContext(const WindowData &win) {
     //      While in Vulkan we needed to initialize every single part of the graphics pipeline, in OpenGL we just create a context.
     SDL_GLContext context = SDL_GL_CreateContext(win.window);
     if (context == nullptr) {
-        log::error("Error creating OpenGL Context: %s", SDL_GetError());
+        log::error("Error creating an OpenGL context: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
     }
     
     //: Make the context active
     if (SDL_GL_MakeCurrent(win.window, context)) {
-        log::error("Error making OpenGL Context current: %s", SDL_GetError());
+        log::error("Error making the OpenGL context current: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
     }
     glCheckError();
     
     //: Output some information
-    log::graphics("---");
+    log::graphics("");
     log::graphics("Vendor:          %s", glGetString(GL_VENDOR));
     log::graphics("Renderer:        %s", glGetString(GL_RENDERER));
-    log::graphics("OpenGL Version:  %s", glGetString(GL_VERSION));
-    log::graphics("GLSL Version:    %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
-    log::graphics("---");
+    log::graphics("OpenGL version:  %s", glGetString(GL_VERSION));
+    log::graphics("GLSL version:    %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+    log::graphics("");
     glCheckError();
     
     //---Properties---
@@ -162,6 +164,7 @@ ShaderData GL::createShaderDataGL(str name) {
     //: Compile program
     ui32 pid = GL::compileProgram(vert_source_glsl, frag_source_glsl);
     data.pid = pid;
+    
     log::graphics("Program (test) ID: %d", data.pid);
     glCheckError();
     
@@ -176,7 +179,6 @@ ShaderData GL::createShaderDataGL(str name) {
     glCheckError();
     
     deletion_queue.push_back([pid](){glDeleteProgram(pid);});
-    log::graphics("---");
     return data;
 }
 
@@ -191,7 +193,7 @@ ui8 GL::compileShader(const char* source, ui32 shader_type) {
     int shader_compiled = GL_FALSE;
     glGetShaderiv(id, GL_COMPILE_STATUS, &shader_compiled);
     if(shader_compiled != GL_TRUE) {
-        std::cerr << "Shader Compilation Error, ID: " << id << std::endl;
+        std::cerr << "Shader compilation error, ID: " << id << std::endl;
         
         int log_len;
         glGetShaderiv(id, GL_INFO_LOG_LENGTH, &log_len);
@@ -206,7 +208,7 @@ ui8 GL::compileShader(const char* source, ui32 shader_type) {
         return 0;
     }
     
-    log::graphics("Shader Compiled Correctly, ID: %d", id);
+    log::graphics("Shader compiled correctly, ID: %d", id);
     return id;
 }
 
@@ -239,7 +241,7 @@ ui8 GL::compileProgram(str vert_source, str frag_source) {
     int program_linked = GL_FALSE;
     glGetProgramiv(pid, GL_LINK_STATUS, &program_linked);
     if(program_linked != GL_TRUE) {
-        std::cerr << "Program Compilation Error, ID: " << pid << std::endl;
+        std::cerr << "Program compilation error, ID: " << pid << std::endl;
         
         int log_len;
         glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &log_len);
@@ -262,7 +264,7 @@ ui8 GL::compileProgram(str vert_source, str frag_source) {
     
     GLenum e(glGetError());
     while (e != GL_NO_ERROR) {
-       log::error("OpenGL Error during Compile Shader Program: %d");
+       log::error("OpenGL error while compiling shader program: %d");
     }
     
     return pid;
@@ -288,7 +290,7 @@ void GL::validateShaderData(ui32 vao_id, const std::map<str, ShaderData> &shader
             }
             glDeleteProgram(s.pid);
             
-            log::error("Program Validation Error, ID: %d", s.pid);
+            log::error("Program validation error, ID: %d", s.pid);
             return;
         }
     }
@@ -334,7 +336,7 @@ FramebufferData GL::createFramebuffer(Vec2<> size, FramebufferType type) {
     }
     
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        log::error("Error creating Game Framebuffer: %d", glGetError());
+        log::error("Error creating OpenGL framebuffer: %d", glGetError());
     glCheckError();
     
     fb.type = type;
@@ -364,17 +366,26 @@ BufferData GL::createBuffer(size_t size, GLenum type, GLenum usage) {
     return buffer;
 }
 
+ui32 GL::createVertexArray() {
+    //---Vertex array---
+    //      Stores the layout of per vertex data that will be passed to the shader later
+    ui32 vao_id;
+    glGenVertexArrays(1, &vao_id);
+    glCheckError();
+    return vao_id;
+}
+
 std::pair<BufferData, ui32> GL::createVertexBuffer(const OpenGL &gl, const std::vector<Graphics::VertexData> &vertices) {
     //---Vertex buffer---
     //      It holds the vertices for the vertex shader to read
     //      It needs to be tied to the vertex array object (vao)
-    VertexArrayData vao = GL::createVertexArray<VertexData>();
-    glBindVertexArray(vao.id_);
+    ui32 vao = GL::createVertexArray();
+    glBindVertexArray(vao);
     
     BufferData buffer = GL::createBuffer();
     glBindBuffer(GL_ARRAY_BUFFER, buffer.id_);
     
-    for (const auto &attr : vao.attributes) {
+    for (const auto &attr : gl.attributes) {
         ui32 size = (ui32)attr.format; //Assuming float
         glVertexAttribPointer(attr.location, size, GL_FLOAT, GL_FALSE, sizeof(VertexData), reinterpret_cast<void*>(attr.offset));
         glEnableVertexAttribArray(attr.location);
@@ -386,7 +397,7 @@ std::pair<BufferData, ui32> GL::createVertexBuffer(const OpenGL &gl, const std::
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     
-    return {buffer, vao.id_};
+    return {buffer, vao};
 }
 
 BufferData GL::createIndexBuffer(const OpenGL &gl, const std::vector<ui16> &indices) {
@@ -588,7 +599,9 @@ void GL::GUI::initImGUI(OpenGL &gl, const WindowData &win) {
 //----------------------------------------
 
 void API::resize(OpenGL &gl, WindowData &win) {
-    //TODO: WRITE THIS
+    glViewport(0, 0, win.size.x, win.size.y);
+    glDeleteFramebuffers(1, &gl.framebuffer.id_);
+    gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
 }
 
 //----------------------------------------
