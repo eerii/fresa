@@ -57,7 +57,7 @@ namespace Fresa::Graphics::VK
                                                     std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags);
 
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd);
-    void beginDrawCommandBuffer(VkCommandBuffer cmd, VkFramebuffer framebuffer, VkRenderPass render_pass, VkExtent2D extent);
+    void beginDrawCommandBuffer(VkCommandBuffer cmd, const VkSwapchainData &swapchain, ui32 index);
     void recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders shader);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
@@ -123,7 +123,6 @@ namespace Fresa::Graphics::VK
     VkSubpassDependency createRenderSubpassDependency(ui32 src, ui32 dst,
                                                       VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage,
                                                       VkAccessFlagBits src_access, VkAccessFlagBits dst_access);
-    VkAttachmentReference createRenderSubpassAttachmentReference(ui32 index, VkImageLayout layout);
     VkSubpassDescription createRenderSubpass(const std::vector<VkAttachmentReference> &color,
                                              const std::optional<VkAttachmentReference> &depth = std::nullopt);
 
@@ -131,11 +130,12 @@ namespace Fresa::Graphics::VK
     VkAttachmentDescription createRenderPassDepthAttachment(VkFormat format);
 
    
-    VkRenderPass createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format);
+    VkRenderPass createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format, const std::map<ui32, VkAttachmentData> &attachments);
 
+    VkAttachmentData createAttachment(VkAttachmentType type, VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
+                                      const VkCommandData &cmd, const VkSwapchainData &swapchain);
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
-    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const VkSwapchainData &swapchain,
-                                                  std::vector<VkImageView> extra_attachments = {});
+    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const VkSwapchainData &swapchain);
     //----------------------------------------
 
 
@@ -242,6 +242,9 @@ namespace Fresa::Graphics::VK
     //Debug
     //----------------------------------------
     VkDebugReportCallbackEXT createDebug(VkInstance &instance);
+    inline Vec2<> to_vec(VkExtent2D extent) {
+        return Vec2<>(extent.width, extent.height);
+    }
     //----------------------------------------
 }
 

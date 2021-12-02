@@ -15,6 +15,16 @@
 
 namespace Fresa::Graphics
 {
+    enum VkAttachmentType {
+        VK_ATTACHMENT_COLOR,
+        VK_ATTACHMENT_DEPTH
+    };
+
+    struct VkAttachmentData {
+        VkAttachmentType type;
+        TextureData texture;
+    };
+
     struct VkSwapchainData {
         VkFormat format;
         VkExtent2D extent;
@@ -26,8 +36,7 @@ namespace Fresa::Graphics
         std::vector<VkImage> images;
         std::vector<VkImageView> image_views;
         
-        TextureData depth_texture;
-        std::vector<TextureData> extra_textures;
+        std::map<ui32, VkAttachmentData> attachments;
         
         VkRenderPass main_render_pass;
         
