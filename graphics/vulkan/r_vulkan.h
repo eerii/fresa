@@ -46,11 +46,16 @@ namespace Fresa::Graphics
     struct VkPipelineData {
         ShaderData shader;
         
+        std::vector<VkDescriptorSetLayoutBinding> descriptor_layout_bindings;
         VkDescriptorSetLayout descriptor_layout;
+        
+        std::vector<VkDescriptorPoolSize> descriptor_pool_sizes;
         std::vector<VkDescriptorPool> descriptor_pools;
         
         VkPipelineLayout pipeline_layout;
         VkPipeline pipeline;
+        
+        ui32 subpass;
     };
 
     struct VkQueueIndices {
@@ -153,8 +158,6 @@ namespace Fresa::Graphics
         
         //---Pipelines---
         std::map<DrawShaders, VkPipelineData> draw_pipelines;
-        std::map<PostShaders, VkPipelineData> post_pipelines;
-        std::map<PostShaders, std::vector<VkDescriptorSet>> post_descriptor_sets;
         
         //---Images---
         VkSampler sampler;

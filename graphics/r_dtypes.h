@@ -19,6 +19,8 @@
 #include "vk_mem_alloc.h"
 #endif
 
+#define DRAW_SHADER_MAX 32
+
 namespace Fresa::Graphics
 {
     //Window
@@ -116,12 +118,12 @@ namespace Fresa::Graphics
     using ShaderResources = spirv_cross::ShaderResources;
 
     enum DrawShaders {
-        SHADER_DRAW,
-        SHADER_DRAW_2,
+        SHADER_DRAW = 0,
+        SHADER_DRAW_2 = 1,
     };
 
     enum PostShaders {
-        SHADER_POST,
+        SHADER_POST = 0 + DRAW_SHADER_MAX,
     };
 
     inline std::map<DrawShaders, str> draw_shader_names = {
@@ -130,7 +132,7 @@ namespace Fresa::Graphics
     };
 
     inline std::map<PostShaders, str> post_shader_names = {
-        {SHADER_POST, "test"},
+        
     };
 
     struct ShaderLocations {
