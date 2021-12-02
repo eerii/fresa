@@ -124,16 +124,16 @@ namespace Fresa::Graphics::VK
                                                       VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage,
                                                       VkAccessFlagBits src_access, VkAccessFlagBits dst_access);
     VkSubpassDescription createRenderSubpass(const std::vector<VkAttachmentReference> &color,
-                                             const std::optional<VkAttachmentReference> &depth = std::nullopt);
+                                             const std::optional<VkAttachmentReference> &depth = std::nullopt,
+                                             const std::vector<VkAttachmentReference> &input = {});
 
-    VkAttachmentDescription createRenderPassAttachment(VkFormat format);
-    VkAttachmentDescription createRenderPassDepthAttachment(VkFormat format);
-
+    VkAttachmentDescription createRenderPassAttachment(VkFormat format, VkAttachmentLoadOp load, VkAttachmentStoreOp store,
+                                                       VkImageLayout initial_layout, VkImageLayout final_layout);
    
     VkRenderPass createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format, const std::map<ui32, VkAttachmentData> &attachments);
 
     VkAttachmentData createAttachment(VkAttachmentType type, VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                                      const VkCommandData &cmd, const VkSwapchainData &swapchain);
+                                      const VkCommandData &cmd, const VkSwapchainData &swapchain, bool input);
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
     std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const VkSwapchainData &swapchain);
     //----------------------------------------
@@ -162,7 +162,7 @@ namespace Fresa::Graphics::VK
     
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
     VkPipeline createGraphicsPipelineObject(VkDevice device, const VkPipelineLayout &layout,
-                                      const VkSwapchainData &swapchain, const ShaderStages &stages);
+                                            const VkSwapchainData &swapchain, const ShaderStages &stages, ui32 subpass);
     VkPipelineData createPipeline(VkDevice device, const VkSwapchainData &swapchain, str shader_name);
     void recreatePipeline(const Vulkan &vk, VkPipelineData &data);
     //----------------------------------------
@@ -180,18 +180,24 @@ namespace Fresa::Graphics::VK
     //Descriptors
     //----------------------------------------
     VkDescriptorSetLayoutBinding prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding);
-    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, const ShaderCode &code, ui32 swapchain_size);
+    std::vector<VkDescriptorSetLayoutBinding> createDescriptorSetLayoutBindings(VkDevice device, const ShaderCode &code, ui32 swapchain_size);
+    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, const std::vector<VkDescriptorSetLayoutBinding> &bindings);
 
-    VkDescriptorPool createDescriptorPool(VkDevice device);
+    std::vector<VkDescriptorPoolSize> createDescriptorPoolSizes(const std::vector<VkDescriptorSetLayoutBinding> &bindings);
+    VkDescriptorPool createDescriptorPool(VkDevice device, const std::vector<VkDescriptorPoolSize> &sizes);
 
     std::vector<VkDescriptorSet> allocateDescriptorSets(VkDevice device, VkDescriptorSetLayout layout,
+                                                        const std::vector<VkDescriptorPoolSize> &sizes,
                                                         std::vector<VkDescriptorPool> &pools, ui32 swapchain_size);
 
     WriteDescriptorBuffer createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer);
     WriteDescriptorImage createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,
                                                                    VkImageView image_view, VkSampler sampler);
+    WriteDescriptorImage createWrtieDescriptorInputAttachment(VkDescriptorSet descriptor_set, ui32 binding, VkImageView image_view);
 
-    void updatePostDescriptorSets();
+    void updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets, ui8 shader,
+                              std::map<ui32, const std::vector<BufferData>*> uniform_buffers = {},
+                              std::map<ui32, const VkImageView*> image_views = {});
     //----------------------------------------
 
 
@@ -228,7 +234,7 @@ namespace Fresa::Graphics::VK
     VkFormat getDepthFormat(VkPhysicalDevice physical_device);
     bool hasDepthStencilComponent(VkFormat format);
     TextureData createDepthTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                                   const VkCommandData &cmd, Vec2<> size);
+                                   const VkCommandData &cmd, Vec2<> size, bool input = false);
     //----------------------------------------
 
 

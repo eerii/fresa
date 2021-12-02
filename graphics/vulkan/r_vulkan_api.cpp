@@ -33,8 +33,6 @@ namespace {
     std::vector<std::function<void()>> deletion_queue_size_change;
     std::vector<std::function<void()>> deletion_queue_swapchain;
     std::vector<std::function<void()>> deletion_queue_frame;
-
-    std::vector<VkDescriptorPoolSize> descriptor_pool_sizes{};
 }
 
 
@@ -82,8 +80,7 @@ Vulkan API::create(WindowData &win) {
     
     //---Attachments---
     vk.swapchain.attachments = {
-        {1, VK::createAttachment(VK_ATTACHMENT_COLOR, vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain)},
-        {2, VK::createAttachment(VK_ATTACHMENT_DEPTH, vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain)}
+        {1, VK::createAttachment(VK_ATTACHMENT_DEPTH, vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain, true)}
     };
     
     //---Render pass---
@@ -99,11 +96,6 @@ Vulkan API::create(WindowData &win) {
     //---Pipelines---
     for (auto &[shader, name] : draw_shader_names)
         vk.draw_pipelines[shader] = VK::createPipeline(vk.device, vk.swapchain, name);
-    for (auto &[shader, name] : post_shader_names) {
-        vk.post_pipelines[shader] = VK::createPipeline(vk.device, vk.swapchain, name);
-        vk.post_descriptor_sets[shader] = VK::allocateDescriptorSets(vk.device, vk.post_pipelines.at(shader).descriptor_layout,
-                                                                     vk.post_pipelines.at(shader).descriptor_pools, vk.swapchain.size);
-    }
     
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
@@ -718,8 +710,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     
     //: Attachments
     vk.swapchain.attachments = {
-        {1, VK::createAttachment(VK_ATTACHMENT_COLOR, vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain)},
-        {2, VK::createAttachment(VK_ATTACHMENT_DEPTH, vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain)}
+        {1, VK::createAttachment(VK_ATTACHMENT_DEPTH, vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain, true)}
     };
     
     //: Render pass
@@ -735,12 +726,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     
     //: Pipeline
     for (auto &[shader, data] : vk.draw_pipelines)
-        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, vk.swapchain, data.shader.stages);
-    for (auto &[shader, name] : post_shader_names) {
-        vk.post_pipelines[shader] = VK::createPipeline(vk.device, vk.swapchain, name);
-        vk.post_descriptor_sets[shader] = VK::allocateDescriptorSets(vk.device, vk.post_pipelines.at(shader).descriptor_layout,
-                                                                     vk.post_pipelines.at(shader).descriptor_pools, vk.swapchain.size);
-    }
+        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, vk.swapchain, data.shader.stages, data.subpass);
     
     //---Objects that depend on the swapchain size---
     if (previous_size != vk.swapchain.size) {
@@ -752,15 +738,11 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         //: Recreate pipelines
         for (auto &[shader, data] : vk.draw_pipelines)
             recreatePipeline(vk, data);
-        for (auto &[shader, data] : vk.post_pipelines) {
-            recreatePipeline(vk, data);
-            vk.post_descriptor_sets[shader] = VK::allocateDescriptorSets(vk.device, vk.post_pipelines.at(shader).descriptor_layout,
-                                                                         vk.post_pipelines.at(shader).descriptor_pools, vk.swapchain.size);
-        }
         
         //: Update draw data
         for (auto &[id, draw] : API::draw_data) {
             draw.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.draw_pipelines.at(draw.shader).descriptor_layout,
+                                                              vk.draw_pipelines.at(draw.shader).descriptor_pool_sizes,
                                                               vk.draw_pipelines.at(draw.shader).descriptor_pools, vk.swapchain.size);
             draw.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
             API::updateDescriptorSets(vk, &draw);
@@ -906,7 +888,7 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders sha
                 for (const auto &[data, model] : queue_draw) {
                     //: Descriptor set
                     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.draw_pipelines.at(shader).pipeline_layout, 0, 1,
-                                            &data->descriptor_sets[current], 0, nullptr);
+                                            &data->descriptor_sets.at(current), 0, nullptr);
 
                     //: Draw vertices
                     vkCmdDrawIndexed(cmd, buffer->index_size, 1, 0, 0, 0);
@@ -914,8 +896,6 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders sha
             }
         }
     }
-    
-    vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
     
     //: End command buffer and render pass
     vkCmdEndRenderPass(cmd);
@@ -991,7 +971,9 @@ VkSubpassDependency VK::createRenderSubpassDependency(ui32 src, ui32 dst,
     return dependency;
 }
 
-VkSubpassDescription VK::createRenderSubpass(const std::vector<VkAttachmentReference> &color, const std::optional<VkAttachmentReference> &depth) {
+VkSubpassDescription VK::createRenderSubpass(const std::vector<VkAttachmentReference> &color,
+                                             const std::optional<VkAttachmentReference> &depth,
+                                             const std::vector<VkAttachmentReference> &input) {
     //---Render subpass description---
     VkSubpassDescription subpass{};
     
@@ -1000,49 +982,36 @@ VkSubpassDescription VK::createRenderSubpass(const std::vector<VkAttachmentRefer
     subpass.pColorAttachments = color.data();
     if (depth.has_value())
         subpass.pDepthStencilAttachment = &depth.value();
+    if (input.size() > 0) {
+        subpass.inputAttachmentCount = (ui32)input.size();
+        subpass.pInputAttachments = input.data();
+    }
     
     return subpass;
 }
 
-VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format) {
+VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format, VkAttachmentLoadOp load, VkAttachmentStoreOp store,
+                                                       VkImageLayout initial_layout, VkImageLayout final_layout) {
     //---Render pass attachment---
     VkAttachmentDescription attachment{};
     
     attachment.format = format;
     attachment.samples = VK_SAMPLE_COUNT_1_BIT;
     
-    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachment.loadOp = load;
+    attachment.storeOp = store;
     
     attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     
-    attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    attachment.initialLayout = initial_layout;
+    attachment.finalLayout = final_layout;
     
     return attachment;
 }
 
-VkAttachmentDescription VK::createRenderPassDepthAttachment(VkFormat format) {
-    //---Render pass attachment---
-    VkAttachmentDescription attachment{};
-    
-    attachment.format = format;
-    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    
-    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    
-    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    
-    attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    
-    return attachment;
-}
-
-VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format, const std::map<ui32, VkAttachmentData> &attachments) {
+VkRenderPass VK::createRenderPass(VkDevice device, VkFormat color_format, VkFormat depth_format,
+                                  const std::map<ui32, VkAttachmentData> &attachments) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
@@ -1051,44 +1020,17 @@ VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format, VkFormat dep
     VkRenderPassCreateData render_pass_data{};
     
     //---Attachments---
-    render_pass_data.attachments = { VK::createRenderPassAttachment(format) }; //: Swapchain output
-    for (const auto &[idx, a] : attachments) {
-        render_pass_data.attachments.push_back(a.type == VK_ATTACHMENT_COLOR ? VK::createRenderPassAttachment(format) :
-                                                                               VK::createRenderPassDepthAttachment(depth_format));
-    }
+    VkAttachmentDescription swapchain = VK::createRenderPassAttachment(color_format, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+                                                                       VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    VkAttachmentDescription depth = VK::createRenderPassAttachment(depth_format, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+                                                                   VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    render_pass_data.attachments = { swapchain, depth };
+    
     //---Subpasses---
     //      Very basic for now, it can have one draw subpass and multiple post subpasses (right now they all have the same data and only color)
-    
-    std::vector<VkAttachmentReference> color = { VkAttachmentReference{1, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL} };
-    std::optional<VkAttachmentReference> depth = VkAttachmentReference{2, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
-    render_pass_data.subpasses.push_back(createRenderSubpass(color, depth));
-    render_pass_data.dependencies.push_back(VK::createRenderSubpassDependency(
-        VK_SUBPASS_EXTERNAL, 0,
-        //: src stage
-        VkPipelineStageFlagBits(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT),
-        //: dst stage
-        VkPipelineStageFlagBits(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT),
-        //: src access
-        VkAccessFlagBits(0),
-        //: dst access
-        VkAccessFlagBits(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)));
-    
-    int j = 1;
-    std::vector<VkAttachmentReference> color_swapchain = { VkAttachmentReference{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL} };
-    for (auto s : post_shader_names) {
-        render_pass_data.subpasses.push_back(createRenderSubpass(color_swapchain)); //TODO: CHANGE THIS
-        render_pass_data.dependencies.push_back(VK::createRenderSubpassDependency(
-            j - 1, j,
-            //: src stage
-            VkPipelineStageFlagBits(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
-            //: dst stage
-            VkPipelineStageFlagBits(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT),
-            //: src access
-            VkAccessFlagBits(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT),
-            //: dst access
-            VkAccessFlagBits(VK_ACCESS_SHADER_READ_BIT)));
-        j++;
-    }
+    std::vector<VkAttachmentReference> color_ref = { VkAttachmentReference{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL} };
+    std::optional<VkAttachmentReference> depth_ref = VkAttachmentReference{1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+    render_pass_data.subpasses.push_back(createRenderSubpass(color_ref, depth_ref));
     
     //---Create render pass---
     
@@ -1114,18 +1056,21 @@ VkRenderPass VK::createRenderPass(VkDevice device, VkFormat format, VkFormat dep
 }
 
 VkAttachmentData VK::createAttachment(VkAttachmentType type, VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                                      const VkCommandData &cmd, const VkSwapchainData &swapchain) {
+                                      const VkCommandData &cmd, const VkSwapchainData &swapchain, bool input) {
     VkAttachmentData data;
     
     data.type = type;
     
     switch (type) {
         case VK_ATTACHMENT_COLOR:
-            data.texture = VK::createTexture(device, allocator, physical_device, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            data.texture = VK::createTexture(device, allocator, physical_device,
+                                             VkImageUsageFlagBits(input ?
+                                                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT :
+                                                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
                                              VK_IMAGE_ASPECT_COLOR_BIT, VK::to_vec(swapchain.extent), swapchain.format, TEXTURE_CHANNELS_RGB);
             break;
         case VK_ATTACHMENT_DEPTH:
-            data.texture = VK::createDepthTexture(device, allocator, physical_device, cmd, VK::to_vec(swapchain.extent));
+            data.texture = VK::createDepthTexture(device, allocator, physical_device, cmd, VK::to_vec(swapchain.extent), true);
             break;
     }
     
@@ -1605,7 +1550,7 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
 }
 
 VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLayout &layout,
-                                      const VkSwapchainData &swapchain, const ShaderStages &stages) {
+                                      const VkSwapchainData &swapchain, const ShaderStages &stages, ui32 subpass) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
     //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
@@ -1637,7 +1582,7 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLay
     
     //: Render pass
     create_info.renderPass = swapchain.main_render_pass;
-    create_info.subpass = 0;
+    create_info.subpass = subpass;
     
     //: Recreation info
     create_info.basePipelineHandle = VK_NULL_HANDLE;
@@ -1664,25 +1609,32 @@ VkPipelineData VK::createPipeline(VkDevice device, const VkSwapchainData &swapch
     data.shader.stages = VK::createShaderStages(device, data.shader.code);
     
     //---Descriptor pool---
-    data.descriptor_layout = VK::createDescriptorSetLayout(device, data.shader.code, swapchain.size);
-    data.descriptor_pools.push_back(VK::createDescriptorPool(device));
+    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(device, data.shader.code, swapchain.size);
+    data.descriptor_layout = VK::createDescriptorSetLayout(device, data.descriptor_layout_bindings);
+    data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
+    data.descriptor_pools.push_back(VK::createDescriptorPool(device, data.descriptor_pool_sizes));
+    
+    //TODO: CHANGEEEEEE
+    data.subpass = 0;
     
     //---Pipeline---
     data.pipeline_layout = VK::createPipelineLayout(device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(device, data.pipeline_layout, swapchain, data.shader.stages);
+    data.pipeline = VK::createGraphicsPipelineObject(device, data.pipeline_layout, swapchain, data.shader.stages, data.subpass);
     
     return data;
 }
 
 void VK::recreatePipeline(const Vulkan &vk, VkPipelineData &data) {
     //: Descriptor set
-    data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.shader.code, vk.swapchain.size);
+    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.swapchain.size);
+    data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
     data.descriptor_pools.clear();
-    data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device));
+    data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
+    data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
 
     //: Pipeline
     data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, vk.swapchain, data.shader.stages);
+    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, vk.swapchain, data.shader.stages, data.subpass);
 }
 
 //----------------------------------------
@@ -1827,19 +1779,15 @@ VkDescriptorSetLayoutBinding VK::prepareDescriptorSetLayoutBinding(VkShaderStage
     return layout_binding;
 }
 
-VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const ShaderCode &code, ui32 swapchain_size) {
+std::vector<VkDescriptorSetLayoutBinding> VK::createDescriptorSetLayoutBindings(VkDevice device, const ShaderCode &code, ui32 swapchain_size) {
     //---Descriptor set layout---
     //      It is a blueprint for creating descriptor sets, specifies the number and type of descriptors in the GLSL shader
     //      Descriptors can be anything passed into a shader: uniforms, images, ...
     //      We use SPIRV-cross to get reflection from the shaders themselves and create the descriptor layout automatically
-    VkDescriptorSetLayout layout;
     std::vector<VkDescriptorSetLayoutBinding> layout_binding;
     
     log::graphics("");
     log::graphics("Creating descriptor set layout...");
-    
-    ui32 uniform_count = 0;
-    ui32 image_sampler_count = 0;
     
     //---Vertex shader---
     if (code.vert.has_value()) {
@@ -1852,7 +1800,6 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const Shade
             log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: Vertex", res.name.c_str(), binding);
             layout_binding.push_back(
                 prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
-            uniform_count++;
         }
     }
     
@@ -1867,7 +1814,6 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const Shade
             log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: Fragment", res.name.c_str(), binding);
             layout_binding.push_back(
                 prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
-            uniform_count++;
         }
         
         //: Combined image samplers
@@ -1876,24 +1822,28 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const Shade
             log::graphics(" - Image (%s) - Binding : %d - Stage : Fragment", res.name.c_str(), binding);
             layout_binding.push_back(
                 prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding));
-            image_sampler_count++;
+        }
+        
+        //: Subpass input
+        for (const auto &res : resources.subpass_inputs) {
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Subpass (%s) - Binding : %d - Stage : Fragment", res.name.c_str(), binding);
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, binding));
         }
     }
     
-    //---Define the descriptor pool sizes---
-    //      This specifies how many resources of each type we need, and will be later used when creating a descriptor pool
-    //      We use the number of items of that type, times the number of images in the swapchain
-    descriptor_pool_sizes.clear();
-    if (uniform_count > 0)
-        descriptor_pool_sizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniform_count * MAX_POOL_SETS});
-    if (image_sampler_count > 0)
-        descriptor_pool_sizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, image_sampler_count * MAX_POOL_SETS});
+    return layout_binding;
+}
     
+VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
     //---Create the descriptor layout itself---
+    VkDescriptorSetLayout layout;
+    
     VkDescriptorSetLayoutCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    create_info.bindingCount = (ui32)layout_binding.size();
-    create_info.pBindings = layout_binding.data();
+    create_info.bindingCount = (ui32)bindings.size();
+    create_info.pBindings = bindings.data();
     
     if (vkCreateDescriptorSetLayout(device, &create_info, nullptr, &layout) != VK_SUCCESS)
         log::error("Error creating a descriptor set layout, check shader refraction");
@@ -1902,7 +1852,43 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const Shade
     return layout;
 }
 
-VkDescriptorPool VK::createDescriptorPool(VkDevice device) {
+std::vector<VkDescriptorPoolSize> VK::createDescriptorPoolSizes(const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
+    //---Define the descriptor pool sizes---
+    //      This specifies how many resources of each type we need, and will be later used when creating a descriptor pool
+    //      We use the number of items of that type, times the number of images in the swapchain
+    std::vector<VkDescriptorPoolSize> sizes;
+    
+    ui32 uniform_count = 0;
+    ui32 image_sampler_count = 0;
+    ui32 subpass_input_count = 0;
+    
+    for (auto &binding : bindings) {
+        switch (binding.descriptorType) {
+            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                uniform_count++;
+                break;
+            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+                image_sampler_count++;
+                break;
+            case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+                subpass_input_count++;
+                break;
+            default:
+                break;
+        }
+    }
+    
+    if (uniform_count > 0)
+        sizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniform_count * MAX_POOL_SETS});
+    if (image_sampler_count > 0)
+        sizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, image_sampler_count * MAX_POOL_SETS});
+    if (subpass_input_count > 0)
+        sizes.push_back({VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, subpass_input_count * MAX_POOL_SETS});
+    
+    return sizes;
+}
+
+VkDescriptorPool VK::createDescriptorPool(VkDevice device, const std::vector<VkDescriptorPoolSize> &sizes) {
     //---Descriptor pool---
     //      A descriptor pool will house descriptor sets of various kinds
     //      There are two types of usage for a descriptor pool:
@@ -1918,8 +1904,8 @@ VkDescriptorPool VK::createDescriptorPool(VkDevice device) {
     //      This uses the descriptor pool size from the list of sizes initialized in createDescriptorSetLayout() using SPIRV reflection
     VkDescriptorPoolCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    create_info.poolSizeCount = (ui32)descriptor_pool_sizes.size();
-    create_info.pPoolSizes = descriptor_pool_sizes.data();
+    create_info.poolSizeCount = (ui32)sizes.size();
+    create_info.pPoolSizes = sizes.data();
     create_info.maxSets = MAX_POOL_SETS;
     /*std::accumulate(descriptor_pool_sizes.begin(), descriptor_pool_sizes.end(), 0,
      [](ui32 sum, const VkDescriptorPoolSize &item){ return sum + item.descriptorCount; });*/
@@ -1931,13 +1917,15 @@ VkDescriptorPool VK::createDescriptorPool(VkDevice device) {
     //: Log the allowed types and respective sizes
     log::graphics("");
     log::graphics("Created a vulkan descriptor pool with sizes:");
-    for (const auto &item : descriptor_pool_sizes) {
+    for (const auto &item : sizes) {
         str name = [item](){
             switch (item.type) {
                 case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
                     return "Uniform";
                 case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
                     return "Image sampler";
+                case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+                    return "Input attachment";
                 default:
                     return "";
             }
@@ -1951,6 +1939,7 @@ VkDescriptorPool VK::createDescriptorPool(VkDevice device) {
 }
 
 std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescriptorSetLayout layout,
+                                                        const std::vector<VkDescriptorPoolSize> &sizes,
                                                         std::vector<VkDescriptorPool> &pools, ui32 swapchain_size) {
     //---Descriptor sets---
     //      These objects can be thought as a pointer to a resource that the shader can access, for example an image sampler or uniform bufffer
@@ -1967,7 +1956,7 @@ std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescr
     
     //: Create the descriptor set
     if (vkAllocateDescriptorSets(device, &allocate_info, descriptor_sets.data()) != VK_SUCCESS) {
-        pools.push_back(VK::createDescriptorPool(device));
+        pools.push_back(VK::createDescriptorPool(device, sizes));
         log::info("Created a new vulkan descriptor pool");
         allocate_info.descriptorPool = pools.back();
         
@@ -2021,24 +2010,81 @@ WriteDescriptorImage VK::createWriteDescriptorCombinedImageSampler(VkDescriptorS
     return write_descriptor;
 }
 
+WriteDescriptorImage VK::createWrtieDescriptorInputAttachment(VkDescriptorSet descriptor_set, ui32 binding, VkImageView image_view) {
+    WriteDescriptorImage write_descriptor{};
+    
+    write_descriptor.info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    write_descriptor.info.imageView = image_view;
+    write_descriptor.info.sampler = VK_NULL_HANDLE;
+    
+    write_descriptor.write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_descriptor.write.dstSet = descriptor_set;
+    write_descriptor.write.dstBinding = binding;
+    write_descriptor.write.dstArrayElement = 0;
+    write_descriptor.write.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+    write_descriptor.write.descriptorCount = 1;
+    write_descriptor.write.pBufferInfo = nullptr;
+    write_descriptor.write.pImageInfo = &write_descriptor.info;
+    write_descriptor.write.pTexelBufferView = nullptr;
+    
+    return write_descriptor;
+}
+
 void API::updateDescriptorSets(const Vulkan &vk, const DrawData* draw) {
+    //TODO: COMMENT
+    if (draw->texture_id.has_value()) {
+        const TextureData* tex = &API::texture_data.at(draw->texture_id.value());
+        VK::updateDescriptorSets(vk, draw->descriptor_sets, draw->shader,
+                                 {{0, &draw->uniform_buffers}},
+                                 {{1, &tex->image_view}});
+    } else {
+        VK::updateDescriptorSets(vk, draw->descriptor_sets, draw->shader,
+                                 {{0, &draw->uniform_buffers}});
+    }
+    
+    //log::graphics("Updated descriptor sets");
+}
+
+void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets, ui8 shader,
+                              std::map<ui32, const std::vector<BufferData>*> uniform_buffers,
+                              std::map<ui32, const VkImageView*> image_views) {
     //TODO: COMMENT
     for (int i = 0; i < vk.swapchain.size; i++) {
         std::vector<VkWriteDescriptorSet> write_descriptors;
         
-        auto uniform_write_descriptor = VK::createWriteDescriptorUniformBuffer(draw->descriptor_sets[i], 0, draw->uniform_buffers[i]);
-        write_descriptors.push_back(uniform_write_descriptor.write);
+        auto add_descriptor = [&vk, &write_descriptors, &descriptor_sets, &uniform_buffers, &image_views, i]
+                              (const VkDescriptorSetLayoutBinding &binding) {
+                                  
+            bool has_uniform = uniform_buffers.find(binding.binding) != uniform_buffers.end();
+            if (has_uniform and binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+                auto uniform_write_descriptor = VK::createWriteDescriptorUniformBuffer(descriptor_sets.at(i), binding.binding,
+                                                                                       uniform_buffers.at(binding.binding)->at(i));
+                write_descriptors.push_back(uniform_write_descriptor.write);
+            }
+                                  
+            bool has_image = image_views.find(binding.binding) != image_views.end();
+            if (has_image and binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+                auto image_write_descriptor = VK::createWriteDescriptorCombinedImageSampler(descriptor_sets.at(i), binding.binding,
+                                                                                            *image_views.at(binding.binding), vk.sampler);
+                write_descriptors.push_back(image_write_descriptor.write);
+            }
+                                  
+            if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
+                auto input_write_descriptor = VK::createWrtieDescriptorInputAttachment(descriptor_sets.at(i), binding.binding,
+                                                                                       vk.swapchain.attachments.at(binding.binding).texture.image_view);
+                write_descriptors.push_back(input_write_descriptor.write);
+            }
+        };
         
-        if (draw->texture_id.has_value()) {
-            const TextureData* tex = &API::texture_data.at(draw->texture_id.value());
-            auto image_write_descriptor = VK::createWriteDescriptorCombinedImageSampler(draw->descriptor_sets[i], 1, tex->image_view, vk.sampler);
-            write_descriptors.push_back(image_write_descriptor.write);
+        if (shader < DRAW_SHADER_MAX) { //Draw
+            for (const auto &binding : vk.draw_pipelines.at(DrawShaders(shader)).descriptor_layout_bindings)
+                add_descriptor(binding);
+        } else { //Post
+            
         }
         
         vkUpdateDescriptorSets(vk.device, (ui32)write_descriptors.size(), write_descriptors.data(), 0, nullptr);
     }
-    
-    //log::graphics("Updated descriptor sets");
 }
 
 //----------------------------------------
@@ -2385,6 +2431,7 @@ DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer, DrawShaders shader
     draw_data[id].buffer_id = buffer;
     
     draw_data[id].descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.draw_pipelines.at(shader).descriptor_layout,
+                                                               vk.draw_pipelines.at(shader).descriptor_pool_sizes,
                                                                vk.draw_pipelines.at(shader).descriptor_pools, vk.swapchain.size);
     draw_data[id].uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
     draw_data[id].shader = shader;
@@ -2411,9 +2458,12 @@ bool VK::hasDepthStencilComponent(VkFormat format) {
 }
 
 TextureData VK::createDepthTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                                   const VkCommandData &cmd, Vec2<> size) {
+                                   const VkCommandData &cmd, Vec2<> size, bool input) {
     //---Depth texture---
-    TextureData data = createTexture(device, allocator, physical_device, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+    TextureData data = createTexture(device, allocator, physical_device,
+                                     VkImageUsageFlagBits(input ?
+                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT :
+                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT),
                                      VK_IMAGE_ASPECT_DEPTH_BIT, size,  getDepthFormat(physical_device), Channels(0));
     
     //: (Optional) Transition image layout
