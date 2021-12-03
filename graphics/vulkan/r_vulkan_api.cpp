@@ -78,11 +78,11 @@ Vulkan API::create(WindowData &win) {
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
     //---Attachments---
-    VK::registerAttachment(ATTACHMENT_DEPTH, vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain);
+    VK::registerAttachment(vk, vk.swapchain, ATTACHMENT_COLOR_SWAPCHAIN);
+    VK::registerAttachment(vk, vk.swapchain, ATTACHMENT_DEPTH);
     
     //---Render pass---
-    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format,
-                                                         VK::getDepthFormat(vk.physical_device), vk.swapchain.attachments);
+    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.attachments);
     
     //---Framebuffers---
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
@@ -712,8 +712,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     VK::recreateAttachments(vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain);
     
     //: Render pass
-    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format,
-                                                         VK::getDepthFormat(vk.physical_device), vk.swapchain.attachments);
+    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.attachments);
     
     //: Framebuffers
     vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
@@ -829,7 +828,6 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const VkSwapchainData &swap
     
     //: Clear values
     std::vector<VkClearValue> clear_values{swapchain.attachments.size() + 1};
-    clear_values[0].color = {0.01f, 0.01f, 0.05f, 1.0f};
     for (auto &[idx, a] : swapchain.attachments) {
         if (a.type & ATTACHMENT_COLOR)
             clear_values[idx].color = {0.f, 0.f, 0.f, 1.0f};
@@ -1000,8 +998,7 @@ VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format, VkAttach
     return attachment;
 }
 
-VkRenderPass VK::createRenderPass(VkDevice device, VkFormat color_format, VkFormat depth_format,
-                                  const std::map<ui32, AttachmentData> &attachments) {
+VkRenderPass VK::createRenderPass(VkDevice device, const std::map<ui32, AttachmentData> &attachments) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
@@ -1010,11 +1007,10 @@ VkRenderPass VK::createRenderPass(VkDevice device, VkFormat color_format, VkForm
     VkRenderPassCreateData render_pass_data{};
     
     //---Attachments---
-    VkAttachmentDescription swapchain = VK::createRenderPassAttachment(color_format, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-                                                                       VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    VkAttachmentDescription depth = VK::createRenderPassAttachment(depth_format, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
-                                                                   VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    render_pass_data.attachments = { swapchain, depth };
+    for (const auto &[i, attachment] : attachments) {
+        render_pass_data.attachments.push_back(VK::createRenderPassAttachment(
+            attachment.format, attachment.load_op, attachment.store_op, attachment.initial_layout, attachment.final_layout));
+    }
     
     //---Subpasses---
     //      Very basic for now, it can have one draw subpass and multiple post subpasses (right now they all have the same data and only color)
@@ -1045,46 +1041,70 @@ VkRenderPass VK::createRenderPass(VkDevice device, VkFormat color_format, VkForm
     return render_pass;
 }
 
-void VK::registerAttachment(AttachmentType type, VkDevice device, VmaAllocator allocator,
-                            VkPhysicalDevice physical_device, const VkCommandData &cmd, VkSwapchainData &swapchain) {
-    static ui32 id = 1;
+void VK::registerAttachment(const Vulkan &vk, VkSwapchainData &swapchain, AttachmentType type) {
+    static ui32 id = 0;
     while (swapchain.attachments.find(id) != swapchain.attachments.end())
         id++;
     
     swapchain.attachments[id] = AttachmentData{};
-    swapchain.attachments[id].type = type;
+    AttachmentData &attachment = swapchain.attachments.at(id);
     
-    Channels ch{};
-    VkFormat format{};
+    attachment.type = type;
+    
+    attachment.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    
+    attachment.load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachment.store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     
     if (type & ATTACHMENT_COLOR) {
-        swapchain.attachments[id].usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        swapchain.attachments[id].aspect = VkImageAspectFlagBits(swapchain.attachments[id].aspect | VK_IMAGE_ASPECT_COLOR_BIT);
-        format = swapchain.format;
-        ch = TEXTURE_CHANNELS_RGBA;
+        attachment.usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        attachment.aspect = VkImageAspectFlagBits(swapchain.attachments[id].aspect | VK_IMAGE_ASPECT_COLOR_BIT);
+        attachment.format = swapchain.format;
+        attachment.final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     }
     
     if (type & ATTACHMENT_DEPTH) {
-        swapchain.attachments[id].usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
-        swapchain.attachments[id].aspect = VkImageAspectFlagBits(swapchain.attachments[id].aspect | VK_IMAGE_ASPECT_DEPTH_BIT);
-        format = VK::getDepthFormat(physical_device);
-        ch = TEXTURE_CHANNELS_G;
+        attachment.usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        attachment.aspect = VkImageAspectFlagBits(swapchain.attachments[id].aspect | VK_IMAGE_ASPECT_DEPTH_BIT);
+        attachment.format = VK::getDepthFormat(vk.physical_device);
+        attachment.final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     }
     
     if (type & ATTACHMENT_INPUT) {
-        swapchain.attachments[id].usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+        attachment.usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+        attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
     }
     
-    swapchain.attachments[id].texture = VK::createTexture(device, allocator, physical_device, swapchain.attachments[id].usage,
-                                                          swapchain.attachments[id].aspect, to_vec(swapchain.extent), format, ch);
+    if (type & ATTACHMENT_SWAPCHAIN) {
+        attachment.final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
+    }
+    
+    if (not (type & ATTACHMENT_SWAPCHAIN)) {
+        auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, to_vec(swapchain.extent),
+                                        attachment.format, attachment.initial_layout, attachment.usage);
+        attachment.image = i_;
+        attachment.allocation = a_;
+        
+        attachment.image_view = VK::createImageView(vk.device, attachment.image, attachment.aspect, attachment.format);
+        deletion_queue_swapchain.push_back([vk, attachment](){ vkDestroyImageView(vk.device, attachment.image_view, nullptr); });
+    }
 }
 
 void VK::recreateAttachments(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
                              const VkCommandData &cmd, VkSwapchainData &swapchain) {
     for (auto &[idx, attachment] : swapchain.attachments) {
-        attachment.texture = VK::createTexture(device, allocator, physical_device, attachment.usage, attachment.aspect,
-                                               Vec2<>(attachment.texture.w, attachment.texture.h),
-                                               attachment.texture.format, Channels(attachment.texture.ch));
+        if (not (attachment.type & ATTACHMENT_SWAPCHAIN)) {
+            auto [i_, a_] = VK::createImage(device, allocator, VMA_MEMORY_USAGE_GPU_ONLY, to_vec(swapchain.extent),
+                                        attachment.format, attachment.initial_layout, attachment.usage);
+            attachment.image = i_;
+            attachment.allocation = a_;
+            
+            attachment.image_view = VK::createImageView(device, attachment.image, attachment.aspect, attachment.format);
+            
+            AttachmentData &attachment_ref = swapchain.attachments.at(idx);
+            deletion_queue_swapchain.push_back([device, attachment_ref](){ vkDestroyImageView(device, attachment_ref.image_view, nullptr); });
+        }
     }
 }
 
@@ -1120,9 +1140,9 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const VkSwapc
     framebuffers.resize(swapchain.size);
     
     for (int i = 0; i < swapchain.size; i++) {
-        std::vector<VkImageView> attachments = { swapchain.image_views[i] };
-        for (auto &[idx, a] : swapchain.attachments)
-            attachments.push_back(a.texture.image_view);
+        std::vector<VkImageView> attachments{};
+        for (auto &[idx, attachment] : swapchain.attachments)
+            attachments.push_back(attachment.type & ATTACHMENT_SWAPCHAIN ? swapchain.image_views[i] : attachment.image_view);
         framebuffers[i] = VK::createFramebuffer(device, swapchain.main_render_pass, attachments, swapchain.extent);
     }
     
@@ -2082,7 +2102,7 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
                                   
             if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
                 auto input_write_descriptor = VK::createWrtieDescriptorInputAttachment(descriptor_sets.at(i), binding.binding,
-                                                                                       vk.swapchain.attachments.at(binding.binding).texture.image_view);
+                                                                                       vk.swapchain.attachments.at(binding.binding).image_view);
                 write_descriptors.push_back(input_write_descriptor.write);
             }
         };

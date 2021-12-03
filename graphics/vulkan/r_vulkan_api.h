@@ -131,10 +131,9 @@ namespace Fresa::Graphics::VK
     VkAttachmentDescription createRenderPassAttachment(VkFormat format, VkAttachmentLoadOp load, VkAttachmentStoreOp store,
                                                        VkImageLayout initial_layout, VkImageLayout final_layout);
    
-    VkRenderPass createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format, const std::map<ui32, AttachmentData> &attachments);
+    VkRenderPass createRenderPass(VkDevice device, const std::map<ui32, AttachmentData> &attachments);
 
-    void registerAttachment(AttachmentType type, VkDevice device, VmaAllocator allocator,
-                            VkPhysicalDevice physical_device, const VkCommandData &cmd, VkSwapchainData &swapchain);
+    void registerAttachment(const Vulkan &vk, VkSwapchainData &swapchain, AttachmentType type);
     void recreateAttachments(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
                              const VkCommandData &cmd, VkSwapchainData &swapchain);
 
