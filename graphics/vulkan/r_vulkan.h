@@ -15,14 +15,12 @@
 
 namespace Fresa::Graphics
 {
-    enum VkAttachmentType {
-        VK_ATTACHMENT_COLOR,
-        VK_ATTACHMENT_DEPTH
-    };
-
-    struct VkAttachmentData {
-        VkAttachmentType type;
+    struct AttachmentData {
+        AttachmentType type;
         TextureData texture;
+        
+        VkImageUsageFlagBits usage;
+        VkImageAspectFlagBits aspect;
     };
 
     struct VkSwapchainData {
@@ -36,11 +34,10 @@ namespace Fresa::Graphics
         std::vector<VkImage> images;
         std::vector<VkImageView> image_views;
         
-        std::map<ui32, VkAttachmentData> attachments;
+        std::vector<VkFramebuffer> framebuffers;
+        std::map<ui32, AttachmentData> attachments;
         
         VkRenderPass main_render_pass;
-        
-        std::vector<VkFramebuffer> framebuffers;
     };
 
     struct VkPipelineData {
@@ -78,6 +75,11 @@ namespace Fresa::Graphics
         
         VkQueueIndices queue_indices;
         VkQueueData queues;
+    };
+    
+    struct VkCommandPoolHelperData {
+        std::optional<ui32> queue;
+        std::optional<VkCommandPoolCreateFlagBits> flags;
     };
 
     struct VkSyncData {

@@ -9,6 +9,7 @@
 #include "log.h"
 
 #include <optional>
+#include <bitset>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -96,16 +97,15 @@ namespace Fresa::Graphics
 
     //Framebuffer
     //----------------------------------------
-    enum FramebufferType {
-        FRAMEBUFFER_COLOR_ATTACHMENT,
-        FRAMEBUFFER_DEPTH_ATTACHMENT,
-        FRAMEBUFFER_COLOR_DEPTH_ATTACHMENT
+    enum AttachmentType {
+        ATTACHMENT_COLOR = 1 << 0,
+        ATTACHMENT_DEPTH = 1 << 1,
+        ATTACHMENT_INPUT = 1 << 2,
+        ATTACHMENT_COLOR_INPUT = ATTACHMENT_COLOR | ATTACHMENT_INPUT,
+        ATTACHMENT_DEPTH_INPUT = ATTACHMENT_DEPTH | ATTACHMENT_INPUT,
     };
 
     struct FramebufferData {
-        FramebufferType type;
-        std::optional<TextureData> color_texture;
-        std::optional<TextureData> depth_texture;
         #ifdef USE_OPENGL
         ui32 id_;
         #endif
