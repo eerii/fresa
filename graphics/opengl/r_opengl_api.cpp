@@ -304,7 +304,7 @@ void GL::validateShaderData(ui32 vao_id, const std::map<str, ShaderData> &shader
 //Buffers
 //----------------------------------------
 
-FramebufferData GL::createFramebuffer(Vec2<> size, FramebufferType type) {
+FramebufferData GL::createFramebuffer(Vec2<> size, AttachmentType type) {
     //---Framebuffer---
     //      A texture that you can draw to, useful for multi step shader pipelines
     //      It can have a color, depth or both attachments

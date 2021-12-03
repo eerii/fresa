@@ -71,17 +71,14 @@ Vulkan API::create(WindowData &win) {
     
     //---Command pools---
     vk.cmd.command_pools = VK::createCommandPools(vk.device, vk.cmd.queue_indices,
-        {"draw", "temp", "transfer"},
-        {{"transfer", vk.cmd.queue_indices.transfer.value()}},
-        {{"draw", VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT},
-         {"temp", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT},
-         {"transfer", VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}});
+    {   {"draw",     {vk.cmd.queue_indices.present.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}},
+        {"temp",     {vk.cmd.queue_indices.graphics.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
+        {"transfer", {vk.cmd.queue_indices.transfer.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
+    });
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
     //---Attachments---
-    vk.swapchain.attachments = {
-        {1, VK::createAttachment(VK_ATTACHMENT_DEPTH, vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain, true)}
-    };
+    VK::registerAttachment(ATTACHMENT_DEPTH, vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain);
     
     //---Render pass---
     vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format,
@@ -592,8 +589,8 @@ VkExtent2D VK::selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const Win
     return actual_extent;
 }
 
-VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
-                                    const VkQueueIndices &queue_indices, const WindowData &win) {
+VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface, const VkQueueIndices &queue_indices,
+                                    const WindowData &win, std::map<ui32, AttachmentData> previous_attachments) {
     //---Swapchain---
     //      List of images that will get drawn to the screen by the render pipeline
     //      Swapchain data:
@@ -667,6 +664,9 @@ VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_d
     for (int i = 0; i < swapchain.images.size(); i++)
         swapchain.image_views[i] = createImageView(device, swapchain.images[i], VK_IMAGE_ASPECT_COLOR_BIT, swapchain.format);
     
+    //---Attachments---
+    if (previous_attachments.size() > 0)
+        swapchain.attachments = previous_attachments;
     
     //---Deletion queue---
     deletion_queue_swapchain.push_back([swapchain, device](){
@@ -703,15 +703,13 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     deletion_queue_swapchain.clear();
     
     //---Swapchain---
-    vk.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
+    vk.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win, vk.swapchain.attachments);
     
     //: Command buffer allocation
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
     //: Attachments
-    vk.swapchain.attachments = {
-        {1, VK::createAttachment(VK_ATTACHMENT_DEPTH, vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain, true)}
-    };
+    VK::recreateAttachments(vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain);
     
     //: Render pass
     vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.format,
@@ -757,8 +755,8 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
 //Commands
 //----------------------------------------
 
-std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const VkQueueIndices &queue_indices, std::vector<str> keys,
-                                                    std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags) {
+std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const VkQueueIndices &queue_indices,
+                                                    std::map<str, VkCommandPoolHelperData> create_data) {
     //---Command pools---
     //      Command buffers can be allocated inside them
     //      We can have multiple command pools for different types of buffers, for example, "draw" and "transfer"
@@ -766,23 +764,15 @@ std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const VkQue
     
     std::map<str, VkCommandPool> command_pools;
     
-    for (auto key: keys) {
+    for (auto &[key, data] : create_data) {
         VkCommandPoolCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         
         //: Queue index for this specific command pool
-        create_info.queueFamilyIndex = [queues, queue_indices, key](){
-            if (queues.count(key) > 0)
-                return queues.at(key);
-            return queue_indices.graphics.value();
-        }();
+        create_info.queueFamilyIndex = data.queue.has_value() ? data.queue.value() : queue_indices.graphics.value();
         
         //: Flags, for example, a transient flag for temporary buffers
-        create_info.flags = [flags, key](){
-            if (flags.count(key) > 0)
-                return flags.at(key);
-            return (VkCommandPoolCreateFlagBits)0;
-        }();
+        create_info.flags = data.flags.has_value() ? data.flags.value() : (VkCommandPoolCreateFlagBits)0;
         
         //: Create the command pool
         if (vkCreateCommandPool(device, &create_info, nullptr, &command_pools[key]) != VK_SUCCESS)
@@ -841,9 +831,9 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const VkSwapchainData &swap
     std::vector<VkClearValue> clear_values{swapchain.attachments.size() + 1};
     clear_values[0].color = {0.01f, 0.01f, 0.05f, 1.0f};
     for (auto &[idx, a] : swapchain.attachments) {
-        if (a.type == VK_ATTACHMENT_COLOR)
+        if (a.type & ATTACHMENT_COLOR)
             clear_values[idx].color = {0.f, 0.f, 0.f, 1.0f};
-        else
+        if (a.type & ATTACHMENT_DEPTH)
             clear_values[idx].depthStencil = {1.0f, 0};
     }
     
@@ -1011,7 +1001,7 @@ VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format, VkAttach
 }
 
 VkRenderPass VK::createRenderPass(VkDevice device, VkFormat color_format, VkFormat depth_format,
-                                  const std::map<ui32, VkAttachmentData> &attachments) {
+                                  const std::map<ui32, AttachmentData> &attachments) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
@@ -1055,26 +1045,47 @@ VkRenderPass VK::createRenderPass(VkDevice device, VkFormat color_format, VkForm
     return render_pass;
 }
 
-VkAttachmentData VK::createAttachment(VkAttachmentType type, VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                                      const VkCommandData &cmd, const VkSwapchainData &swapchain, bool input) {
-    VkAttachmentData data;
+void VK::registerAttachment(AttachmentType type, VkDevice device, VmaAllocator allocator,
+                            VkPhysicalDevice physical_device, const VkCommandData &cmd, VkSwapchainData &swapchain) {
+    static ui32 id = 1;
+    while (swapchain.attachments.find(id) != swapchain.attachments.end())
+        id++;
     
-    data.type = type;
+    swapchain.attachments[id] = AttachmentData{};
+    swapchain.attachments[id].type = type;
     
-    switch (type) {
-        case VK_ATTACHMENT_COLOR:
-            data.texture = VK::createTexture(device, allocator, physical_device,
-                                             VkImageUsageFlagBits(input ?
-                                                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT :
-                                                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
-                                             VK_IMAGE_ASPECT_COLOR_BIT, VK::to_vec(swapchain.extent), swapchain.format, TEXTURE_CHANNELS_RGB);
-            break;
-        case VK_ATTACHMENT_DEPTH:
-            data.texture = VK::createDepthTexture(device, allocator, physical_device, cmd, VK::to_vec(swapchain.extent), true);
-            break;
+    Channels ch{};
+    VkFormat format{};
+    
+    if (type & ATTACHMENT_COLOR) {
+        swapchain.attachments[id].usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        swapchain.attachments[id].aspect = VkImageAspectFlagBits(swapchain.attachments[id].aspect | VK_IMAGE_ASPECT_COLOR_BIT);
+        format = swapchain.format;
+        ch = TEXTURE_CHANNELS_RGBA;
     }
     
-    return data;
+    if (type & ATTACHMENT_DEPTH) {
+        swapchain.attachments[id].usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        swapchain.attachments[id].aspect = VkImageAspectFlagBits(swapchain.attachments[id].aspect | VK_IMAGE_ASPECT_DEPTH_BIT);
+        format = VK::getDepthFormat(physical_device);
+        ch = TEXTURE_CHANNELS_G;
+    }
+    
+    if (type & ATTACHMENT_INPUT) {
+        swapchain.attachments[id].usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+    }
+    
+    swapchain.attachments[id].texture = VK::createTexture(device, allocator, physical_device, swapchain.attachments[id].usage,
+                                                          swapchain.attachments[id].aspect, to_vec(swapchain.extent), format, ch);
+}
+
+void VK::recreateAttachments(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
+                             const VkCommandData &cmd, VkSwapchainData &swapchain) {
+    for (auto &[idx, attachment] : swapchain.attachments) {
+        attachment.texture = VK::createTexture(device, allocator, physical_device, attachment.usage, attachment.aspect,
+                                               Vec2<>(attachment.texture.w, attachment.texture.h),
+                                               attachment.texture.format, Channels(attachment.texture.ch));
+    }
 }
 
 VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent) {
@@ -2455,21 +2466,6 @@ VkFormat VK::getDepthFormat(VkPhysicalDevice physical_device) {
 bool VK::hasDepthStencilComponent(VkFormat format) {
     //---Checks if depth texture has stencil component---
     return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
-}
-
-TextureData VK::createDepthTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                                   const VkCommandData &cmd, Vec2<> size, bool input) {
-    //---Depth texture---
-    TextureData data = createTexture(device, allocator, physical_device,
-                                     VkImageUsageFlagBits(input ?
-                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT :
-                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT),
-                                     VK_IMAGE_ASPECT_DEPTH_BIT, size,  getDepthFormat(physical_device), Channels(0));
-    
-    //: (Optional) Transition image layout
-    transitionImageLayout(device, cmd, data, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    
-    return data;
 }
 //----------------------------------------
 

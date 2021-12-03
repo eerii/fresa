@@ -46,15 +46,16 @@ namespace Fresa::Graphics::VK
     VkExtent2D selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const WindowData &win);
     
     VkSwapchainData createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
-                                    const VkQueueIndices &queue_indices, const WindowData &win);
+                                    const VkQueueIndices &queue_indices, const WindowData &win,
+                                    std::map<ui32, AttachmentData> previous_attachments = {});
     void recreateSwapchain(Vulkan &vk, const WindowData &win);
     //----------------------------------------
 
 
     //Commands
     //----------------------------------------
-    std::map<str, VkCommandPool> createCommandPools(VkDevice device, const VkQueueIndices &queue_indices, std::vector<str> keys,
-                                                    std::map<str, ui32> queues, std::map<str, VkCommandPoolCreateFlagBits> flags);
+    std::map<str, VkCommandPool> createCommandPools(VkDevice device, const VkQueueIndices &queue_indices,
+                                                    std::map<str, VkCommandPoolHelperData> data);
 
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd);
     void beginDrawCommandBuffer(VkCommandBuffer cmd, const VkSwapchainData &swapchain, ui32 index);
@@ -130,10 +131,13 @@ namespace Fresa::Graphics::VK
     VkAttachmentDescription createRenderPassAttachment(VkFormat format, VkAttachmentLoadOp load, VkAttachmentStoreOp store,
                                                        VkImageLayout initial_layout, VkImageLayout final_layout);
    
-    VkRenderPass createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format, const std::map<ui32, VkAttachmentData> &attachments);
+    VkRenderPass createRenderPass(VkDevice device, VkFormat format, VkFormat depth_format, const std::map<ui32, AttachmentData> &attachments);
 
-    VkAttachmentData createAttachment(VkAttachmentType type, VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                                      const VkCommandData &cmd, const VkSwapchainData &swapchain, bool input);
+    void registerAttachment(AttachmentType type, VkDevice device, VmaAllocator allocator,
+                            VkPhysicalDevice physical_device, const VkCommandData &cmd, VkSwapchainData &swapchain);
+    void recreateAttachments(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
+                             const VkCommandData &cmd, VkSwapchainData &swapchain);
+
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
     std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const VkSwapchainData &swapchain);
     //----------------------------------------
@@ -233,8 +237,6 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
     VkFormat getDepthFormat(VkPhysicalDevice physical_device);
     bool hasDepthStencilComponent(VkFormat format);
-    TextureData createDepthTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                                   const VkCommandData &cmd, Vec2<> size, bool input = false);
     //----------------------------------------
 
 

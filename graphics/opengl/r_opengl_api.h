@@ -30,7 +30,7 @@ namespace Fresa::Graphics::GL
 
     //Buffers
     //----------------------------------------
-    FramebufferData createFramebuffer(Vec2<> size, FramebufferType type);
+    FramebufferData createFramebuffer(Vec2<> size, AttachmentType type);
 
     BufferData createBuffer(size_t size = 0, GLenum type = GL_UNIFORM_BUFFER, GLenum usage = GL_STATIC_DRAW);
 
