@@ -17,10 +17,22 @@ namespace Fresa::Graphics
 {
     struct AttachmentData {
         AttachmentType type;
-        TextureData texture;
+        
+        VkImage image;
+        VmaAllocation allocation;
+        
+        VkImageView image_view;
+        
+        VkFormat format;
         
         VkImageUsageFlagBits usage;
         VkImageAspectFlagBits aspect;
+        
+        VkImageLayout initial_layout;
+        VkImageLayout final_layout;
+        
+        VkAttachmentLoadOp load_op;
+        VkAttachmentStoreOp store_op;
     };
 
     struct VkSwapchainData {
