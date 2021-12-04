@@ -67,7 +67,7 @@ Vulkan API::create(WindowData &win) {
     vk.allocator = VK::createMemoryAllocator(vk.device, vk.physical_device, vk.instance);
     
     //---Swapchain---
-    vk.swapchain = VK::createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
+    vk.render.swapchain = VK::createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
     
     //---Command pools---
     vk.cmd.command_pools = VK::createCommandPools(vk.device, vk.cmd.queue_indices,
@@ -75,24 +75,24 @@ Vulkan API::create(WindowData &win) {
         {"temp",     {vk.cmd.queue_indices.graphics.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
         {"transfer", {vk.cmd.queue_indices.transfer.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
     });
-    vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
+    vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.render.swapchain.size, vk.cmd);
     
     //---Attachments---
-    VK::registerAttachment(vk, vk.swapchain, ATTACHMENT_COLOR_SWAPCHAIN);
-    VK::registerAttachment(vk, vk.swapchain, ATTACHMENT_DEPTH);
+    VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_COLOR_SWAPCHAIN);
+    VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_DEPTH);
     
     //---Render pass---
-    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.attachments);
+    vk.render.render_pass = VK::createRenderPass(vk.device, vk.render.attachments);
     
     //---Framebuffers---
-    vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
+    vk.render.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.render);
     
     //---Sync objects---
-    vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
+    vk.sync = VK::createSyncObjects(vk.device, vk.render.swapchain.size);
     
     //---Pipelines---
     for (auto &[shader, name] : draw_shader_names)
-        vk.draw_pipelines[shader] = VK::createPipeline(vk.device, vk.swapchain, name);
+        vk.draw_pipelines[shader] = VK::createPipeline(vk.device, vk.render, name);
     
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
@@ -589,8 +589,8 @@ VkExtent2D VK::selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const Win
     return actual_extent;
 }
 
-VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface, const VkQueueIndices &queue_indices,
-                                    const WindowData &win, std::map<ui32, AttachmentData> previous_attachments) {
+SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
+                                  const VkQueueIndices &queue_indices, const WindowData &win) {
     //---Swapchain---
     //      List of images that will get drawn to the screen by the render pipeline
     //      Swapchain data:
@@ -599,8 +599,7 @@ VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_d
     //      - VkSwapchainKHR swapchain: Actual swapchain object
     //      - std::vector<VkImage> images: List of swapchain images
     //      - std::vector<VkImageView> image_views: List of their respective image views
-    
-    VkSwapchainData swapchain;
+    SwapchainData swapchain;
     
     //---Format, present mode and extent---
     VkSwapchainSupportData support = getSwapchainSupport(surface, physical_device);
@@ -664,10 +663,6 @@ VkSwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_d
     for (int i = 0; i < swapchain.images.size(); i++)
         swapchain.image_views[i] = createImageView(device, swapchain.images[i], VK_IMAGE_ASPECT_COLOR_BIT, swapchain.format);
     
-    //---Attachments---
-    if (previous_attachments.size() > 0)
-        swapchain.attachments = previous_attachments;
-    
     //---Deletion queue---
     deletion_queue_swapchain.push_back([swapchain, device](){
         for (VkImageView view : swapchain.image_views)
@@ -692,7 +687,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     log::graphics("");
     
     //: Save previous size to avoid recreating non necessary things
-    ui32 previous_size = vk.swapchain.size;
+    ui32 previous_size = vk.render.swapchain.size;
     
     //: Wait for draw operations to finish
     vkDeviceWaitIdle(vk.device);
@@ -703,30 +698,30 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     deletion_queue_swapchain.clear();
     
     //---Swapchain---
-    vk.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win, vk.swapchain.attachments);
+    vk.render.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
     
     //: Command buffer allocation
-    vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
+    vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.render.swapchain.size, vk.cmd);
     
     //: Attachments
-    VK::recreateAttachments(vk.device, vk.allocator, vk.physical_device, vk.cmd, vk.swapchain);
+    VK::recreateAttachments(vk.device, vk.allocator, vk.physical_device, vk.cmd, to_vec(vk.render.swapchain.extent), vk.render.attachments);
     
     //: Render pass
-    vk.swapchain.main_render_pass = VK::createRenderPass(vk.device, vk.swapchain.attachments);
+    vk.render.render_pass = VK::createRenderPass(vk.device, vk.render.attachments);
     
     //: Framebuffers
-    vk.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.swapchain);
+    vk.render.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.render);
     
     //: Sync objects
-    if (previous_size != vk.swapchain.size)
-        vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
+    if (previous_size != vk.render.swapchain.size)
+        vk.sync = VK::createSyncObjects(vk.device, vk.render.swapchain.size);
     
     //: Pipeline
     for (auto &[shader, data] : vk.draw_pipelines)
-        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, vk.swapchain, data.shader.stages, data.subpass);
+        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, data.shader.stages, vk.render, data.subpass);
     
     //---Objects that depend on the swapchain size---
-    if (previous_size != vk.swapchain.size) {
+    if (previous_size != vk.render.swapchain.size) {
         //: Clean
         for (auto it = deletion_queue_size_change.rbegin(); it != deletion_queue_size_change.rend(); ++it)
             (*it)();
@@ -740,8 +735,8 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         for (auto &[id, draw] : API::draw_data) {
             draw.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.draw_pipelines.at(draw.shader).descriptor_layout,
                                                               vk.draw_pipelines.at(draw.shader).descriptor_pool_sizes,
-                                                              vk.draw_pipelines.at(draw.shader).descriptor_pools, vk.swapchain.size);
-            draw.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
+                                                              vk.draw_pipelines.at(draw.shader).descriptor_pools, vk.render.swapchain.size);
+            draw.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.render.swapchain.size);
             API::updateDescriptorSets(vk, &draw);
         }
     }
@@ -786,7 +781,7 @@ std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const VkQue
     return command_pools;
 }
 
-std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd) {
+std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const CommandData &cmd) {
     //---Command buffers---
     //      All vulkan commands must be executed inside a command buffer
     //      Here we create the command buffers we will use for drawing, and allocate them inside a command pool ("draw")
@@ -812,7 +807,7 @@ std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui3
     return command_buffers;
 }
 
-void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const VkSwapchainData &swapchain, ui32 index) {
+void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const RenderData &render, ui32 index) {
     //---Begin draw command buffer---
     //      Helper function for creating drawing command buffers
     //      It begins a command buffer and a render pass, adds clear values and binds the graphics pipeline
@@ -827,8 +822,8 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const VkSwapchainData &swap
         log::error("Failed to begin recording on a vulkan command buffer");
     
     //: Clear values
-    std::vector<VkClearValue> clear_values{swapchain.attachments.size() + 1};
-    for (auto &[idx, a] : swapchain.attachments) {
+    std::vector<VkClearValue> clear_values{render.attachments.size() + 1};
+    for (auto &[idx, a] : render.attachments) {
         if (a.type & ATTACHMENT_COLOR)
             clear_values[idx].color = {0.f, 0.f, 0.f, 1.0f};
         if (a.type & ATTACHMENT_DEPTH)
@@ -838,10 +833,10 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const VkSwapchainData &swap
     //: Begin render pass
     VkRenderPassBeginInfo render_pass_info{};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = swapchain.main_render_pass;
-    render_pass_info.framebuffer = swapchain.framebuffers[index];
+    render_pass_info.renderPass = render.render_pass;
+    render_pass_info.framebuffer = render.swapchain.framebuffers[index];
     render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = swapchain.extent;
+    render_pass_info.renderArea.extent = render.swapchain.extent;
     render_pass_info.clearValueCount = (ui32)clear_values.size();
     render_pass_info.pClearValues = clear_values.data();
     
@@ -856,7 +851,7 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders sha
     const VkCommandBuffer &cmd = vk.cmd.command_buffers.at("draw")[current];
     
     //: Begin command buffer and render pass
-    VK::beginDrawCommandBuffer(cmd, vk.swapchain, current);
+    VK::beginDrawCommandBuffer(cmd, vk.render, current);
     
     //: Add all the draw calls (Optimize this in the future for a single mesh)
     for (const auto &[shader, queue_buffer] : API::draw_queue) {
@@ -998,13 +993,13 @@ VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format, VkAttach
     return attachment;
 }
 
-VkRenderPass VK::createRenderPass(VkDevice device, const std::map<ui32, AttachmentData> &attachments) {
+VkRenderPass VK::createRenderPass(VkDevice device, const std::map<AttachmentID, AttachmentData> &attachments) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
     //      It will render to a framebuffer
     VkRenderPass render_pass;
-    VkRenderPassCreateData render_pass_data{};
+    VkRenderPassHelperData render_pass_data{};
     
     //---Attachments---
     for (const auto &[i, attachment] : attachments) {
@@ -1041,13 +1036,13 @@ VkRenderPass VK::createRenderPass(VkDevice device, const std::map<ui32, Attachme
     return render_pass;
 }
 
-void VK::registerAttachment(const Vulkan &vk, VkSwapchainData &swapchain, AttachmentType type) {
-    static ui32 id = 0;
-    while (swapchain.attachments.find(id) != swapchain.attachments.end())
+AttachmentID VK::registerAttachment(const Vulkan &vk, std::map<AttachmentID, AttachmentData> &attachments, AttachmentType type) {
+    static AttachmentID id = 0;
+    while (attachments.find(id) != attachments.end())
         id++;
     
-    swapchain.attachments[id] = AttachmentData{};
-    AttachmentData &attachment = swapchain.attachments.at(id);
+    attachments[id] = AttachmentData{};
+    AttachmentData &attachment = attachments.at(id);
     
     attachment.type = type;
     
@@ -1057,21 +1052,21 @@ void VK::registerAttachment(const Vulkan &vk, VkSwapchainData &swapchain, Attach
     attachment.store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     
     if (type & ATTACHMENT_COLOR) {
-        attachment.usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-        attachment.aspect = VkImageAspectFlagBits(swapchain.attachments[id].aspect | VK_IMAGE_ASPECT_COLOR_BIT);
-        attachment.format = swapchain.format;
+        attachment.usage = VkImageUsageFlagBits(attachment.usage | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+        attachment.aspect = VkImageAspectFlagBits(attachment.aspect | VK_IMAGE_ASPECT_COLOR_BIT);
+        attachment.format = vk.render.swapchain.format;
         attachment.final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     }
     
     if (type & ATTACHMENT_DEPTH) {
-        attachment.usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
-        attachment.aspect = VkImageAspectFlagBits(swapchain.attachments[id].aspect | VK_IMAGE_ASPECT_DEPTH_BIT);
+        attachment.usage = VkImageUsageFlagBits(attachment.usage | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        attachment.aspect = VkImageAspectFlagBits(attachment.aspect | VK_IMAGE_ASPECT_DEPTH_BIT);
         attachment.format = VK::getDepthFormat(vk.physical_device);
         attachment.final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     }
     
     if (type & ATTACHMENT_INPUT) {
-        attachment.usage = VkImageUsageFlagBits(swapchain.attachments[id].usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+        attachment.usage = VkImageUsageFlagBits(attachment.usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
         attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
     }
     
@@ -1081,7 +1076,7 @@ void VK::registerAttachment(const Vulkan &vk, VkSwapchainData &swapchain, Attach
     }
     
     if (not (type & ATTACHMENT_SWAPCHAIN)) {
-        auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, to_vec(swapchain.extent),
+        auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, to_vec(vk.render.swapchain.extent),
                                         attachment.format, attachment.initial_layout, attachment.usage);
         attachment.image = i_;
         attachment.allocation = a_;
@@ -1089,20 +1084,22 @@ void VK::registerAttachment(const Vulkan &vk, VkSwapchainData &swapchain, Attach
         attachment.image_view = VK::createImageView(vk.device, attachment.image, attachment.aspect, attachment.format);
         deletion_queue_swapchain.push_back([vk, attachment](){ vkDestroyImageView(vk.device, attachment.image_view, nullptr); });
     }
+    
+    return id;
 }
 
 void VK::recreateAttachments(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                             const VkCommandData &cmd, VkSwapchainData &swapchain) {
-    for (auto &[idx, attachment] : swapchain.attachments) {
+                             const CommandData &cmd, Vec2<> size, std::map<AttachmentID, AttachmentData> &attachments) {
+    for (auto &[idx, attachment] : attachments) {
         if (not (attachment.type & ATTACHMENT_SWAPCHAIN)) {
-            auto [i_, a_] = VK::createImage(device, allocator, VMA_MEMORY_USAGE_GPU_ONLY, to_vec(swapchain.extent),
-                                        attachment.format, attachment.initial_layout, attachment.usage);
+            auto [i_, a_] = VK::createImage(device, allocator, VMA_MEMORY_USAGE_GPU_ONLY, size,
+                                            attachment.format, attachment.initial_layout, attachment.usage);
             attachment.image = i_;
             attachment.allocation = a_;
             
             attachment.image_view = VK::createImageView(device, attachment.image, attachment.aspect, attachment.format);
             
-            AttachmentData &attachment_ref = swapchain.attachments.at(idx);
+            AttachmentData &attachment_ref = attachments.at(idx);
             deletion_queue_swapchain.push_back([device, attachment_ref](){ vkDestroyImageView(device, attachment_ref.image_view, nullptr); });
         }
     }
@@ -1134,16 +1131,16 @@ VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, s
     return framebuffer;
 }
 
-std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const VkSwapchainData &swapchain) {
+std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const RenderData &render) {
     //---Framebuffers---
     std::vector<VkFramebuffer> framebuffers;
-    framebuffers.resize(swapchain.size);
+    framebuffers.resize(render.swapchain.size);
     
-    for (int i = 0; i < swapchain.size; i++) {
+    for (int i = 0; i < render.swapchain.size; i++) {
         std::vector<VkImageView> attachments{};
-        for (auto &[idx, attachment] : swapchain.attachments)
-            attachments.push_back(attachment.type & ATTACHMENT_SWAPCHAIN ? swapchain.image_views[i] : attachment.image_view);
-        framebuffers[i] = VK::createFramebuffer(device, swapchain.main_render_pass, attachments, swapchain.extent);
+        for (auto &[idx, attachment] : render.attachments)
+            attachments.push_back(attachment.type & ATTACHMENT_SWAPCHAIN ? render.swapchain.image_views[i] : attachment.image_view);
+        framebuffers[i] = VK::createFramebuffer(device, render.render_pass, attachments, render.swapchain.extent);
     }
     
     deletion_queue_swapchain.push_back([framebuffers, device](){
@@ -1259,14 +1256,14 @@ void VK::destroyShaderStages(VkDevice device, const ShaderStages &stages) {
 //Sync objects
 //----------------------------------------
 
-VkSyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
+SyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
     //---Sync objects---
     //      Used to control the flow of operations when executing commands
     //      - Fence: GPU->CPU, we can wait from the CPU until a fence has finished on a GPU operation
     //      - Semaphore: GPU->GPU, can be signal or wait
     //          - Signal: Operation locks semaphore when executing and unlocks after it is finished
     //          - Wait: Wait until semaphore is unlocked to execute the command
-    VkSyncData sync;
+    SyncData sync;
     
     //---Frames in flight---
     //      Defined in r_vulkan_api.h, indicates how many frames can be processed concurrently
@@ -1325,12 +1322,12 @@ VkSyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
 //Pipeline
 //----------------------------------------
 
-VkPipelineCreateInfo VK::preparePipelineCreateInfo(VkExtent2D extent) {
+VkPipelineHelperData VK::preparePipelineCreateInfo(VkExtent2D extent) {
     //---Preprare pipeline info---
     //      Pipelines are huge objects in vulkan, and building them is both complicated and expensive
     //      There is a lot of configuration needed, so this with all the helper functions attempt to break it down into manageable components
     //      Each function explains itself, so refer to them for reference
-    VkPipelineCreateInfo info;
+    VkPipelineHelperData info;
     
     info.vertex_input_binding_description = VK::getBindingDescriptions<VertexData>();
     info.vertex_input_attribute_descriptions = VK::getAttributeDescriptions<VertexData>();
@@ -1581,7 +1578,7 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
 }
 
 VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLayout &layout,
-                                      const VkSwapchainData &swapchain, const ShaderStages &stages, ui32 subpass) {
+                                            const ShaderStages &stages, const RenderData &render, ui32 subpass) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
     //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
@@ -1597,7 +1594,7 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLay
     create_info.pStages = stage_info.data();
     
     //: Pipeline info
-    VkPipelineCreateInfo pipeline_create_info = preparePipelineCreateInfo(swapchain.extent);
+    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(render.swapchain.extent);
     create_info.pVertexInputState = &pipeline_create_info.vertex_input;
     create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
     create_info.pViewportState = &pipeline_create_info.viewport_state;
@@ -1612,7 +1609,7 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLay
     create_info.layout = layout;
     
     //: Render pass
-    create_info.renderPass = swapchain.main_render_pass;
+    create_info.renderPass = render.render_pass;
     create_info.subpass = subpass;
     
     //: Recreation info
@@ -1629,8 +1626,8 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLay
     return pipeline;
 }
 
-VkPipelineData VK::createPipeline(VkDevice device, const VkSwapchainData &swapchain, str shader_name) {
-    VkPipelineData data;
+PipelineData VK::createPipeline(VkDevice device, const RenderData &render, str shader_name) {
+    PipelineData data;
     
     log::graphics("PIPELINE: %s", shader_name.c_str());
     log::graphics("---");
@@ -1640,7 +1637,7 @@ VkPipelineData VK::createPipeline(VkDevice device, const VkSwapchainData &swapch
     data.shader.stages = VK::createShaderStages(device, data.shader.code);
     
     //---Descriptor pool---
-    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(device, data.shader.code, swapchain.size);
+    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(device, data.shader.code, render.swapchain.size);
     data.descriptor_layout = VK::createDescriptorSetLayout(device, data.descriptor_layout_bindings);
     data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
     data.descriptor_pools.push_back(VK::createDescriptorPool(device, data.descriptor_pool_sizes));
@@ -1650,14 +1647,14 @@ VkPipelineData VK::createPipeline(VkDevice device, const VkSwapchainData &swapch
     
     //---Pipeline---
     data.pipeline_layout = VK::createPipelineLayout(device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(device, data.pipeline_layout, swapchain, data.shader.stages, data.subpass);
+    data.pipeline = VK::createGraphicsPipelineObject(device, data.pipeline_layout, data.shader.stages, render, data.subpass);
     
     return data;
 }
 
-void VK::recreatePipeline(const Vulkan &vk, VkPipelineData &data) {
+void VK::recreatePipeline(const Vulkan &vk, PipelineData &data) {
     //: Descriptor set
-    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.swapchain.size);
+    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.render.swapchain.size);
     data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
     data.descriptor_pools.clear();
     data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
@@ -1665,7 +1662,7 @@ void VK::recreatePipeline(const Vulkan &vk, VkPipelineData &data) {
 
     //: Pipeline
     data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, vk.swapchain, data.shader.stages, data.subpass);
+    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, data.shader.stages, vk.render, data.subpass);
 }
 
 //----------------------------------------
@@ -1773,7 +1770,7 @@ BufferData VK::createIndexBuffer(const Vulkan &vk, const std::vector<ui16> &indi
     return index_buffer;
 }
 
-void VK::copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+void VK::copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
     //---Copy buffer---
     //      Simple function that creates a command buffer to copy the memory from one buffer to another
     //      Very helpful when using staging buffers to move information from CPU to GPU only memory (can be done in reverse)
@@ -2080,7 +2077,7 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
                               std::map<ui32, const std::vector<BufferData>*> uniform_buffers,
                               std::map<ui32, const VkImageView*> image_views) {
     //TODO: COMMENT
-    for (int i = 0; i < vk.swapchain.size; i++) {
+    for (int i = 0; i < vk.render.swapchain.size; i++) {
         std::vector<VkWriteDescriptorSet> write_descriptors;
         
         auto add_descriptor = [&vk, &write_descriptors, &descriptor_sets, &uniform_buffers, &image_views, i]
@@ -2102,7 +2099,7 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
                                   
             if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
                 auto input_write_descriptor = VK::createWrtieDescriptorInputAttachment(descriptor_sets.at(i), binding.binding,
-                                                                                       vk.swapchain.attachments.at(binding.binding).image_view);
+                                                                                       vk.render.attachments.at(binding.binding).image_view);
                 write_descriptors.push_back(input_write_descriptor.write);
             }
         };
@@ -2271,7 +2268,7 @@ std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator 
     return std::pair<VkImage, VmaAllocation>{image, allocation};
 }
 
-void VK::transitionImageLayout(VkDevice device, const VkCommandData &cmd, TextureData &tex, VkImageLayout new_layout) {
+void VK::transitionImageLayout(VkDevice device, const CommandData &cmd, TextureData &tex, VkImageLayout new_layout) {
     //TODO: COMMENT
     VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd.command_pools.at("temp"));
 
@@ -2340,7 +2337,7 @@ void VK::transitionImageLayout(VkDevice device, const VkCommandData &cmd, Textur
     tex.layout = new_layout;
 }
 
-void VK::copyBufferToImage(VkDevice device, const VkCommandData &cmd, BufferData &buffer, TextureData &tex) {
+void VK::copyBufferToImage(VkDevice device, const CommandData &cmd, BufferData &buffer, TextureData &tex) {
     //TODO: COMMENT
     VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd.command_pools.at("transfer"));
     
@@ -2463,8 +2460,8 @@ DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer, DrawShaders shader
     
     draw_data[id].descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.draw_pipelines.at(shader).descriptor_layout,
                                                                vk.draw_pipelines.at(shader).descriptor_pool_sizes,
-                                                               vk.draw_pipelines.at(shader).descriptor_pools, vk.swapchain.size);
-    draw_data[id].uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size);
+                                                               vk.draw_pipelines.at(shader).descriptor_pools, vk.render.swapchain.size);
+    draw_data[id].uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.render.swapchain.size);
     draw_data[id].shader = shader;
     
     return id;
@@ -2494,7 +2491,7 @@ bool VK::hasDepthStencilComponent(VkFormat format) {
 //Render
 //----------------------------------------
 
-ui32 VK::startRender(VkDevice device, const VkSwapchainData &swapchain, VkSyncData &sync, std::function<void()> recreate_swapchain) {
+ui32 VK::startRender(VkDevice device, const SwapchainData &swapchain, SyncData &sync, std::function<void()> recreate_swapchain) {
     //---Start rendering---
     //      TODO: .
     ui32 image_index;
@@ -2552,7 +2549,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
     present_info.waitSemaphoreCount = 1;
     present_info.pWaitSemaphores = signal_semaphores;
     
-    VkSwapchainKHR swapchains[]{ vk.swapchain.swapchain };
+    VkSwapchainKHR swapchains[]{ vk.render.swapchain.swapchain };
     present_info.swapchainCount = 1;
     present_info.pSwapchains = swapchains;
     present_info.pImageIndices = &index;
@@ -2584,7 +2581,7 @@ void API::renderTest(Vulkan &vk, WindowData &win) {
     ubo.proj[1][1] *= -1;
     
     //: Get the current image
-    ui32 index = VK::startRender(vk.device, vk.swapchain, vk.sync,
+    ui32 index = VK::startRender(vk.device, vk.render.swapchain, vk.sync,
                                  [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
     for (const auto &[shader, buffer_queue] : API::draw_queue) {

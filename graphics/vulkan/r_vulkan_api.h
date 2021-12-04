@@ -45,9 +45,8 @@ namespace Fresa::Graphics::VK
     VkPresentModeKHR selectSwapPresentMode(const std::vector<VkPresentModeKHR> &modes);
     VkExtent2D selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const WindowData &win);
     
-    VkSwapchainData createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
-                                    const VkQueueIndices &queue_indices, const WindowData &win,
-                                    std::map<ui32, AttachmentData> previous_attachments = {});
+    SwapchainData createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
+                                  const VkQueueIndices &queue_indices, const WindowData &win);
     void recreateSwapchain(Vulkan &vk, const WindowData &win);
     //----------------------------------------
 
@@ -57,8 +56,8 @@ namespace Fresa::Graphics::VK
     std::map<str, VkCommandPool> createCommandPools(VkDevice device, const VkQueueIndices &queue_indices,
                                                     std::map<str, VkCommandPoolHelperData> data);
 
-    std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const VkCommandData &cmd);
-    void beginDrawCommandBuffer(VkCommandBuffer cmd, const VkSwapchainData &swapchain, ui32 index);
+    std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const CommandData &cmd);
+    void beginDrawCommandBuffer(VkCommandBuffer cmd, const RenderData &render, ui32 index);
     void recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders shader);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
@@ -130,27 +129,26 @@ namespace Fresa::Graphics::VK
 
     VkAttachmentDescription createRenderPassAttachment(VkFormat format, VkAttachmentLoadOp load, VkAttachmentStoreOp store,
                                                        VkImageLayout initial_layout, VkImageLayout final_layout);
-   
-    VkRenderPass createRenderPass(VkDevice device, const std::map<ui32, AttachmentData> &attachments);
+    VkRenderPass createRenderPass(VkDevice device, const std::map<AttachmentID, AttachmentData> &attachments);
 
-    void registerAttachment(const Vulkan &vk, VkSwapchainData &swapchain, AttachmentType type);
+    AttachmentID registerAttachment(const Vulkan &vk, std::map<AttachmentID, AttachmentData> &attachments, AttachmentType type);
     void recreateAttachments(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                             const VkCommandData &cmd, VkSwapchainData &swapchain);
+                             const CommandData &cmd, Vec2<> size, std::map<AttachmentID, AttachmentData> &attachments);
 
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
-    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const VkSwapchainData &swapchain);
+    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const RenderData &render);
     //----------------------------------------
 
 
     //Sync objects
     //----------------------------------------
-    VkSyncData createSyncObjects(VkDevice device, ui32 swapchain_size);
+    SyncData createSyncObjects(VkDevice device, ui32 swapchain_size);
     //----------------------------------------
 
 
     //Pipeline
     //----------------------------------------
-    VkPipelineCreateInfo preparePipelineCreateInfo(VkExtent2D extent);
+    VkPipelineHelperData preparePipelineCreateInfo(VkExtent2D extent);
     VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
         const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes);
     VkPipelineInputAssemblyStateCreateInfo preparePipelineCreateInfoInputAssembly();
@@ -165,16 +163,16 @@ namespace Fresa::Graphics::VK
     
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
     VkPipeline createGraphicsPipelineObject(VkDevice device, const VkPipelineLayout &layout,
-                                            const VkSwapchainData &swapchain, const ShaderStages &stages, ui32 subpass);
-    VkPipelineData createPipeline(VkDevice device, const VkSwapchainData &swapchain, str shader_name);
-    void recreatePipeline(const Vulkan &vk, VkPipelineData &data);
+                                            const ShaderStages &stages, const RenderData &render, ui32 subpass);
+    PipelineData createPipeline(VkDevice device, const RenderData &render, str shader_name);
+    void recreatePipeline(const Vulkan &vk, PipelineData &data);
     //----------------------------------------
 
 
     //Buffers
     //----------------------------------------
     BufferData createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory);
-    void copyBuffer(VkDevice device, const VkCommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
+    void copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
     BufferData createVertexBuffer(const GraphicsAPI &api, const std::vector<Graphics::VertexData> &vertices);
     BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
     //----------------------------------------
@@ -224,8 +222,8 @@ namespace Fresa::Graphics::VK
                               VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<> size, VkFormat format, Channels ch);
     std::pair<VkImage, VmaAllocation> createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory,
                                                   Vec2<> size, VkFormat format, VkImageLayout layout, VkImageUsageFlags usage);
-    void transitionImageLayout(VkDevice device, const VkCommandData &cmd, TextureData &tex, VkImageLayout new_layout);
-    void copyBufferToImage(VkDevice device, const VkCommandData &cmd, BufferData &buffer, TextureData &tex);
+    void transitionImageLayout(VkDevice device, const CommandData &cmd, TextureData &tex, VkImageLayout new_layout);
+    void copyBufferToImage(VkDevice device, const CommandData &cmd, BufferData &buffer, TextureData &tex);
 
     VkImageView createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);
     VkSampler createSampler(VkDevice device);
@@ -241,7 +239,7 @@ namespace Fresa::Graphics::VK
 
     //Render
     //----------------------------------------
-    ui32 startRender(VkDevice device, const VkSwapchainData &swapchain, VkSyncData &sync, std::function<void()> recreate_swapchain);
+    ui32 startRender(VkDevice device, const SwapchainData &swapchain, SyncData &sync, std::function<void()> recreate_swapchain);
     void renderFrame(Vulkan &vk, WindowData &win, ui32 index);
     //----------------------------------------
 
