@@ -118,25 +118,27 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
 
 
-    //Render pass
+    //Attachments
     //----------------------------------------
-    VkSubpassDependency createRenderSubpassDependency(ui32 src, ui32 dst,
-                                                      VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage,
-                                                      VkAccessFlagBits src_access, VkAccessFlagBits dst_access);
-    VkSubpassDescription createRenderSubpass(const std::vector<VkAttachmentReference> &color,
-                                             const std::optional<VkAttachmentReference> &depth = std::nullopt,
-                                             const std::vector<VkAttachmentReference> &input = {});
-
-    VkAttachmentDescription createRenderPassAttachment(VkFormat format, VkAttachmentLoadOp load, VkAttachmentStoreOp store,
-                                                       VkImageLayout initial_layout, VkImageLayout final_layout);
-    VkRenderPass createRenderPass(VkDevice device, const std::map<AttachmentID, AttachmentData> &attachments);
-
+    VkAttachmentDescription createAttachmentDescription(const AttachmentData &attachment);
     AttachmentID registerAttachment(const Vulkan &vk, std::map<AttachmentID, AttachmentData> &attachments, AttachmentType type);
     void recreateAttachments(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
                              const CommandData &cmd, Vec2<> size, std::map<AttachmentID, AttachmentData> &attachments);
 
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
     std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const RenderData &render);
+    //----------------------------------------
+
+
+    //Render pass
+    //----------------------------------------
+    void registerSubpass(RenderData &render, std::vector<AttachmentID> ids);
+
+    VkSubpassDependency createRenderSubpassDependency(ui32 src, ui32 dst,
+                                                      VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage,
+                                                      VkAccessFlagBits src_access, VkAccessFlagBits dst_access);
+
+    VkRenderPass createRenderPass(VkDevice device, const RenderData &render);
     //----------------------------------------
 
 

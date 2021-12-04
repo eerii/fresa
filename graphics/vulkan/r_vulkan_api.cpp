@@ -78,11 +78,16 @@ Vulkan API::create(WindowData &win) {
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.render.swapchain.size, vk.cmd);
     
     //---Attachments---
-    VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_COLOR_SWAPCHAIN);
-    VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_DEPTH);
+    AttachmentID attachment_swapchain = VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_COLOR_SWAPCHAIN);
+    AttachmentID attachment_color = VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_COLOR_INPUT);
+    AttachmentID attachment_depth = VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_DEPTH);
+    
+    //---Subpasses---
+    VK::registerSubpass(vk.render, {attachment_swapchain, attachment_depth});
+    VK::registerSubpass(vk.render, {attachment_color});
     
     //---Render pass---
-    vk.render.render_pass = VK::createRenderPass(vk.device, vk.render.attachments);
+    vk.render.render_pass = VK::createRenderPass(vk.device, vk.render);
     
     //---Framebuffers---
     vk.render.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.render);
@@ -707,7 +712,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     VK::recreateAttachments(vk.device, vk.allocator, vk.physical_device, vk.cmd, to_vec(vk.render.swapchain.extent), vk.render.attachments);
     
     //: Render pass
-    vk.render.render_pass = VK::createRenderPass(vk.device, vk.render.attachments);
+    vk.render.render_pass = VK::createRenderPass(vk.device, vk.render);
     
     //: Framebuffers
     vk.render.swapchain.framebuffers = VK::createFramebuffers(vk.device, vk.render);
@@ -880,6 +885,8 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders sha
         }
     }
     
+    vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
+    
     //: End command buffer and render pass
     vkCmdEndRenderPass(cmd);
     if (vkEndCommandBuffer(cmd) != VK_SUCCESS)
@@ -933,107 +940,22 @@ void VK::endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buff
 
 
 
-//Render Pass
+//Attachments
 //----------------------------------------
 
-VkSubpassDependency VK::createRenderSubpassDependency(ui32 src, ui32 dst,
-                                                      VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage,
-                                                      VkAccessFlagBits src_access, VkAccessFlagBits dst_access) {
-    //---Render subpass dependency---
-    VkSubpassDependency dependency{};
+VkAttachmentDescription VK::createAttachmentDescription(const AttachmentData &attachment) {
+    VkAttachmentDescription description{};
     
-    dependency.srcSubpass = src;
-    dependency.dstSubpass = dst;
+    description.format = attachment.format;
+    description.samples = VK_SAMPLE_COUNT_1_BIT;
+    description.loadOp = attachment.load_op;
+    description.storeOp = attachment.store_op;
+    description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    description.initialLayout = attachment.initial_layout;
+    description.finalLayout = attachment.final_layout;
     
-    dependency.srcStageMask = src_stage;
-    dependency.srcAccessMask = src_access;
-    
-    dependency.dstStageMask = dst_stage;
-    dependency.dstAccessMask = dst_access;
-    
-    return dependency;
-}
-
-VkSubpassDescription VK::createRenderSubpass(const std::vector<VkAttachmentReference> &color,
-                                             const std::optional<VkAttachmentReference> &depth,
-                                             const std::vector<VkAttachmentReference> &input) {
-    //---Render subpass description---
-    VkSubpassDescription subpass{};
-    
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = (ui32)color.size();
-    subpass.pColorAttachments = color.data();
-    if (depth.has_value())
-        subpass.pDepthStencilAttachment = &depth.value();
-    if (input.size() > 0) {
-        subpass.inputAttachmentCount = (ui32)input.size();
-        subpass.pInputAttachments = input.data();
-    }
-    
-    return subpass;
-}
-
-VkAttachmentDescription VK::createRenderPassAttachment(VkFormat format, VkAttachmentLoadOp load, VkAttachmentStoreOp store,
-                                                       VkImageLayout initial_layout, VkImageLayout final_layout) {
-    //---Render pass attachment---
-    VkAttachmentDescription attachment{};
-    
-    attachment.format = format;
-    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    
-    attachment.loadOp = load;
-    attachment.storeOp = store;
-    
-    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    
-    attachment.initialLayout = initial_layout;
-    attachment.finalLayout = final_layout;
-    
-    return attachment;
-}
-
-VkRenderPass VK::createRenderPass(VkDevice device, const std::map<AttachmentID, AttachmentData> &attachments) {
-    //---Render pass---
-    //      All rendering happens inside of a render pass
-    //      It can have multiple subpasses and attachments
-    //      It will render to a framebuffer
-    VkRenderPass render_pass;
-    VkRenderPassHelperData render_pass_data{};
-    
-    //---Attachments---
-    for (const auto &[i, attachment] : attachments) {
-        render_pass_data.attachments.push_back(VK::createRenderPassAttachment(
-            attachment.format, attachment.load_op, attachment.store_op, attachment.initial_layout, attachment.final_layout));
-    }
-    
-    //---Subpasses---
-    //      Very basic for now, it can have one draw subpass and multiple post subpasses (right now they all have the same data and only color)
-    std::vector<VkAttachmentReference> color_ref = { VkAttachmentReference{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL} };
-    std::optional<VkAttachmentReference> depth_ref = VkAttachmentReference{1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
-    render_pass_data.subpasses.push_back(createRenderSubpass(color_ref, depth_ref));
-    
-    //---Create render pass---
-    
-    VkRenderPassCreateInfo create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    
-    create_info.attachmentCount = (ui32)render_pass_data.attachments.size();
-    create_info.pAttachments = render_pass_data.attachments.data();
-    
-    create_info.subpassCount = (ui32)render_pass_data.subpasses.size();
-    create_info.pSubpasses = render_pass_data.subpasses.data();
-    
-    create_info.dependencyCount = (ui32)render_pass_data.dependencies.size();
-    create_info.pDependencies = render_pass_data.dependencies.data();
-    
-    if (vkCreateRenderPass(device, &create_info, nullptr, &render_pass) != VK_SUCCESS)
-        log::error("Error creating a vulkan render pass");
-    
-    deletion_queue_swapchain.push_back([render_pass, device](){ vkDestroyRenderPass(device, render_pass, nullptr); });
-    log::graphics("Created a vulkan render pass with %d subpasses and %d attachments",
-                  render_pass_data.subpasses.size(), render_pass_data.attachments.size());
-    return render_pass;
+    return description;
 }
 
 AttachmentID VK::registerAttachment(const Vulkan &vk, std::map<AttachmentID, AttachmentData> &attachments, AttachmentType type) {
@@ -1075,6 +997,7 @@ AttachmentID VK::registerAttachment(const Vulkan &vk, std::map<AttachmentID, Att
         attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
     }
     
+    //: Image and image view
     if (not (type & ATTACHMENT_SWAPCHAIN)) {
         auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, to_vec(vk.render.swapchain.extent),
                                         attachment.format, attachment.initial_layout, attachment.usage);
@@ -1084,6 +1007,9 @@ AttachmentID VK::registerAttachment(const Vulkan &vk, std::map<AttachmentID, Att
         attachment.image_view = VK::createImageView(vk.device, attachment.image, attachment.aspect, attachment.format);
         deletion_queue_swapchain.push_back([vk, attachment](){ vkDestroyImageView(vk.device, attachment.image_view, nullptr); });
     }
+    
+    //: Description
+    attachment.description = createAttachmentDescription(attachment);
     
     return id;
 }
@@ -1149,6 +1075,119 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const RenderD
     });
     log::graphics("Created all vulkan framebuffers");
     return framebuffers;
+}
+
+//----------------------------------------
+
+
+
+//Render Pass
+//----------------------------------------
+
+void VK::registerSubpass(RenderData &render, std::vector<AttachmentID> attachment_ids) {
+    ui8 subpass_id = render.subpasses.size();
+    render.subpasses.push_back(SubpassData{});
+    SubpassData &data = render.subpasses.at(subpass_id);
+    
+    data.attachment_bindings = attachment_ids;
+    
+    data.description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    
+    for (auto binding : attachment_ids) {
+        AttachmentData &attachment = render.attachments.at(binding);
+        bool first_in_chain = true;
+        
+        if (attachment.type & ATTACHMENT_INPUT) {
+            //: Check if it is in one of the previous subpasses
+            for (int i = subpass_id - 1; i >= 0; i--) {
+                SubpassData &previous = render.subpasses.at(subpass_id - 1);
+                if (std::count(previous.attachment_bindings.begin(), previous.attachment_bindings.end(), binding)) {
+                    //: TODO: It is, add the relevant attachment reference type
+                    first_in_chain = false;
+                }
+            }
+        }
+        
+        if (first_in_chain) { //: First subpass that uses this attachment
+            if (attachment.type & ATTACHMENT_COLOR)
+                data.color_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
+            if (attachment.type & ATTACHMENT_DEPTH)
+                data.depth_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL});
+        }
+    }
+    
+    if (data.color_attachments.size() > 0) {
+        data.description.colorAttachmentCount = (ui32)data.color_attachments.size();
+        data.description.pColorAttachments = data.color_attachments.data();
+    }
+    
+    if (data.depth_attachments.size() > 0) {
+        if (data.depth_attachments.size() > 1)
+            log::error("Using more than one depth attachment in a subpass is not allowed");
+        data.description.pDepthStencilAttachment = &data.depth_attachments.at(0);
+    }
+    
+    if (data.input_attachments.size() > 0) {
+        data.description.inputAttachmentCount = (ui32)data.input_attachments.size();
+        data.description.pInputAttachments = data.input_attachments.data();
+    }
+}
+
+VkSubpassDependency VK::createRenderSubpassDependency(ui32 src, ui32 dst,
+                                                      VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage,
+                                                      VkAccessFlagBits src_access, VkAccessFlagBits dst_access) {
+    //---Render subpass dependency---
+    VkSubpassDependency dependency{};
+    
+    dependency.srcSubpass = src;
+    dependency.dstSubpass = dst;
+    
+    dependency.srcStageMask = src_stage;
+    dependency.srcAccessMask = src_access;
+    
+    dependency.dstStageMask = dst_stage;
+    dependency.dstAccessMask = dst_access;
+    
+    return dependency;
+}
+
+VkRenderPass VK::createRenderPass(VkDevice device, const RenderData &render) {
+    //---Render pass---
+    //      All rendering happens inside of a render pass
+    //      It can have multiple subpasses and attachments
+    //      It will render to a framebuffer
+    VkRenderPass render_pass;
+    VkRenderPassHelperData render_pass_data{};
+    
+    //---Attachments---
+    for (const auto &[i, attachment] : render.attachments)
+        render_pass_data.attachments.push_back(attachment.description);
+    
+    //---Subpasses---
+    for (const auto &subpass: render.subpasses)
+        render_pass_data.subpasses.push_back(subpass.description);
+    
+    //---Create render pass---
+    
+    VkRenderPassCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    
+    create_info.attachmentCount = (ui32)render_pass_data.attachments.size();
+    create_info.pAttachments = render_pass_data.attachments.data();
+    
+    create_info.subpassCount = (ui32)render_pass_data.subpasses.size();
+    create_info.pSubpasses = render_pass_data.subpasses.data();
+    
+    create_info.dependencyCount = (ui32)render_pass_data.dependencies.size();
+    create_info.pDependencies = render_pass_data.dependencies.data();
+    
+    if (vkCreateRenderPass(device, &create_info, nullptr, &render_pass) != VK_SUCCESS)
+        log::error("Error creating a vulkan render pass");
+    
+    deletion_queue_swapchain.push_back([render_pass, device](){ vkDestroyRenderPass(device, render_pass, nullptr); });
+    log::graphics("Created a vulkan render pass with %d subpasses and %d attachments",
+                  render_pass_data.subpasses.size(), render_pass_data.attachments.size());
+    return render_pass;
 }
 
 //----------------------------------------

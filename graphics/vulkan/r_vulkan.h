@@ -33,6 +33,8 @@ namespace Fresa::Graphics
         
         VkAttachmentLoadOp load_op;
         VkAttachmentStoreOp store_op;
+        
+        VkAttachmentDescription description;
     };
 
     struct SwapchainData {
@@ -50,8 +52,12 @@ namespace Fresa::Graphics
     };
 
     struct SubpassData {
-        std::vector<ui32> attachment_ids;
-        std::vector<VkAttachmentReference> attachment_references;
+        VkSubpassDescription description;
+        
+        std::vector<AttachmentID> attachment_bindings;
+        std::vector<VkAttachmentReference> color_attachments;
+        std::vector<VkAttachmentReference> depth_attachments;
+        std::vector<VkAttachmentReference> input_attachments;
     };
 
     struct RenderData {
