@@ -97,6 +97,8 @@ namespace Fresa::Graphics
 
     //Framebuffer
     //----------------------------------------
+    using AttachmentID = ui8;
+
     enum AttachmentType {
         ATTACHMENT_COLOR = 1 << 0,
         ATTACHMENT_DEPTH = 1 << 1,

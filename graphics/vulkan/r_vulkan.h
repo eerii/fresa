@@ -35,7 +35,7 @@ namespace Fresa::Graphics
         VkAttachmentStoreOp store_op;
     };
 
-    struct VkSwapchainData {
+    struct SwapchainData {
         VkFormat format;
         VkExtent2D extent;
         
@@ -47,12 +47,21 @@ namespace Fresa::Graphics
         std::vector<VkImageView> image_views;
         
         std::vector<VkFramebuffer> framebuffers;
-        std::map<ui32, AttachmentData> attachments;
-        
-        VkRenderPass main_render_pass;
     };
 
-    struct VkPipelineData {
+    struct SubpassData {
+        std::vector<ui32> attachment_ids;
+        std::vector<VkAttachmentReference> attachment_references;
+    };
+
+    struct RenderData {
+        SwapchainData swapchain;
+        std::map<AttachmentID, AttachmentData> attachments;
+        VkRenderPass render_pass;
+        std::vector<SubpassData> subpasses;
+    };
+
+    struct PipelineData {
         ShaderData shader;
         
         std::vector<VkDescriptorSetLayoutBinding> descriptor_layout_bindings;
@@ -81,20 +90,15 @@ namespace Fresa::Graphics
         VkQueue compute;
     };
 
-    struct VkCommandData {
+    struct CommandData {
         std::map<str, VkCommandPool> command_pools;
         std::map<str, std::vector<VkCommandBuffer>> command_buffers;
         
         VkQueueIndices queue_indices;
         VkQueueData queues;
     };
-    
-    struct VkCommandPoolHelperData {
-        std::optional<ui32> queue;
-        std::optional<VkCommandPoolCreateFlagBits> flags;
-    };
 
-    struct VkSyncData {
+    struct SyncData {
         std::vector<VkSemaphore> semaphores_image_available;
         std::vector<VkSemaphore> semaphores_render_finished;
         
@@ -110,13 +114,18 @@ namespace Fresa::Graphics
         std::vector<VkPresentModeKHR> present_modes;
     };
 
-    struct VkRenderPassCreateData {
+    struct VkRenderPassHelperData {
         std::vector<VkSubpassDescription> subpasses;
         std::vector<VkSubpassDependency> dependencies;
         std::vector<VkAttachmentDescription> attachments;
     };
 
-    struct VkPipelineCreateInfo {
+    struct VkCommandPoolHelperData {
+        std::optional<ui32> queue;
+        std::optional<VkCommandPoolCreateFlagBits> flags;
+    };
+
+    struct VkPipelineHelperData {
         VkPipelineVertexInputStateCreateInfo vertex_input;
         VkPipelineInputAssemblyStateCreateInfo input_assembly;
         VkPipelineRasterizationStateCreateInfo rasterizer;
@@ -157,21 +166,18 @@ namespace Fresa::Graphics
         VkDevice device;
         //----------------------------------------
         
-        
         //---Memory---
         VmaAllocator allocator;
         
         //---Swapchain---
-        VkSwapchainData swapchain;
+        RenderData render;
         
         //---Commands---
-        VkCommandData cmd;
-        
-        //---Sync---
-        VkSyncData sync;
+        CommandData cmd;
+        SyncData sync;
         
         //---Pipelines---
-        std::map<DrawShaders, VkPipelineData> draw_pipelines;
+        std::map<DrawShaders, PipelineData> draw_pipelines;
         
         //---Images---
         VkSampler sampler;
