@@ -198,6 +198,7 @@ namespace Fresa::Graphics::VK
                               std::map<ui32, const std::vector<BufferData>*> uniform_buffers = {},
                               std::map<ui32, const VkImageView*> image_views = {},
                               std::map<ui32, const VkImageView*> input_attachments = {});
+    void updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline);
     //----------------------------------------
 
 
