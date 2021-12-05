@@ -14,9 +14,9 @@ namespace Fresa::Graphics
 
     void onResize(Vec2<> size);
 
-    DrawID getDrawID(const std::vector<VertexData> &vertices, const std::vector<ui16> &indices, DrawShaders shader = SHADER_DRAW);
-    DrawID getDrawID_Rect(DrawShaders shader = SHADER_DRAW);
-    DrawID getDrawID_Cube(DrawShaders shader = SHADER_DRAW);
+    DrawID getDrawID(const std::vector<VertexData> &vertices, const std::vector<ui16> &indices, Shaders shader = SHADER_DRAW);
+    DrawID getDrawID_Rect(Shaders shader = SHADER_DRAW);
+    DrawID getDrawID_Cube(Shaders shader = SHADER_DRAW);
 
     TextureID getTextureID(str path, Channels ch = TEXTURE_CHANNELS_RGBA);
     void bindTexture(DrawID draw_id, TextureID texture_id);

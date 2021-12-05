@@ -121,22 +121,14 @@ namespace Fresa::Graphics
     using ShaderCompiler = spirv_cross::CompilerGLSL;
     using ShaderResources = spirv_cross::ShaderResources;
 
-    enum DrawShaders {
+    enum Shaders {
         SHADER_DRAW = 0,
-        SHADER_DRAW_2 = 1,
-    };
-
-    enum PostShaders {
         SHADER_POST = 0 + DRAW_SHADER_MAX,
     };
 
-    inline std::map<DrawShaders, str> draw_shader_names = {
+    inline std::map<Shaders, str> shader_names = {
         {SHADER_DRAW, "test"},
-        {SHADER_DRAW_2, "test"},
-    };
-
-    inline std::map<PostShaders, str> post_shader_names = {
-        
+        {SHADER_POST, "test_subpass"},
     };
 
     struct ShaderLocations {
@@ -181,7 +173,7 @@ namespace Fresa::Graphics
     struct DrawData {
         DrawBufferID buffer_id;
         std::optional<TextureID> texture_id;
-        DrawShaders shader;
+        Shaders shader;
         std::vector<BufferData> uniform_buffers;
         #ifdef USE_VULKAN
         std::vector<VkDescriptorSet> descriptor_sets;
@@ -196,7 +188,7 @@ namespace Fresa::Graphics
     using DrawQueueData = std::pair<const DrawData*, glm::mat4>;
     using DrawQueueMapTextures = std::map<const TextureData*, std::vector<DrawQueueData>>;
     using DrawQueueMapBuffers = std::map<const DrawBufferData*, DrawQueueMapTextures>;
-    using DrawQueueMap = std::map<DrawShaders, DrawQueueMapBuffers>;
+    using DrawQueueMap = std::map<Shaders, DrawQueueMapBuffers>;
 
     //----------------------------------------
 

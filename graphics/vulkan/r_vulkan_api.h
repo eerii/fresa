@@ -58,7 +58,7 @@ namespace Fresa::Graphics::VK
 
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const CommandData &cmd);
     void beginDrawCommandBuffer(VkCommandBuffer cmd, const RenderData &render, ui32 index);
-    void recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders shader);
+    void recordDrawCommandBuffer(const Vulkan &vk, ui32 current);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
     void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
@@ -133,11 +133,6 @@ namespace Fresa::Graphics::VK
     //Render pass
     //----------------------------------------
     void registerSubpass(RenderData &render, std::vector<AttachmentID> ids);
-
-    VkSubpassDependency createRenderSubpassDependency(ui32 src, ui32 dst,
-                                                      VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage,
-                                                      VkAccessFlagBits src_access, VkAccessFlagBits dst_access);
-
     VkRenderPass createRenderPass(VkDevice device, const RenderData &render);
     //----------------------------------------
 
@@ -166,7 +161,7 @@ namespace Fresa::Graphics::VK
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
     VkPipeline createGraphicsPipelineObject(VkDevice device, const VkPipelineLayout &layout,
                                             const ShaderStages &stages, const RenderData &render, ui32 subpass);
-    PipelineData createPipeline(VkDevice device, const RenderData &render, str shader_name);
+    PipelineData createPipeline(const Vulkan &vk, Shaders shader);
     void recreatePipeline(const Vulkan &vk, PipelineData &data);
     //----------------------------------------
 
@@ -196,11 +191,13 @@ namespace Fresa::Graphics::VK
     WriteDescriptorBuffer createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer);
     WriteDescriptorImage createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,
                                                                    VkImageView image_view, VkSampler sampler);
-    WriteDescriptorImage createWrtieDescriptorInputAttachment(VkDescriptorSet descriptor_set, ui32 binding, VkImageView image_view);
+    WriteDescriptorImage createWriteDescriptorInputAttachment(VkDescriptorSet descriptor_set, ui32 binding, VkImageView image_view);
 
-    void updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets, ui8 shader,
+    void updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets,
+                              const std::vector<VkDescriptorSetLayoutBinding> &layout_bindings,
                               std::map<ui32, const std::vector<BufferData>*> uniform_buffers = {},
-                              std::map<ui32, const VkImageView*> image_views = {});
+                              std::map<ui32, const VkImageView*> image_views = {},
+                              std::map<ui32, const VkImageView*> input_attachments = {});
     //----------------------------------------
 
 

@@ -58,6 +58,8 @@ namespace Fresa::Graphics
         std::vector<VkAttachmentReference> color_attachments;
         std::vector<VkAttachmentReference> depth_attachments;
         std::vector<VkAttachmentReference> input_attachments;
+        
+        std::map<AttachmentID, ui8> previous_subpass_dependencies;
     };
 
     struct RenderData {
@@ -76,10 +78,12 @@ namespace Fresa::Graphics
         std::vector<VkDescriptorPoolSize> descriptor_pool_sizes;
         std::vector<VkDescriptorPool> descriptor_pools;
         
+        std::vector<VkDescriptorSet> descriptor_sets;
+        
         VkPipelineLayout pipeline_layout;
         VkPipeline pipeline;
         
-        ui32 subpass;
+        ui8 subpass;
     };
 
     struct VkQueueIndices {
@@ -183,7 +187,7 @@ namespace Fresa::Graphics
         SyncData sync;
         
         //---Pipelines---
-        std::map<DrawShaders, PipelineData> draw_pipelines;
+        std::map<Shaders, PipelineData> pipelines;
         
         //---Images---
         VkSampler sampler;

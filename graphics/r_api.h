@@ -23,7 +23,7 @@ namespace Fresa::Graphics::API
 
     DrawBufferID registerDrawBuffer(const GraphicsAPI &api, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices);
     TextureID registerTexture(const GraphicsAPI &api, Vec2<> size, Channels ch, ui8* pixels);
-    DrawID registerDrawData(GraphicsAPI &api, DrawBufferID buffer, DrawShaders shader);
+    DrawID registerDrawData(GraphicsAPI &api, DrawBufferID buffer, Shaders shader);
     inline std::map<DrawBufferID, DrawBufferData> draw_buffer_data{};
     inline std::map<TextureID, TextureData> texture_data{};
     inline std::map<DrawID, DrawData> draw_data{};
