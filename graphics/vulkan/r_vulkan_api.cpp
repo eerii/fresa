@@ -83,8 +83,8 @@ Vulkan API::create(WindowData &win) {
     AttachmentID attachment_depth = VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_DEPTH);
     
     //---Subpasses---
-    VK::registerSubpass(vk.render, {attachment_swapchain, attachment_depth});
-    VK::registerSubpass(vk.render, {attachment_color});
+    VK::registerSubpass(vk.render, {attachment_color, attachment_depth});
+    VK::registerSubpass(vk.render, {attachment_color, attachment_swapchain});
     
     //---Render pass---
     vk.render.render_pass = VK::createRenderPass(vk.device, vk.render);
@@ -96,8 +96,8 @@ Vulkan API::create(WindowData &win) {
     vk.sync = VK::createSyncObjects(vk.device, vk.render.swapchain.size);
     
     //---Pipelines---
-    for (auto &[shader, name] : draw_shader_names)
-        vk.draw_pipelines[shader] = VK::createPipeline(vk.device, vk.render, name);
+    for (auto &[shader, name] : shader_names)
+        vk.pipelines[shader] = VK::createPipeline(vk, shader);
     
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
@@ -722,8 +722,8 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         vk.sync = VK::createSyncObjects(vk.device, vk.render.swapchain.size);
     
     //: Pipeline
-    for (auto &[shader, data] : vk.draw_pipelines)
-        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, data.shader.stages, vk.render, data.subpass);
+    for (auto &[shader, data] : vk.pipelines)
+        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, data.shader.stages, vk.render, (ui32)data.subpass);
     
     //---Objects that depend on the swapchain size---
     if (previous_size != vk.render.swapchain.size) {
@@ -733,14 +733,14 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         deletion_queue_size_change.clear();
         
         //: Recreate pipelines
-        for (auto &[shader, data] : vk.draw_pipelines)
+        for (auto &[shader, data] : vk.pipelines)
             recreatePipeline(vk, data);
         
         //: Update draw data
         for (auto &[id, draw] : API::draw_data) {
-            draw.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.draw_pipelines.at(draw.shader).descriptor_layout,
-                                                              vk.draw_pipelines.at(draw.shader).descriptor_pool_sizes,
-                                                              vk.draw_pipelines.at(draw.shader).descriptor_pools, vk.render.swapchain.size);
+            draw.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.pipelines.at(draw.shader).descriptor_layout,
+                                                              vk.pipelines.at(draw.shader).descriptor_pool_sizes,
+                                                              vk.pipelines.at(draw.shader).descriptor_pools, vk.render.swapchain.size);
             draw.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.render.swapchain.size);
             API::updateDescriptorSets(vk, &draw);
         }
@@ -829,6 +829,12 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const RenderData &render, u
     //: Clear values
     std::vector<VkClearValue> clear_values{render.attachments.size() + 1};
     for (auto &[idx, a] : render.attachments) {
+        //TODO: REMOVE CLEAR VALUE, IT IS A TEST
+        if (a.type & ATTACHMENT_SWAPCHAIN) {
+            clear_values[idx].color = {0.2f, 0.01f, 0.4f, 1.0f};
+            continue;
+        }
+        
         if (a.type & ATTACHMENT_COLOR)
             clear_values[idx].color = {0.f, 0.f, 0.f, 1.0f};
         if (a.type & ATTACHMENT_DEPTH)
@@ -848,7 +854,7 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const RenderData &render, u
     vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders shader) {
+void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     //---Draw command buffer---
     //      We are going to use a command buffer for drawing
     //      It needs to bind the vertex and index buffers, as well as the descriptor sets that map the shader inputs such as uniforms
@@ -858,10 +864,11 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders sha
     //: Begin command buffer and render pass
     VK::beginDrawCommandBuffer(cmd, vk.render, current);
     
-    //: Add all the draw calls (Optimize this in the future for a single mesh)
+    //: Add all the draw calls (Optimize this in the future for a single mesh with instantiation)
+    //: Draw shaders
     for (const auto &[shader, queue_buffer] : API::draw_queue) {
         //: Bind pipeline
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.draw_pipelines.at(shader).pipeline);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
         
         for (const auto &[buffer, queue_tex] : queue_buffer) {
             //: Vertex buffer
@@ -875,7 +882,7 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders sha
             for (const auto &[tex, queue_draw] : queue_tex) {
                 for (const auto &[data, model] : queue_draw) {
                     //: Descriptor set
-                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.draw_pipelines.at(shader).pipeline_layout, 0, 1,
+                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
                                             &data->descriptor_sets.at(current), 0, nullptr);
 
                     //: Draw vertices
@@ -884,8 +891,14 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current, DrawShaders sha
             }
         }
     }
-    
+    //: Post shaders
     vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(SHADER_POST).pipeline);
+    /*vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(SHADER_POST).pipeline_layout, 0, 1,
+                            &vk.pipelines.at(SHADER_POST).descriptor_sets.at(current), 0, nullptr);*/
+    //vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
+    //vkCmdDraw(cmd, 6, 1, 0, 0);
+    //vkCmdDraw(cmd, 3, 1, 0, 0);
     
     //: End command buffer and render pass
     vkCmdEndRenderPass(cmd);
@@ -989,6 +1002,7 @@ AttachmentID VK::registerAttachment(const Vulkan &vk, std::map<AttachmentID, Att
     
     if (type & ATTACHMENT_INPUT) {
         attachment.usage = VkImageUsageFlagBits(attachment.usage | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+        attachment.final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
     }
     
@@ -1089,6 +1103,8 @@ void VK::registerSubpass(RenderData &render, std::vector<AttachmentID> attachmen
     render.subpasses.push_back(SubpassData{});
     SubpassData &data = render.subpasses.at(subpass_id);
     
+    log::graphics("Registering subpass %d:", subpass_id);
+    
     data.attachment_bindings = attachment_ids;
     
     data.description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -1100,19 +1116,26 @@ void VK::registerSubpass(RenderData &render, std::vector<AttachmentID> attachmen
         if (attachment.type & ATTACHMENT_INPUT) {
             //: Check if it is in one of the previous subpasses
             for (int i = subpass_id - 1; i >= 0; i--) {
-                SubpassData &previous = render.subpasses.at(subpass_id - 1);
+                SubpassData &previous = render.subpasses.at(i);
                 if (std::count(previous.attachment_bindings.begin(), previous.attachment_bindings.end(), binding)) {
-                    //: TODO: It is, add the relevant attachment reference type
                     first_in_chain = false;
+                    data.input_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+                    data.previous_subpass_dependencies[binding] = i;
+                    log::graphics(" - Input attachment: %d (Depends on subpass %d)", binding, i);
+                    break;
                 }
             }
         }
         
         if (first_in_chain) { //: First subpass that uses this attachment
-            if (attachment.type & ATTACHMENT_COLOR)
+            if (attachment.type & ATTACHMENT_COLOR) {
                 data.color_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
-            if (attachment.type & ATTACHMENT_DEPTH)
+                log::graphics(" - Color attachment: %d", binding);
+            }
+            if (attachment.type & ATTACHMENT_DEPTH) {
                 data.depth_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL});
+                log::graphics(" - Depth attachment: %d", binding);
+            }
         }
     }
     
@@ -1133,24 +1156,6 @@ void VK::registerSubpass(RenderData &render, std::vector<AttachmentID> attachmen
     }
 }
 
-VkSubpassDependency VK::createRenderSubpassDependency(ui32 src, ui32 dst,
-                                                      VkPipelineStageFlagBits src_stage, VkPipelineStageFlagBits dst_stage,
-                                                      VkAccessFlagBits src_access, VkAccessFlagBits dst_access) {
-    //---Render subpass dependency---
-    VkSubpassDependency dependency{};
-    
-    dependency.srcSubpass = src;
-    dependency.dstSubpass = dst;
-    
-    dependency.srcStageMask = src_stage;
-    dependency.srcAccessMask = src_access;
-    
-    dependency.dstStageMask = dst_stage;
-    dependency.dstAccessMask = dst_access;
-    
-    return dependency;
-}
-
 VkRenderPass VK::createRenderPass(VkDevice device, const RenderData &render) {
     //---Render pass---
     //      All rendering happens inside of a render pass
@@ -1164,11 +1169,47 @@ VkRenderPass VK::createRenderPass(VkDevice device, const RenderData &render) {
         render_pass_data.attachments.push_back(attachment.description);
     
     //---Subpasses---
-    for (const auto &subpass: render.subpasses)
+    for (const auto &subpass: render.subpasses) {
+        ui8 index = (ui8)render_pass_data.subpasses.size();
         render_pass_data.subpasses.push_back(subpass.description);
+        
+        //---Dependencies---
+        //: Input (Ensure that the previous subpass has finished writting to the attachment this uses)
+        for (const auto &attachment : subpass.input_attachments) {
+            VkSubpassDependency dependency;
+            
+            dependency.srcSubpass = subpass.previous_subpass_dependencies.at(attachment.attachment);
+            dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            
+            dependency.dstSubpass = index;
+            dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            dependency.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+            
+            render_pass_data.dependencies.push_back(dependency);
+            
+            log::graphics("Subpass dependency between %d and %d", dependency.srcSubpass, dependency.dstSubpass);
+        }
+        //: Swapchain (Ensure that swapchain images are transitioned before they are written to)
+        for (const auto &attachment : subpass.color_attachments) {
+            if (render.attachments.at(attachment.attachment).type & ATTACHMENT_SWAPCHAIN) {
+                VkSubpassDependency dependency;
+                
+                dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+                dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                dependency.srcAccessMask = 0;
+                
+                dependency.dstSubpass = index;
+                dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                
+                render_pass_data.dependencies.push_back(dependency);
+                log::graphics("Subpass dependency between VK_SUBPASS_EXTERNAL and %d", dependency.dstSubpass);
+            }
+        }
+    }
     
     //---Create render pass---
-    
     VkRenderPassCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     
@@ -1665,28 +1706,40 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLay
     return pipeline;
 }
 
-PipelineData VK::createPipeline(VkDevice device, const RenderData &render, str shader_name) {
+PipelineData VK::createPipeline(const Vulkan &vk, Shaders shader) {
     PipelineData data;
     
-    log::graphics("PIPELINE: %s", shader_name.c_str());
+    //---Subpass---
+    data.subpass = shader < DRAW_SHADER_MAX ? 0 : shader - DRAW_SHADER_MAX + 1;
+    log::graphics("Pipeline %s, subpass %d", shader_names.at(shader).c_str(), data.subpass);
     log::graphics("---");
     
     //---Shader data---
-    data.shader = API::createShaderData(shader_name);
-    data.shader.stages = VK::createShaderStages(device, data.shader.code);
+    data.shader = API::createShaderData(shader_names.at(shader));
+    data.shader.stages = VK::createShaderStages(vk.device, data.shader.code);
     
     //---Descriptor pool---
-    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(device, data.shader.code, render.swapchain.size);
-    data.descriptor_layout = VK::createDescriptorSetLayout(device, data.descriptor_layout_bindings);
+    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.render.swapchain.size);
+    data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
     data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
-    data.descriptor_pools.push_back(VK::createDescriptorPool(device, data.descriptor_pool_sizes));
+    data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
     
-    //TODO: CHANGEEEEEE
-    data.subpass = 0;
+    //---Descriptor sets---
+    if (data.subpass > 0) {
+        data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
+                                                          data.descriptor_pools, vk.render.swapchain.size);
+        int i = 0;
+        std::map<ui32, const VkImageView*> input_attachments{};
+        for (auto &attachment : vk.render.subpasses.at(data.subpass).input_attachments) {
+            input_attachments[i] = &vk.render.attachments.at(attachment.attachment).image_view;
+            i++;
+        }
+        VK::updateDescriptorSets(vk, data.descriptor_sets, data.descriptor_layout_bindings, {}, {}, {{0, &vk.render.attachments.at(1).image_view}});
+    }
     
     //---Pipeline---
-    data.pipeline_layout = VK::createPipelineLayout(device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(device, data.pipeline_layout, data.shader.stages, render, data.subpass);
+    data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
+    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, data.shader.stages, vk.render, (ui32)data.subpass);
     
     return data;
 }
@@ -1701,7 +1754,7 @@ void VK::recreatePipeline(const Vulkan &vk, PipelineData &data) {
 
     //: Pipeline
     data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, data.shader.stages, vk.render, data.subpass);
+    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, data.shader.stages, vk.render, (ui32)data.subpass);
 }
 
 //----------------------------------------
@@ -1913,7 +1966,7 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const std::
     create_info.pBindings = bindings.data();
     
     if (vkCreateDescriptorSetLayout(device, &create_info, nullptr, &layout) != VK_SUCCESS)
-        log::error("Error creating a descriptor set layout, check shader refraction");
+        log::error("Error creating a descriptor set layout, check shader reflection");
     
     deletion_queue_program.push_back([device, layout](){ vkDestroyDescriptorSetLayout(device, layout, nullptr); });
     return layout;
@@ -2077,7 +2130,7 @@ WriteDescriptorImage VK::createWriteDescriptorCombinedImageSampler(VkDescriptorS
     return write_descriptor;
 }
 
-WriteDescriptorImage VK::createWrtieDescriptorInputAttachment(VkDescriptorSet descriptor_set, ui32 binding, VkImageView image_view) {
+WriteDescriptorImage VK::createWriteDescriptorInputAttachment(VkDescriptorSet descriptor_set, ui32 binding, VkImageView image_view) {
     WriteDescriptorImage write_descriptor{};
     
     write_descriptor.info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -2101,25 +2154,27 @@ void API::updateDescriptorSets(const Vulkan &vk, const DrawData* draw) {
     //TODO: COMMENT
     if (draw->texture_id.has_value()) {
         const TextureData* tex = &API::texture_data.at(draw->texture_id.value());
-        VK::updateDescriptorSets(vk, draw->descriptor_sets, draw->shader,
+        VK::updateDescriptorSets(vk, draw->descriptor_sets, vk.pipelines.at(draw->shader).descriptor_layout_bindings,
                                  {{0, &draw->uniform_buffers}},
                                  {{1, &tex->image_view}});
     } else {
-        VK::updateDescriptorSets(vk, draw->descriptor_sets, draw->shader,
+        VK::updateDescriptorSets(vk, draw->descriptor_sets, vk.pipelines.at(draw->shader).descriptor_layout_bindings,
                                  {{0, &draw->uniform_buffers}});
     }
     
     //log::graphics("Updated descriptor sets");
 }
 
-void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets, ui8 shader,
+void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets,
+                              const std::vector<VkDescriptorSetLayoutBinding> &layout_bindings,
                               std::map<ui32, const std::vector<BufferData>*> uniform_buffers,
-                              std::map<ui32, const VkImageView*> image_views) {
+                              std::map<ui32, const VkImageView*> image_views,
+                              std::map<ui32, const VkImageView*> input_attachments) {
     //TODO: COMMENT
-    for (int i = 0; i < vk.render.swapchain.size; i++) {
+    for (int i = 0; i < descriptor_sets.size(); i++) {
         std::vector<VkWriteDescriptorSet> write_descriptors;
         
-        auto add_descriptor = [&vk, &write_descriptors, &descriptor_sets, &uniform_buffers, &image_views, i]
+        auto add_descriptor = [&vk, &write_descriptors, &descriptor_sets, &uniform_buffers, &image_views, &input_attachments, i]
                               (const VkDescriptorSetLayoutBinding &binding) {
                                   
             bool has_uniform = uniform_buffers.find(binding.binding) != uniform_buffers.end();
@@ -2137,18 +2192,14 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
             }
                                   
             if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
-                auto input_write_descriptor = VK::createWrtieDescriptorInputAttachment(descriptor_sets.at(i), binding.binding,
-                                                                                       vk.render.attachments.at(binding.binding).image_view);
+                auto input_write_descriptor = VK::createWriteDescriptorInputAttachment(descriptor_sets.at(i), binding.binding,
+                                                                                       *input_attachments.at(binding.binding));
                 write_descriptors.push_back(input_write_descriptor.write);
             }
         };
         
-        if (shader < DRAW_SHADER_MAX) { //Draw
-            for (const auto &binding : vk.draw_pipelines.at(DrawShaders(shader)).descriptor_layout_bindings)
-                add_descriptor(binding);
-        } else { //Post
-            
-        }
+        for (const auto &binding : layout_bindings)
+            add_descriptor(binding);
         
         vkUpdateDescriptorSets(vk.device, (ui32)write_descriptors.size(), write_descriptors.data(), 0, nullptr);
     }
@@ -2488,7 +2539,7 @@ DrawBufferID API::registerDrawBuffer(const Vulkan &vk, const std::vector<VertexD
     return id;
 }
 
-DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer, DrawShaders shader) {
+DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer, Shaders shader) {
     static DrawID id = 0;
     do id++;
     while (draw_data.find(id) != draw_data.end());
@@ -2497,9 +2548,9 @@ DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer, DrawShaders shader
     
     draw_data[id].buffer_id = buffer;
     
-    draw_data[id].descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.draw_pipelines.at(shader).descriptor_layout,
-                                                               vk.draw_pipelines.at(shader).descriptor_pool_sizes,
-                                                               vk.draw_pipelines.at(shader).descriptor_pools, vk.render.swapchain.size);
+    draw_data[id].descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.pipelines.at(shader).descriptor_layout,
+                                                               vk.pipelines.at(shader).descriptor_pool_sizes,
+                                                               vk.pipelines.at(shader).descriptor_pools, vk.render.swapchain.size);
     draw_data[id].uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.render.swapchain.size);
     draw_data[id].shader = shader;
     
@@ -2633,9 +2684,10 @@ void API::renderTest(Vulkan &vk, WindowData &win) {
                 }
             }
         }
-        //: Record command buffers
-        VK::recordDrawCommandBuffer(vk, index, shader);
     }
+    
+    //: Record command buffers
+    VK::recordDrawCommandBuffer(vk, index);
     
     //: Render the frame
     VK::renderFrame(vk, win, index);
