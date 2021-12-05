@@ -33,6 +33,17 @@ namespace {
     std::vector<std::function<void()>> deletion_queue_size_change;
     std::vector<std::function<void()>> deletion_queue_swapchain;
     std::vector<std::function<void()>> deletion_queue_frame;
+
+    //TODO: DELETE
+    const std::vector<VertexData> temp_vertices = {
+        {{-1.f, -1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{-1.f, 1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+        {{1.f, -1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        {{1.f, 1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+        {{1.f, -1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        {{-1.f, 1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+    };
+    BufferData temp_vertex_buffer;
 }
 
 
@@ -101,6 +112,9 @@ Vulkan API::create(WindowData &win) {
     
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
+    
+    //TODO: TEMPORAL HARDCODED
+    temp_vertex_buffer = VK::createVertexBuffer(vk, temp_vertices);
     
     return vk;
 }
@@ -710,6 +724,10 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     
     //: Attachments
     VK::recreateAttachments(vk.device, vk.allocator, vk.physical_device, vk.cmd, to_vec(vk.render.swapchain.extent), vk.render.attachments);
+    for (const auto &[shader, data] : vk.pipelines) {
+        if (data.subpass > 0)
+            VK::updatePostDescriptorSets(vk, data);
+    }
     
     //: Render pass
     vk.render.render_pass = VK::createRenderPass(vk.device, vk.render);
@@ -894,11 +912,12 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     //: Post shaders
     vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(SHADER_POST).pipeline);
-    /*vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(SHADER_POST).pipeline_layout, 0, 1,
-                            &vk.pipelines.at(SHADER_POST).descriptor_sets.at(current), 0, nullptr);*/
-    //vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
-    //vkCmdDraw(cmd, 6, 1, 0, 0);
-    //vkCmdDraw(cmd, 3, 1, 0, 0);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(SHADER_POST).pipeline_layout, 0, 1,
+                            &vk.pipelines.at(SHADER_POST).descriptor_sets.at(current), 0, nullptr);
+    //TEMP HARDCODED
+    VkDeviceSize offsets[]{ 0 };
+    vkCmdBindVertexBuffers(cmd, 0, 1, &temp_vertex_buffer.buffer, offsets);
+    vkCmdDraw(cmd, 6, 1, 0, 0);
     
     //: End command buffer and render pass
     vkCmdEndRenderPass(cmd);
@@ -1728,13 +1747,7 @@ PipelineData VK::createPipeline(const Vulkan &vk, Shaders shader) {
     if (data.subpass > 0) {
         data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
                                                           data.descriptor_pools, vk.render.swapchain.size);
-        int i = 0;
-        std::map<ui32, const VkImageView*> input_attachments{};
-        for (auto &attachment : vk.render.subpasses.at(data.subpass).input_attachments) {
-            input_attachments[i] = &vk.render.attachments.at(attachment.attachment).image_view;
-            i++;
-        }
-        VK::updateDescriptorSets(vk, data.descriptor_sets, data.descriptor_layout_bindings, {}, {}, {{0, &vk.render.attachments.at(1).image_view}});
+        VK::updatePostDescriptorSets(vk, data);
     }
     
     //---Pipeline---
@@ -1751,6 +1764,9 @@ void VK::recreatePipeline(const Vulkan &vk, PipelineData &data) {
     data.descriptor_pools.clear();
     data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
     data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
+    
+    if (data.subpass > 0)
+        VK::updatePostDescriptorSets(vk, data);
 
     //: Pipeline
     data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
@@ -2203,6 +2219,16 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
         
         vkUpdateDescriptorSets(vk.device, (ui32)write_descriptors.size(), write_descriptors.data(), 0, nullptr);
     }
+}
+
+void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline) {
+    int i = 0;
+    std::map<ui32, const VkImageView*> input_attachments{};
+    for (auto &attachment : vk.render.subpasses.at(pipeline.subpass).input_attachments) {
+        input_attachments[i] = &vk.render.attachments.at(attachment.attachment).image_view;
+        i++;
+    }
+    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, {}, {}, input_attachments);
 }
 
 //----------------------------------------
