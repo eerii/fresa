@@ -29,19 +29,11 @@ namespace {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
-    std::vector<std::function<void()>> deletion_queue_program;
-    std::vector<std::function<void()>> deletion_queue_size_change;
-    std::vector<std::function<void()>> deletion_queue_swapchain;
-    std::vector<std::function<void()>> deletion_queue_frame;
-
     //TODO: DELETE
-    const std::vector<VertexData> temp_vertices = {
-        {{-1.f, -1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{-1.f, 1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-        {{1.f, -1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{1.f, 1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-        {{1.f, -1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{-1.f, 1.f, 0.f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+    const std::vector<VertexDataWindow> temp_vertices = {
+        {{-1.f, -1.f}}, {{-1.f, 1.f}},
+        {{1.f, -1.f}}, {{1.f, 1.f}},
+        {{1.f, -1.f}}, {{-1.f, 1.f}},
     };
     BufferData temp_vertex_buffer;
 }
@@ -94,8 +86,8 @@ Vulkan API::create(WindowData &win) {
     AttachmentID attachment_depth = VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_DEPTH);
     
     //---Subpasses---
-    VK::registerSubpass(vk.render, {attachment_color, attachment_depth});
-    VK::registerSubpass(vk.render, {attachment_color, attachment_swapchain});
+    VK::registerSubpass(vk.render, SHADER_DRAW, {attachment_color, attachment_depth});
+    VK::registerSubpass(vk.render, SHADER_POST, {attachment_color, attachment_swapchain});
     
     //---Render pass---
     vk.render.render_pass = VK::createRenderPass(vk.device, vk.render);
@@ -107,8 +99,8 @@ Vulkan API::create(WindowData &win) {
     vk.sync = VK::createSyncObjects(vk.device, vk.render.swapchain.size);
     
     //---Pipelines---
-    for (auto &[shader, name] : shader_names)
-        vk.pipelines[shader] = VK::createPipeline(vk, shader);
+    vk.pipelines[SHADER_DRAW] = VK::createPipeline<VertexData>(vk, SHADER_DRAW);
+    vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST);
     
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
@@ -725,7 +717,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //: Attachments
     VK::recreateAttachments(vk.device, vk.allocator, vk.physical_device, vk.cmd, to_vec(vk.render.swapchain.extent), vk.render.attachments);
     for (const auto &[shader, data] : vk.pipelines) {
-        if (data.subpass > 0)
+        if (data.subpass > LAST_DRAW_SHADER)
             VK::updatePostDescriptorSets(vk, data);
     }
     
@@ -741,7 +733,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     
     //: Pipeline
     for (auto &[shader, data] : vk.pipelines)
-        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, data.shader.stages, vk.render, (ui32)data.subpass);
+        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render);
     
     //---Objects that depend on the swapchain size---
     if (previous_size != vk.render.swapchain.size) {
@@ -1117,12 +1109,13 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const RenderD
 //Render Pass
 //----------------------------------------
 
-void VK::registerSubpass(RenderData &render, std::vector<AttachmentID> attachment_ids) {
-    ui8 subpass_id = render.subpasses.size();
-    render.subpasses.push_back(SubpassData{});
-    SubpassData &data = render.subpasses.at(subpass_id);
+void VK::registerSubpass(RenderData &render, Shaders shader, std::vector<AttachmentID> attachment_ids) {
+    if (render.subpasses.count(shader) > 0)
+        log::error("Attempted to create a subpass with the a repeated shader");
+    render.subpasses[shader] = SubpassData{};
+    SubpassData &data = render.subpasses.at(shader);
     
-    log::graphics("Registering subpass %d:", subpass_id);
+    log::graphics("Registering subpass %d:", shader);
     
     data.attachment_bindings = attachment_ids;
     
@@ -1134,8 +1127,10 @@ void VK::registerSubpass(RenderData &render, std::vector<AttachmentID> attachmen
         
         if (attachment.type & ATTACHMENT_INPUT) {
             //: Check if it is in one of the previous subpasses
-            for (int i = subpass_id - 1; i >= 0; i--) {
-                SubpassData &previous = render.subpasses.at(i);
+            for (int i = (int)shader - 1; i >= 0; i--) {
+                if (render.subpasses.count((Shaders)i) == 0)
+                    log::error("You must initialize the subpasses in order for input attachments to work");
+                SubpassData &previous = render.subpasses.at((Shaders)i);
                 if (std::count(previous.attachment_bindings.begin(), previous.attachment_bindings.end(), binding)) {
                     first_in_chain = false;
                     data.input_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
@@ -1188,7 +1183,7 @@ VkRenderPass VK::createRenderPass(VkDevice device, const RenderData &render) {
         render_pass_data.attachments.push_back(attachment.description);
     
     //---Subpasses---
-    for (const auto &subpass: render.subpasses) {
+    for (const auto &[shader, subpass]: render.subpasses) {
         ui8 index = (ui8)render_pass_data.subpasses.size();
         render_pass_data.subpasses.push_back(subpass.description);
         
@@ -1421,15 +1416,16 @@ SyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
 //Pipeline
 //----------------------------------------
 
-VkPipelineHelperData VK::preparePipelineCreateInfo(VkExtent2D extent) {
+VkPipelineHelperData VK::preparePipelineCreateInfo(VkExtent2D extent, const std::vector<VkVertexInputBindingDescription> binding_description,
+                                                   const std::vector<VkVertexInputAttributeDescription> attribute_description) {
     //---Preprare pipeline info---
     //      Pipelines are huge objects in vulkan, and building them is both complicated and expensive
     //      There is a lot of configuration needed, so this with all the helper functions attempt to break it down into manageable components
     //      Each function explains itself, so refer to them for reference
     VkPipelineHelperData info;
     
-    info.vertex_input_binding_description = VK::getBindingDescriptions<VertexData>();
-    info.vertex_input_attribute_descriptions = VK::getAttributeDescriptions<VertexData>();
+    info.vertex_input_binding_description = binding_description;
+    info.vertex_input_attribute_descriptions = attribute_description;
     info.vertex_input = preparePipelineCreateInfoVertexInput(info.vertex_input_binding_description, info.vertex_input_attribute_descriptions);
     
     info.input_assembly = preparePipelineCreateInfoInputAssembly();
@@ -1676,24 +1672,25 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
     return pipeline_layout;
 }
 
-VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLayout &layout,
-                                            const ShaderStages &stages, const RenderData &render, ui32 subpass) {
+VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const PipelineData &data, const RenderData &render) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
     //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
     //      Here we put together all the previous helper functions and structs
     //      It holds shader stages, all the creation info, a layout for description sets, render passes...
+    //      IMPORTANT: Only call this function when pipeline is ONLY missing the VkPipeline object
     VkPipeline pipeline;
     VkGraphicsPipelineCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     
     //: Shader stages
-    std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(stages);
+    std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(data.shader.stages);
     create_info.stageCount = (int)stage_info.size();
     create_info.pStages = stage_info.data();
     
     //: Pipeline info
-    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(render.swapchain.extent);
+    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(render.swapchain.extent,
+                                                                          data.binding_descriptions, data.attribute_descriptions);
     create_info.pVertexInputState = &pipeline_create_info.vertex_input;
     create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
     create_info.pViewportState = &pipeline_create_info.viewport_state;
@@ -1705,11 +1702,11 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLay
     create_info.pTessellationState = nullptr;
     
     //: Layout
-    create_info.layout = layout;
+    create_info.layout = data.pipeline_layout;
     
     //: Render pass
     create_info.renderPass = render.render_pass;
-    create_info.subpass = subpass;
+    create_info.subpass = (ui32)data.subpass;
     
     //: Recreation info
     create_info.basePipelineHandle = VK_NULL_HANDLE;
@@ -1725,38 +1722,6 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const VkPipelineLay
     return pipeline;
 }
 
-PipelineData VK::createPipeline(const Vulkan &vk, Shaders shader) {
-    PipelineData data;
-    
-    //---Subpass---
-    data.subpass = shader < DRAW_SHADER_MAX ? 0 : shader - DRAW_SHADER_MAX + 1;
-    log::graphics("Pipeline %s, subpass %d", shader_names.at(shader).c_str(), data.subpass);
-    log::graphics("---");
-    
-    //---Shader data---
-    data.shader = API::createShaderData(shader_names.at(shader));
-    data.shader.stages = VK::createShaderStages(vk.device, data.shader.code);
-    
-    //---Descriptor pool---
-    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.render.swapchain.size);
-    data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
-    data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
-    data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
-    
-    //---Descriptor sets---
-    if (data.subpass > 0) {
-        data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
-                                                          data.descriptor_pools, vk.render.swapchain.size);
-        VK::updatePostDescriptorSets(vk, data);
-    }
-    
-    //---Pipeline---
-    data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, data.shader.stages, vk.render, (ui32)data.subpass);
-    
-    return data;
-}
-
 void VK::recreatePipeline(const Vulkan &vk, PipelineData &data) {
     //: Descriptor set
     data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.render.swapchain.size);
@@ -1765,12 +1730,12 @@ void VK::recreatePipeline(const Vulkan &vk, PipelineData &data) {
     data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
     data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
     
-    if (data.subpass > 0)
+    if (data.subpass > LAST_DRAW_SHADER)
         VK::updatePostDescriptorSets(vk, data);
 
     //: Pipeline
     data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data.pipeline_layout, data.shader.stages, vk.render, (ui32)data.subpass);
+    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render);
 }
 
 //----------------------------------------
@@ -1799,47 +1764,6 @@ BufferData VK::createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferU
         log::error("Failed to create a vulkan buffer");
     
     return data;
-}
-
-BufferData VK::createVertexBuffer(const Vulkan &vk, const std::vector<Graphics::VertexData> &vertices) {
-    //---Vertex buffer---
-    //      Buffer that holds the vertex information for the shaders to use.
-    //      It has a VertexData struct per vertex of the mesh, which can contain properties like position, color, uv, normals...
-    //      The properties are described automatically using reflection in an attribute description in the pipeline
-    VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
-    
-    //: Staging buffer
-    //      We want to make the vertex buffer accessible to the GPU in the most efficient way, so we use a staging buffer
-    //      This is created in CPU only memory, in which we can easily map the vertex data
-    BufferData staging_buffer = VK::createBuffer(vk.allocator, buffer_size,
-                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VMA_MEMORY_USAGE_CPU_ONLY);
-    
-    //: Map vertices to staging buffer
-    void* data;
-    vmaMapMemory(vk.allocator, staging_buffer.allocation, &data);
-    memcpy(data, vertices.data(), (size_t) buffer_size);
-    vmaUnmapMemory(vk.allocator, staging_buffer.allocation);
-    
-    //: Vertex buffer
-    //      The most efficient memory for GPU access is VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, or its rough equivalent, VMA_MEMORY_USAGE_GPU_ONLY
-    //      This memory type can't be access from the CPU
-    BufferData vertex_buffer = VK::createBuffer(vk.allocator, buffer_size,
-                                                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                VMA_MEMORY_USAGE_GPU_ONLY);
-    
-    //: Copy from staging to vertex
-    //      Since we can't access the vertex buffer memory from the CPU, we will use vkCmdCopyBuffer(), which will execute on a queue
-    //      and move data between the staging and vertex buffer
-    VK::copyBuffer(vk.device, vk.cmd, staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
-    
-    //: Delete helpers (staging now, vertex when the program finishes)
-    vmaDestroyBuffer(vk.allocator, staging_buffer.buffer, staging_buffer.allocation);
-    deletion_queue_program.push_back([vk, vertex_buffer](){
-        vmaDestroyBuffer(vk.allocator, vertex_buffer.buffer, vertex_buffer.allocation);
-    });
-    
-    return vertex_buffer;
 }
 
 BufferData VK::createIndexBuffer(const Vulkan &vk, const std::vector<ui16> &indices) {
@@ -2744,19 +2668,19 @@ void API::clean(Vulkan &vk) {
     vkDeviceWaitIdle(vk.device);
     
     //: Delete swapchain objects
-    for (auto it = deletion_queue_swapchain.rbegin(); it != deletion_queue_swapchain.rend(); ++it)
+    for (auto it = VK::deletion_queue_swapchain.rbegin(); it != VK::deletion_queue_swapchain.rend(); ++it)
         (*it)();
+    VK::deletion_queue_swapchain.clear();
     
     //: Delete objects that depend on swapchain size
-    deletion_queue_swapchain.clear();
-    for (auto it = deletion_queue_size_change.rbegin(); it != deletion_queue_size_change.rend(); ++it)
+    for (auto it = VK::deletion_queue_size_change.rbegin(); it != VK::deletion_queue_size_change.rend(); ++it)
         (*it)();
-    deletion_queue_size_change.clear();
+    VK::deletion_queue_size_change.clear();
     
     //: Delete program resources
-    for (auto it = deletion_queue_program.rbegin(); it != deletion_queue_program.rend(); ++it)
+    for (auto it = VK::deletion_queue_program.rbegin(); it != VK::deletion_queue_program.rend(); ++it)
         (*it)();
-    deletion_queue_program.clear();
+    VK::deletion_queue_program.clear();
     
     log::graphics("Cleaned up Vulkan");
 }
