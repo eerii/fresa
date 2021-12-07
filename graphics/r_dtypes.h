@@ -9,7 +9,9 @@
 #include "log.h"
 
 #include <optional>
+#include <variant>
 #include <bitset>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -19,8 +21,6 @@
 #include <vulkan/vulkan.h>
 #include "vk_mem_alloc.h"
 #endif
-
-#define DRAW_SHADER_MAX 32
 
 namespace Fresa::Graphics
 {
@@ -122,9 +122,10 @@ namespace Fresa::Graphics
     using ShaderResources = spirv_cross::ShaderResources;
 
     enum Shaders {
-        SHADER_DRAW = 0,
-        SHADER_POST = 0 + DRAW_SHADER_MAX,
+        SHADER_DRAW,
+        SHADER_POST,
     };
+    #define LAST_DRAW_SHADER SHADER_DRAW
 
     inline std::map<Shaders, str> shader_names = {
         {SHADER_DRAW, "test"},
@@ -200,6 +201,11 @@ namespace Fresa::Graphics
         glm::vec3 pos;
         glm::vec3 color;
         glm::vec2 uv;
+    };
+
+    struct VertexDataWindow {
+        Serialize(VertexDataWindow, pos);
+        glm::vec2 pos;
     };
 
     enum VertexFormat {

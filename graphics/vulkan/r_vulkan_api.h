@@ -12,6 +12,14 @@
 
 namespace Fresa::Graphics::VK
 {
+    //Deletion queues
+    //----------------------------------------
+    inline std::vector<std::function<void()>> deletion_queue_program;
+    inline std::vector<std::function<void()>> deletion_queue_size_change;
+    inline std::vector<std::function<void()>> deletion_queue_swapchain;
+    inline std::vector<std::function<void()>> deletion_queue_frame;
+    //----------------------------------------
+
     //Device
     //----------------------------------------
     VkInstance createInstance(const WindowData &win);
@@ -132,7 +140,7 @@ namespace Fresa::Graphics::VK
 
     //Render pass
     //----------------------------------------
-    void registerSubpass(RenderData &render, std::vector<AttachmentID> ids);
+    void registerSubpass(RenderData &render, Shaders shader, std::vector<AttachmentID> ids);
     VkRenderPass createRenderPass(VkDevice device, const RenderData &render);
     //----------------------------------------
 
@@ -140,38 +148,6 @@ namespace Fresa::Graphics::VK
     //Sync objects
     //----------------------------------------
     SyncData createSyncObjects(VkDevice device, ui32 swapchain_size);
-    //----------------------------------------
-
-
-    //Pipeline
-    //----------------------------------------
-    VkPipelineHelperData preparePipelineCreateInfo(VkExtent2D extent);
-    VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
-        const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes);
-    VkPipelineInputAssemblyStateCreateInfo preparePipelineCreateInfoInputAssembly();
-    VkViewport preparePipelineCreateInfoViewport(VkExtent2D extent);
-    VkRect2D preparePipelineCreateInfoScissor(VkExtent2D extent);
-    VkPipelineViewportStateCreateInfo preparePipelineCreateInfoViewportState(const VkViewport &viewport, const VkRect2D &scissor);
-    VkPipelineRasterizationStateCreateInfo preparePipelineCreateInfoRasterizer();
-    VkPipelineMultisampleStateCreateInfo preparePipelineCreateInfoMultisampling();
-    VkPipelineDepthStencilStateCreateInfo preparePipelineCreateInfoDepthStencil();
-    VkPipelineColorBlendAttachmentState preparePipelineCreateInfoColorBlendAttachment();
-    VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
-    
-    VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
-    VkPipeline createGraphicsPipelineObject(VkDevice device, const VkPipelineLayout &layout,
-                                            const ShaderStages &stages, const RenderData &render, ui32 subpass);
-    PipelineData createPipeline(const Vulkan &vk, Shaders shader);
-    void recreatePipeline(const Vulkan &vk, PipelineData &data);
-    //----------------------------------------
-
-
-    //Buffers
-    //----------------------------------------
-    BufferData createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory);
-    void copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
-    BufferData createVertexBuffer(const GraphicsAPI &api, const std::vector<Graphics::VertexData> &vertices);
-    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
     //----------------------------------------
 
 
@@ -199,6 +175,115 @@ namespace Fresa::Graphics::VK
                               std::map<ui32, const VkImageView*> image_views = {},
                               std::map<ui32, const VkImageView*> input_attachments = {});
     void updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline);
+    //----------------------------------------
+
+
+    //Pipeline
+    //----------------------------------------
+    VkPipelineHelperData preparePipelineCreateInfo(VkExtent2D extent, const std::vector<VkVertexInputBindingDescription> binding_description,
+                                                   const std::vector<VkVertexInputAttributeDescription> attribute_description);
+    VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
+        const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes);
+    VkPipelineInputAssemblyStateCreateInfo preparePipelineCreateInfoInputAssembly();
+    VkViewport preparePipelineCreateInfoViewport(VkExtent2D extent);
+    VkRect2D preparePipelineCreateInfoScissor(VkExtent2D extent);
+    VkPipelineViewportStateCreateInfo preparePipelineCreateInfoViewportState(const VkViewport &viewport, const VkRect2D &scissor);
+    VkPipelineRasterizationStateCreateInfo preparePipelineCreateInfoRasterizer();
+    VkPipelineMultisampleStateCreateInfo preparePipelineCreateInfoMultisampling();
+    VkPipelineDepthStencilStateCreateInfo preparePipelineCreateInfoDepthStencil();
+    VkPipelineColorBlendAttachmentState preparePipelineCreateInfoColorBlendAttachment();
+    VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
+    
+    VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
+    VkPipeline createGraphicsPipelineObject(VkDevice device, const PipelineData &data, const RenderData &render);
+    void recreatePipeline(const Vulkan &vk, PipelineData &data);
+
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    PipelineData createPipeline(const Vulkan &vk, Shaders shader) {
+        PipelineData data;
+        
+        //---Subpass---
+        data.subpass = shader;
+        log::graphics("Pipeline %s, subpass %d", shader_names.at(shader).c_str(), data.subpass);
+        log::graphics("---");
+        
+        //---Shader data---
+        data.shader = API::createShaderData(shader_names.at(shader));
+        data.shader.stages = VK::createShaderStages(vk.device, data.shader.code);
+        
+        //---Descriptor pool---
+        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.render.swapchain.size);
+        data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
+        data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
+        data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
+        
+        //---Descriptor sets---
+        if (data.subpass > 0) {
+            data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
+                                                              data.descriptor_pools, vk.render.swapchain.size);
+            VK::updatePostDescriptorSets(vk, data);
+        }
+        
+        //---Binding and attribute descriptors---
+        data.binding_descriptions = VK::getBindingDescriptions<V>();
+        data.attribute_descriptions = VK::getAttributeDescriptions<V>();
+        
+        //---Pipeline---
+        data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
+        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render);
+        
+        return data;
+    }
+    //----------------------------------------
+
+
+    //Buffers
+    //----------------------------------------
+    BufferData createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory);
+    void copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
+    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
+
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    BufferData createVertexBuffer(const GraphicsAPI &api, const std::vector<V> &vertices) {
+        //---Vertex buffer---
+        //      Buffer that holds the vertex information for the shaders to use.
+        //      It has a struct per vertex of the mesh, which can contain properties like position, color, uv, normals...
+        //      The properties are described automatically using reflection in an attribute description in the pipeline
+        VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
+        
+        //: Staging buffer
+        //      We want to make the vertex buffer accessible to the GPU in the most efficient way, so we use a staging buffer
+        //      This is created in CPU only memory, in which we can easily map the vertex data
+        BufferData staging_buffer = VK::createBuffer(api.allocator, buffer_size,
+                                                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                     VMA_MEMORY_USAGE_CPU_ONLY);
+        
+        //: Map vertices to staging buffer
+        void* data;
+        vmaMapMemory(api.allocator, staging_buffer.allocation, &data);
+        memcpy(data, vertices.data(), (size_t) buffer_size);
+        vmaUnmapMemory(api.allocator, staging_buffer.allocation);
+        
+        //: Vertex buffer
+        //      The most efficient memory for GPU access is VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, or its rough equivalent, VMA_MEMORY_USAGE_GPU_ONLY
+        //      This memory type can't be access from the CPU
+        BufferData vertex_buffer = VK::createBuffer(api.allocator, buffer_size,
+                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                    VMA_MEMORY_USAGE_GPU_ONLY);
+        
+        //: Copy from staging to vertex
+        //      Since we can't access the vertex buffer memory from the CPU, we will use vkCmdCopyBuffer(), which will execute on a queue
+        //      and move data between the staging and vertex buffer
+        VK::copyBuffer(api.device, api.cmd, staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
+        
+        //: Delete helpers (staging now, vertex when the program finishes)
+        vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
+        deletion_queue_program.push_back([api, vertex_buffer](){
+            vmaDestroyBuffer(api.allocator, vertex_buffer.buffer, vertex_buffer.allocation); 
+        });
+        
+        return vertex_buffer;
+    }
     //----------------------------------------
 
 
