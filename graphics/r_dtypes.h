@@ -122,13 +122,15 @@ namespace Fresa::Graphics
     using ShaderResources = spirv_cross::ShaderResources;
 
     enum Shaders {
-        SHADER_DRAW,
+        SHADER_DRAW_COLOR,
+        SHADER_DRAW_TEX,
         SHADER_POST,
     };
-    #define LAST_DRAW_SHADER SHADER_DRAW
+    #define LAST_DRAW_SHADER SHADER_DRAW_TEX
 
     inline std::map<Shaders, str> shader_names = {
-        {SHADER_DRAW, "test"},
+        {SHADER_DRAW_COLOR, "test_color"},
+        {SHADER_DRAW_TEX, "test_tex"},
         {SHADER_POST, "test_subpass"},
     };
 
@@ -196,11 +198,16 @@ namespace Fresa::Graphics
     //Vertex
     //----------------------------------------
     //Needs to be ordered the same way as the shader
-    struct VertexData {
-        Serialize(VertexData, pos, color, uv);
+    struct VertexDataTexture {
+        Serialize(VertexDataTexture, pos, uv);
+        glm::vec3 pos;
+        glm::vec2 uv;
+    };
+    
+    struct VertexDataColor {
+        Serialize(VertexDataColor, pos, color);
         glm::vec3 pos;
         glm::vec3 color;
-        glm::vec2 uv;
     };
 
     struct VertexDataWindow {
@@ -222,4 +229,6 @@ namespace Fresa::Graphics
         ui32 offset;
     };
     //----------------------------------------
+    
+    using SubpassID = ui8;
 }

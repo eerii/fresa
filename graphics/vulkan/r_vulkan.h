@@ -59,14 +59,14 @@ namespace Fresa::Graphics
         std::vector<VkAttachmentReference> depth_attachments;
         std::vector<VkAttachmentReference> input_attachments;
         
-        std::map<AttachmentID, ui8> previous_subpass_dependencies;
+        std::map<AttachmentID, SubpassID> previous_subpass_dependencies;
     };
 
     struct RenderData {
         SwapchainData swapchain;
         std::map<AttachmentID, AttachmentData> attachments;
         VkRenderPass render_pass;
-        std::map<Shaders, SubpassData> subpasses;
+        std::vector<SubpassData> subpasses;
     };
 
     struct PipelineData {
@@ -86,7 +86,7 @@ namespace Fresa::Graphics
         VkPipelineLayout pipeline_layout;
         VkPipeline pipeline;
         
-        Shaders subpass;
+        SubpassID subpass;
     };
 
     struct VkQueueIndices {

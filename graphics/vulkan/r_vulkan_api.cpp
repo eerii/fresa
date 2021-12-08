@@ -85,8 +85,8 @@ Vulkan API::create(WindowData &win) {
     AttachmentID attachment_depth = VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_DEPTH);
     
     //---Subpasses---
-    VK::registerSubpass(vk.render, SHADER_DRAW, {attachment_color, attachment_depth});
-    VK::registerSubpass(vk.render, SHADER_POST, {attachment_color, attachment_swapchain});
+    SubpassID subpass_draw = VK::registerSubpass(vk.render, {attachment_color, attachment_depth});
+    SubpassID subpass_post = VK::registerSubpass(vk.render, {attachment_color, attachment_swapchain});
     
     //---Render pass---
     vk.render.render_pass = VK::createRenderPass(vk.device, vk.render);
@@ -98,8 +98,9 @@ Vulkan API::create(WindowData &win) {
     vk.sync = VK::createSyncObjects(vk.device, vk.render.swapchain.size);
     
     //---Pipelines---
-    vk.pipelines[SHADER_DRAW] = VK::createPipeline<VertexData>(vk, SHADER_DRAW);
-    vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST);
+    vk.pipelines[SHADER_DRAW_COLOR] = VK::createPipeline<VertexDataColor>(vk, SHADER_DRAW_COLOR, subpass_draw);
+    vk.pipelines[SHADER_DRAW_TEX] = VK::createPipeline<VertexDataTexture>(vk, SHADER_DRAW_TEX, subpass_draw);
+    vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST, subpass_post);
     
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
@@ -716,7 +717,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //: Attachments
     VK::recreateAttachments(vk.device, vk.allocator, vk.physical_device, vk.cmd, to_vec(vk.render.swapchain.extent), vk.render.attachments);
     for (const auto &[shader, data] : vk.pipelines) {
-        if (data.subpass > LAST_DRAW_SHADER)
+        if (shader > LAST_DRAW_SHADER)
             VK::updatePostDescriptorSets(vk, data);
     }
     
@@ -1112,13 +1113,12 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, const RenderD
 //Render Pass
 //----------------------------------------
 
-void VK::registerSubpass(RenderData &render, Shaders shader, std::vector<AttachmentID> attachment_ids) {
-    if (render.subpasses.count(shader) > 0)
-        log::error("Attempted to create a subpass with the a repeated shader");
-    render.subpasses[shader] = SubpassData{};
-    SubpassData &data = render.subpasses.at(shader);
+SubpassID VK::registerSubpass(RenderData &render, std::vector<AttachmentID> attachment_ids) {
+    SubpassID subpass_id = render.subpasses.size();
+    render.subpasses.push_back(SubpassData{});
+    SubpassData &data = render.subpasses.at(subpass_id);
     
-    log::graphics("Registering subpass %d:", shader);
+    log::graphics("Registering subpass %d:", subpass_id);
     
     data.attachment_bindings = attachment_ids;
     
@@ -1130,10 +1130,8 @@ void VK::registerSubpass(RenderData &render, Shaders shader, std::vector<Attachm
         
         if (attachment.type & ATTACHMENT_INPUT) {
             //: Check if it is in one of the previous subpasses
-            for (int i = (int)shader - 1; i >= 0; i--) {
-                if (render.subpasses.count((Shaders)i) == 0)
-                    log::error("You must initialize the subpasses in order for input attachments to work");
-                SubpassData &previous = render.subpasses.at((Shaders)i);
+            for (int i = subpass_id - 1; i >= 0; i--) {
+                SubpassData &previous = render.subpasses.at(i);
                 if (std::count(previous.attachment_bindings.begin(), previous.attachment_bindings.end(), binding)) {
                     first_in_chain = false;
                     data.input_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
@@ -1171,6 +1169,8 @@ void VK::registerSubpass(RenderData &render, Shaders shader, std::vector<Attachm
         data.description.inputAttachmentCount = (ui32)data.input_attachments.size();
         data.description.pInputAttachments = data.input_attachments.data();
     }
+    
+    return subpass_id;
 }
 
 VkRenderPass VK::createRenderPass(VkDevice device, const RenderData &render) {
@@ -1186,7 +1186,7 @@ VkRenderPass VK::createRenderPass(VkDevice device, const RenderData &render) {
         render_pass_data.attachments.push_back(attachment.description);
     
     //---Subpasses---
-    for (const auto &[shader, subpass]: render.subpasses) {
+    for (const auto &subpass: render.subpasses) {
         ui8 index = (ui8)render_pass_data.subpasses.size();
         render_pass_data.subpasses.push_back(subpass.description);
         
@@ -2475,22 +2475,6 @@ VkSampler VK::createSampler(VkDevice device) {
 
 //Draw
 //----------------------------------------
-
-//TODO: COMMENT, IMPLEMENT
-DrawBufferID API::registerDrawBuffer(const Vulkan &vk, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
-    //TODO: Convert into a more efficient pool allocator
-    static DrawBufferID id = 0;
-    do id++;
-    while (draw_buffer_data.find(id) != draw_buffer_data.end());
-    
-    draw_buffer_data[id] = DrawBufferData{};
-    
-    draw_buffer_data[id].vertex_buffer = VK::createVertexBuffer(vk, vertices);
-    draw_buffer_data[id].index_buffer = VK::createIndexBuffer(vk, indices);
-    draw_buffer_data[id].index_size = (ui32)indices.size();
-    
-    return id;
-}
 
 DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer, Shaders shader) {
     static DrawID id = 0;
