@@ -29,8 +29,6 @@ namespace Fresa::Graphics::API
     inline std::map<DrawID, DrawData> draw_data{};
     inline DrawQueueMap draw_queue{};
 
-    
-
     void updateDescriptorSets(const GraphicsAPI &api, const DrawData* draw);
 
     std::vector<char> readSPIRV(std::string filename);

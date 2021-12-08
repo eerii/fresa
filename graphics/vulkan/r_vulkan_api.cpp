@@ -29,13 +29,12 @@ namespace {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
-    //TODO: DELETE
-    const std::vector<VertexDataWindow> temp_vertices = {
+    const std::vector<VertexDataWindow> window_vertices = {
         {{-1.f, -1.f}}, {{-1.f, 1.f}},
         {{1.f, -1.f}}, {{1.f, 1.f}},
         {{1.f, -1.f}}, {{-1.f, 1.f}},
     };
-    BufferData temp_vertex_buffer;
+    BufferData window_vertex_buffer;
 }
 
 
@@ -105,8 +104,8 @@ Vulkan API::create(WindowData &win) {
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
     
-    //TODO: TEMPORAL HARDCODED
-    temp_vertex_buffer = VK::createVertexBuffer(vk, temp_vertices);
+    //---Window vertex buffer---
+    window_vertex_buffer = VK::createVertexBuffer(vk, window_vertices);
     
     return vk;
 }
@@ -839,12 +838,6 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const RenderData &render, u
     //: Clear values
     std::vector<VkClearValue> clear_values{render.attachments.size() + 1};
     for (auto &[idx, a] : render.attachments) {
-        //TODO: REMOVE CLEAR VALUE, IT IS A TEST
-        if (a.type & ATTACHMENT_SWAPCHAIN) {
-            clear_values[idx].color = {0.2f, 0.01f, 0.4f, 1.0f};
-            continue;
-        }
-        
         if (a.type & ATTACHMENT_COLOR)
             clear_values[idx].color = {0.f, 0.f, 0.f, 1.0f};
         if (a.type & ATTACHMENT_DEPTH)
@@ -874,17 +867,15 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     //: Begin command buffer and render pass
     VK::beginDrawCommandBuffer(cmd, vk.render, current);
     
-    //: Add all the draw calls (Optimize this in the future for a single mesh with instantiation)
-    //: Draw shaders
+    //---Draw shaders---
     for (const auto &[shader, queue_buffer] : API::draw_queue) {
         //: Bind pipeline
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
         
         for (const auto &[buffer, queue_tex] : queue_buffer) {
             //: Vertex buffer
-            VkBuffer vertex_buffers[]{ buffer->vertex_buffer.buffer };
             VkDeviceSize offsets[]{ 0 };
-            vkCmdBindVertexBuffers(cmd, 0, 1, vertex_buffers, offsets);
+            vkCmdBindVertexBuffers(cmd, 0, 1, &buffer->vertex_buffer.buffer, offsets);
             
             //: Index buffer
             vkCmdBindIndexBuffer(cmd, buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
@@ -895,21 +886,33 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
                     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
                                             &data->descriptor_sets.at(current), 0, nullptr);
 
-                    //: Draw vertices
+                    //: Draw vertices (Optimize this in the future for a single mesh with instantiation)
                     vkCmdDrawIndexed(cmd, buffer->index_size, 1, 0, 0, 0);
                 }
             }
         }
     }
-    //: Post shaders
-    vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(SHADER_POST).pipeline);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(SHADER_POST).pipeline_layout, 0, 1,
-                            &vk.pipelines.at(SHADER_POST).descriptor_sets.at(current), 0, nullptr);
-    //TEMP HARDCODED
-    VkDeviceSize offsets[]{ 0 };
-    vkCmdBindVertexBuffers(cmd, 0, 1, &temp_vertex_buffer.buffer, offsets);
-    vkCmdDraw(cmd, 6, 1, 0, 0);
+    //---Post shaders---
+    for (const auto &[shader, pipeline] : vk.pipelines) {
+        if (shader <= LAST_DRAW_SHADER)
+            continue;
+        
+        //: Next subpass
+        vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
+        
+        //: Pipeline
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
+        
+        //: Descriptor sets
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets.at(current), 0, nullptr);
+        
+        //: Vertex buffer (It has the 4 vertices of the window area)
+        VkDeviceSize offsets[]{ 0 };
+        vkCmdBindVertexBuffers(cmd, 0, 1, &window_vertex_buffer.buffer, offsets);
+        
+        //: Draw
+        vkCmdDraw(cmd, 6, 1, 0, 0);
+    }
     
     //: End command buffer and render pass
     vkCmdEndRenderPass(cmd);

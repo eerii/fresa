@@ -693,7 +693,7 @@ void Graphics::Renderer::destroy() {
     //IMGUI
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
-    ImPlot::DestroyContext();
+    //ImPlot::DestroyContext();
     ImGui::DestroyContext();
 #endif
     

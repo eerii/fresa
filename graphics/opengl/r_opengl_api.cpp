@@ -583,7 +583,7 @@ void GL::GUI::initImGUI(OpenGL &gl, const WindowData &win) {
     gl.imgui_context = ImGui::CreateContext();
     if (gl.imgui_context == nullptr)
         log::error("Error creating ImGui context: ", SDL_GetError());
-    ImPlot::CreateContext();
+    //ImPlot::CreateContext();
     gl.io = ImGui::GetIO();
     if (not ImGui_ImplSDL2_InitForOpenGL(win.window, gl.context))
         log::error("Error initializing ImGui for SDL");
