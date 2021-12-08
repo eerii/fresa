@@ -15,7 +15,6 @@
 #include "imgui.h"
 #include "imgui_stdlib.h"
 #include "imgui_impl_sdl.h"
-#include "implot.h"
 
 #if defined USE_OPENGL
 #include "imgui_impl_opengl3.h"
