@@ -114,6 +114,8 @@ namespace Fresa::Graphics
     //----------------------------------------
     using ShaderCompiler = spirv_cross::CompilerGLSL;
     using ShaderResources = spirv_cross::ShaderResources;
+    
+    using SubpassID = ui8;
 
     enum Shaders {
         SHADER_DRAW_COLOR,
@@ -157,6 +159,7 @@ namespace Fresa::Graphics
         #if defined USE_OPENGL
         ui8 pid;
         std::map<str, ui32> uniforms;
+        SubpassID subpass;
         #elif defined USE_VULKAN
         ShaderStages stages;
         #endif
@@ -223,6 +226,4 @@ namespace Fresa::Graphics
         ui32 offset;
     };
     //----------------------------------------
-    
-    using SubpassID = ui8;
 }

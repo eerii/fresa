@@ -14,10 +14,18 @@ namespace Fresa::Graphics::GL
     //----------------------------------------
     SDL_GLContext createContext(const WindowData &win);
     //----------------------------------------
+    
+    //Render passes
+    //----------------------------------------
+    AttachmentID registerAttachment(std::map<AttachmentID, AttachmentData> &attachments, Vec2<> size, AttachmentType type);
+    SubpassID registerSubpass(std::map<SubpassID, SubpassData> &subpasses, const std::map<AttachmentID, AttachmentData> &attachments,
+                              std::vector<AttachmentID> list);
+    ui32 createFramebuffer(const std::map<AttachmentID, AttachmentData> &attachments, std::vector<AttachmentID> list);
+    //----------------------------------------
 
     //Shaders
     //----------------------------------------
-    ShaderData createShaderDataGL(str name);
+    ShaderData createShaderDataGL(str name, SubpassID subpass);
     ui8 compileShader(const char* source, ui32 shader_type);
     ui8 compileProgram(str vert_source = "", str frag_source = "");
     void validateShaderData(ui32 vao_id, const std::map<Shaders, ShaderData> &shaders);
@@ -26,13 +34,6 @@ namespace Fresa::Graphics::GL
     //Vertices
     //----------------------------------------
     ui32 createVertexArray();
-    //----------------------------------------
-
-    //Attachments
-    //----------------------------------------
-    AttachmentID registerAttachment(std::map<AttachmentID, AttachmentData> &attachments, Vec2<> size, AttachmentType type);
-    ui32 registerFramebuffer(std::vector<ui32> &framebuffers, const std::map<AttachmentID, AttachmentData> &attachments,
-                             std::vector<AttachmentID> list);
     //----------------------------------------
     
     //Buffers

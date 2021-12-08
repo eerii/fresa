@@ -14,6 +14,13 @@ using namespace Graphics;
 
 namespace {
     std::vector<std::function<void()>> deletion_queue;
+    
+    const std::vector<VertexDataWindow> window_vertices = {
+        {{-1.f, -1.f}}, {{-1.f, 1.f}},
+        {{1.f, -1.f}}, {{1.f, 1.f}},
+        {{1.f, -1.f}}, {{-1.f, 1.f}},
+    };
+    std::pair<BufferData, ui32> window_vertex_buffer;
 }
 
 //Initialization
@@ -40,17 +47,22 @@ OpenGL API::create(WindowData &win) {
     gl.context = GL::createContext(win);
     GL::GUI::initImGUI(gl, win);
     
-    gl.shaders[SHADER_DRAW_COLOR] = GL::createShaderDataGL(shader_names.at(SHADER_DRAW_COLOR));
-    gl.shaders[SHADER_DRAW_TEX] = GL::createShaderDataGL(shader_names.at(SHADER_DRAW_TEX));
-    
-    AttachmentID color_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_COLOR);
+    AttachmentID swapchain_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_COLOR_SWAPCHAIN);
+    AttachmentID color_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_COLOR_INPUT);
     AttachmentID depth_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_DEPTH); //TODO: RESIZE
     
-    GL::registerFramebuffer(gl.framebuffers, gl.attachments, {color_attachment, depth_attachment});
+    SubpassID subpass_draw = GL::registerSubpass(gl.subpasses, gl.attachments, {color_attachment, depth_attachment});
+    SubpassID subpass_post = GL::registerSubpass(gl.subpasses, gl.attachments, {swapchain_attachment, color_attachment});
+    
+    gl.shaders[SHADER_DRAW_COLOR] = GL::createShaderDataGL(shader_names.at(SHADER_DRAW_COLOR), subpass_draw);
+    gl.shaders[SHADER_DRAW_TEX] = GL::createShaderDataGL(shader_names.at(SHADER_DRAW_TEX), subpass_draw);
+    gl.shaders[SHADER_POST] = GL::createShaderDataGL(shader_names.at(SHADER_POST), subpass_post);
     
     ui32 temp_vao = GL::createVertexArray(); //Needed for shader validation
     deletion_queue.push_back([temp_vao](){glDeleteVertexArrays(1, &temp_vao);});
     GL::validateShaderData(temp_vao, gl.shaders);
+    
+    window_vertex_buffer = GL::createVertexBuffer(gl, window_vertices);
     
     return gl;
 }
@@ -95,7 +107,7 @@ SDL_GLContext GL::createContext(const WindowData &win) {
     return context;
 }
 
-ShaderData GL::createShaderDataGL(str name) {
+ShaderData GL::createShaderDataGL(str name, SubpassID subpass) {
     //---Prepare shaders---
     //      In this step we are loading the shader "name" and creating all the important elements it needs
     //      This includes reading the shader SPIR-V code, performing reflection on it and converting it to compatible GLSL
@@ -166,7 +178,7 @@ ShaderData GL::createShaderDataGL(str name) {
     ui32 pid = GL::compileProgram(vert_source_glsl, frag_source_glsl);
     data.pid = pid;
     
-    log::graphics("Program (test) ID: %d", data.pid);
+    log::graphics("Program (%s) ID: %d", name.c_str(), data.pid);
     glCheckError();
     
     //: Set uniform bindings
@@ -178,6 +190,9 @@ ShaderData GL::createShaderDataGL(str name) {
         temp = index;
     }
     glCheckError();
+    
+    //: Set framebuffer (equivalent to subpass in vulkan)
+    data.subpass = subpass;
     
     deletion_queue.push_back([pid](){glDeleteProgram(pid);});
     return data;
@@ -329,18 +344,83 @@ AttachmentID GL::registerAttachment(std::map<AttachmentID, AttachmentData> &atta
     return id;
 }
 
-ui32 GL::registerFramebuffer(std::vector<ui32> &framebuffers, const std::map<AttachmentID, AttachmentData> &attachments,
-                             std::vector<AttachmentID> list) {
+SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, const std::map<AttachmentID, AttachmentData> &attachments,
+                              std::vector<AttachmentID> list) {
+    static SubpassID id = 0;
+    while (subpasses.find(id) != subpasses.end())
+        id++;
+    
+    log::graphics("Registering subpass %d:", id);
+    subpasses[id] = SubpassData{};
+    
+    std::vector<AttachmentID> new_list{};
+    ui8 depth_attachment_count = 0;
+    bool is_swapchain_subpass = false;
+    
+    for (auto &binding : list) {
+        const AttachmentData &attachment = attachments.at(binding);
+        subpasses[id].attachments.push_back(binding);
+        
+        //: Swapchain
+        if (attachment.type & ATTACHMENT_SWAPCHAIN)
+            is_swapchain_subpass = true;
+        
+        //: Input
+        bool first_in_chain = true;
+        if (attachment.type & ATTACHMENT_INPUT) {
+            for (int i = id - 1; i >= 0; i--) {
+                SubpassData &previous = subpasses.at(i);
+                if (std::count(previous.attachments.begin(), previous.attachments.end(), attachment.tex)) {
+                    first_in_chain = false;
+                    subpasses[id].input_textures.push_back(attachment.tex);
+                    log::graphics(" - Input attachment: %d (Depends on subpass %d)", binding, i);
+                    break;
+                }
+            }
+        }
+        
+        if (first_in_chain) {
+            //: Color
+            if (attachment.type & ATTACHMENT_COLOR) {
+                new_list.push_back(binding);
+                log::graphics(" - Color attachment: %d", binding);
+            }
+                
+            //: Depth
+            if (attachment.type & ATTACHMENT_DEPTH) {
+                new_list.push_back(binding);
+                subpasses[id].has_depth = true;
+                depth_attachment_count++;
+                log::graphics(" - Depth attachment: %d", binding);
+            }
+        }
+    }
+    
+    if (depth_attachment_count > 1)
+        log::error("A subpass can contain at most 1 depth attachment");
+    
+    subpasses[id].framebuffer = is_swapchain_subpass ? 0 : createFramebuffer(attachments, new_list);
+    log::graphics(" - This subpass includes the framebuffer %d", subpasses[id].framebuffer);
+        
+    return id;
+}
+
+ui32 GL::createFramebuffer(const std::map<AttachmentID, AttachmentData> &attachments, std::vector<AttachmentID> list) {
     //---Framebuffer---
     //      A texture that you can draw to, useful for multi step shader pipelines
     //      It can have a color, depth or both attachments
-    ui32 id = (ui32)framebuffers.size();
-    
-    glGenFramebuffers(1, &id);
-    glBindFramebuffer(GL_FRAMEBUFFER, id);
+    ui32 fb;
+    glGenFramebuffers(1, &fb);
+    glBindFramebuffer(GL_FRAMEBUFFER, fb);
     
     ui8 color_attachment_count = 0;
     for (auto &attachment : list) {
+        if (attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN) {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glDeleteFramebuffers(1, &fb);
+            return 0;
+        }
+        
         if (attachments.at(attachment).type & ATTACHMENT_COLOR) {
             GLenum color_attachment_value = [color_attachment_count](){
                 if (color_attachment_count == 0) return GL_COLOR_ATTACHMENT0;
@@ -370,7 +450,7 @@ ui32 GL::registerFramebuffer(std::vector<ui32> &framebuffers, const std::map<Att
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
-    return id;
+    return fb;
 }
 
 //----------------------------------------
@@ -511,16 +591,21 @@ void API::updateDescriptorSets(const OpenGL &gl, const DrawData* draw) { }
 
 void API::renderTest(OpenGL &gl, WindowData &win) {
     //---Clear---
-    glClearColor(0.f, 0.f, 0.f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    //---Prepare for drawing---
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); //TODO: MULTIPLE FRAMEBUFFERS
+    for (const auto &[id, data] : gl.subpasses) {
+        glBindFramebuffer(GL_FRAMEBUFFER, data.framebuffer);
+        glClearColor(0.f, 0.f, 0.f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
     
-    //---Draw---
+    //---Draw shaders---
     for (const auto &[shader, buffer_queue] : API::draw_queue) {
+        //: Bind framebuffer
+        const SubpassData &subpass = gl.subpasses.at(gl.shaders.at(shader).subpass);
+        glBindFramebuffer(GL_FRAMEBUFFER, subpass.framebuffer);
+        
         //: Bind shader
         glUseProgram(gl.shaders.at(shader).pid);
+        glCheckError();
         
         for (const auto &[buffer, tex_queue] : buffer_queue) {
             //: Bind VAO
@@ -529,6 +614,7 @@ void API::renderTest(OpenGL &gl, WindowData &win) {
             //: Bind vertex and index buffers
             glBindBuffer(GL_ARRAY_BUFFER, buffer->vertex_buffer.id_);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->index_buffer.id_);
+            glCheckError();
             
             for (const auto &[tex, draw_queue] : tex_queue) {
                 //...Bind texture
@@ -556,9 +642,40 @@ void API::renderTest(OpenGL &gl, WindowData &win) {
                     
                     //: Draw
                     glDrawElements(GL_TRIANGLES, buffer->index_size, GL_UNSIGNED_SHORT, (void*)0);
+                    glCheckError();
                 }
             }
         }
+    }
+    
+    //---Post shaders---
+    for (const auto &[shader, data] : gl.shaders) {
+        if (shader <= LAST_DRAW_SHADER)
+            continue;
+        
+        //: Bind framebuffer
+        const SubpassData &subpass = gl.subpasses.at(gl.shaders.at(shader).subpass);
+        glBindFramebuffer(GL_FRAMEBUFFER, subpass.framebuffer);
+        
+        //: Bind shader
+        glUseProgram(gl.shaders.at(shader).pid);
+        glCheckError();
+        
+        //: Bind VAO
+        glBindVertexArray(window_vertex_buffer.second);
+        
+        //: Bind vertex buffer
+        glBindBuffer(GL_ARRAY_BUFFER, window_vertex_buffer.first.id_);
+        
+        //: Previous textures from attachments
+        for (auto &tex : subpass.input_textures) {
+            glBindTexture(GL_TEXTURE_2D, tex);
+        }
+        
+        //: Draw
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glCheckError();
     }
     
     glBindVertexArray(0);
