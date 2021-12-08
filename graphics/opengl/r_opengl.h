@@ -41,13 +41,19 @@ namespace Fresa::Graphics
         AttachmentType type;
     };
     
+    struct SubpassData {
+        ui32 framebuffer;
+        bool has_depth;
+        std::vector<AttachmentID> attachments = {};
+        std::vector<ui32> input_textures = {};
+    };
+    
     struct OpenGL {
         SDL_GLContext context;
         
         std::map<Shaders, ShaderData> shaders;
-        
         std::map<AttachmentID, AttachmentData> attachments;
-        std::vector<ui32> framebuffers;
+        std::map<SubpassID, SubpassData> subpasses;
         
         #ifndef DISABLE_GUI
         ImGuiContext* imgui_context;
