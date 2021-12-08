@@ -140,7 +140,7 @@ namespace Fresa::Graphics::VK
 
     //Render pass
     //----------------------------------------
-    void registerSubpass(RenderData &render, Shaders shader, std::vector<AttachmentID> ids);
+    SubpassID registerSubpass(RenderData &render, std::vector<AttachmentID> ids);
     VkRenderPass createRenderPass(VkDevice device, const RenderData &render);
     //----------------------------------------
 
@@ -199,11 +199,11 @@ namespace Fresa::Graphics::VK
     void recreatePipeline(const Vulkan &vk, PipelineData &data);
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    PipelineData createPipeline(const Vulkan &vk, Shaders shader) {
+    PipelineData createPipeline(const Vulkan &vk, Shaders shader, SubpassID subpass) {
         PipelineData data;
         
         //---Subpass---
-        data.subpass = shader;
+        data.subpass = subpass;
         log::graphics("Pipeline %s, subpass %d", shader_names.at(shader).c_str(), data.subpass);
         log::graphics("---");
         
@@ -336,6 +336,23 @@ namespace Fresa::Graphics::VK
         return Vec2<>(extent.width, extent.height);
     }
     //----------------------------------------
+}
+
+namespace Fresa::Graphics::API {
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    DrawBufferID registerDrawBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<ui16> &indices) {
+        static DrawBufferID id = 0;
+        do id++;
+        while (draw_buffer_data.find(id) != draw_buffer_data.end());
+        
+        draw_buffer_data[id] = DrawBufferData{};
+        
+        draw_buffer_data[id].vertex_buffer = VK::createVertexBuffer(api, vertices);
+        draw_buffer_data[id].index_buffer = VK::createIndexBuffer(api, indices);
+        draw_buffer_data[id].index_size = (ui32)indices.size();
+        
+        return id;
+    }
 }
 
 #endif

@@ -19,8 +19,6 @@ using namespace Graphics;
 
 namespace {
     WindowData win;
-    GraphicsAPI api;
-
     std::map<str, TextureID> texture_locations{};
 }
 
@@ -44,29 +42,19 @@ bool Graphics::update() {
     //This part would not go here
     static TextureID test_texture_data = getTextureID("res/graphics/texture.png");
     
-    static DrawID test_draw_id = getDrawID_Rect();
-    static DrawID test_draw_id_2 = getDrawID_Cube();
-    static DrawID test_draw_id_3 = getDrawID_Cube();
-    const std::vector<VertexData> rect_vertices_2 = {
-        {{-1.f, -1.f, 0.f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{1.f, -1.f, 0.f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{1.f, 1.f, 0.f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-        {{-1.f, 1.f, 0.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-    };
-    static DrawID test_draw_id_4 = getDrawID(rect_vertices_2, VerticesDefinitions::rect_indices);
+    static DrawID test_draw_id = getDrawID_Rect(SHADER_DRAW_TEX);
+    static DrawID test_draw_id_2 = getDrawID_Cube(SHADER_DRAW_COLOR);
+    static DrawID test_draw_id_3 = getDrawID_Cube(SHADER_DRAW_COLOR);
+    static DrawID test_draw_id_4 = getDrawID_Rect(SHADER_DRAW_COLOR);
     static std::array<DrawID, 10> test_draw_ids;
     
     static bool binded = false;
     if (not binded) {
         bindTexture(test_draw_id, test_texture_data);
-        bindTexture(test_draw_id_2, test_texture_data);
-        bindTexture(test_draw_id_3, test_texture_data);
-        bindTexture(test_draw_id_4, test_texture_data);
         
         bool odd = true;
         for (auto &id : test_draw_ids) {
-            id = odd ? getDrawID_Cube() : getDrawID(rect_vertices_2, VerticesDefinitions::rect_indices);
-            bindTexture(id, test_texture_data);
+            id = odd ? getDrawID_Cube(SHADER_DRAW_COLOR) : getDrawID_Rect(SHADER_DRAW_COLOR);
             odd = not odd;
         }
         
@@ -140,19 +128,34 @@ void Graphics::onResize(Vec2<> size) {
     API::resize(api, win);
 }
 
-DrawID Graphics::getDrawID(const std::vector<VertexData> &vertices, const std::vector<ui16> &indices, Shaders shader) {
-    DrawBufferID buffer = API::registerDrawBuffer(api, vertices, indices);
-    return API::registerDrawData(api, buffer, shader);
+DrawID Graphics::getDrawID_Rect(Shaders shader) {
+    if (shader == SHADER_DRAW_TEX) {
+        static DrawBufferID rect_buffer_tex = API::registerDrawBuffer(api, Vertices::rect_vertices_texture, Vertices::rect_indices);
+        return API::registerDrawData(api, rect_buffer_tex, shader); //: Descriptor sets for texture are updated when the texture is binded
+    }
+    
+    if (shader == SHADER_DRAW_COLOR) {
+        static DrawBufferID rect_buffer_color = API::registerDrawBuffer(api, Vertices::rect_vertices_color, Vertices::rect_indices);
+        DrawID id = API::registerDrawData(api, rect_buffer_color, shader);
+        API::updateDescriptorSets(api, &API::draw_data.at(id));
+        return id;
+    }
+    
+    log::error("Shader not supported for rect");
+    return 0;
 }
 
 DrawID Graphics::getDrawID_Cube(Shaders shader) {
-    static DrawBufferID cube_buffer = API::registerDrawBuffer(api, VerticesDefinitions::cube_vertices, VerticesDefinitions::cube_indices);
-    return API::registerDrawData(api, cube_buffer, shader);
-}
-
-DrawID Graphics::getDrawID_Rect(Shaders shader) {
-    static DrawBufferID rect_buffer = API::registerDrawBuffer(api, VerticesDefinitions::rect_vertices, VerticesDefinitions::rect_indices);
-    return API::registerDrawData(api, rect_buffer, shader);
+    if (shader == SHADER_DRAW_COLOR) {
+        static DrawBufferID cube_buffer_color = API::registerDrawBuffer(api, Vertices::cube_vertices_color, Vertices::cube_indices);
+        DrawID id = API::registerDrawData(api, cube_buffer_color, shader);
+        API::updateDescriptorSets(api, &API::draw_data.at(id));
+        return id;
+    }
+    
+    log::error("Shader not supported for cube");
+    return 0;
+    
 }
 
 TextureID Graphics::getTextureID(str path, Channels ch) {
