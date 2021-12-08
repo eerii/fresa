@@ -41,6 +41,6 @@ namespace Fresa::Graphics::Renderer
 
     void toggleDepthTest(bool enable);
 
-    glm::mat4 matModel2D(Vec2<> pos, Vec2<> size, float rotation = 0.0f);
-    glm::mat4 matModel2D(Rect2<> rect, float rotation = 0.0f);
+    //glm::mat4 matModel2D(Vec2<> pos, Vec2<> size, float rotation = 0.0f);
+    //glm::mat4 matModel2D(Rect2<> rect, float rotation = 0.0f);
 }

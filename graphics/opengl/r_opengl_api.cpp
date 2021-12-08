@@ -7,9 +7,7 @@
 #include "r_opengl_api.h"
 
 #include "r_window.h"
-
-#include <fstream>
-#include <streambuf>
+#include "log.h"
 
 using namespace Fresa;
 using namespace Graphics;
@@ -42,10 +40,13 @@ OpenGL API::create(WindowData &win) {
     gl.context = GL::createContext(win);
     GL::GUI::initImGUI(gl, win);
     
-    gl.shaders["test"] = GL::createShaderDataGL("test");
-    gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
+    gl.shaders[SHADER_DRAW_COLOR] = GL::createShaderDataGL(shader_names.at(SHADER_DRAW_COLOR));
+    gl.shaders[SHADER_DRAW_TEX] = GL::createShaderDataGL(shader_names.at(SHADER_DRAW_TEX));
     
-    gl.attributes = API::getAttributeDescriptions<VertexData>();
+    AttachmentID color_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_COLOR);
+    AttachmentID depth_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_DEPTH); //TODO: RESIZE
+    
+    GL::registerFramebuffer(gl.framebuffers, gl.attachments, {color_attachment, depth_attachment});
     
     ui32 temp_vao = GL::createVertexArray(); //Needed for shader validation
     deletion_queue.push_back([temp_vao](){glDeleteVertexArrays(1, &temp_vao);});
@@ -270,7 +271,7 @@ ui8 GL::compileProgram(str vert_source, str frag_source) {
     return pid;
 }
 
-void GL::validateShaderData(ui32 vao_id, const std::map<str, ShaderData> &shaders) {
+void GL::validateShaderData(ui32 vao_id, const std::map<Shaders, ShaderData> &shaders) {
     //---Validate shaders---
     glBindVertexArray(vao_id);
     for (const auto &[key, s] : shaders) {
@@ -301,49 +302,83 @@ void GL::validateShaderData(ui32 vao_id, const std::map<str, ShaderData> &shader
 
 
 
-//Buffers
+//Attachments
 //----------------------------------------
 
-FramebufferData GL::createFramebuffer(Vec2<> size, AttachmentType type) {
-    //---Framebuffer---
-    //      A texture that you can draw to, useful for multi step shader pipelines
-    //      It can have a color, depth or both attachments
-    FramebufferData fb;
+AttachmentID GL::registerAttachment(std::map<AttachmentID, AttachmentData> &attachments, Vec2<> size, AttachmentType type) {
+    static AttachmentID id = 0;
+    while (attachments.find(id) != attachments.end())
+        id++;
     
-    glGenFramebuffers(1, &fb.id_);
-    glBindFramebuffer(GL_FRAMEBUFFER, fb.id_);
+    ui32 tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
     
-    if (type == FRAMEBUFFER_COLOR_ATTACHMENT or type == FRAMEBUFFER_COLOR_DEPTH_ATTACHMENT) {
-        fb.color_texture = TextureData();
-        glGenTextures(1, &fb.color_texture.value().id_);
-        glBindTexture(GL_TEXTURE_2D, fb.color_texture.value().id_);
-        
+    if (type & ATTACHMENT_COLOR) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.color_texture.value().id_, 0);
+    } else if (type & ATTACHMENT_DEPTH) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     }
     
-    if (type == FRAMEBUFFER_DEPTH_ATTACHMENT or type == FRAMEBUFFER_COLOR_DEPTH_ATTACHMENT) {
-        fb.depth_texture = TextureData();
-        glGenTextures(1, &fb.depth_texture.value().id_);
-        glBindTexture(GL_TEXTURE_2D, fb.depth_texture.value().id_);
-        
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-        
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, fb.depth_texture.value().id_, 0);
+    attachments[id] = AttachmentData{};
+    attachments[id].tex = tex;
+    attachments[id].type = type;
+    
+    return id;
+}
+
+ui32 GL::registerFramebuffer(std::vector<ui32> &framebuffers, const std::map<AttachmentID, AttachmentData> &attachments,
+                             std::vector<AttachmentID> list) {
+    //---Framebuffer---
+    //      A texture that you can draw to, useful for multi step shader pipelines
+    //      It can have a color, depth or both attachments
+    ui32 id = (ui32)framebuffers.size();
+    
+    glGenFramebuffers(1, &id);
+    glBindFramebuffer(GL_FRAMEBUFFER, id);
+    
+    ui8 color_attachment_count = 0;
+    for (auto &attachment : list) {
+        if (attachments.at(attachment).type & ATTACHMENT_COLOR) {
+            GLenum color_attachment_value = [color_attachment_count](){
+                if (color_attachment_count == 0) return GL_COLOR_ATTACHMENT0;
+                if (color_attachment_count == 1) return GL_COLOR_ATTACHMENT1;
+                if (color_attachment_count == 2) return GL_COLOR_ATTACHMENT2;
+                if (color_attachment_count == 3) return GL_COLOR_ATTACHMENT3;
+                if (color_attachment_count == 4) return GL_COLOR_ATTACHMENT4;
+                if (color_attachment_count == 5) return GL_COLOR_ATTACHMENT5;
+                if (color_attachment_count == 6) return GL_COLOR_ATTACHMENT6;
+                if (color_attachment_count == 7) return GL_COLOR_ATTACHMENT7;
+                log::error("No more color attachments allowed in one framebuffer");
+                return 0;
+            }();
+            color_attachment_count++;
+            
+            glFramebufferTexture2D(GL_FRAMEBUFFER, color_attachment_value, GL_TEXTURE_2D, attachments.at(attachment).tex, 0);
+        }
+            
+        if (attachments.at(attachment).type & ATTACHMENT_DEPTH) {
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, attachments.at(attachment).tex, 0);
+        }
     }
     
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         log::error("Error creating OpenGL framebuffer: %d", glGetError());
     glCheckError();
     
-    fb.type = type;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
-    return fb;
+    return id;
 }
+
+//----------------------------------------
+
+
+
+//Buffers
+//----------------------------------------
 
 BufferData GL::createBuffer(size_t size, GLenum type, GLenum usage) {
     //---Buffer object---
@@ -373,31 +408,6 @@ ui32 GL::createVertexArray() {
     glGenVertexArrays(1, &vao_id);
     glCheckError();
     return vao_id;
-}
-
-std::pair<BufferData, ui32> GL::createVertexBuffer(const OpenGL &gl, const std::vector<Graphics::VertexData> &vertices) {
-    //---Vertex buffer---
-    //      It holds the vertices for the vertex shader to read
-    //      It needs to be tied to the vertex array object (vao)
-    ui32 vao = GL::createVertexArray();
-    glBindVertexArray(vao);
-    
-    BufferData buffer = GL::createBuffer();
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.id_);
-    
-    for (const auto &attr : gl.attributes) {
-        ui32 size = (ui32)attr.format; //Assuming float
-        glVertexAttribPointer(attr.location, size, GL_FLOAT, GL_FALSE, sizeof(VertexData), reinterpret_cast<void*>(attr.offset));
-        glEnableVertexAttribArray(attr.location);
-    }
-    
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(VertexData), vertices.data(), GL_STATIC_DRAW);
-    
-    glCheckError();
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-    
-    return {buffer, vao};
 }
 
 BufferData GL::createIndexBuffer(const OpenGL &gl, const std::vector<ui16> &indices) {
@@ -474,24 +484,7 @@ TextureID API::registerTexture(const OpenGL &gl, Vec2<> size, Channels ch, ui8* 
 //Draw
 //----------------------------------------
 
-DrawBufferID API::registerDrawBuffer(const OpenGL &gl, const std::vector<VertexData> &vertices, const std::vector<ui16> &indices) {
-    //TODO: Comment
-    static DrawBufferID id = 0;
-    do id++;
-    while (draw_buffer_data.find(id) != draw_buffer_data.end());
-    
-    draw_buffer_data[id] = DrawBufferData{};
-    
-    auto [vb_, vao_] = GL::createVertexBuffer(gl, vertices);
-    draw_buffer_data[id].vertex_buffer = vb_;
-    draw_buffer_data[id].vao = vao_;
-    draw_buffer_data[id].index_buffer = GL::createIndexBuffer(gl, indices);
-    draw_buffer_data[id].index_size = (ui32)indices.size();
-    
-    return id;
-}
-
-DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer) {
+DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer, Shaders shader) {
     static DrawID id = 0;
     do id++;
     while (draw_data.find(id) != draw_data.end());
@@ -501,6 +494,8 @@ DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer) {
     draw_data[id].buffer_id = buffer;
     
     draw_data[id].uniform_buffers = { GL::createBuffer(sizeof(UniformBufferObject), GL_UNIFORM_BUFFER, GL_STREAM_DRAW) };
+    
+    draw_data[id].shader = shader;
     
     return id;
 }
@@ -516,51 +511,56 @@ void API::updateDescriptorSets(const OpenGL &gl, const DrawData* draw) { }
 
 void API::renderTest(OpenGL &gl, WindowData &win) {
     //---Clear---
-    glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
+    glClearColor(0.f, 0.f, 0.f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //---Prepare for drawing---
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glUseProgram(gl.shaders.at("test").pid);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); //TODO: MULTIPLE FRAMEBUFFERS
     
     //---Draw---
-    for (const auto &[buffer, queue] : API::draw_queue) {
-        //: Bind VAO
-        glBindVertexArray(buffer->vao);
+    for (const auto &[shader, buffer_queue] : API::draw_queue) {
+        //: Bind shader
+        glUseProgram(gl.shaders.at(shader).pid);
         
-        //: Bind vertex and index buffers
-        glBindBuffer(GL_ARRAY_BUFFER, buffer->vertex_buffer.id_);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->index_buffer.id_);
-        
-        for (const auto &[tex, draw] : queue) {
-            //...Bind texture
-            if (tex == &no_texture)
-                glBindTexture(GL_TEXTURE_2D, 0);
-            else
-                glBindTexture(GL_TEXTURE_2D, tex->id_);
+        for (const auto &[buffer, tex_queue] : buffer_queue) {
+            //: Bind VAO
+            glBindVertexArray(buffer->vao);
             
-            for (const auto &[data, model] : draw) {
-                //...Uniforms (improve)
-                UniformBufferObject ubo{};
-                ubo.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-                ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
-                ubo.model = model;
+            //: Bind vertex and index buffers
+            glBindBuffer(GL_ARRAY_BUFFER, buffer->vertex_buffer.id_);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->index_buffer.id_);
+            
+            for (const auto &[tex, draw_queue] : tex_queue) {
+                //...Bind texture
+                if (tex == &no_texture)
+                    glBindTexture(GL_TEXTURE_2D, 0);
+                else
+                    glBindTexture(GL_TEXTURE_2D, tex->id_);
                 
-                //: Update uniforms
-                GL::updateUniformBuffer(data->uniform_buffers[0], &ubo);
-                
-                //: Upload uniforms
-                for (auto &[name, index] : gl.shaders["test"].uniforms) {
-                    // TODO: Improve, add type reflection
-                    if (name == "UniformBufferObject")
-                        glBindBufferBase(GL_UNIFORM_BUFFER, index, data->uniform_buffers[0].id_);
+                for (const auto &[data, model] : draw_queue) {
+                    //...Uniforms (improve)
+                    UniformBufferObject ubo{};
+                    ubo.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+                    ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
+                    ubo.model = model;
+                    
+                    //: Update uniforms
+                    GL::updateUniformBuffer(data->uniform_buffers[0], &ubo);
+                    
+                    //: Upload uniforms
+                    for (auto &[name, index] : gl.shaders[shader].uniforms) {
+                        // TODO: Improve, add type reflection
+                        if (name == "UniformBufferObject")
+                            glBindBufferBase(GL_UNIFORM_BUFFER, index, data->uniform_buffers[0].id_);
+                    }
+                    
+                    //: Draw
+                    glDrawElements(GL_TRIANGLES, buffer->index_size, GL_UNSIGNED_SHORT, (void*)0);
                 }
-                
-                //: Draw
-                glDrawElements(GL_TRIANGLES, buffer->index_size, GL_UNSIGNED_SHORT, (void*)0);
             }
         }
     }
+    
     glBindVertexArray(0);
     
     //---Present---
@@ -602,8 +602,8 @@ void GL::GUI::initImGUI(OpenGL &gl, const WindowData &win) {
 
 void API::resize(OpenGL &gl, WindowData &win) {
     glViewport(0, 0, win.size.x, win.size.y);
-    glDeleteFramebuffers(1, &gl.framebuffer.id_);
-    gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
+    //glDeleteFramebuffers(1, &gl.framebuffer.id_); //TODO: RESIZE
+    //gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
 }
 
 //----------------------------------------

@@ -36,13 +36,18 @@
 
 namespace Fresa::Graphics
 {
+    struct AttachmentData {
+        ui32 tex;
+        AttachmentType type;
+    };
+    
     struct OpenGL {
         SDL_GLContext context;
         
-        std::map<str, ShaderData> shaders;
-        std::vector<VertexAttributeDescription> attributes;
+        std::map<Shaders, ShaderData> shaders;
         
-        FramebufferData framebuffer;
+        std::map<AttachmentID, AttachmentData> attachments;
+        std::vector<ui32> framebuffers;
         
         #ifndef DISABLE_GUI
         ImGuiContext* imgui_context;
