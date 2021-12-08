@@ -7,8 +7,6 @@
 #include "r_renderer.h"
 #include "r_opengl_api.h"
 
-#include <glm/ext.hpp>
-
 #include "log.h"
 
 #include "gui.h"
@@ -24,7 +22,6 @@
 
 using namespace Fresa;
 using namespace Graphics;
-using namespace glm;
 
 namespace {
     OpenGL *gl;
@@ -59,7 +56,7 @@ namespace {
     };
 
     //MATRICES
-    mat4 proj_render, proj_post, proj_cam, proj_window;
+    //mat4 proj_render, proj_post, proj_cam, proj_window;
 
     //MISC
     ui32 palette_tex;
@@ -632,7 +629,7 @@ void Graphics::Renderer::present(SDL_Window* window) {
 //CLEAR
 //-----------------------------------------
 void Graphics::Renderer::clear(Config &c) {
-    glViewport(0, 0, c.resolution.x + 2*BORDER_WIDTH, c.resolution.y + 2*BORDER_WIDTH);
+    /*glViewport(0, 0, c.resolution.x + 2*BORDER_WIDTH, c.resolution.y + 2*BORDER_WIDTH);
     
     glBindFramebuffer(GL_FRAMEBUFFER, fb_render);
     glClearColor(c.background_color[0], c.background_color[1], c.background_color[2], c.background_color[3]);
@@ -678,7 +675,7 @@ void Graphics::Renderer::clear(Config &c) {
     proj_window = ortho(0.0f, (float)(c.window_size.x), 0.0f, (float)(c.window_size.y));
     
     System::Tilemap::init(c);
-    glCheckError();
+    glCheckError();*/
 }
 //-----------------------------------------
 
@@ -755,16 +752,16 @@ void Graphics::Renderer::toggleDepthTest(bool enable) {
 
 //MATRICES
 //-----------------------------------------
-mat4 Graphics::Renderer::matModel2D(Vec2<> pos, Vec2<> size, float rotation) {
-    mat4 s = scale(mat4(1.0f), vec3(size.x, size.y, 1.0f));
+/*glm::mat4 Graphics::Renderer::matModel2D(Vec2<> pos, Vec2<> size, float rotation) {
+   mat4 s = scale(mat4(1.0f), vec3(size.x, size.y, 1.0f));
     mat4 r = rotate(mat4(1.0f), rotation, vec3(0.0f, 0.0f, 1.0f));
     mat4 t = translate(mat4(1.0f), vec3(pos.x, pos.y, 0.0f));
     
     return t * r * s;
 }
-mat4 Graphics::Renderer::matModel2D(Rect2<> rect, float rotation) {
-    return Graphics::Renderer::matModel2D(rect.pos(), rect.size(), rotation);
-}
+glm::mat4 Graphics::Renderer::matModel2D(Rect2<> rect, float rotation) {
+    //return Graphics::Renderer::matModel2D(rect.pos(), rect.size(), rotation);
+}*/
 
 //-----------------------------------------
 

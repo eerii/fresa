@@ -81,15 +81,15 @@ namespace Fresa::Graphics
 
     struct TextureData {
         int w, h, ch;
-    #if defined USE_OPENGL
+        #if defined USE_OPENGL
         ui32 id_;
-    #elif defined USE_VULKAN
+        #elif defined USE_VULKAN
         VkImage image;
         VmaAllocation allocation;
         VkFormat format;
         VkImageLayout layout;
         VkImageView image_view;
-    #endif
+        #endif
     };
 
     inline const TextureData no_texture{};
@@ -108,14 +108,8 @@ namespace Fresa::Graphics
         ATTACHMENT_DEPTH_INPUT = ATTACHMENT_DEPTH | ATTACHMENT_INPUT,
         ATTACHMENT_COLOR_SWAPCHAIN = ATTACHMENT_COLOR | ATTACHMENT_SWAPCHAIN,
     };
-
-    struct FramebufferData {
-        #ifdef USE_OPENGL
-        ui32 id_;
-        #endif
-    };
     //----------------------------------------
-
+    
     //Shader
     //----------------------------------------
     using ShaderCompiler = spirv_cross::CompilerGLSL;
@@ -160,12 +154,12 @@ namespace Fresa::Graphics
     struct ShaderData {
         ShaderLocations locations;
         ShaderCode code;
-    #if defined USE_OPENGL
+        #if defined USE_OPENGL
         ui8 pid;
         std::map<str, ui32> uniforms;
-    #elif defined USE_VULKAN
+        #elif defined USE_VULKAN
         ShaderStages stages;
-    #endif
+        #endif
     };
     //----------------------------------------
 
@@ -194,20 +188,20 @@ namespace Fresa::Graphics
     using DrawQueueMap = std::map<Shaders, DrawQueueMapBuffers>;
 
     //----------------------------------------
-
+    
     //Vertex
     //----------------------------------------
     //Needs to be ordered the same way as the shader
-    struct VertexDataTexture {
-        Serialize(VertexDataTexture, pos, uv);
-        glm::vec3 pos;
-        glm::vec2 uv;
-    };
-    
     struct VertexDataColor {
         Serialize(VertexDataColor, pos, color);
         glm::vec3 pos;
         glm::vec3 color;
+    };
+    
+    struct VertexDataTexture {
+        Serialize(VertexDataTexture, pos, uv);
+        glm::vec3 pos;
+        glm::vec2 uv;
     };
 
     struct VertexDataWindow {
@@ -221,7 +215,7 @@ namespace Fresa::Graphics
         VERTEX_FORMAT_RGB_F = 3,
         VERTEX_FORMAT_RGBA_F = 4,
     };
-
+    
     struct VertexAttributeDescription {
         ui32 binding;
         ui32 location;

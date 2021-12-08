@@ -1552,7 +1552,7 @@ VkPipelineRasterizationStateCreateInfo VK::preparePipelineCreateInfoRasterizer()
     //      If nothing shows to the screen, one of the most probable causes is the winding order of the vertices to be reversed
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    log::graphics("Culling: back bit - Winding order: CCW");
+    //log::graphics("Culling: back bit - Winding order: CCW");
     
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;

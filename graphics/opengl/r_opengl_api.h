@@ -20,7 +20,7 @@ namespace Fresa::Graphics::GL
     ShaderData createShaderDataGL(str name);
     ui8 compileShader(const char* source, ui32 shader_type);
     ui8 compileProgram(str vert_source = "", str frag_source = "");
-    void validateShaderData(ui32 vao_id, const std::map<str, ShaderData> &shaders);
+    void validateShaderData(ui32 vao_id, const std::map<Shaders, ShaderData> &shaders);
     //----------------------------------------
 
     //Vertices
@@ -28,10 +28,15 @@ namespace Fresa::Graphics::GL
     ui32 createVertexArray();
     //----------------------------------------
 
+    //Attachments
+    //----------------------------------------
+    AttachmentID registerAttachment(std::map<AttachmentID, AttachmentData> &attachments, Vec2<> size, AttachmentType type);
+    ui32 registerFramebuffer(std::vector<ui32> &framebuffers, const std::map<AttachmentID, AttachmentData> &attachments,
+                             std::vector<AttachmentID> list);
+    //----------------------------------------
+    
     //Buffers
     //----------------------------------------
-    FramebufferData createFramebuffer(Vec2<> size, AttachmentType type);
-
     BufferData createBuffer(size_t size = 0, GLenum type = GL_UNIFORM_BUFFER, GLenum usage = GL_STATIC_DRAW);
 
     template <typename T>
@@ -41,8 +46,35 @@ namespace Fresa::Graphics::GL
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
     };
 
-    std::pair<BufferData, ui32> createVertexBuffer(const GraphicsAPI &api, const std::vector<Graphics::VertexData> &vertices);
     BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
+    
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    std::pair<BufferData, ui32> createVertexBuffer(const GraphicsAPI &api, const std::vector<V> &vertices) {
+        //---Vertex buffer---
+        //      It holds the vertices for the vertex shader to read
+        //      It needs to be tied to the vertex array object (vao)
+        ui32 vao = GL::createVertexArray();
+        glBindVertexArray(vao);
+        
+        BufferData buffer = GL::createBuffer();
+        glBindBuffer(GL_ARRAY_BUFFER, buffer.id_);
+        
+        static std::vector<VertexAttributeDescription> attributes = API::getAttributeDescriptions<V>();
+        
+        for (const auto &attr : attributes) {
+            ui32 size = (ui32)attr.format; //Assuming float
+            glVertexAttribPointer(attr.location, size, GL_FLOAT, GL_FALSE, sizeof(V), reinterpret_cast<void*>(attr.offset));
+            glEnableVertexAttribArray(attr.location);
+        }
+        
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(V), vertices.data(), GL_STATIC_DRAW);
+        
+        glCheckError();
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+        
+        return {buffer, vao};
+    }
     
     //----------------------------------------
 
@@ -53,6 +85,26 @@ namespace Fresa::Graphics::GL
         void initImGUI(OpenGL &gl, const WindowData &win);
     }
     //----------------------------------------
+}
+
+namespace Fresa::Graphics::API
+{
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    DrawBufferID registerDrawBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<ui16> &indices) {
+        static DrawBufferID id = 0;
+        do id++;
+        while (draw_buffer_data.find(id) != draw_buffer_data.end());
+        
+        draw_buffer_data[id] = DrawBufferData{};
+        
+        auto [vb_, vao_] = GL::createVertexBuffer(api, vertices);
+        draw_buffer_data[id].vertex_buffer = vb_;
+        draw_buffer_data[id].vao = vao_;
+        draw_buffer_data[id].index_buffer = GL::createIndexBuffer(api, indices);
+        draw_buffer_data[id].index_size = (ui32)indices.size();
+        
+        return id;
+    }
 }
 
 #endif
