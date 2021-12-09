@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -7,9 +7,7 @@
 #include "ecs.h"
 #include "cpool.h"
 
-#include <vector>
-
-namespace Verse
+namespace Fresa
 {
     struct Scene{
         Scene() = default;
@@ -21,9 +19,9 @@ namespace Verse
         
         std::vector<ComponentPool*> component_pools;
         
-        Vec2<int> size;
+        Vec2<> size;
         str name;
-        std::vector<Vec2<int>> checkpoints;
+        std::vector<Vec2<>> checkpoints;
         
         EntityID createEntity();
         EntityID createEntity(std::string name);

@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -6,7 +6,14 @@
 
 #include "config.h"
 
-namespace Verse::Events
+namespace Fresa::Events
 {
-    bool handleEvents(Config &c);
+    enum EventTypes {
+        EVENT_QUIT,
+        EVENT_PAUSE,
+        EVENT_CONTINUE,
+        EVENT_NONE
+    };
+
+    EventTypes handleEvents(Config &c);
 }

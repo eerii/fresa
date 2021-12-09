@@ -1,6 +1,8 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
+
+#ifndef DISABLE_GUI
 
 #include "gui_menu.h"
 
@@ -12,7 +14,7 @@
 #include "s_tilemap.h"
 #include "s_scene_transition.h"
 
-using namespace Verse;
+using namespace Fresa;
 
 void Gui::menu(Config &c) {
     ImGuiStyle& style = ImGui::GetStyle();
@@ -21,7 +23,7 @@ void Gui::menu(Config &c) {
         //LUME
         //---------------------------
         if (ImGui::BeginMenu("[ lume ]")) {
-            str version = std::to_string(Info::version[0]) + "." + std::to_string(Info::version[1]) + "." + std::to_string(Info::version[2]);
+            str version = std::to_string(Conf::version[0]) + "." + std::to_string(Conf::version[1]) + "." + std::to_string(Conf::version[2]);
             ImGui::Text("version: %s", version.c_str());
             ImGui::Text("res: %d x %d (x%d)", c.resolution.x, c.resolution.y, c.render_scale);
             
@@ -91,9 +93,6 @@ void Gui::menu(Config &c) {
             ImGui::Checkbox("enable lookahead", &c.enable_lookahead);
             ImGui::Checkbox("enable smooth panning", &c.enable_smooth_panning);
             
-            if (ImGui::Checkbox("use vsync", &c.use_vsync))
-                Graphics::Window::updateVsync(c);
-            
             ImGui::EndMenu();
         }
         //---------------------------
@@ -124,3 +123,5 @@ void Gui::menu(Config &c) {
         ImGui::EndMainMenuBar();
     }
 }
+
+#endif

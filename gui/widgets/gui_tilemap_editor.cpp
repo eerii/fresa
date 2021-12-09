@@ -1,6 +1,8 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
+
+#ifndef DISABLE_GUI
 
 #include "gui_tilemap_editor.h"
 #include "gui_types.h"
@@ -8,7 +10,7 @@
 #include "s_tilemap.h"
 #include "log.h"
 
-using namespace Verse;
+using namespace Fresa;
 
 namespace {
     Vec2 size;
@@ -19,7 +21,7 @@ void Gui::tilemapEditor(Config &c, EntityID eid) {
     if (tile == nullptr)
         return;
     
-    Verse::Gui::draw_vec2(tile->pos.x, tile->pos.y, "pos", eid, [&c, &tile, eid]() {
+    Fresa::Gui::draw_vec2(tile->pos.x, tile->pos.y, "pos", eid, [&c, &tile, eid]() {
         Component::Collider* col = c.active_scene->getComponent<Component::Collider>(eid);
         if (col != nullptr and col->transform.pos() != tile->pos) {
             col->transform = tile->pos;
@@ -30,7 +32,7 @@ void Gui::tilemapEditor(Config &c, EntityID eid) {
     ImGui::TableNextRow();
     
     
-    Verse::Gui::draw_vec2(size.x, size.y, "size", eid, [&c, &tile, eid]() {
+    Fresa::Gui::draw_vec2(size.x, size.y, "size", eid, [&c, &tile, eid]() {
         Vec2 prev_size = Vec2((int)tile->tiles[0].size(), (int)tile->tiles.size() - 1);
         
         //Delete X
@@ -74,11 +76,13 @@ void Gui::tilemapEditor(Config &c, EntityID eid) {
     ImGui::TableNextRow();
     
     
-    Verse::Gui::draw_vec2(tile->tex_size.x, tile->tex_size.y, "tex size", eid, [&c, &tile]() {
+    Fresa::Gui::draw_vec2(tile->tex_size.x, tile->tex_size.y, "tex size", eid, [&c, &tile]() {
         System::Tilemap::createVertices(c, tile);
     });
     ImGui::TableNextRow();
     
-    Verse::Gui::draw_int(tile->layer, "layer", eid);
+    Fresa::Gui::draw_int(tile->layer, "layer", eid);
     ImGui::TableNextRow();
 }
+
+#endif

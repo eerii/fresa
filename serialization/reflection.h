@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -14,15 +14,14 @@
 #include <tuple>
 #include <ostream>
 #include <string_view>
-#include "ecs.h"
 
 #define Serialize(Type, ...) \
 \
 inline decltype(auto) members() const { return std::tie(__VA_ARGS__); } \
 inline decltype(auto) members() { return std::tie(__VA_ARGS__); } \
 \
-static constexpr std::array<char, ::Verse::Reflection::Impl::str_size(#__VA_ARGS__)> member_name_data = [](){ \
-    std::array<char, ::Verse::Reflection::Impl::str_size(#__VA_ARGS__)> chars{'\0'}; \
+static constexpr std::array<char, ::Fresa::Reflection::Impl::str_size(#__VA_ARGS__)> member_name_data = [](){ \
+    std::array<char, ::Fresa::Reflection::Impl::str_size(#__VA_ARGS__)> chars{'\0'}; \
     size_t _idx = 0; \
     constexpr auto* ini(#__VA_ARGS__); \
     for (char const* _c = ini; *_c; ++_c, ++_idx) \
@@ -32,29 +31,30 @@ static constexpr std::array<char, ::Verse::Reflection::Impl::str_size(#__VA_ARGS
 \
 static constexpr const char* type_name = #Type; \
 \
-static constexpr std::array<const char*, ::Verse::Reflection::Impl::n_args(#__VA_ARGS__)> member_names = [](){ \
-    std::array<const char*, ::Verse::Reflection::Impl::n_args(#__VA_ARGS__)> out{ }; \
-    for(size_t i = 0, n_args = 0; n_args < ::Verse::Reflection::Impl::n_args(#__VA_ARGS__) ; ++i) { \
+static constexpr std::array<const char*, ::Fresa::Reflection::Impl::n_args(#__VA_ARGS__)> member_names = [](){ \
+    std::array<const char*, ::Fresa::Reflection::Impl::n_args(#__VA_ARGS__)> out{ }; \
+    for(size_t i = 0, n_args = 0; n_args < ::Fresa::Reflection::Impl::n_args(#__VA_ARGS__) ; ++i) { \
         while(Type::member_name_data[i] == '\0') i++; \
         out[n_args++] = &Type::member_name_data[i]; \
         while(Type::member_name_data[++i] != '\0'); } \
     return out;}(); \
 \
-template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_equal, OT>, int> = 0> \
+static constexpr size_t size = ::Fresa::Reflection::Impl::n_args(#__VA_ARGS__); \
+\
+template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Fresa::Reflection::is_detected<::Fresa::Reflection::t_equal, OT>, int> = 0> \
 friend bool operator==(const Type& lhs, const OT& rhs) { return lhs.members() == rhs.members(); } \
-template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_nequal, OT>, int> = 0> \
+template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Fresa::Reflection::is_detected<::Fresa::Reflection::t_nequal, OT>, int> = 0> \
 friend bool operator!=(const Type& lhs, const OT& rhs) { return !(lhs == rhs); } \
-template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_smaller, OT>, int> = 0> \
-friend bool operator< (const OT& lhs, const OT& rhs) { return ::Verse::Reflection::less(lhs, rhs); } \
-template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Verse::Reflection::is_detected<::Verse::Reflection::t_print, OT>, int> = 0> \
-friend std::ostream& operator<<(std::ostream& os, const OT& t) { ::Verse::Reflection::printYAML<1>(os, t); return os; }
-
+template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Fresa::Reflection::is_detected<::Fresa::Reflection::t_smaller, OT>, int> = 0> \
+friend bool operator< (const OT& lhs, const OT& rhs) { return ::Fresa::Reflection::less(lhs, rhs); } \
+template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Fresa::Reflection::is_detected<::Fresa::Reflection::t_print, OT>, int> = 0> \
+friend std::ostream& operator<<(std::ostream& os, const OT& t) { ::Fresa::Reflection::printYAML<1>(os, t); return os; }
 
 //TODO: This function can register components using ecs.cpp getID, and also save the name for later usage in the actual type (reflection)
 //I need to make ecs.cpp not include component_list and fix it up a bit
 //Check the component id numbering system as this way it can be random, see how to fix that
 
-namespace Verse
+namespace Fresa
 {
     namespace Reflection
     {
@@ -224,22 +224,22 @@ namespace Verse
                 size_t i = 0;
                 os << "[";
                 for (auto& elem : val)
-                    os << (i++ == 0 ? "" : ",") << ::Verse::Reflection::printJSON(os, elem);
+                    os << (i++ == 0 ? "" : ",") << ::Fresa::Reflection::printJSON(os, elem);
                 os << "]";
             } else if constexpr (is_reflectable<V> && !is_detected<t_print, V>) {
                 auto p_mem = [&](auto& ... member) {
                     size_t i = 0;
-                    (((os << (i != 0 ? ", " : "") << '\"'), os << V::member_names[i++] << "\" : " << ::Verse::Reflection::printJSON(os, member)), ...);
+                    (((os << (i != 0 ? ", " : "") << '\"'), os << V::member_names[i++] << "\" : " << ::Fresa::Reflection::printJSON(os, member)), ...);
                 };
                 os << "{ \"" << V::type_name << "\": {"; std::apply(p_mem, val.members()); os << "}}";
             } else if constexpr (std::is_enum_v<V> && !is_detected<t_print, V>) {
-                os << ::Verse::Reflection::printJSON(os, static_cast<std::underlying_type_t<V>>(val));
+                os << ::Fresa::Reflection::printJSON(os, static_cast<std::underlying_type_t<V>>(val));
             } else if constexpr (is_tuple<V> && !is_detected<t_print, V>) {
                 std::apply([&](auto& ... t) {
-                    int i = 0; os << "{"; (((i++ != 0 ? os << ", " : os), ::Verse::Reflection::printJSON(os, t)), ...); os << "}";
+                    int i = 0; os << "{"; (((i++ != 0 ? os << ", " : os), ::Fresa::Reflection::printJSON(os, t)), ...); os << "}";
                 }, val);
             } else if constexpr (is_pointer_like<V>) {
-                os << (val ? (os << (::Verse::Reflection::printJSON(os, *val)), "") : "null");
+                os << (val ? (os << (::Fresa::Reflection::printJSON(os, *val)), "") : "null");
             } else {
                 os << val;
             }

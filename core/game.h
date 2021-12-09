@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -8,12 +8,13 @@
 
 #include "config.h"
 
-namespace Verse::Game
+namespace Fresa::Game
 {
     bool init(Config &c);
 
     bool update(Config &c);
     bool physicsUpdate(Config &c);
+
     void timeFrame(Config &c);
 
     void stop();

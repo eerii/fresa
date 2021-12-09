@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -6,8 +6,11 @@
 
 #include <SDL2/SDL.h>
 #include <string>
+#include <vector>
+#include <array>
+#include <map>
 
-namespace Verse
+namespace Fresa
 {
     //UNSIGNED INT
     typedef std::uint8_t ui8;

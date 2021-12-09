@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -15,7 +15,6 @@
 #include "imgui.h"
 #include "imgui_stdlib.h"
 #include "imgui_impl_sdl.h"
-#include "implot.h"
 
 #if defined USE_OPENGL
 #include "imgui_impl_opengl3.h"
@@ -23,7 +22,7 @@
 #include "imgui_impl_vulkan.h"
 #endif
 
-namespace Verse::Gui
+namespace Fresa::Gui
 {
     struct ActiveWindows {
         static bool entities;
@@ -50,14 +49,14 @@ static auto vector_getter = [](void* vec, int idx, const char** out_text)
 };
 
 [[maybe_unused]]
-static bool Combo(const char* label, int* curr_index, std::vector<Verse::str>& values)
+static bool Combo(const char* label, int* curr_index, std::vector<Fresa::str>& values)
 {
     if (values.empty()) { return false; }
     return Combo(label, curr_index, vector_getter,
         static_cast<void*>(&values), (int)values.size());
 }
 [[maybe_unused]]
-static bool Combo(const char* label, Verse::ui8& curr_index, std::vector<Verse::str>& values) {
+static bool Combo(const char* label, Fresa::ui8& curr_index, std::vector<Fresa::str>& values) {
     int i = curr_index;
     bool c = Combo(label, &i, values);
     curr_index = i;
@@ -65,7 +64,7 @@ static bool Combo(const char* label, Verse::ui8& curr_index, std::vector<Verse::
 }
 
 [[maybe_unused]]
-static bool ListBox(const char* label, int* currIndex, std::vector<Verse::str>& values)
+static bool ListBox(const char* label, int* currIndex, std::vector<Fresa::str>& values)
 {
     if (values.empty()) { return false; }
     return ListBox(label, currIndex, vector_getter,

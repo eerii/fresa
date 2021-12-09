@@ -1,12 +1,14 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
+
+#ifndef DISABLE_GUI
 
 #include "gui_performance.h"
 #include "ftime.h"
 #include <numeric>
 
-using namespace Verse;
+using namespace Fresa;
 
 namespace {
     TimerID timer;
@@ -119,7 +121,7 @@ void Gui::performance(Config &c) {
     ImGui::Text("max: %f ms", max_physics + max_render);
     ImGui::Text("min: %f ms", min_physics + min_render);
     
-    if (ImPlot::BeginPlot("performance")) {
+    /*if (ImPlot::BeginPlot("performance")) {
         float y[100];
         
         ImPlot::SetupAxesLimits(0, 10, 0.0, 16.6, ImGuiCond_Always);
@@ -133,7 +135,9 @@ void Gui::performance(Config &c) {
         ImPlot::PlotShaded("physics", x, y, 100);
         
         ImPlot::EndPlot();
-    }
+    }*/
     
     ImGui::End();
 }
+
+#endif

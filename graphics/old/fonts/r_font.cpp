@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -7,15 +7,14 @@
 #include <filesystem>
 #include <fstream>
 
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype_fresa.h"
+//#define STB_TRUETYPE_IMPLEMENTATION
+//#include "stb_truetype.h"
 
-#include "r_textures.h"
 #include "log.h"
 
-using namespace Verse;
+using namespace Fresa;
 
-void Graphics::Font::load(FontInfo* font, str path) {
+/*void Graphics::Font::load(FontInfo* font, str path) {
     std::filesystem::path font_path{path};
     
     if (not std::filesystem::exists(font_path)) {
@@ -67,5 +66,6 @@ void Graphics::Font::render(Component::Text* text) {
         x += roundf(kern * scale);
     }
     
-    Graphics::Texture::createTexture(bitmap.data(), text->tex_data, text->bitmap_size.x, text->bitmap_size.y, false);
+    //TEXTURE Graphics::Texture::createTexture(bitmap.data(), text->tex_data, text->bitmap_size.x, text->bitmap_size.y, false);
 }
+*/

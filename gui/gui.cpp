@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -14,7 +14,7 @@
 #include "gui_tilemap_editor.h"
 #include "gui_performance.h"
 
-using namespace Verse;
+using namespace Fresa;
 
 struct ImVec3 { float x, y, z; ImVec3(float _x = 0.0f, float _y = 0.0f, float _z = 0.0f) { x = _x; y = _y; z = _z; } };
 

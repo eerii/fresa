@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -10,7 +10,7 @@
 
 #define INVALID_ENTITY Entity::createID(EntityIndex(-1), 0)
 
-namespace Verse
+namespace Fresa
 {
     typedef ui32 EntityID;
     const EntityID MAX_ENTITIES = 4096;
@@ -21,7 +21,7 @@ namespace Verse
     typedef std::bitset<MAX_COMPONENTS> Signature;
 }
 
-namespace Verse::Entity
+namespace Fresa::Entity
 {
     typedef ui16 EntityIndex;
     typedef ui16 EntityVersion;
@@ -33,7 +33,7 @@ namespace Verse::Entity
     inline bool isValid(EntityID eid) { return (eid >> 16) != EntityIndex(-1); };
 }
 
-namespace Verse::Component
+namespace Fresa::Component
 {
     extern ComponentID component_counter;
 

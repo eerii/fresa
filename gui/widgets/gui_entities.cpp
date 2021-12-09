@@ -1,10 +1,11 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
+#ifndef DISABLE_GUI
+
 #include "gui_entities.h"
 #include "gui_types.h"
-#include "r_textures.h"
 #include "r_window.h"
 
 #include "log.h"
@@ -12,7 +13,7 @@
 #include "serialization.h"
 #include "input.h"
 
-using namespace Verse;
+using namespace Fresa;
 
 namespace {
     ui32 n = 0;
@@ -173,3 +174,5 @@ void components(Config &c, Signature mask, EntityID e) {
         }
     }
 }
+
+#endif

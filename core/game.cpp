@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -10,16 +10,20 @@
 #include "file.h"
 #include "events.h"
 #include "gui.h"
-#include "r_pipeline.h"
+#include "r_graphics.h"
 #include "system_list.h"
 
-using namespace Verse;
+#include <thread>
+
+using namespace Fresa;
 
 namespace
 {
     double accumulator;
     double fps_time;
     ui32 frames;
+    Clock::duration fps_limit;
+    bool is_paused = false;
 }
 
 bool Game::init(Config &c) {
@@ -27,10 +31,6 @@ bool Game::init(Config &c) {
     
     //INITIALIZE FILE SYSTEM
     File::init();
-    
-    #if _WIN32
-    SetProcessDPIAware();
-    #endif
 
     //INITIALIZE SDL
     SDL_version version;
@@ -42,11 +42,27 @@ bool Game::init(Config &c) {
     }
     
     //INITIALIZE GRAPHICS
-    return Graphics::init(c);
+    if (not Graphics::init())
+        return false;
+    
+    //INITIALIZE TIME
+    Time::current = time();
+    fps_limit = round<Clock::duration>(std::chrono::duration<double>{1./60.});
+    Time::next = Time::current + fps_limit;
+    
+    return true;
 }
 
 bool Game::update(Config &c) {
-    timeFrame(c);
+    //PAUSED GAME
+    while (is_paused) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        Events::EventTypes e = Events::handleEvents(c);
+        if (e == Events::EVENT_QUIT)
+            return false;
+        if (e == Events::EVENT_CONTINUE)
+            is_paused = false;
+    }
     
     //CHECK SCENE
     if (c.active_scene == nullptr) {
@@ -59,22 +75,25 @@ bool Game::update(Config &c) {
         return false;
    
     //RENDER UPDATE
-    if (c.window_size.x != 0 and c.window_size.y != 0)
-        Graphics::render(c);
+    Graphics::update();
+    
+    //TIME FRAME
+    timeFrame(c);
     
     return true;
 }
 
 bool Game::physicsUpdate(Config &c) {
     while (accumulator >= c.timestep * 1.0e6) {
-        Clock::time_point time_before_physics = time();
-        
         accumulator -= c.timestep * 1.0e6;
         c.physics_delta = c.timestep * 1.0e-3 * (double)c.game_speed;
         
         //GET EVENTS
-        if (not Events::handleEvents(c))
+        Events::EventTypes e = Events::handleEvents(c);
+        if (e == Events::EVENT_QUIT)
             return false;
+        if (e == Events::EVENT_PAUSE)
+            is_paused = true;
         
 #ifndef DISABLE_GUI
         //UPDATE GUI
@@ -82,12 +101,10 @@ bool Game::physicsUpdate(Config &c) {
 #endif
         
         //UPDATE SYSTEMS
-        System::physicsUpdateSystems(c);
+        System::physicsUpdateSystems();
         
         //PREPARE FOR NEXT INPUT
         Input::frame();
-        
-        c.physics_time = ns(time() - time_before_physics);
     }
     
     c.physics_interpolation = accumulator / c.timestep;
@@ -96,27 +113,31 @@ bool Game::physicsUpdate(Config &c) {
 }
 
 void Game::timeFrame(Config &c) {
-    Time::previous = Time::current;
-    Time::current = time();
-    Time::delta = Time::current - Time::previous;
-    
-    accumulator += ns(Time::delta);
-    if (accumulator > 1.0e10)
-        accumulator = 0;
+    if (time() < Time::next)
+        std::this_thread::sleep_until(Time::next);
+    else if (time() - Time::next > 10 * fps_limit)
+        Time::next = time();
     
     frames++;
-    fps_time += ns(Time::delta);
+    fps_time += ns(Time::next - Time::current);
     
     if (fps_time > 1.0e9) {
-        c.fps = floor((1.0e9 * frames) / fps_time);
-        frames = 0;
-        fps_time = 0;
+        log::info("FPS - %d", (int)round(frames * (1.0e9 / fps_time)));
+        frames = 0; fps_time = 0;
     }
+    
+    Time::previous = Time::current;
+    Time::current = Time::next;
+    Time::next = Time::current + fps_limit;
+    
+    accumulator += ns(Time::current - Time::previous);
+    if (accumulator > 1.0e10)
+        accumulator = 0;
 }
 
 void Game::stop() {
     log::debug("Closing the game...");
     
-    Graphics::destroy();
+    Graphics::stop();
     SDL_Quit();
 }

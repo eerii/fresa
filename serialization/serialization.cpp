@@ -1,4 +1,4 @@
-//project verse, 2017-2021
+//project fresa, 2017-2022
 //by jose pazos perez
 //all rights reserved uwu
 
@@ -7,17 +7,13 @@
 #include <filesystem>
 #include <iostream>
 #include <fstream>
-#include <map>
 
 #include "log.h"
 
-#include "r_textures.h"
 #include "system_list.h"
 #include "controller_list.h"
 
-#include "project_dir.h"
-
-using namespace Verse;
+using namespace Fresa;
 
 namespace {
     bool write_to_project = false;
@@ -44,9 +40,15 @@ void Serialization::loadYAML(str name, YAML::Node &file) {
 void Serialization::writeYAML(str name, YAML::Node &file) {
     str path = "res/" + name + ".yaml";
 #ifdef __APPLE__
-#ifdef DEBUG
+#ifdef PROJECT_DIR
+    #define STR(x) #x
+    #define STR_(x) STR(x)
+    #define PROJECT_DIR_ STR_(PROJECT_DIR)
     if (write_to_project)
-        path = PROJECT_DIR + path;
+        path = PROJECT_DIR_ + path;
+    #undef STR
+    #undef STR_
+    #undef PROJECT_DIR_
 #endif
 #endif
     
@@ -226,17 +228,17 @@ void Serialization::appendYAML(str name, std::vector<str> key, bool b, bool over
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, str key, Vec2<int> vec, bool overwrite) {
+void Serialization::appendYAML(str name, str key, Vec2<> vec, bool overwrite) {
     YAML::Node n = YAML::Load("[" + std::to_string(vec.x) + "," + std::to_string(vec.y) + "]");
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, std::vector<str> key, Vec2<int> vec, bool overwrite) {
+void Serialization::appendYAML(str name, std::vector<str> key, Vec2<> vec, bool overwrite) {
     YAML::Node n = YAML::Load("[" + std::to_string(vec.x) + "," + std::to_string(vec.y) + "]");
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, str key, std::vector<Vec2<int>> vec, bool overwrite) {
+void Serialization::appendYAML(str name, str key, std::vector<Vec2<>> vec, bool overwrite) {
     str y = "";
     for (Vec2 v : vec)
         y += "  - [" + std::to_string(v.x) + "," + std::to_string(v.y) + "]\n";
@@ -244,7 +246,7 @@ void Serialization::appendYAML(str name, str key, std::vector<Vec2<int>> vec, bo
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, std::vector<str> key, std::vector<Vec2<int>> vec, bool overwrite) {
+void Serialization::appendYAML(str name, std::vector<str> key, std::vector<Vec2<>> vec, bool overwrite) {
     str y = "";
     for (Vec2 v : vec)
         y += "  - [" + std::to_string(v.x) + "," + std::to_string(v.y) + "]\n";
@@ -252,12 +254,12 @@ void Serialization::appendYAML(str name, std::vector<str> key, std::vector<Vec2<
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, str key, Rect2<int> rect, bool overwrite) {
+void Serialization::appendYAML(str name, str key, Rect2<> rect, bool overwrite) {
     YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
     appendYAML(name, key, n, overwrite);
 }
 
-void Serialization::appendYAML(str name, std::vector<str> key, Rect2<int> rect, bool overwrite) {
+void Serialization::appendYAML(str name, std::vector<str> key, Rect2<> rect, bool overwrite) {
     YAML::Node n = YAML::Load("[" + std::to_string(rect.x) + "," + std::to_string(rect.y) + "," + std::to_string(rect.w) + "," + std::to_string(rect.h) + "]");
     appendYAML(name, key, n, overwrite);
 }
@@ -339,16 +341,16 @@ void Serialization::loadScene(str name, Scene *s, Config &c) {
         return;
     }
     s->name = data["scene"]["name"].as<str>();
-    s->size = data["scene"]["size"].as<Vec2<int>>();
+    s->size = data["scene"]["size"].as<Vec2<>>();
     
     s->checkpoints = {};
     if (data["scene"]["spawn"]) {
         if (data["scene"]["spawn"].IsSequence()) {
-            for (Vec2 sp : data["scene"]["spawn"].as<std::vector<Vec2<int>>>()) {
+            for (Vec2 sp : data["scene"]["spawn"].as<std::vector<Vec2<>>>()) {
                 s->checkpoints.push_back(sp);
             }
         } else {
-            s->checkpoints.push_back(data["scene"]["spawn"].as<Vec2<int>>());
+            s->checkpoints.push_back(data["scene"]["spawn"].as<Vec2<>>());
         }
     } else {
         s->checkpoints.push_back(Vec2(0,0));
@@ -392,14 +394,15 @@ EntityID Serialization::loadPlayer(Scene *s, Config &c) {
     EntityID eid = s->createEntity("player");
     Serialization::loadComponentsFromYAML(eid, player, s, c);
     
-    s->addComponent<Component::Player>(eid);
-    s->addComponent<Component::State>(eid);
+    //TODO: SERIALIZE COMPONENTS
+    //s->addComponent<Component::Player>(eid);
+    //s->addComponent<Component::State>(eid);
     
     return eid;
 }
 
 void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Scene *s, Config &c) {
-    if (entity["tilemap"])
+    /*if (entity["tilemap"])
         System::Tilemap::load(eid, entity, s, c);
     if (entity["collider"])
         System::Collider::load(eid, entity, s, c);
@@ -430,7 +433,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
     if (entity["state"])
         System::State::load(eid, entity, s, c);
     if (entity["player"])
-        System::Player::load(eid, entity, s, c);
+        System::Player::load(eid, entity, s, c);*/
 }
 
 void Serialization::saveScene(Scene *s, Config &c, bool to_proj) {
@@ -447,7 +450,7 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     std::vector<str> key = {"entities", s->getName(eid), "", ""};
     //log::info("%s, %s, %s, %s", key[0].c_str(), key[1].c_str(), key[2].c_str(), key[3].c_str());
     
-    Component::Collider* col = s->getComponent<Component::Collider>(eid);
+    /*Component::Collider* col = s->getComponent<Component::Collider>(eid);
     Component::CircleCollider* col_circle = s->getComponent<Component::CircleCollider>(eid);
     Component::Texture* tex = s->getComponent<Component::Texture>(eid);
     Component::Animation* anim = s->getComponent<Component::Animation>(eid);
@@ -501,5 +504,5 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     Component::Player* player = s->getComponent<Component::Player>(eid);
     if (player != nullptr) {
         key[2] = "player";
-    }
+    }*/
 }
