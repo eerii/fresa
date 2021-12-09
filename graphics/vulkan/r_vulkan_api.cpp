@@ -2600,7 +2600,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
 //Test
 //----------------------------------------
 
-void API::renderTest(Vulkan &vk, WindowData &win) {
+void API::render(Vulkan &vk, WindowData &win) {
     //TODO: Improve example
     UniformBufferObject ubo{};
     ubo.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));

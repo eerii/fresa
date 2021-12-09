@@ -44,8 +44,8 @@ namespace Fresa::Graphics
     struct SubpassData {
         ui32 framebuffer;
         bool has_depth;
-        std::vector<AttachmentID> attachments = {};
-        std::vector<ui32> input_textures = {};
+        std::vector<AttachmentID> framebuffer_attachments = {};
+        std::vector<AttachmentID> input_attachments = {};
     };
     
     struct OpenGL {

@@ -37,7 +37,7 @@ namespace Fresa::Graphics::API
 
     void resize(GraphicsAPI &api, WindowData &win);
 
-    void renderTest(GraphicsAPI &api, WindowData &win);
+    void render(GraphicsAPI &api, WindowData &win);
 
     void clean(GraphicsAPI &api);
 
