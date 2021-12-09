@@ -7,14 +7,14 @@
 #include <filesystem>
 #include <fstream>
 
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype_fresa.h"
+//#define STB_TRUETYPE_IMPLEMENTATION
+//#include "stb_truetype.h"
 
 #include "log.h"
 
 using namespace Fresa;
 
-void Graphics::Font::load(FontInfo* font, str path) {
+/*void Graphics::Font::load(FontInfo* font, str path) {
     std::filesystem::path font_path{path};
     
     if (not std::filesystem::exists(font_path)) {
@@ -68,3 +68,4 @@ void Graphics::Font::render(Component::Text* text) {
     
     //TEXTURE Graphics::Texture::createTexture(bitmap.data(), text->tex_data, text->bitmap_size.x, text->bitmap_size.y, false);
 }
+*/

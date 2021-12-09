@@ -4,9 +4,13 @@
 
 #pragma once
 
+#ifndef DISABLE_GUI
+
 #include "gui.h"
 
 namespace Fresa::Gui
 {
     void tilemapEditor(Config &c, EntityID eid);
 }
+
+#endif

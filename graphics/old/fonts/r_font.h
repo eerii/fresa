@@ -4,11 +4,8 @@
 
 #pragma once
 
-#include "r_opengl.h"
-#include "c_text.h"
-
 namespace Fresa::Graphics::Font
 {
-    void load(FontInfo* font, str path);
-    void render(Component::Text* text);
+    //void load(FontInfo* font, str path);
+    //void render(Component::Text* text);
 }
