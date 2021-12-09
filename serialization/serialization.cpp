@@ -13,8 +13,6 @@
 #include "system_list.h"
 #include "controller_list.h"
 
-#include "project_dir.h"
-
 using namespace Fresa;
 
 namespace {
@@ -42,9 +40,15 @@ void Serialization::loadYAML(str name, YAML::Node &file) {
 void Serialization::writeYAML(str name, YAML::Node &file) {
     str path = "res/" + name + ".yaml";
 #ifdef __APPLE__
-#ifdef DEBUG
+#ifdef PROJECT_DIR
+    #define STR(x) #x
+    #define STR_(x) STR(x)
+    #define PROJECT_DIR_ STR_(PROJECT_DIR)
     if (write_to_project)
-        path = PROJECT_DIR + path;
+        path = PROJECT_DIR_ + path;
+    #undef STR
+    #undef STR_
+    #undef PROJECT_DIR_
 #endif
 #endif
     
@@ -390,14 +394,15 @@ EntityID Serialization::loadPlayer(Scene *s, Config &c) {
     EntityID eid = s->createEntity("player");
     Serialization::loadComponentsFromYAML(eid, player, s, c);
     
-    s->addComponent<Component::Player>(eid);
-    s->addComponent<Component::State>(eid);
+    //TODO: SERIALIZE COMPONENTS
+    //s->addComponent<Component::Player>(eid);
+    //s->addComponent<Component::State>(eid);
     
     return eid;
 }
 
 void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Scene *s, Config &c) {
-    if (entity["tilemap"])
+    /*if (entity["tilemap"])
         System::Tilemap::load(eid, entity, s, c);
     if (entity["collider"])
         System::Collider::load(eid, entity, s, c);
@@ -428,7 +433,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
     if (entity["state"])
         System::State::load(eid, entity, s, c);
     if (entity["player"])
-        System::Player::load(eid, entity, s, c);
+        System::Player::load(eid, entity, s, c);*/
 }
 
 void Serialization::saveScene(Scene *s, Config &c, bool to_proj) {
@@ -445,7 +450,7 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     std::vector<str> key = {"entities", s->getName(eid), "", ""};
     //log::info("%s, %s, %s, %s", key[0].c_str(), key[1].c_str(), key[2].c_str(), key[3].c_str());
     
-    Component::Collider* col = s->getComponent<Component::Collider>(eid);
+    /*Component::Collider* col = s->getComponent<Component::Collider>(eid);
     Component::CircleCollider* col_circle = s->getComponent<Component::CircleCollider>(eid);
     Component::Texture* tex = s->getComponent<Component::Texture>(eid);
     Component::Animation* anim = s->getComponent<Component::Animation>(eid);
@@ -499,5 +504,5 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
     Component::Player* player = s->getComponent<Component::Player>(eid);
     if (player != nullptr) {
         key[2] = "player";
-    }
+    }*/
 }

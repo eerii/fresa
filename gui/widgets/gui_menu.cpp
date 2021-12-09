@@ -2,6 +2,8 @@
 //by jose pazos perez
 //all rights reserved uwu
 
+#ifndef DISABLE_GUI
+
 #include "gui_menu.h"
 
 #include "serialization.h"
@@ -121,3 +123,5 @@ void Gui::menu(Config &c) {
         ImGui::EndMainMenuBar();
     }
 }
+
+#endif

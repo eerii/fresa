@@ -2,6 +2,8 @@
 //by jose pazos perez
 //all rights reserved uwu
 
+#ifndef DISABLE_GUI
+
 #include "gui_performance.h"
 #include "ftime.h"
 #include <numeric>
@@ -137,3 +139,5 @@ void Gui::performance(Config &c) {
     
     ImGui::End();
 }
+
+#endif

@@ -10,14 +10,12 @@
 #include "scene.h"
 #include "component_list.h"
 
-namespace Fresa
+namespace Fresa::Conf
 {
-    struct Conf {
-        static str name;
-        static ui8 version[3];
-        static Vec2<> window_size;
-        static Vec2<> resolution;
-    };
+    inline const str name = "Proxecto Fresa";
+    inline const ui8 version[3] = {0, 3, 0};
+    inline const Vec2<> window_size = Vec2(1024, 720);
+    inline const Vec2<> resolution = Vec2(256, 180);
 }
 
 namespace Fresa
@@ -48,12 +46,12 @@ namespace Fresa
         bool render_collision_boxes;
         
         bool tme_active;
-        Component::Tilemap* tme_curr_tmap;
+        //Component::Tilemap* tme_curr_tmap;
         EntityID tme_curr_id;
         ui8 tme_curr_tile;
         
         Scene* active_scene;
-        Component::Camera* active_camera;
+        //Component::Camera* active_camera;
         
         bool enable_lookahead;
         bool enable_smooth_panning;
