@@ -49,7 +49,7 @@ OpenGL API::create(WindowData &win) {
     
     AttachmentID swapchain_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_COLOR_SWAPCHAIN);
     AttachmentID color_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_COLOR_INPUT);
-    AttachmentID depth_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_DEPTH); //TODO: RESIZE
+    AttachmentID depth_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_DEPTH);
     
     SubpassID subpass_draw = GL::registerSubpass(gl.subpasses, gl.attachments, {color_attachment, depth_attachment});
     SubpassID subpass_post = GL::registerSubpass(gl.subpasses, gl.attachments, {swapchain_attachment, color_attachment});
@@ -324,7 +324,15 @@ AttachmentID GL::registerAttachment(std::map<AttachmentID, AttachmentData> &atta
     static AttachmentID id = 0;
     while (attachments.find(id) != attachments.end())
         id++;
+        
+    attachments[id] = AttachmentData{};
+    attachments[id].tex = GL::createAttachmentTexture(size, type);
+    attachments[id].type = type;
     
+    return id;
+}
+
+ui32 GL::createAttachmentTexture(Vec2<> size, AttachmentType type) {
     ui32 tex;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
@@ -337,11 +345,7 @@ AttachmentID GL::registerAttachment(std::map<AttachmentID, AttachmentData> &atta
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     }
     
-    attachments[id] = AttachmentData{};
-    attachments[id].tex = tex;
-    attachments[id].type = type;
-    
-    return id;
+    return tex;
 }
 
 SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, const std::map<AttachmentID, AttachmentData> &attachments,
@@ -353,13 +357,11 @@ SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, const
     log::graphics("Registering subpass %d:", id);
     subpasses[id] = SubpassData{};
     
-    std::vector<AttachmentID> new_list{};
     ui8 depth_attachment_count = 0;
     bool is_swapchain_subpass = false;
     
     for (auto &binding : list) {
         const AttachmentData &attachment = attachments.at(binding);
-        subpasses[id].attachments.push_back(binding);
         
         //: Swapchain
         if (attachment.type & ATTACHMENT_SWAPCHAIN)
@@ -370,25 +372,28 @@ SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, const
         if (attachment.type & ATTACHMENT_INPUT) {
             for (int i = id - 1; i >= 0; i--) {
                 SubpassData &previous = subpasses.at(i);
-                if (std::count(previous.attachments.begin(), previous.attachments.end(), attachment.tex)) {
+                if (std::count(previous.input_attachments.begin(), previous.input_attachments.end(), attachment.tex)) {
+                    log::error("Can't use an input attachment in more than 2 subpasses (origin and destination)");
+                }
+                if (std::count(previous.framebuffer_attachments.begin(), previous.framebuffer_attachments.end(), attachment.tex)) {
                     first_in_chain = false;
-                    subpasses[id].input_textures.push_back(attachment.tex);
+                    subpasses[id].input_attachments.push_back(binding);
                     log::graphics(" - Input attachment: %d (Depends on subpass %d)", binding, i);
                     break;
                 }
             }
         }
         
-        if (first_in_chain) {
+        if (first_in_chain and not is_swapchain_subpass) {
             //: Color
             if (attachment.type & ATTACHMENT_COLOR) {
-                new_list.push_back(binding);
+                subpasses[id].framebuffer_attachments.push_back(binding);
                 log::graphics(" - Color attachment: %d", binding);
             }
                 
             //: Depth
             if (attachment.type & ATTACHMENT_DEPTH) {
-                new_list.push_back(binding);
+                subpasses[id].framebuffer_attachments.push_back(binding);
                 subpasses[id].has_depth = true;
                 depth_attachment_count++;
                 log::graphics(" - Depth attachment: %d", binding);
@@ -399,7 +404,7 @@ SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, const
     if (depth_attachment_count > 1)
         log::error("A subpass can contain at most 1 depth attachment");
     
-    subpasses[id].framebuffer = is_swapchain_subpass ? 0 : createFramebuffer(attachments, new_list);
+    subpasses[id].framebuffer = is_swapchain_subpass ? 0 : createFramebuffer(attachments, subpasses[id].framebuffer_attachments);
     log::graphics(" - This subpass includes the framebuffer %d", subpasses[id].framebuffer);
         
     return id;
@@ -589,7 +594,7 @@ void API::updateDescriptorSets(const OpenGL &gl, const DrawData* draw) { }
 //Test
 //----------------------------------------
 
-void API::renderTest(OpenGL &gl, WindowData &win) {
+void API::render(OpenGL &gl, WindowData &win) {
     //---Clear---
     for (const auto &[id, data] : gl.subpasses) {
         glBindFramebuffer(GL_FRAMEBUFFER, data.framebuffer);
@@ -668,8 +673,8 @@ void API::renderTest(OpenGL &gl, WindowData &win) {
         glBindBuffer(GL_ARRAY_BUFFER, window_vertex_buffer.first.id_);
         
         //: Previous textures from attachments
-        for (auto &tex : subpass.input_textures) {
-            glBindTexture(GL_TEXTURE_2D, tex);
+        for (auto &binding : subpass.input_attachments) {
+            glBindTexture(GL_TEXTURE_2D, gl.attachments.at(binding).tex);
         }
         
         //: Draw
@@ -719,8 +724,20 @@ void GL::GUI::initImGUI(OpenGL &gl, const WindowData &win) {
 
 void API::resize(OpenGL &gl, WindowData &win) {
     glViewport(0, 0, win.size.x, win.size.y);
-    //glDeleteFramebuffers(1, &gl.framebuffer.id_); //TODO: RESIZE
-    //gl.framebuffer = GL::createFramebuffer(win.size, FRAMEBUFFER_COLOR_ATTACHMENT);
+    
+    //TODO: Only resize attachments that depend on window size
+    
+    for (auto &[id, attachment] : gl.attachments)
+        attachment.tex = GL::createAttachmentTexture(win.size, attachment.type);
+    
+    for (auto &[id, subpass] : gl.subpasses) {
+        if (subpass.framebuffer == 0)
+            continue;
+        
+        glDeleteFramebuffers(1, &subpass.framebuffer);
+        subpass.framebuffer = GL::createFramebuffer(gl.attachments, subpass.framebuffer_attachments);
+    }
+    glCheckError();
 }
 
 //----------------------------------------

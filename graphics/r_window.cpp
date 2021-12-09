@@ -9,7 +9,6 @@
 
 #include "r_vulkan.h"
 #include "r_opengl.h"
-#include "r_renderer.h"
 
 #if defined USE_VULKAN
     #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN
@@ -71,7 +70,7 @@ ui16 Graphics::Window::getRefreshRate(WindowData &win) {
     return (ui16)mode.refresh_rate;
 }
 
-Vec2<> Graphics::Window::windowToScene(Config &c, Vec2<float> w_pos) {
+/*Vec2<> Graphics::Window::windowToScene(Config &c, Vec2<float> w_pos) {
     Vec2 pixel_move = Vec2(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
     
     Vec2 s_pos = w_pos.to<int>();
@@ -92,4 +91,4 @@ Vec2<float> Graphics::Window::sceneToWindow(Config &c, Vec2<> s_pos) {
     w_pos += (c.window_size.to<float>() - c.resolution.to<float>() * c.render_scale) * 0.5f;
     
     return w_pos;
-}
+}*/

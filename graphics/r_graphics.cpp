@@ -40,7 +40,7 @@ bool Graphics::init() {
 bool Graphics::update() {
     //---Example update---
     //This part would not go here
-    static TextureID test_texture_data = getTextureID("res/graphics/texture.png");
+    /*static TextureID test_texture_data = getTextureID("res/graphics/texture.png");
     
     static DrawID test_draw_id = getDrawID_Rect(SHADER_DRAW_TEX);
     static DrawID test_draw_id_2 = getDrawID_Cube(SHADER_DRAW_COLOR);
@@ -95,10 +95,10 @@ bool Graphics::update() {
         model = glm::rotate(model, t * 1.570796f + i * a, glm::vec3(0.0f, 0.0f, 1.0f));
         draw(id, model);
         i++;
-    }
+    }*/
     
     //: Render
-    API::renderTest(api, win);
+    API::render(api, win);
     
     return true;
 }
