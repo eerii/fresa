@@ -1,6 +1,6 @@
 //project fresa, 2017-2022
 //by jose pazos perez
-//all rights reserved uwu
+//licensed under GPLv3 uwu
 
 //thanks to Jameson Thatcher (bluescreenofdoom)[http://bluescreenofdoom.com/post/code/Reflection/],
 //          veselink1 (refl-cpp)[https://github.com/veselink1/refl-cpp],

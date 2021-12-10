@@ -1,6 +1,6 @@
 //project fresa, 2017-2022
 //by jose pazos perez
-//all rights reserved uwu
+//licensed under GPLv3 uwu
 
 #include "r_font.h"
 
