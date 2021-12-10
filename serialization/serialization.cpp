@@ -13,6 +13,11 @@
 #include "system_list.h"
 #include "controller_list.h"
 
+//---WARNING---
+//      This is a disastrous and total chaotic file
+//      This was a very bad first attempt at serialization, which is only partly functional and very very ugly
+//      It will be rewritten soon using the reflection API I wrote, but in the meantime, please don't look to hard at it
+
 using namespace Fresa;
 
 namespace {

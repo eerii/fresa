@@ -15,13 +15,22 @@
 #include <ostream>
 #include <string_view>
 
+//---Reflection---
+//      This macro is the closest thing to type reflection that we currently have in C++. It can be used like:
+//      struct Test {
+//          Serialize(Test, member);
+//          int member;
+//      };
+//      It makes the struct reflectable, with a list of member_names, comparison operators and it allows the construction of special functions
+//      like forEach() that iterates through all members, as well as implementations of serialization for saving/loading data and inspectors
+
 #define Serialize(Type, ...) \
 \
 inline decltype(auto) members() const { return std::tie(__VA_ARGS__); } \
 inline decltype(auto) members() { return std::tie(__VA_ARGS__); } \
 \
-static constexpr std::array<char, ::Fresa::Reflection::Impl::str_size(#__VA_ARGS__)> member_name_data = [](){ \
-    std::array<char, ::Fresa::Reflection::Impl::str_size(#__VA_ARGS__)> chars{'\0'}; \
+static constexpr std::array<char, ::Fresa::Reflection::str_size(#__VA_ARGS__)> member_name_data = [](){ \
+    std::array<char, ::Fresa::Reflection::str_size(#__VA_ARGS__)> chars{'\0'}; \
     size_t _idx = 0; \
     constexpr auto* ini(#__VA_ARGS__); \
     for (char const* _c = ini; *_c; ++_c, ++_idx) \
@@ -31,15 +40,15 @@ static constexpr std::array<char, ::Fresa::Reflection::Impl::str_size(#__VA_ARGS
 \
 static constexpr const char* type_name = #Type; \
 \
-static constexpr std::array<const char*, ::Fresa::Reflection::Impl::n_args(#__VA_ARGS__)> member_names = [](){ \
-    std::array<const char*, ::Fresa::Reflection::Impl::n_args(#__VA_ARGS__)> out{ }; \
-    for(size_t i = 0, n_args = 0; n_args < ::Fresa::Reflection::Impl::n_args(#__VA_ARGS__) ; ++i) { \
+static constexpr std::array<const char*, ::Fresa::Reflection::n_args(#__VA_ARGS__)> member_names = [](){ \
+    std::array<const char*, ::Fresa::Reflection::n_args(#__VA_ARGS__)> out{ }; \
+    for(size_t i = 0, n_args = 0; n_args < ::Fresa::Reflection::n_args(#__VA_ARGS__) ; ++i) { \
         while(Type::member_name_data[i] == '\0') i++; \
         out[n_args++] = &Type::member_name_data[i]; \
         while(Type::member_name_data[++i] != '\0'); } \
     return out;}(); \
 \
-static constexpr size_t size = ::Fresa::Reflection::Impl::n_args(#__VA_ARGS__); \
+static constexpr size_t size = ::Fresa::Reflection::n_args(#__VA_ARGS__); \
 \
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Fresa::Reflection::is_detected<::Fresa::Reflection::t_equal, OT>, int> = 0> \
 friend bool operator==(const Type& lhs, const OT& rhs) { return lhs.members() == rhs.members(); } \
@@ -50,54 +59,47 @@ friend bool operator< (const OT& lhs, const OT& rhs) { return ::Fresa::Reflectio
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Fresa::Reflection::is_detected<::Fresa::Reflection::t_print, OT>, int> = 0> \
 friend std::ostream& operator<<(std::ostream& os, const OT& t) { ::Fresa::Reflection::printYAML<1>(os, t); return os; }
 
-//TODO: This function can register components using ecs.cpp getID, and also save the name for later usage in the actual type (reflection)
-//I need to make ecs.cpp not include component_list and fix it up a bit
-//Check the component id numbering system as this way it can be random, see how to fix that
-
 namespace Fresa
 {
     namespace Reflection
     {
-        //C++20 is_detected implementation
-        namespace Impl
-        {
-            struct ns {
-                ~ns() = delete;
-                ns(ns const&) = delete;
-            };
-        
-            template <class Default, class AlwaysVoid, template<class...> class Op, class... Args>
-            struct detector {
-                using value_t = std::false_type;
-                using type = Default;
-            };
-        
-            template <class Default, template<class...> class Op, class... Args>
-            struct detector<Default, std::void_t<Op<Args...>>, Op, Args...> {
-                using value_t = std::true_type;
-                using type = Op<Args...>;
-            };
-        
-            template<class T>
-            struct is_array : std::is_array<T> {};
-        
-            template<template<typename, size_t> class TArray, typename T, size_t N>
-            struct is_array<TArray<T, N>> : std::true_type {};
-        
-            constexpr size_t n_args(char const* c, size_t nargs = 1) {
-                for (; *c; ++c) if (*c == ',') ++nargs;
-                return nargs;
-            }
-        
-            constexpr size_t str_size(char const* c, size_t str_size = 1) {
-                for (; *c; ++c) ++str_size; return str_size;
-            }
+        //---C++20 is_detected implementation---
+        struct ns {
+            ~ns() = delete;
+            ns(ns const&) = delete;
+        };
+    
+        template <class Default, class AlwaysVoid, template<class...> class Op, class... Args>
+        struct detector {
+            using value_t = std::false_type;
+            using type = Default;
+        };
+    
+        template <class Default, template<class...> class Op, class... Args>
+        struct detector<Default, std::void_t<Op<Args...>>, Op, Args...> {
+            using value_t = std::true_type;
+            using type = Op<Args...>;
+        };
+    
+        template<class T>
+        struct is_array : std::is_array<T> {};
+    
+        template<template<typename, size_t> class TArray, typename T, size_t N>
+        struct is_array<TArray<T, N>> : std::true_type {};
+    
+        constexpr size_t n_args(char const* c, size_t nargs = 1) {
+            for (; *c; ++c) if (*c == ',') ++nargs;
+            return nargs;
+        }
+    
+        constexpr size_t str_size(char const* c, size_t str_size = 1) {
+            for (; *c; ++c) ++str_size; return str_size;
         }
     
         template <template<class...> class Op, class... Args>
-        constexpr bool is_detected = Impl::detector<Impl::ns, void, Op, Args...>::value_t::value;
+        constexpr bool is_detected = detector<ns, void, Op, Args...>::value_t::value;
     
-        //Properties
+        //---Properties---
         template<class T> using t_begin = decltype(*std::begin(std::declval<T>()));
         template<class T> constexpr bool is_container = is_detected<t_begin, T>;
     
@@ -120,7 +122,7 @@ namespace Fresa
     
         template<class T> using t_component = decltype(std::declval<T>().component_name);
     
-        //Tuple less operator
+        //---Tuple less operator---
         template<typename T>
         constexpr inline bool less(const T& lhs, const T& rhs);
     
@@ -148,7 +150,10 @@ namespace Fresa
             return lhs < rhs;
         }
     
-        //Recursively loop through each component
+        //---For each---
+        //      Recursively loop through each reflectable component, applying a callable function to it
+        //      The parameter L indicates the level of the recursion, how far is the parent object
+        //      The argument name serves to pass the name of the member to the next iteration, which can then be passed to the function
         template<std::size_t L = 0, typename Callable, typename T>
         constexpr void forEach(T &&t, Callable &&f, const char* name = "") {
             using V = std::decay_t<T>;
@@ -165,8 +170,10 @@ namespace Fresa
             f(t, L, name);
         }
         
+        
+        //---Some examples (need much more work)---
     
-        //Recursively print YAML
+        //: Recursively print YAML
         template<std::size_t L>
         constexpr inline decltype(auto) getLevelSeparator(std::ostream& os) {
             for (std::size_t i = 0; i < 2*L; i++)
@@ -213,7 +220,7 @@ namespace Fresa
             return "";
         }
     
-        //Recursively print JSON
+        //: Recursively print JSON
         template<typename T>
         constexpr inline decltype(auto) printJSON(std::ostream& os, T&& val) {
             using V = std::decay_t<T>;
