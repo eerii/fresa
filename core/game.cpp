@@ -9,6 +9,7 @@
 #include "input.h"
 #include "file.h"
 #include "events.h"
+#include "scene.h"
 #include "f_time.h"
 
 #include "gui.h"
@@ -25,7 +26,7 @@ namespace
     bool is_paused = false;
 }
 
-bool Game::init(Config &c) {
+bool Game::init() {
     //---Game setup---
     log::debug("Starting the game...");
     
@@ -49,13 +50,13 @@ bool Game::init(Config &c) {
     return true;
 }
 
-bool Game::update(Config &c) {
+bool Game::update() {
     //---Game update---
     
     //: Check if paused
     while (is_paused) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        Events::EventTypes e = Events::handleEvents(c);
+        Events::EventTypes e = Events::handleEvents();
         if (e == Events::EVENT_QUIT)
             return false;
         if (e == Events::EVENT_CONTINUE)
@@ -69,19 +70,19 @@ bool Game::update(Config &c) {
     }
     
     //: Physics update
-    if (not physicsUpdate(c))
+    if (not physicsUpdate())
         return false;
    
     //: Render update
     Graphics::update();
     
     //: Advance time
-    timeFrame(c);
+    timeFrame();
     
     return true;
 }
 
-bool Game::physicsUpdate(Config &c) {
+bool Game::physicsUpdate() {
     //---Physics update---
     //      Here the "physics" processes (movement, collisions, input...) get calculated at a fixed timestep
     //      This is achieved using an accumulator that will get filled with the time passed each frame, and then time will be discounted from it
@@ -91,16 +92,16 @@ bool Game::physicsUpdate(Config &c) {
     //: Physics time calculation
     Clock::time_point time_before_physics = time();
     
-    while (Time::accumulator >= Conf::timestep * 1.0e6) {
+    while (Time::accumulator >= Config::timestep * 1.0e6) {
         //: One phisics iteration time calculation
         Clock::time_point time_before_physics_iteration = time();
         
         //: Timestep
-        Time::accumulator -= Conf::timestep * 1.0e6; //: In nanoseconds
-        Time::physics_delta = Conf::timestep * 1.0e-3 * Conf::game_speed; //: In seconds
+        Time::accumulator -= Config::timestep * 1.0e6; //: In nanoseconds
+        Time::physics_delta = Config::timestep * 1.0e-3 * Config::game_speed; //: In seconds
         
         //: Events
-        Events::EventTypes e = Events::handleEvents(c);
+        Events::EventTypes e = Events::handleEvents();
         if (e == Events::EVENT_QUIT)
             return false;
         if (e == Events::EVENT_PAUSE)
@@ -125,7 +126,7 @@ bool Game::physicsUpdate(Config &c) {
     return true;
 }
 
-void Game::timeFrame(Config &c) {
+void Game::timeFrame() {
     //---Update time---
     //      We want to cap the framerate at the display's refresh rate for graphics updates, but keep the physics updating at regular intervals,
     //      so we use this method for manually setting an fps limit.

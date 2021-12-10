@@ -324,7 +324,7 @@ void Serialization::removeYAML(str name, std::vector<str> key) {
     writeYAML(name, file_to_modify);
 }
 
-void Serialization::loadScene(str name, Scene *s, Config &c) {
+void Serialization::loadScene(str name, Scene *s) {
     YAML::Node data;
     str path = "data/scenes/" + name;
     Serialization::loadYAML(path, data);
@@ -374,12 +374,12 @@ void Serialization::loadScene(str name, Scene *s, Config &c) {
         EntityID eid = s->createEntity(entity_name);
         
         //Add components
-        Serialization::loadComponentsFromYAML(eid, entity, s, c);
+        Serialization::loadComponentsFromYAML(eid, entity, s);
     }
     //--------------------------------------
 }
 
-EntityID Serialization::loadPlayer(Scene *s, Config &c) {
+EntityID Serialization::loadPlayer(Scene *s) {
     YAML::Node data;
     str path = "data/player";
     Serialization::loadYAML(path, data);
@@ -392,7 +392,7 @@ EntityID Serialization::loadPlayer(Scene *s, Config &c) {
     YAML::Node player = data["player"];
     
     EntityID eid = s->createEntity("player");
-    Serialization::loadComponentsFromYAML(eid, player, s, c);
+    Serialization::loadComponentsFromYAML(eid, player, s);
     
     //TODO: SERIALIZE COMPONENTS
     //s->addComponent<Component::Player>(eid);
@@ -401,7 +401,7 @@ EntityID Serialization::loadPlayer(Scene *s, Config &c) {
     return eid;
 }
 
-void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Scene *s, Config &c) {
+void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Scene *s) {
     /*if (entity["tilemap"])
         System::Tilemap::load(eid, entity, s, c);
     if (entity["collider"])
@@ -436,16 +436,16 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
         System::Player::load(eid, entity, s, c);*/
 }
 
-void Serialization::saveScene(Scene *s, Config &c, bool to_proj) {
+void Serialization::saveScene(Scene *s, bool to_proj) {
     write_to_project = to_proj;
     for (EntityID e : SceneView<>(*s)) {
         if (s->getName(e) == "player")
             return;
-        Serialization::saveComponentsToYAML(e, s, c);
+        Serialization::saveComponentsToYAML(e, s);
     }
 }
 
-void Serialization::saveComponentsToYAML(EntityID eid, Scene *s, Config &c) {
+void Serialization::saveComponentsToYAML(EntityID eid, Scene *s) {
     str path = "data/scenes/" + s->name;
     std::vector<str> key = {"entities", s->getName(eid), "", ""};
     //log::info("%s, %s, %s, %s", key[0].c_str(), key[1].c_str(), key[2].c_str(), key[3].c_str());

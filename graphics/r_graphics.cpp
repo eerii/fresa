@@ -25,9 +25,9 @@ bool Graphics::init() {
     API::configure();
     
     //Create window
-    str version = std::to_string(Conf::version[0]) + "." + std::to_string(Conf::version[1]) + "." + std::to_string(Conf::version[2]);
-    str name = Conf::name + " - Version " + version;
-    win = Window::create(Conf::window_size, name);
+    str version = std::to_string(Config::version[0]) + "." + std::to_string(Config::version[1]) + "." + std::to_string(Config::version[2]);
+    str name = Config::name + " - Version " + version;
+    win = Window::create(Config::window_size, name);
     
     //Create renderer api
     api = API::create(win);

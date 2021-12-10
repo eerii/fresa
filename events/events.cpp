@@ -12,7 +12,7 @@
 
 using namespace Fresa;
 
-Events::EventTypes Events::handleEvents(Config &c) {
+Events::EventTypes Events::handleEvents() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {

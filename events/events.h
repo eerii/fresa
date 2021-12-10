@@ -15,5 +15,5 @@ namespace Fresa::Events
         EVENT_NONE
     };
 
-    EventTypes handleEvents(Config &c);
+    EventTypes handleEvents();
 }

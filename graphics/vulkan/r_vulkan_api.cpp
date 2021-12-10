@@ -162,10 +162,10 @@ VkInstance VK::createInstance(const WindowData &win) {
     //---App info---
     VkApplicationInfo app_info{};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = Conf::name.c_str();
-    app_info.applicationVersion = VK_MAKE_VERSION(Conf::version[0], Conf::version[1], Conf::version[2]);
+    app_info.pApplicationName = Config::name.c_str();
+    app_info.applicationVersion = VK_MAKE_VERSION(Config::version[0], Config::version[1], Config::version[2]);
     app_info.pEngineName = "Fresa";
-    app_info.engineVersion = VK_MAKE_VERSION(Conf::version[0], Conf::version[1], Conf::version[2]);
+    app_info.engineVersion = VK_MAKE_VERSION(Config::version[0], Config::version[1], Config::version[2]);
     app_info.apiVersion = VK_API_VERSION_1_1;
     
     //---Instance create info---

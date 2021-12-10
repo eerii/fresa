@@ -29,9 +29,9 @@ namespace Fresa::Graphics
     struct WindowData {
         SDL_Window* window;
         Vec2<> size;
-        ui16 refresh_rate;
         Vec2<> resolution;
         ui16 scale;
+        ui16 refresh_rate = 0;
         bool vsync;
     };
     //----------------------------------------

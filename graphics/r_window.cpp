@@ -50,7 +50,7 @@ WindowData Graphics::Window::create(Vec2<> size, str name) {
     log::graphics("Refresh Rate: %d", win.refresh_rate);
     
     //Calculate resolution and scale
-    win.resolution = Conf::window_size;
+    win.resolution = Config::window_size;
     Vec2<float> ratios = win.size.to<float>() / win.resolution.to<float>();
     win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
     
@@ -60,7 +60,10 @@ WindowData Graphics::Window::create(Vec2<> size, str name) {
     return win;
 }
 
-ui16 Graphics::Window::getRefreshRate(WindowData &win) {
+ui16 Graphics::Window::getRefreshRate(WindowData &win, bool force) {
+    if (win.refresh_rate > 0 and not force)
+        return win.refresh_rate;
+    
     int displayIndex = SDL_GetWindowDisplayIndex(win.window);
     
     SDL_DisplayMode mode;

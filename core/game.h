@@ -10,13 +10,12 @@
 
 namespace Fresa::Game
 {
-    bool init(Config &c);
+    bool init();
 
-    bool update(Config &c);
-    bool physicsUpdate(Config &c);
+    bool update();
+    bool physicsUpdate();
 
-    void setActiveScene(Scene &s);
-    void timeFrame(Config &c);
+    void timeFrame();
 
     void stop();
 }

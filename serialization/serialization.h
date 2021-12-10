@@ -6,7 +6,7 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include "config.h"
+#include "scene.h"
 
 namespace Fresa::Serialization
 {
@@ -45,12 +45,12 @@ namespace Fresa::Serialization
     void removeYAML(str name, str key);
     void removeYAML(str name, std::vector<str> key);
 
-    void loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Scene *s, Config &c);
-    void loadScene(str name, Scene *s, Config &c);
-    EntityID loadPlayer(Scene *s, Config &c);
+    void loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Scene *s);
+    void loadScene(str name, Scene *s);
+    EntityID loadPlayer(Scene *s);
 
-    void saveComponentsToYAML(EntityID eid, Scene *s, Config &c);
-    void saveScene(Scene *s, Config &c, bool to_proj = false);
+    void saveComponentsToYAML(EntityID eid, Scene *s);
+    void saveScene(Scene *s, bool to_proj = false);
 }
 
 namespace YAML
