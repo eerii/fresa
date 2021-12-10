@@ -22,6 +22,10 @@
 #include "imgui_impl_vulkan.h"
 #endif
 
+//---WARNING---
+//      This is a disastrous and total chaotic file
+//      It will be rewritten soon using the new reflection API, please ignore until then
+
 namespace Fresa::Gui
 {
     struct ActiveWindows {

@@ -7,12 +7,15 @@
 #include "state_machine.h"
 #include "state_machines_list.h"
 
+//---State tables---
+//      Generates compile time state tables for state machines
+
 namespace Fresa::State
 {
 
 NAMESPACES
 
-//Make strings
+//: Make strings
 template <typename State>
 static constexpr auto make_string(Types<To<State>>) {
     return Str{"To<"} + make_string(Types<State>{}) + Str{">"};
@@ -23,10 +26,10 @@ static constexpr auto make_string(Types<Maybe<State>>) {
 }
 static constexpr auto make_string(Types<Nothing>) { return Str{"Nothing"}; }
 
-//First row and column
+//: First row and column
 struct Header {};
 
-//Wrappers to generate the strings
+//: Wrappers to generate the strings
 struct MakeString {
     constexpr auto operator()(Types<Header>) const {
         return Str{""};
@@ -49,7 +52,7 @@ struct MakeStringConstantW {
     }
 };
 
-//Generate row
+//: Generate row
 template <typename MakeString, typename State>
 struct GenerateRow {
     const MakeString str;
@@ -67,7 +70,7 @@ struct GenerateRow {
     }
 };
 
-//Generate header row
+//: Generate header row
 template <typename MakeString>
 struct GenerateRow<MakeString, Header> {
     const MakeString str;
@@ -84,7 +87,7 @@ struct GenerateRow<MakeString, Header> {
     }
 };
 
-//Make table
+//: Make table
 template <typename MakeString, typename... Events>
 struct GenerateTable {
     const MakeString str;
@@ -97,7 +100,7 @@ struct GenerateTable {
     }
 };
 
-//Make transition table
+//: Make transition table
 template <typename... StateTypes, typename... EventTypes>
 constexpr auto generateTransitionTable(Types<StateTypes...> states, Types<EventTypes...> events) {
     constexpr MakeString str;
@@ -105,7 +108,7 @@ constexpr auto generateTransitionTable(Types<StateTypes...> states, Types<EventT
     return table;
 }
 
-//Calculate the length of the largest cell
+//: Calculate the length of the largest cell
 template <std::size_t X>
 struct Max {
     template <std::size_t Y>
@@ -125,7 +128,7 @@ struct CalculateMaxLength {
     }
 };
 
-//Make formatted transition table
+//: Make formatted transition table
 template <typename... StateTypes, typename... EventTypes>
 constexpr auto generatePrettyTransitionTable(Types<StateTypes...> states, Types<EventTypes...> events) {
     constexpr auto actions = (states * events) | MapAndSum(ResolveAction{});

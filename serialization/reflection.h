@@ -23,6 +23,7 @@
 //      };
 //      It makes the struct reflectable, with a list of member_names, comparison operators and it allows the construction of special functions
 //      like forEach() that iterates through all members, as well as implementations of serialization for saving/loading data and inspectors
+//      It is also created at compile time, so it should not cost much at runtime
 
 #define Serialize(Type, ...) \
 \

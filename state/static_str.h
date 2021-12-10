@@ -4,9 +4,11 @@
 
 #pragma once
 
+//---Static string generation for compile time state machine tables---
+
 namespace Fresa
 {
-    //Array manipulation
+    //: Array manipulation
     template <typename T, std::size_t N, std::size_t... I>
     constexpr std::array<T, N> toArray(T (&a)[N], std::index_sequence<I...>) {
         return {a[I]...};
@@ -57,7 +59,7 @@ namespace Fresa
         return areArraysEqual(la, ra, std::make_index_sequence<N>());
     }
 
-    //Static String
+    //: Static string
     template <std::size_t N>
     struct Str {
         constexpr Str(const char (&p_ch)[N]): ch(toArray(p_ch)) {};
