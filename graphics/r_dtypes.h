@@ -22,6 +22,8 @@
 #include "vk_mem_alloc.h"
 #endif
 
+//---Data types for graphics---
+
 namespace Fresa::Graphics
 {
     //Window

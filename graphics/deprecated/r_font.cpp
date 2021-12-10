@@ -4,6 +4,9 @@
 
 #include "r_font.h"
 
+//---DEPRECATED---
+//      This code needs to be reworked and integrated again
+
 /*
 #include <filesystem>
 #include <fstream>

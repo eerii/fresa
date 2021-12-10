@@ -16,6 +16,9 @@
 namespace Fresa::Graphics
 {
     struct AttachmentData {
+        //---Attachment---
+        //      An attachment is an image the renderer writes to, it can either be the one in the swapchain that is presented
+        //      or an intermediary that is used by a subpass.
         AttachmentType type;
         
         VkImage image;
@@ -38,6 +41,8 @@ namespace Fresa::Graphics
     };
 
     struct SwapchainData {
+        //---Swapchain---
+        //      The swapchain is responsible for presenting images to the screen. It holds several images that will swap at appropiate times
         VkFormat format;
         VkExtent2D extent;
         
@@ -52,6 +57,9 @@ namespace Fresa::Graphics
     };
 
     struct SubpassData {
+        //---Subpass---
+        //      There can be multiple subpasses in a render pass, they perform commands (in our case shader and draw operations) on a range
+        //      of associated attachments. They are used for post processing and other effects
         VkSubpassDescription description;
         
         std::vector<AttachmentID> attachment_bindings;
@@ -63,6 +71,8 @@ namespace Fresa::Graphics
     };
 
     struct RenderData {
+        //---Render data---
+        //      Struct that packs the important render data together for ease of use
         SwapchainData swapchain;
         std::map<AttachmentID, AttachmentData> attachments;
         VkRenderPass render_pass;
@@ -70,6 +80,10 @@ namespace Fresa::Graphics
     };
 
     struct PipelineData {
+        //---Pipeline---
+        //      A pipeline is the device that has all the draw stages, such as vertex, fragment, geometry, rasterization...
+        //      It can be configured through a series of descriptions
+        //      We create one pipeline for each shader that we use
         ShaderData shader;
         
         std::vector<VkDescriptorSetLayoutBinding> descriptor_layout_bindings;
@@ -89,6 +103,8 @@ namespace Fresa::Graphics
         SubpassID subpass;
     };
 
+    //: Helper structs
+    //----------------------------------------
     struct VkQueueIndices {
         std::optional<ui32> graphics;
         std::optional<ui32> present;
@@ -164,38 +180,40 @@ namespace Fresa::Graphics
         VkDescriptorImageInfo info;
         VkWriteDescriptorSet write;
     };
+    //----------------------------------------
 
     struct Vulkan {
-        //Device
-        //----------------------------------------
+        //: Instance
         VkInstance instance;
         std::vector<VkExtensionProperties> instance_extensions;
         
+        //: Surface
         VkSurfaceKHR surface;
         
+        //: Physical device
         VkPhysicalDevice physical_device;
         VkPhysicalDeviceFeatures physical_device_features;
         
+        //: Logical device
         VkDevice device;
-        //----------------------------------------
         
-        //---Memory---
+        //: Allocator
         VmaAllocator allocator;
         
-        //---Swapchain---
+        //: Render data
         RenderData render;
         
-        //---Commands---
+        //: Commands
         CommandData cmd;
         SyncData sync;
         
-        //---Pipelines---
+        //: Pipelines
         std::map<Shaders, PipelineData> pipelines;
         
-        //---Images---
+        //: Image sampler
         VkSampler sampler;
         
-        //---Debug---
+        //: Debug
         VkDebugReportCallbackEXT debug_callback;
     };
 }

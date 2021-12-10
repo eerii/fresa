@@ -11,7 +11,4 @@ namespace Fresa::Graphics::Window
 {
     WindowData create(Vec2<> size, str name);
     ui16 getRefreshRate(WindowData &win, bool force = false);
-
-    /*Vec2<float> sceneToWindow(Config &c, Vec2<> s_pos);
-    Vec2<> windowToScene(Config &c, Vec2<float> w_pos);*/
 }

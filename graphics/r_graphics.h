@@ -7,6 +7,11 @@
 #include "r_vulkan_api.h"
 #include "r_opengl_api.h"
 
+//---Graphics---
+//      This is fresa's API for graphics, what is meant to be used when designing games
+//      It is intended to be as straightforward as possible, allowing for texture and vertex data registration for later use
+//      Read more about each specific function in the .cpp file
+
 namespace Fresa::Graphics
 {
     inline GraphicsAPI api;
@@ -33,8 +38,28 @@ namespace Fresa::Graphics
     void draw(const DrawID draw_id, glm::mat4 model);
     
     //---Vertices---
+    //      Some common vertex definitions that can be used for quickly creating objects
     namespace Vertices
     {
+        inline const std::vector<VertexDataTexture> rect_vertices_texture = {
+            {{-1.f, -1.f, 0.f}, {0.0f, 0.0f}},
+            {{1.f, -1.f, 0.f}, {1.0f, 0.0f}},
+            {{1.f, 1.f, 0.f}, {1.0f, 1.0f}},
+            {{-1.f, 1.f, 0.f}, {0.0f, 1.0f}},
+        };
+        
+        inline const std::vector<VertexDataColor> rect_vertices_color = {
+            {{-1.f, -1.f, 0.f}, {1.0f, 0.0f, 0.0f}},
+            {{1.f, -1.f, 0.f}, {0.0f, 1.0f, 0.0f}},
+            {{1.f, 1.f, 0.f}, {0.0f, 0.0f, 1.0f}},
+            {{-1.f, 1.f, 0.f}, {1.0f, 1.0f, 1.0f}},
+        };
+        
+        inline const std::vector<ui16> rect_indices = {
+            0, 1, 3, 2, 3, 1
+        };
+        
+        //: Example colored cube
         inline const std::vector<VertexDataColor> cube_vertices_color = {
             {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
             {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
@@ -53,24 +78,6 @@ namespace Fresa::Graphics
             3, 7, 2, 7, 6, 2,
             4, 0, 5, 0, 1, 5,
             5, 6, 4, 6, 7, 4,
-        };
-
-        inline const std::vector<VertexDataTexture> rect_vertices_texture = {
-            {{-1.f, -1.f, 0.f}, {0.0f, 0.0f}},
-            {{1.f, -1.f, 0.f}, {1.0f, 0.0f}},
-            {{1.f, 1.f, 0.f}, {1.0f, 1.0f}},
-            {{-1.f, 1.f, 0.f}, {0.0f, 1.0f}},
-        };
-        
-        inline const std::vector<VertexDataColor> rect_vertices_color = {
-            {{-1.f, -1.f, 0.f}, {1.0f, 0.0f, 0.0f}},
-            {{1.f, -1.f, 0.f}, {0.0f, 1.0f, 0.0f}},
-            {{1.f, 1.f, 0.f}, {0.0f, 0.0f, 1.0f}},
-            {{-1.f, 1.f, 0.f}, {1.0f, 1.0f, 1.0f}},
-        };
-        
-        inline const std::vector<ui16> rect_indices = {
-            0, 1, 3, 2, 3, 1
         };
     }
 }

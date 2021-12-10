@@ -4,6 +4,9 @@
 
 #pragma once
 
+//---DEPRECATED---
+//      This code needs to be reworked and integrated again
+
 /*
 namespace Fresa::Graphics::Font
 {

@@ -16,6 +16,10 @@ namespace Fresa::Graphics
 #endif
 }
 
+//---API---
+//      This coordinates the different rendering APIs. Here are defined the common functions that are later expanded in the respective source files
+//      Right now it has full support for OpenGL and Vulkan.
+
 namespace Fresa::Graphics::API
 {
     void configure();

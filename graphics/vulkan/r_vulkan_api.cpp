@@ -553,7 +553,7 @@ VkSurfaceFormatKHR VK::selectSwapSurfaceFormat(const std::vector<VkSurfaceFormat
     //      The internal format for the vulkan surface
     //      It might seem weird to use BGRA instead of RGBA, but displays usually use this pixel data format instead
     //      Vulkan automatically converts our framebuffers to this space so we don't need to worry
-    //      We should use an SRGB format, but we will stick with UNORM for now for testing purposes TODO: SRGB
+    //      We should use an SRGB format, but we will stick with UNORM for now for testing purposes
     //      If all fails, it will still select a format, but it might not be the perfect one
     for (const VkSurfaceFormatKHR &fmt : formats) {
         if (fmt.format == VK_FORMAT_B8G8R8A8_UNORM && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
@@ -954,7 +954,6 @@ void VK::endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buff
     //---End command buffer (single use)---
     //      Helper function that complements beginSingleUseCommandBuffer() and finishes recording on a single use command buffer
     //      This part submits and frees the command buffer
-    //      TODO: Make the free command work at the end of the frame, maybe with syncronization
     vkEndCommandBuffer(command_buffer);
     
     VkSubmitInfo submit_info{};
@@ -1658,7 +1657,6 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
     //---Pipeline layout---
     //      Holds the information of the descriptor set layouts that we created earlier
     //      This allows to reference uniforms or images at draw time and change them without recreating the pipeline
-    //      TODO: Add support for push constants too
     VkPipelineLayout pipeline_layout;
     
     VkPipelineLayoutCreateInfo create_info{};
@@ -2097,7 +2095,6 @@ WriteDescriptorImage VK::createWriteDescriptorInputAttachment(VkDescriptorSet de
 }
 
 void API::updateDescriptorSets(const Vulkan &vk, const DrawData* draw) {
-    //TODO: COMMENT
     if (draw->texture_id.has_value()) {
         const TextureData* tex = &API::texture_data.at(draw->texture_id.value());
         VK::updateDescriptorSets(vk, draw->descriptor_sets, vk.pipelines.at(draw->shader).descriptor_layout_bindings,
@@ -2107,8 +2104,6 @@ void API::updateDescriptorSets(const Vulkan &vk, const DrawData* draw) {
         VK::updateDescriptorSets(vk, draw->descriptor_sets, vk.pipelines.at(draw->shader).descriptor_layout_bindings,
                                  {{0, &draw->uniform_buffers}});
     }
-    
-    //log::graphics("Updated descriptor sets");
 }
 
 void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets,
@@ -2116,7 +2111,6 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
                               std::map<ui32, const std::vector<BufferData>*> uniform_buffers,
                               std::map<ui32, const VkImageView*> image_views,
                               std::map<ui32, const VkImageView*> input_attachments) {
-    //TODO: COMMENT
     for (int i = 0; i < descriptor_sets.size(); i++) {
         std::vector<VkWriteDescriptorSet> write_descriptors;
         
@@ -2279,7 +2273,6 @@ TextureData VK::createTexture(VkDevice device, VmaAllocator allocator, VkPhysica
 
 std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory,
                                                   Vec2<> size, VkFormat format, VkImageLayout layout, VkImageUsageFlags usage) {
-    //TODO: COMMENT
     VkImage image;
     VmaAllocation allocation;
     
@@ -2315,7 +2308,6 @@ std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator 
 }
 
 void VK::transitionImageLayout(VkDevice device, const CommandData &cmd, TextureData &tex, VkImageLayout new_layout) {
-    //TODO: COMMENT
     VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd.command_pools.at("temp"));
 
     VkImageMemoryBarrier barrier{};
@@ -2384,7 +2376,6 @@ void VK::transitionImageLayout(VkDevice device, const CommandData &cmd, TextureD
 }
 
 void VK::copyBufferToImage(VkDevice device, const CommandData &cmd, BufferData &buffer, TextureData &tex) {
-    //TODO: COMMENT
     VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd.command_pools.at("transfer"));
     
     VkBufferImageCopy copy_region{};
@@ -2406,7 +2397,6 @@ void VK::copyBufferToImage(VkDevice device, const CommandData &cmd, BufferData &
 }
 
 VkImageView VK::createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format) {
-    //TODO: COMMENT
     VkImageViewCreateInfo create_info{};
     
     create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -2434,7 +2424,6 @@ VkImageView VK::createImageView(VkDevice device, VkImage image, VkImageAspectFla
 }
 
 VkSampler VK::createSampler(VkDevice device) {
-    //TODO: COMMENT
     VkSampler sampler;
     
     VkSamplerCreateInfo create_info{};
@@ -2522,8 +2511,6 @@ bool VK::hasDepthStencilComponent(VkFormat format) {
 //----------------------------------------
 
 ui32 VK::startRender(VkDevice device, const SwapchainData &swapchain, SyncData &sync, std::function<void()> recreate_swapchain) {
-    //---Start rendering---
-    //      TODO: .
     ui32 image_index;
     
     vkWaitForFences(device, 1, &sync.fences_in_flight[sync.current_frame], VK_TRUE, UINT64_MAX);
@@ -2604,7 +2591,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
 //----------------------------------------
 
 void API::render(Vulkan &vk, WindowData &win) {
-    //TODO: Improve example
+    //TODO: View and projection matrices
     UniformBufferObject ubo{};
     ubo.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);

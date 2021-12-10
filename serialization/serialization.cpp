@@ -330,7 +330,7 @@ void Serialization::removeYAML(str name, std::vector<str> key) {
 }
 
 void Serialization::loadScene(str name, Scene *s) {
-    YAML::Node data;
+    /*YAML::Node data;
     str path = "data/scenes/" + name;
     Serialization::loadYAML(path, data);
     
@@ -381,7 +381,7 @@ void Serialization::loadScene(str name, Scene *s) {
         //Add components
         Serialization::loadComponentsFromYAML(eid, entity, s);
     }
-    //--------------------------------------
+    //--------------------------------------*/
 }
 
 EntityID Serialization::loadPlayer(Scene *s) {

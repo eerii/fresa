@@ -105,7 +105,7 @@ SDL_GLContext GL::createContext(const WindowData &win) {
     glEnable(GL_DEPTH_TEST);
     
     //: V-Sync
-    SDL_GL_SetSwapInterval(1);
+    SDL_GL_SetSwapInterval(win.vsync ? 1 : 0);
     
     return context;
 }

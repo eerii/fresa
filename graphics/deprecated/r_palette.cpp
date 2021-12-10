@@ -4,6 +4,9 @@
 
 #include "r_palette.h"
 
+//---DEPRECATED---
+//      This code needs to be reworked and integrated again
+
 /*
 #include "log.h"
 #include "f_time.h"

@@ -10,6 +10,7 @@
 #include "r_vulkan.h"
 #include "r_opengl.h"
 
+//: SDL Window Flags
 #if defined USE_VULKAN
     #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN
     #define RENDERER_NAME "Vulkan"
@@ -22,9 +23,10 @@ using namespace Fresa;
 using namespace Graphics;
 
 WindowData Graphics::Window::create(Vec2<> size, str name) {
+    //---Create window data---
     WindowData win;
     
-    //Create SDL window
+    //: SDL window
 #ifdef __EMSCRIPTEN__
     SDL_Renderer* renderer = nullptr;
     SDL_CreateWindowAndRenderer(size_x, size_y, SDL_WINDOW_OPENGL, &win_info.window, &renderer);
@@ -42,25 +44,27 @@ WindowData Graphics::Window::create(Vec2<> size, str name) {
     SDL_SetWindowMinimumSize(win.window, 256, 180);
 #endif
     
-    //Window size
+    //: Window size
     win.size = size;
     
-    //Refresh rate
+    //: Refresh rate
     win.refresh_rate = getRefreshRate(win);
     log::graphics("Refresh Rate: %d", win.refresh_rate);
     
-    //Calculate resolution and scale
+    //: Calculate resolution and scale
     win.resolution = Config::window_size;
     Vec2<float> ratios = win.size.to<float>() / win.resolution.to<float>();
     win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
     
-    //V-Sync
+    //: V-Sync (it only changes something for OpenGL at the moment)
     win.vsync = true;
     
     return win;
 }
 
 ui16 Graphics::Window::getRefreshRate(WindowData &win, bool force) {
+    //---Refresh rate---
+    //      Either returns the already calculated refresh rate or it gets it using SDL_DisplayMode
     if (win.refresh_rate > 0 and not force)
         return win.refresh_rate;
     
@@ -72,26 +76,3 @@ ui16 Graphics::Window::getRefreshRate(WindowData &win, bool force) {
     
     return (ui16)mode.refresh_rate;
 }
-
-/*Vec2<> Graphics::Window::windowToScene(Config &c, Vec2<float> w_pos) {
-    Vec2 pixel_move = Vec2(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
-    
-    Vec2 s_pos = w_pos.to<int>();
-    
-    s_pos -= (c.window_size - c.resolution * c.render_scale) * 0.5f;
-    s_pos /= (float)c.render_scale;
-    s_pos -= pixel_move - Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH);
-    
-    return s_pos;
-}
-
-Vec2<float> Graphics::Window::sceneToWindow(Config &c, Vec2<> s_pos) {
-    Vec2<> pixel_move = Vec2<>(floor(0.5f * c.resolution.x - c.active_camera->pos.x), floor(0.5f * c.resolution.y - c.active_camera->pos.y));
-    
-    Vec2<float> w_pos = (s_pos + pixel_move - Vec2(2*BORDER_WIDTH, 2*BORDER_WIDTH)).to<float>();
-    
-    w_pos *= c.render_scale;
-    w_pos += (c.window_size.to<float>() - c.resolution.to<float>() * c.render_scale) * 0.5f;
-    
-    return w_pos;
-}*/
