@@ -12,6 +12,9 @@
 
 using namespace Fresa;
 
+//---Event handling---
+//      This part is very WIP and will soon be replaced by a propper event handler
+
 Events::EventTypes Events::handleEvents() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {

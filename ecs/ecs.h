@@ -10,6 +10,15 @@
 
 #define INVALID_ENTITY Entity::createID(EntityIndex(-1), 0)
 
+//---ECS--
+//      Very (very) basic Entity Component System, which is formed by:
+//      - Components (a struct of data), defined in "component_list.h"
+//      - Systems (a function that updates the data of those componentes), defined in "system_list.h"
+//      - Entities (just an id)
+//      - Scenes (list of entities and their associated components)
+//      It is very barebones and should be used only for small projects, something more robust like https://github.com/skypjack/entt is more
+//      appropiate for larger projects. This is meant to be educational only
+
 namespace Fresa
 {
     typedef ui32 EntityID;

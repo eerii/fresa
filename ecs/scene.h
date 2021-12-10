@@ -8,11 +8,18 @@
 #include "cpool.h"
 #include <map>
 
+
+
 namespace Fresa
 {
+    //---Scene---
+    //      It holds a entities with their signatures (associated components), as well as a component pool allocator.
+    //      There are also scene properties, like it's name or size, which are useful to save here. It might be expanded in the future
+    //      Finally, there are methods for adding and removing entities, as well as for adding and removing components to an entity
     struct Scene{
         Scene() = default;
         
+        //: ECS
         std::vector<EntityID> entities;
         std::vector<Signature> mask;
         std::vector<std::string> entity_names;
@@ -20,10 +27,11 @@ namespace Fresa
         
         std::vector<ComponentPool*> component_pools;
         
+        //: Scene properties
         Vec2<> size;
         str name;
-        std::vector<Vec2<>> checkpoints;
         
+        //: Methods
         EntityID createEntity();
         EntityID createEntity(std::string name);
         void removeEntity(EntityID eid);
@@ -64,6 +72,9 @@ namespace Fresa
         str getName(EntityID eid);
     };
 
+    //---Scene view---
+    //      Iterable type that can be used to loop over all entities in a scene that match a certain component mask, like:
+    //      for (EntityID e : SceneView<Component>(scene)) ...
     template<typename... ComponentTypes>
     struct SceneView
     {
@@ -132,6 +143,10 @@ namespace Fresa
         bool all{ false };
     };
     
+    //---Scene registration---
+    //      Scenes can be created using registerScene(), which adds them to a map that identifies them with an id
+    //      This is a very inefficient allocator, but since the number of scenes should be small relative to everything else,
+    //      it is fine for now. Definitely revisit in the future, maybe to add more functionality to registerScene (serialization)
     using SceneID = ui32;
     inline std::map<SceneID, Scene> scene_list;
     SceneID registerScene();

@@ -6,6 +6,9 @@
 
 #include "ecs.h"
 
+//---Component pool---
+//      Somewhat inefficient component allocator pool, it can be improved by using sparse sets, but it is fine for now
+
 namespace Fresa
 {
     struct ComponentPool {

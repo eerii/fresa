@@ -7,6 +7,9 @@
 using namespace Fresa;
 using namespace Input;
 
+//---Input handling---
+//      This part is very WIP and will soon be reworked into something more robust
+
 namespace {
     InputState g_last_state;
     InputState g_curr_state;
