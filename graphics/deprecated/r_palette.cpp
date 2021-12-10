@@ -4,6 +4,7 @@
 
 #include "r_palette.h"
 
+/*
 #include "log.h"
 #include "f_time.h"
 #include "r_opengl.h"
@@ -50,7 +51,7 @@ void Graphics::Palette::render(Config &c, ui32 &palette_tex, ui8 &pid) {
 #endif
 
 void Fresa::Graphics::Palette::switchPalette(Config &c) {
-    /*if (previous_palette == c.palette_index) {
+    if (previous_palette == c.palette_index) {
         switch_palette_time = 0;
         transition_percent = 0.0;
         return;
@@ -69,7 +70,7 @@ void Fresa::Graphics::Palette::switchPalette(Config &c) {
     }
     
     switch_palette_time = 0; transition_percent = 0.0;
-    previous_palette = c.palette_index;*/
+    previous_palette = c.palette_index;
 }
 
 void Fresa::Graphics::Palette::setPaletteInterval(int w) {
@@ -77,3 +78,4 @@ void Fresa::Graphics::Palette::setPaletteInterval(int w) {
         return;
     palette_interval = 1.0f / (float)w;
 }
+*/

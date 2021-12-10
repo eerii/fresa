@@ -15,6 +15,7 @@ namespace Fresa::Game
     bool update(Config &c);
     bool physicsUpdate(Config &c);
 
+    void setActiveScene(Scene &s);
     void timeFrame(Config &c);
 
     void stop();

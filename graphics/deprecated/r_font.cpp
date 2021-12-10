@@ -4,6 +4,7 @@
 
 #include "r_font.h"
 
+/*
 #include <filesystem>
 #include <fstream>
 
@@ -14,7 +15,7 @@
 
 using namespace Fresa;
 
-/*void Graphics::Font::load(FontInfo* font, str path) {
+void Graphics::Font::load(FontInfo* font, str path) {
     std::filesystem::path font_path{path};
     
     if (not std::filesystem::exists(font_path)) {

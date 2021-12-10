@@ -4,6 +4,7 @@
 
 #pragma once
 
+/*
 #include "config.h"
 
 namespace Fresa::Graphics::Palette
@@ -12,3 +13,4 @@ namespace Fresa::Graphics::Palette
     void switchPalette(Config &c);
     void setPaletteInterval(int w);
 }
+*/

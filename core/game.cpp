@@ -22,8 +22,6 @@ using namespace Fresa;
 
 namespace
 {
-    double accumulator;
-    Clock::duration fps_limit;
     bool is_paused = false;
 }
 
@@ -48,11 +46,6 @@ bool Game::init(Config &c) {
     if (not Graphics::init())
         return false;
     
-    //: Time
-    Time::current = time();
-    fps_limit = round<Clock::duration>(std::chrono::duration<double>{1./60.}); //TODO: CHANGE THIS
-    Time::next = Time::current + fps_limit;
-    
     return true;
 }
 
@@ -70,7 +63,7 @@ bool Game::update(Config &c) {
     }
     
     //: Check scene
-    if (c.active_scene == nullptr) {
+    if (not scene_list.count(active_scene)) {
         log::error("Scene not defined!");
         return false;
     }
@@ -98,12 +91,12 @@ bool Game::physicsUpdate(Config &c) {
     //: Physics time calculation
     Clock::time_point time_before_physics = time();
     
-    while (accumulator >= Conf::timestep * 1.0e6) {
+    while (Time::accumulator >= Conf::timestep * 1.0e6) {
         //: One phisics iteration time calculation
         Clock::time_point time_before_physics_iteration = time();
         
         //: Timestep
-        accumulator -= Conf::timestep * 1.0e6; //: In nanoseconds
+        Time::accumulator -= Conf::timestep * 1.0e6; //: In nanoseconds
         Time::physics_delta = Conf::timestep * 1.0e-3 * Conf::game_speed; //: In seconds
         
         //: Events
@@ -128,7 +121,6 @@ bool Game::physicsUpdate(Config &c) {
     }
     
     Performance::physics_time = ms(time() - time_before_physics);
-    log::info("%f ms", Performance::physics_time);
     
     return true;
 }
@@ -149,13 +141,14 @@ void Game::timeFrame(Config &c) {
     Time::previous = Time::current;
     Time::current = time(); //Time::next;
     //Time::next = Time::current + fps_limit;
+    //fps_limit = round<Clock::duration>(std::chrono::duration<double>{1./60.});
     
     //: Add to accumulator
-    accumulator += ns(Time::current - Time::previous);
+    Time::accumulator += ns(Time::current - Time::previous);
     
     //: Prevent too many physics updates to pile up (10 seconds)
-    if (accumulator > 1.0e10)
-        accumulator = 0;
+    if (Time::accumulator > 1.0e10)
+        Time::accumulator = 0.0;
 }
 
 void Game::stop() {

@@ -45,3 +45,12 @@ str Scene::getName(EntityID eid) {
     return entity_names[Entity::getIndex(eid)];
 }
 
+SceneID Fresa::registerScene() {
+    static SceneID id = 0;
+    while (scene_list.find(id) != scene_list.end())
+        id++;
+    
+    scene_list[id] = Scene{};
+    
+    return id;
+}

@@ -29,16 +29,6 @@ namespace Fresa
         ui16 render_scale;
         ui16 refresh_rate;
         
-        Scene* active_scene;
         //Component::Camera* active_camera;
-        
-        bool enable_lookahead;
-        bool enable_smooth_panning;
-        bool use_subpixel_cam;
-        
-        float gravity;
-        Vec2<float> gravity_dir;
-        
-        bool player_loses_light;
     };
 }

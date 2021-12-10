@@ -6,6 +6,7 @@
 
 #include "ecs.h"
 #include "cpool.h"
+#include <map>
 
 namespace Fresa
 {
@@ -130,4 +131,9 @@ namespace Fresa
         Signature signature;
         bool all{ false };
     };
+    
+    using SceneID = ui32;
+    inline std::map<SceneID, Scene> scene_list;
+    SceneID registerScene();
+    inline SceneID active_scene = 0;
 }

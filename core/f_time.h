@@ -30,8 +30,9 @@ namespace Fresa
         inline Clock::time_point previous{};
         inline Clock::time_point next{};
         
-        //---Physics delta---
+        //---Physics---
         inline double physics_delta = 0.0;
+        inline double accumulator = 0.0;
         
         //---Timer list---
         inline std::map<TimerID, Timer> timers{};
@@ -56,7 +57,7 @@ namespace Fresa
         //: The entire frame of physics updates (can be 0 since the physics might not be updated in the frame)
         inline double physics_time = 0.0;
         
-        //: 
+        //: Render time
         inline double render_time = 0.0;
     }
 }
