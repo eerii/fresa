@@ -101,8 +101,11 @@ SDL_GLContext GL::createContext(const WindowData &win) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     
-    //Depth test
+    //: Depth test
     glEnable(GL_DEPTH_TEST);
+    
+    //: V-Sync
+    SDL_GL_SetSwapInterval(1);
     
     return context;
 }

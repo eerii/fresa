@@ -2,8 +2,6 @@
 //by jose pazos perez
 //all rights reserved uwu
 
-//fresa, version 0.2
-
 #pragma once
 
 #include "dtypes.h"
@@ -33,7 +31,6 @@ namespace Fresa
         double render_time;
         double timestep;
         double physics_delta;
-        double physics_interpolation;
         float game_speed;
         
         bool use_grayscale;

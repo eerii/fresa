@@ -12,16 +12,16 @@
 
 namespace Fresa
 {
-    //UNSIGNED INT
+    //---Unsigned int---
     typedef std::uint8_t ui8;
     typedef std::uint16_t ui16;
     typedef std::uint32_t ui32;
     typedef std::uint64_t ui64;
 
-    //STRING
+    //---String---
     typedef std::string str;
 
-    //VEC2 - 2D Vector
+    //---Vec2--- (2D Vector)
     template<typename T = int, typename = typename std::enable_if<std::is_arithmetic_v<T>, T>::type>
     struct Vec2 {
         T x, y;
@@ -99,7 +99,7 @@ namespace Fresa
     };
 
 
-    //RECT2 - 4D Vector
+    //---Rect2--- (4D Vector)
     template<typename T = int, typename = typename std::enable_if<std::is_arithmetic_v<T>, T>::type>
     struct Rect2 {
         T x, y, w, h;
@@ -185,13 +185,13 @@ namespace Fresa
         };
     };
 
-    //SIGN
+    //---Sign---
     template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
     int sign(T val) {
         return (T(0) < val) - (val < T(0));
     }
 
-    //CONSTEXPR FOR
+    //---Constexpr for---
     template<std::size_t N>
     struct num { static const constexpr auto value = N; };
 

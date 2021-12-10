@@ -5,8 +5,6 @@
 #include "r_graphics.h"
 
 #include "r_window.h"
-
-#include "ftime.h"
 #include <filesystem>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -38,65 +36,6 @@ bool Graphics::init() {
 }
 
 bool Graphics::update() {
-    //---Example update---
-    //This part would not go here
-    /*static TextureID test_texture_data = getTextureID("res/graphics/texture.png");
-    
-    static DrawID test_draw_id = getDrawID_Rect(SHADER_DRAW_TEX);
-    static DrawID test_draw_id_2 = getDrawID_Cube(SHADER_DRAW_COLOR);
-    static DrawID test_draw_id_3 = getDrawID_Cube(SHADER_DRAW_COLOR);
-    static DrawID test_draw_id_4 = getDrawID_Rect(SHADER_DRAW_COLOR);
-    static std::array<DrawID, 10> test_draw_ids;
-    
-    static bool binded = false;
-    if (not binded) {
-        bindTexture(test_draw_id, test_texture_data);
-        
-        bool odd = true;
-        for (auto &id : test_draw_ids) {
-            id = odd ? getDrawID_Cube(SHADER_DRAW_COLOR) : getDrawID_Rect(SHADER_DRAW_COLOR);
-            odd = not odd;
-        }
-        
-        binded = true;
-    }
-    
-    //: Uniforms
-    static Clock::time_point start_time = time();
-    float t = sec(time() - start_time);
-    
-    //Draw something for test (This would be called outside of the renderer)
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -1.0f + 0.8f * std::sin(t * 1.570796f)));
-    model = glm::scale(model, glm::vec3(0.6f, 0.6f, 0.6f));
-    model = glm::rotate(model, t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
-    draw(test_draw_id, model);
-    
-    glm::mat4 model2 = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1.0f + 0.8f * std::sin(t * 1.570796f + 1.570796f)));
-    model2 = glm::scale(model2, glm::vec3(0.5f, 0.5f, 0.5f));
-    model2 = glm::rotate(model2, -t * 1.570796f, glm::vec3(0.0f, 0.0f, 1.0f));
-    draw(test_draw_id_2, model2);
-    
-    glm::mat4 model3 = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -2.0f, 0.0f));
-    double s = 0.1 * std::sin(t * 0.25f * 1.570796) + 0.2;
-    model3 = glm::scale(model3, glm::vec3(s, s, s));
-    model3 = glm::rotate(model3, t, glm::vec3(0.1f, 0.5f, 0.1f));
-    draw(test_draw_id_3, model3);
-    
-    glm::mat4 model4 = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 2.0f, 0.2f * std::sin(t * 3.141592f)));
-    model4 = glm::scale(model4, glm::vec3(0.3f, 0.3f, 0.3f));
-    model4 = glm::rotate(model4, 3.14f * std::sin(t), glm::vec3(0.0f, 0.0f, 1.0f));
-    draw(test_draw_id_4, model4);
-    
-    int i = 0;
-    for (auto &id : test_draw_ids) {
-        float a = i * ((2.0f * 3.141592f) / 10.0f);
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(std::sin(a + t*0.1f), std::cos(a + t*0.1f), 0.0f));
-        model = glm::scale(model, glm::vec3(0.1f, 0.1f, 0.1f));
-        model = glm::rotate(model, t * 1.570796f + i * a, glm::vec3(0.0f, 0.0f, 1.0f));
-        draw(id, model);
-        i++;
-    }*/
-    
     //: Render
     API::render(api, win);
     

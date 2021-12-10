@@ -2,7 +2,7 @@
 //by jose pazos perez
 //all rights reserved uwu
 
-#include "fmath.h"
+#include "f_math.h"
 
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
@@ -12,6 +12,7 @@
 using namespace Fresa;
 
 bool Math::checkAABB(Rect2<> &a, Rect2<> &b) {
+    //---Check intersection between two Rect2 (Axis aligned bounding boxes)---
     return (a.x < b.x + b.w) and
            (a.x + a.w > b.x) and
            (a.y < b.y + b.h) and
@@ -19,6 +20,7 @@ bool Math::checkAABB(Rect2<> &a, Rect2<> &b) {
 }
 
 bool Math::checkCircleAABB(Rect2<> &a, Vec2<> &pos, float r) {
+    //---Check intersection between a Rect2 and a circle---
     Vec2 dist = Vec2(abs(pos.x - (a.x+a.w/2)), abs(pos.y - (a.y+a.h/2)));
     
     if (dist.x > (a.w/2 + r) or dist.y > (a.h/2 + r))
@@ -30,29 +32,10 @@ bool Math::checkCircleAABB(Rect2<> &a, Vec2<> &pos, float r) {
     return (corner <= pow(r,2));
 }
 
-void Math::perlinNoise(Vec2<> size, Vec2<> offset, float freq, int levels, ui8 *noise_data, bool reset) {
-    float f = freq * 0.001f;
-    
-    //TODO: Change to scrolling texture instead of rewrite
-    
-    for (ui32 y = 0; y < size.y; y++) {
-        for (ui32 x = 0; x < size.x; x++) {
-            if (not reset and x + offset.x + (y + offset.y)*size.x < size.x * size.y - 1) {
-                noise_data[x + y*size.x] = noise_data[x + offset.x + (y + offset.y)*size.x];
-                continue;
-            }
-            
-            float n = stb_perlin_noise3((x + offset.x) * f, (y + offset.y) * f, 0.0f, 0, 0, 0);
-            for (ui8 l = 1; l <= std::min(std::max(levels, 1), 16); l++) {
-                float m = stb_perlin_noise3(pow(2.0f, l) * (x + offset.x) * f, pow(2.0f, l) * (y + offset.y) * f, 0.0f, 0, 0, 0);
-                n += m / pow(2.0f, l);
-            }
-            noise_data[x + y*size.x] = (ui8)round((n + 1.0f) * 127.5f); //TODO: It maybe works differently for web, check it
-        }
-    }
-}
-
 float Math::smoothDamp(float current, float target, float &current_vel, float time, float max_speed, float delta_time) {
+    //---Smooth damp implementation---
+    //      Smoothly transition a value from it's current position to a target one
+    //      Spring-damper function that doesn't overshoot. Useful for camera following
     float smooth_time = std::max(0.0001f, time);
     float omega = 2.0f / smooth_time;
     
@@ -77,12 +60,4 @@ float Math::smoothDamp(float current, float target, float &current_vel, float ti
     }
     
     return output;
-}
-
-float Math::to_sRGB(float c) {
-    return c <= 0.0031308f ? c * 12.92f : pow(c, 1.0f/2.4f) * 1.055f - 0.055f;
-}
-
-float Math::to_linear(float c) {
-    return c <= 0.04045f ? c / 12.92f : pow((c + 0.055f) / 1.055f, 2.4f);
 }

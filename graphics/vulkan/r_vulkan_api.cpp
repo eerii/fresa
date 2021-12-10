@@ -15,6 +15,7 @@
 #include <numeric>
 
 #define MAX_POOL_SETS 1024
+#define PREFER_MAILBOX_DISPLAY_MODE
 
 using namespace Fresa;
 using namespace Graphics;
@@ -568,14 +569,16 @@ VkPresentModeKHR VK::selectSwapPresentMode(const std::vector<VkPresentModeKHR> &
     //      - Fifo: Vsync, when the queue is full the program waits
     //      - Mailbox: Triple buffering, the program replaces the last images of the queue, less latency but more power consumption
     //      Not all GPUs support mailbox (for example integrated Intel GPUs), so while it is preferred, Fifo can be used as well
-    //      Maybe in the future offer the user the opportunity to choose the desired mode
+    //      You can choose whether to try to use mailbox setting the PREFER_MAILBOX_PRESENT_MODE macro (change to config in the future)
     
+    #ifdef PREFER_MAILBOX_PRESENT_MODE
     for (const VkPresentModeKHR &mode : modes) {
         if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
             log::graphics("Present mode: Mailbox");
             return VK_PRESENT_MODE_MAILBOX_KHR;
         }
     }
+    #endif
     
     log::graphics("Present mode: Fifo");
     return VK_PRESENT_MODE_FIFO_KHR;
