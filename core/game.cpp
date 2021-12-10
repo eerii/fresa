@@ -95,10 +95,16 @@ bool Game::physicsUpdate(Config &c) {
     //      in regular intervals, updating the physics then. We can use that to calculate the delta time.
     //      (for reference check https://gafferongames.com/post/fix_your_timestep/)
     
-    while (accumulator >= c.timestep * 1.0e6) {
+    //: Physics time calculation
+    Clock::time_point time_before_physics = time();
+    
+    while (accumulator >= Conf::timestep * 1.0e6) {
+        //: One phisics iteration time calculation
+        Clock::time_point time_before_physics_iteration = time();
+        
         //: Timestep
-        accumulator -= c.timestep * 1.0e6; //: In nanoseconds
-        c.physics_delta = c.timestep * 1.0e-3 * (double)c.game_speed; //: In seconds
+        accumulator -= Conf::timestep * 1.0e6; //: In nanoseconds
+        Time::physics_delta = Conf::timestep * 1.0e-3 * Conf::game_speed; //: In seconds
         
         //: Events
         Events::EventTypes e = Events::handleEvents(c);
@@ -117,7 +123,12 @@ bool Game::physicsUpdate(Config &c) {
         
         //: Input
         Input::frame();
+        
+        Performance::one_physics_iteration_time = ms(time() - time_before_physics_iteration);
     }
+    
+    Performance::physics_time = ms(time() - time_before_physics);
+    log::info("%f ms", Performance::physics_time);
     
     return true;
 }

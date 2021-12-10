@@ -10,17 +10,6 @@ namespace {
     TimerID last_timer_id = 0;
 }
 
-//---Time points for update---
-//      Current time is the time() at the start of each update
-//      Previous is the current time of the previous update
-//      Next is used when manually controlling the FPS limit for a more stable approach
-Clock::time_point Time::current = {};
-Clock::time_point Time::previous = {};
-Clock::time_point Time::next = {};
-
-//---Timer list---
-std::map<TimerID, Timer> Time::timers = {};
-
 Clock::time_point Fresa::time() {
     //---The actual time ^·^---
     return Clock::now();

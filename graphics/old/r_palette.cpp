@@ -66,10 +66,10 @@ void Fresa::Graphics::Palette::switchPalette(Config &c) {
     if (delay < TRANSITION_TIME) {
         transition_percent = (float)delay / (float)TRANSITION_TIME;
         return;
-    }*/
+    }
     
     switch_palette_time = 0; transition_percent = 0.0;
-    previous_palette = c.palette_index;
+    previous_palette = c.palette_index;*/
 }
 
 void Fresa::Graphics::Palette::setPaletteInterval(int w) {

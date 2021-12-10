@@ -20,14 +20,22 @@ namespace Fresa
         Timer() = default;
         Timer(Duration p_d, Clock::time_point p_s) : duration(p_d), start(p_s) {};
     };
-
-    struct Time {
-        static Clock::time_point current;
-        static Clock::time_point previous;
-        static Clock::time_point next;
+    
+    namespace Time {
+        //---Time points for update---
+        //      Current time is the time() at the start of each update
+        //      Previous is the current time of the previous update
+        //      Next is used when manually controlling the FPS limit for a more stable approach
+        inline Clock::time_point current{};
+        inline Clock::time_point previous{};
+        inline Clock::time_point next{};
         
-        static std::map<TimerID, Timer> timers;
-    };
+        //---Physics delta---
+        inline double physics_delta = 0.0;
+        
+        //---Timer list---
+        inline std::map<TimerID, Timer> timers{};
+    }
 
     Clock::time_point time();
     
@@ -39,4 +47,16 @@ namespace Fresa
     double ns(Duration duration);
     double ms(Duration duration);
     double sec(Duration duration);
+    
+    namespace Performance {
+        //---Counters for performance metrics---
+        
+        //: One iteration of the accumulator physics loop
+        inline double one_physics_iteration_time = 0.0;
+        //: The entire frame of physics updates (can be 0 since the physics might not be updated in the frame)
+        inline double physics_time = 0.0;
+        
+        //: 
+        inline double render_time = 0.0;
+    }
 }
