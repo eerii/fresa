@@ -5,6 +5,7 @@
 #pragma once
 
 #include "dtypes.h"
+#include "reflection.h"
 
 #include <bitset>
 
@@ -12,8 +13,8 @@
 
 //---ECS--
 //      Very (very) basic Entity Component System, which is formed by:
-//      - Components (a struct of data), defined in "component_list.h"
-//      - Systems (a function that updates the data of those componentes), defined in "system_list.h"
+//      - Components (a struct of data)
+//      - Systems (a function that updates the data of those componentes)
 //      - Entities (just an id)
 //      - Scenes (list of entities and their associated components)
 //      It is very barebones and should be used only for small projects, something more robust like https://github.com/skypjack/entt is more
@@ -44,10 +45,16 @@ namespace Fresa::Entity
 
 namespace Fresa::Component
 {
-    extern ComponentID component_counter;
-
-    template <class T>
-    ComponentID getID();
-
-    void registerComponents();
+    inline ComponentID component_counter = 0;
+    inline std::vector<Reflection::Reference<ComponentID>> component_list;
+    
+    template<typename C, std::enable_if_t<Reflection::is_reflectable<C>, bool> = true>
+    ComponentID getID() {
+        static ComponentID id_ = component_counter++;
+        if (component_list.size() <= id_)
+            component_list.push_back(Reflection::Reference(C{}, id_));
+        if (id_ >= MAX_COMPONENTS)
+            throw std::runtime_error("Increase max component capacity");
+        return id_;
+    }
 }

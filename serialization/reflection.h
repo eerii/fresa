@@ -254,6 +254,34 @@ namespace Fresa
             
             return "";
         }
-    
+        
+        //---Reference---
+        //      Type erasing wrapper for accessing information of reflectable types
+        template <typename TypeID>
+        struct Reference
+        {
+            template <typename R, std::enable_if_t<Reflection::is_reflectable<R>, bool> = true>
+            Reference(R object, TypeID p_id) : id_(p_id), impl_(std::make_shared<impl_t<R>>()) {}
+
+            constexpr const char* type_name() { return impl_->type_name(); }
+            constexpr size_t size() { return impl_->size(); }
+            const std::vector<const char*> member_names() { return impl_->member_names(); }
+            
+            struct impl_base {
+                virtual constexpr const char* type_name() { return nullptr; }
+                virtual constexpr size_t size() { return 0; }
+                virtual const std::vector<const char*> member_names() { return {}; }
+            };
+
+            template <typename R, std::enable_if_t<Reflection::is_reflectable<R>, bool> = true>
+            struct impl_t : public impl_base {
+                constexpr const char* type_name() { return R::type_name; }
+                constexpr size_t size() { return R::size; }
+                const std::vector<const char*> member_names() { return std::vector<const char*>(R::member_names.begin(), R::member_names.end()); }
+            };
+            
+            TypeID id_;
+            std::shared_ptr<impl_base> impl_;
+        };
     }
 }

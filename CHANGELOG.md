@@ -7,7 +7,9 @@
 #### 0.3.2
 
 **added**
-- .
+- reflection reference type eraser interface
+- heterogeneous poly container
+- automatic component type list
 
 #### 0.3.1 - out to the world - _11 12 2012_
 

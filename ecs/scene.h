@@ -36,35 +36,35 @@ namespace Fresa
         EntityID createEntity(std::string name);
         void removeEntity(EntityID eid);
         
-        template<class T>
-        T* addComponent(EntityID eid) {
-            int cid = Component::getID<T>();
+        template<typename C>
+        C* addComponent(EntityID eid) {
+            int cid = Component::getID<C>();
             
             if (component_pools.size() <= cid)
                 component_pools.resize(cid + 1, nullptr);
             if (component_pools[cid] == nullptr)
-                component_pools[cid] = new ComponentPool(sizeof(T));
+                component_pools[cid] = new ComponentPool(sizeof(C));
             
-            T* component = new (component_pools[cid]->get(Entity::getIndex(eid))) T();
+            C* component = new (component_pools[cid]->get(Entity::getIndex(eid))) C();
             
             mask[Entity::getIndex(eid)].set(cid);
             return component;
         }
         
-        template<class T>
-        T* getComponent(EntityID eid) {
-            int cid = Component::getID<T>();
+        template<typename C>
+        C* getComponent(EntityID eid) {
+            int cid = Component::getID<C>();
             
             if (!mask[Entity::getIndex(eid)].test(cid))
                 return nullptr;
             
-            T* component = static_cast<T*>(component_pools[cid]->get(Entity::getIndex(eid)));
+            C* component = static_cast<C*>(component_pools[cid]->get(Entity::getIndex(eid)));
             return component;
         }
         
-        template<class T>
+        template<typename C>
         void removeComponent(EntityID eid) {
-            removeComponent(eid, Component::getID<T>());
+            removeComponent(eid, Component::getID<C>());
         }
         
         void removeComponent(EntityID eid, ComponentID cid);
