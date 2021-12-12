@@ -4,12 +4,16 @@
 
 ---
 
-#### 0.3.2
+#### 0.3.2 - component nightmare - _12 12 2021_
 
 **added**
-- reflection reference type eraser interface
 - heterogeneous poly container
-- automatic component type list
+- ~~reflection reference type eraser interface~~
+- ~~automatic component type list~~ (this posed more problems than it was worth, the variant version works ok for our needs)
+
+**changed**
+- improved `getID<Component>` and added special checks
+- now `component_list.h` and `system_list.h` are merged into `ecs_description.h`, this is likely temporary, since it is being refactored still
 
 #### 0.3.1 - out to the world - _11 12 2012_
 

@@ -15,8 +15,6 @@
 #include "gui.h"
 #include "r_graphics.h"
 
-#include "system_list.h"
-
 #include <thread>
 
 using namespace Fresa;

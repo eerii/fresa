@@ -10,7 +10,6 @@
 
 #include "log.h"
 
-#include "system_list.h"
 #include "controller_list.h"
 
 //---WARNING---

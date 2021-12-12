@@ -9,7 +9,6 @@
 #include "r_window.h"
 
 #include "log.h"
-#include "system_list.h"
 #include "serialization.h"
 #include "input.h"
 

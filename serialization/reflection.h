@@ -14,7 +14,7 @@
 #include <tuple>
 #include <ostream>
 #include <string_view>
-#include <map>
+#include <variant>
 
 //---Reflection---
 //      This macro is the closest thing to type reflection that we currently have in C++. It can be used like:
@@ -123,6 +123,10 @@ namespace Fresa
         template<class T> using t_nequal = decltype(std::declval<T>() != std::declval<T>());
     
         template<class T> using t_component = decltype(std::declval<T>().component_name);
+        
+        template <class T, class U> struct is_in_variant;
+        template <class T, class... Ts>
+        struct is_in_variant<T, std::variant<Ts...>> : std::bool_constant<(std::is_same_v<T, Ts> || ...)> { };
     
         //---Tuple less operator---
         template<typename T>
@@ -253,32 +257,5 @@ namespace Fresa
             
             return "";
         }
-        
-        //---Reference---
-        //      Type erasing wrapper for accessing information of reflectable types
-        struct Reference
-        {
-            template <typename T, std::enable_if_t<Reflection::is_reflectable<T>, bool> = true>
-            Reference(T object) : impl_(std::make_shared<impl_t<T>>()) {}
-            
-            constexpr const char* type_name() { return impl_->type_name(); }
-            constexpr size_t size() { return impl_->size(); }
-            const std::vector<const char*> member_names() { return impl_->member_names(); }
-            
-            struct impl_base {
-                virtual constexpr const char* type_name() { return nullptr; }
-                virtual constexpr size_t size() { return 0; }
-                virtual const std::vector<const char*> member_names() { return {}; }
-            };
-
-            template <typename T, std::enable_if_t<Reflection::is_reflectable<T>, bool> = true>
-            struct impl_t : public impl_base {
-                constexpr const char* type_name() { return T::type_name; }
-                constexpr size_t size() { return T::size; }
-                const std::vector<const char*> member_names() { return std::vector<const char*>(T::member_names.begin(), T::member_names.end()); }
-            };
-            
-            std::shared_ptr<impl_base> impl_;
-        };
     }
 }

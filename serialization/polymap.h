@@ -5,7 +5,8 @@
 #pragma once
 
 #include "dtypes.h"
-#include <unordered_map>
+#include <map>
+#include <variant>
 
 namespace Fresa
 {
@@ -16,7 +17,7 @@ namespace Fresa
         ~PolyMap() { clear(); }
         
         template<class T>
-        static std::unordered_map<const PolyMap*, T> items;
+        static std::map<const PolyMap*, T> items;
         static std::map<ui32, const PolyMap*> ids;
         
         std::vector<std::function<void(PolyMap&)>> destructors;
@@ -73,7 +74,7 @@ namespace Fresa
     };
     
     template<class T>
-    std::unordered_map<const PolyMap*, T> PolyMap::items;
+    std::map<const PolyMap*, T> PolyMap::items;
     inline std::map<ui32, const PolyMap*> PolyMap::ids;
     
     
