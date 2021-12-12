@@ -69,9 +69,6 @@ int main(int argc, const char * argv[]) {
     //: Initialize game
     bool running = Game::init();
     
-    //: Register components
-    Component::registerComponents();
-    
     //: Load scene
     SceneID scene = registerScene();
     active_scene = scene;
