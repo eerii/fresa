@@ -14,6 +14,7 @@
 #include <tuple>
 #include <ostream>
 #include <string_view>
+#include <map>
 
 //---Reflection---
 //      This macro is the closest thing to type reflection that we currently have in C++. It can be used like:
@@ -183,7 +184,7 @@ namespace Fresa
         }
     
         template<std::size_t L, typename T>
-        constexpr inline decltype(auto) printYAML(std::ostream& os, T&& val) {
+        constexpr inline void printYAML(std::ostream& os, T&& val) {
             using V = std::decay_t<T>;
             
             if constexpr (std::is_constructible_v<std::string, T> || std::is_same_v<V, char>) {
@@ -217,8 +218,6 @@ namespace Fresa
             } else {
                 os << val;
             }
-            
-            return "";
         }
     
         //: Recursively print JSON
@@ -257,12 +256,11 @@ namespace Fresa
         
         //---Reference---
         //      Type erasing wrapper for accessing information of reflectable types
-        template <typename TypeID>
         struct Reference
         {
-            template <typename R, std::enable_if_t<Reflection::is_reflectable<R>, bool> = true>
-            Reference(R object, TypeID p_id) : id_(p_id), impl_(std::make_shared<impl_t<R>>()) {}
-
+            template <typename T, std::enable_if_t<Reflection::is_reflectable<T>, bool> = true>
+            Reference(T object) : impl_(std::make_shared<impl_t<T>>()) {}
+            
             constexpr const char* type_name() { return impl_->type_name(); }
             constexpr size_t size() { return impl_->size(); }
             const std::vector<const char*> member_names() { return impl_->member_names(); }
@@ -273,14 +271,13 @@ namespace Fresa
                 virtual const std::vector<const char*> member_names() { return {}; }
             };
 
-            template <typename R, std::enable_if_t<Reflection::is_reflectable<R>, bool> = true>
+            template <typename T, std::enable_if_t<Reflection::is_reflectable<T>, bool> = true>
             struct impl_t : public impl_base {
-                constexpr const char* type_name() { return R::type_name; }
-                constexpr size_t size() { return R::size; }
-                const std::vector<const char*> member_names() { return std::vector<const char*>(R::member_names.begin(), R::member_names.end()); }
+                constexpr const char* type_name() { return T::type_name; }
+                constexpr size_t size() { return T::size; }
+                const std::vector<const char*> member_names() { return std::vector<const char*>(T::member_names.begin(), T::member_names.end()); }
             };
             
-            TypeID id_;
             std::shared_ptr<impl_base> impl_;
         };
     }

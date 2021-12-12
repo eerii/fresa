@@ -46,13 +46,13 @@ namespace Fresa::Entity
 namespace Fresa::Component
 {
     inline ComponentID component_counter = 0;
-    inline std::vector<Reflection::Reference<ComponentID>> component_list;
+    inline std::vector<Reflection::Reference> component_list;
     
     template<typename C, std::enable_if_t<Reflection::is_reflectable<C>, bool> = true>
     ComponentID getID() {
         static ComponentID id_ = component_counter++;
         if (component_list.size() <= id_)
-            component_list.push_back(Reflection::Reference(C{}, id_));
+            component_list.push_back(Reflection::Reference(C{}));
         if (id_ >= MAX_COMPONENTS)
             throw std::runtime_error("Increase max component capacity");
         return id_;
