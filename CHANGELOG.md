@@ -8,12 +8,10 @@
 
 **added**
 - heterogeneous poly container
-- ~~reflection reference type eraser interface~~
-- ~~automatic component type list~~ (this posed more problems than it was worth, the variant version works ok for our needs)
 
 **changed**
 - improved `getID<Component>` and added special checks
-- now `component_list.h` and `system_list.h` are merged into `ecs_description.h`, this is likely temporary, since it is being refactored still
+- now system definition is independent of the engine, they can be registered in the update lists by template instantiation
 
 #### 0.3.1 - out to the world - _11 12 2012_
 

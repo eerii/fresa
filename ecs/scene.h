@@ -149,6 +149,7 @@ namespace Fresa
     //      it is fine for now. Definitely revisit in the future, maybe to add more functionality to registerScene (serialization)
     using SceneID = ui32;
     inline std::map<SceneID, Scene> scene_list;
-    SceneID registerScene();
     inline SceneID active_scene = 0;
+    
+    SceneID registerScene();
 }

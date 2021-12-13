@@ -6,7 +6,9 @@
 
 #include "dtypes.h"
 #include "reflection.h"
-#include "ecs_description.h"
+#include "component_list.h"
+
+#include "log.h"
 
 #include <bitset>
 
@@ -55,4 +57,64 @@ namespace Fresa::Component
             throw std::runtime_error("Increase max component capacity");
         return id_;
     }
+}
+
+namespace Fresa::System
+{
+    enum UpdatePriorities {
+        //: Common priorities
+        PRIORITY_FIRST = 0,
+        PRIORITY_LAST = 32,
+        
+        //: Physics priorities
+        PRIORITY_MOVEMENT = 1,
+        PRIORITY_CAMERA = 2,
+        
+        //: Render priorities
+        PRIORITY_TEXTURE = 16,
+        PRIORITY_TILEMAP = 17,
+        PRIORITY_TEXT = 18,
+    };
+    
+    //: Render and physics update systems
+    inline std::multimap<UpdatePriorities, std::function<void()>> physics_update_systems{};
+    inline std::multimap<UpdatePriorities, std::function<void()>> render_update_systems{};
+    
+    inline void addToMultimap(std::multimap<UpdatePriorities, std::function<void()>> &map, UpdatePriorities priority, std::function<void()> update) {
+        map.insert({ priority, update });
+    }
+    
+    //: Register the system when the template is instantiated, and adds it to the corresponding map of systems
+    //      struct SomeSystem : PhysicsUpdate<SomeSystem, PRIORITY_MOVEMENT> {
+    //          static void update();
+    //      }
+    template<typename Object, UpdatePriorities priority = PRIORITY_LAST>
+    struct PhysicsUpdate {
+        struct exec_register {
+            exec_register() {
+                addToMultimap(physics_update_systems, priority, Object::update);
+            }
+        };
+        template<exec_register&> struct ref_it { };
+        static exec_register register_object;
+        static ref_it<register_object> referrer;
+    };
+
+    template<typename Object, UpdatePriorities priority> typename PhysicsUpdate<Object, priority>::exec_register
+        PhysicsUpdate<Object, priority>::register_object;
+    
+    template<typename Object, UpdatePriorities priority = PRIORITY_LAST>
+    struct RenderUpdate {
+        struct exec_register {
+            exec_register() {
+                addToMultimap(render_update_systems, priority, Object::render);
+            }
+        };
+        template<exec_register&> struct ref_it { };
+        static exec_register register_object;
+        static ref_it<register_object> referrer;
+    };
+
+    template<typename Object, UpdatePriorities priority> typename RenderUpdate<Object, priority>::exec_register
+    RenderUpdate<Object, priority>::register_object;
 }

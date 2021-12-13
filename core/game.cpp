@@ -111,7 +111,8 @@ bool Game::physicsUpdate() {
         #endif
         
         //: Systems
-        System::physicsUpdateSystems();
+        for (auto &[priority, system] : System::physics_update_systems)
+            system();
         
         //: Input
         Input::frame();
