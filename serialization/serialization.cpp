@@ -3,7 +3,7 @@
 //licensed under GPLv3 uwu
 
 #include "serialization.h"
-
+/*
 #include <filesystem>
 #include <iostream>
 #include <fstream>
@@ -329,7 +329,7 @@ void Serialization::removeYAML(str name, std::vector<str> key) {
 }
 
 void Serialization::loadScene(str name, Scene *s) {
-    /*YAML::Node data;
+    YAML::Node data;
     str path = "data/scenes/" + name;
     Serialization::loadYAML(path, data);
     
@@ -380,7 +380,7 @@ void Serialization::loadScene(str name, Scene *s) {
         //Add components
         Serialization::loadComponentsFromYAML(eid, entity, s);
     }
-    //--------------------------------------*/
+    //--------------------------------------
 }
 
 EntityID Serialization::loadPlayer(Scene *s) {
@@ -406,7 +406,7 @@ EntityID Serialization::loadPlayer(Scene *s) {
 }
 
 void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Scene *s) {
-    /*if (entity["tilemap"])
+    if (entity["tilemap"])
         System::Tilemap::load(eid, entity, s, c);
     if (entity["collider"])
         System::Collider::load(eid, entity, s, c);
@@ -437,7 +437,7 @@ void Serialization::loadComponentsFromYAML(EntityID eid, YAML::Node &entity, Sce
     if (entity["state"])
         System::State::load(eid, entity, s, c);
     if (entity["player"])
-        System::Player::load(eid, entity, s, c);*/
+        System::Player::load(eid, entity, s, c);
 }
 
 void Serialization::saveScene(Scene *s, bool to_proj) {
@@ -454,7 +454,7 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s) {
     std::vector<str> key = {"entities", s->getName(eid), "", ""};
     //log::info("%s, %s, %s, %s", key[0].c_str(), key[1].c_str(), key[2].c_str(), key[3].c_str());
     
-    /*Component::Collider* col = s->getComponent<Component::Collider>(eid);
+    Component::Collider* col = s->getComponent<Component::Collider>(eid);
     Component::CircleCollider* col_circle = s->getComponent<Component::CircleCollider>(eid);
     Component::Texture* tex = s->getComponent<Component::Texture>(eid);
     Component::Animation* anim = s->getComponent<Component::Animation>(eid);
@@ -508,5 +508,6 @@ void Serialization::saveComponentsToYAML(EntityID eid, Scene *s) {
     Component::Player* player = s->getComponent<Component::Player>(eid);
     if (player != nullptr) {
         key[2] = "player";
-    }*/
+    }
 }
+*/

@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <yaml-cpp/yaml.h>
-
 #include "scene.h"
 
 //---WARNING---
@@ -13,6 +11,7 @@
 //      This was first attempt at serialization, which is only partly functional and very very ugly
 //      It will be rewritten soon using the reflection API I wrote, but in the meantime, please don't look to hard at it
 
+/*
 namespace Fresa::Serialization
 {
     void loadYAML(str name, YAML::Node &file);
@@ -101,3 +100,4 @@ namespace YAML
         }
     };
 }
+*/
