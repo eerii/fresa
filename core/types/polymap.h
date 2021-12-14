@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "dtypes.h"
-#include <map>
+#include "types.h"
 #include <variant>
 
 namespace Fresa
@@ -78,42 +77,17 @@ namespace Fresa
     inline std::map<ui32, const PolyMap*> PolyMap::ids;
     
     
-    //---Types---
-    template <typename... T>
-    struct Types {};
-
-    template <typename... L, typename... R>
-    constexpr auto operator+(Types<L...>, Types<R...>) {
-        return Types<L..., R...>{};
-    }
-
-    //: Cartesian Product (Domain of state function)
-    template <typename L, typename...R>
-    constexpr auto operator*(Types<L>, Types<R...>) {
-        return Types<Types<L, R>...>{};
-    }
-    template <typename... L, typename R>
-    constexpr auto operator*(Types<L...>, R r) {
-        return ((Types<L>{} * r) + ...);
-    }
-
-    //: Operate on every type
-    template <typename... T, typename Operation>
-    constexpr auto operator|(Types<T...>, Operation op) {
-        return op(Types<T>{}...);
-    }
-    
-    
     //---Visitor---
     template <typename... T>
+    struct VisitorTypes {};
+    
+    template <typename... T>
     struct Visitor {
-        using types = Types<T...>;
+        using types = VisitorTypes<T...>;
     };
     
     /*struct ExampleVisitor : Visitor<type1, type2, .../> {
         template<class T>
-        void operator()(T& t) {
-            t = ...;
-        }
+        void operator()(T& t) { t = ...; }
     };*/
 }

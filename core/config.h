@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "dtypes.h"
+#include "types.h"
 
 namespace Fresa::Config
 {

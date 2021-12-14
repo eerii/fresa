@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "dtypes.h"
+#include "types.h"
 #include "reflection.h"
 #include "component_list.h"
 
@@ -47,6 +47,8 @@ namespace Fresa::Entity
 namespace Fresa::Component
 {
     inline ComponentID component_counter = 0;
+    
+    template <typename> struct component_tag {};
     
     template<typename C, std::enable_if_t<Reflection::is_reflectable<C> && Reflection::is_in_variant<C, ComponentType>::value, bool> = true>
     ComponentID getID() {

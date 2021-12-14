@@ -4,12 +4,13 @@
 
 #pragma once
 
+#include "types.h"
+
 #include <tuple>
 #include <variant>
 #include <typeinfo>
 
 #include "static_str.h"
-#include "polymap.h"
 
 #ifndef __EMSCRIPTEN__
 #define CURR_STATE(SM) std::visit([](auto&&x) { \
@@ -27,6 +28,31 @@
 
 namespace Fresa::State
 {
+    //---Types---
+    template <typename... T>
+    struct Types {};
+
+    template <typename... L, typename... R>
+    constexpr auto operator+(Types<L...>, Types<R...>) {
+        return Types<L..., R...>{};
+    }
+
+    //: Cartesian Product (Domain of state function)
+    template <typename L, typename...R>
+    constexpr auto operator*(Types<L>, Types<R...>) {
+        return Types<Types<L, R>...>{};
+    }
+    template <typename... L, typename R>
+    constexpr auto operator*(Types<L...>, R r) {
+        return ((Types<L>{} * r) + ...);
+    }
+
+    //: Operate on every type
+    template <typename... T, typename Operation>
+    constexpr auto operator|(Types<T...>, Operation op) {
+        return op(Types<T>{}...);
+    }
+    
     //Apply operation and sum
     //-------------------------------------
     template <typename Operation>
@@ -184,5 +210,16 @@ namespace Fresa::State
         }
     };
     //-------------------------------------
+    
+    //: Make strings
+    template <typename State>
+    static constexpr auto make_string(Types<To<State>>) {
+        return Str{"To<"} + make_string(Types<State>{}) + Str{">"};
+    }
+    template <typename State>
+    static constexpr auto make_string(Types<Maybe<State>>) {
+        return Str{"Maybe<"} + make_string(Types<State>{}) + Str{">"};
+    }
+    static constexpr auto make_string(Types<Nothing>) { return Str{"Nothing"}; }
 
 }
