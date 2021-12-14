@@ -4,15 +4,18 @@
 
 ---
 
-#### 0.3.3 - 
+#### 0.3.3 - hey there! this is an event - _14 12 2021_
 
 **added**
 - publish events
 - observers and permanent callbacks
+- new variant helper functions
+- improved component id generation based on variant index
 
 **changed**
 - improved event handling
 - reworked input
+- refactored type headers
 
 #### 0.3.2 - component nightmare - _13 12 2021_
 

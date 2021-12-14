@@ -7,6 +7,7 @@
 #include "types.h"
 #include "reflection.h"
 #include "component_list.h"
+#include "variant_helper.h"
 
 #include <bitset>
 
@@ -46,17 +47,18 @@ namespace Fresa::Entity
 
 namespace Fresa::Component
 {
-    inline ComponentID component_counter = 0;
-    
     template <typename> struct component_tag {};
     
     template<typename C, std::enable_if_t<Reflection::is_reflectable<C> && Reflection::is_in_variant<C, ComponentType>::value, bool> = true>
     ComponentID getID() {
-        static ComponentID id_ = component_counter++;
+        static ComponentID id_ = getVariantIndex<C, ComponentType>::value;
         if (id_ >= MAX_COMPONENTS)
             throw std::runtime_error("Increase max component capacity");
         return id_;
     }
+    
+    //: Example of looping through components
+    //      for_<Component::ComponentType>([](auto i){ using C = std::variant_alternative_t<i.value, Component::ComponentType>; ... });
 }
 
 namespace Fresa::System
