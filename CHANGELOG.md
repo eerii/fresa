@@ -7,7 +7,12 @@
 #### 0.3.3 - 
 
 **added**
-- .
+- publish events
+- observers and permanent callbacks
+
+**changed**
+- improved event handling
+- reworked input
 
 #### 0.3.2 - component nightmare - _13 12 2021_
 

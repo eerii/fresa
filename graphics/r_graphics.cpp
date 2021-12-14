@@ -3,8 +3,6 @@
 //licensed under GPLv3 uwu
 
 #include "r_graphics.h"
-
-#include "r_window.h"
 #include <filesystem>
 
 #define STB_IMAGE_IMPLEMENTATION

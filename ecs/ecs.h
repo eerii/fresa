@@ -8,8 +8,6 @@
 #include "reflection.h"
 #include "component_list.h"
 
-#include "log.h"
-
 #include <bitset>
 
 #define INVALID_ENTITY Entity::createID(EntityIndex(-1), 0)

@@ -6,6 +6,7 @@
 
 #include "r_vulkan_api.h"
 #include "r_opengl_api.h"
+#include "r_window.h"
 
 //---Graphics---
 //      This is fresa's API for graphics, what is meant to be used when designing games
@@ -19,8 +20,9 @@ namespace Fresa::Graphics
     bool init();
     bool update();
     bool stop();
-
+    
     void onResize(Vec2<> size);
+    inline Events::Observer observer = Window::event_window_resize.createObserver(onResize);
     
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     DrawID getDrawID(const std::vector<V> &vertices, const std::vector<ui16> &indices, Shaders shader = SHADER_DRAW_TEX) {

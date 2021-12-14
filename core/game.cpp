@@ -19,9 +19,11 @@
 
 using namespace Fresa;
 
-namespace
-{
+namespace {
     bool is_paused = false;
+    Events::Observer pausedObserver = Events::event_paused.createObserver([](const bool paused){ is_paused = paused; });
+    bool is_quitting = false;
+    Events::Observer quitObserver = Events::event_quit.createObserver([](){ is_quitting = true; });
 }
 
 bool Game::init() {
@@ -45,6 +47,9 @@ bool Game::init() {
     if (not Graphics::init())
         return false;
     
+    //: Input
+    Input::init();
+    
     return true;
 }
 
@@ -54,11 +59,8 @@ bool Game::update() {
     //: Check if paused
     while (is_paused) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        Events::EventTypes e = Events::handleEvents();
-        if (e == Events::EVENT_QUIT)
-            return false;
-        if (e == Events::EVENT_CONTINUE)
-            is_paused = false;
+        Events::handleSystemEvents();
+        if (is_quitting) return false;
     }
     
     //: Check scene
@@ -99,11 +101,11 @@ bool Game::physicsUpdate() {
         Time::physics_delta = Config::timestep * 1.0e-3 * Config::game_speed; //: In seconds
         
         //: Events
-        Events::EventTypes e = Events::handleEvents();
-        if (e == Events::EVENT_QUIT)
-            return false;
-        if (e == Events::EVENT_PAUSE)
-            is_paused = true;
+        Events::handleSystemEvents();
+        if (is_quitting) return false;
+        
+        //: Input
+        Input::frame();
         
         //: GUI
         #ifndef DISABLE_GUI
@@ -113,9 +115,6 @@ bool Game::physicsUpdate() {
         //: Systems
         for (auto &[priority, system] : System::physics_update_systems)
             system();
-        
-        //: Input
-        Input::frame();
         
         Performance::one_physics_iteration_time = ms(time() - time_before_physics_iteration);
     }
