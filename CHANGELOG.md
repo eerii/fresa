@@ -4,7 +4,7 @@
 
 ---
 
-#### 0.3.4 - 
+#### 0.3.4 - all about that state c: - _15 12 2021_
 
 **added**
 - compile time type name generator
