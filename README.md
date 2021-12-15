@@ -90,8 +90,6 @@ int main(int argc, const char * argv[]) {
 ECS and other descriptions are defined in 4 separate files that must be created:
 - `component_list.h`
 - `system_list.h`
-- `controller_list.h`
-- `state_machines_list.h`
 
 I am working on a repository with a minimum working example, but it is not commented propperly just yet.
 

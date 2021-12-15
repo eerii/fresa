@@ -8,6 +8,7 @@
 
 **added**
 - compile time type name generator
+- component list documentation
 
 **changed**
 - removed macros from state machine name generation and changed it to compile time names

@@ -6,8 +6,22 @@
 
 #include "types.h"
 #include "reflection.h"
-#include "component_list.h"
 #include "variant_helper.h"
+
+//: A component list is necessary to include all the component types and define a variant with all those types
+//: You need to create a file component_list.h and add it to the project, the structure can be as follows:
+//      #include <variant> /* For the list of types */
+//      #include "..." /* Add here your component definitions */
+//      namespace Fresa::Component {
+//          using ComponentType = std::variant<...>; /* And here the name of the component classes */
+//      }
+//: The component classes need to be serialized in order to be reflectable, you can define them as:
+//      struct SomeComponent {
+//          Serialize(SomeComponent, something, another_thing, ...);
+//          int something;
+//          str another_thing; ...
+//      };
+#include "component_list.h"
 
 #include <bitset>
 
