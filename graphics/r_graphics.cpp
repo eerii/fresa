@@ -10,6 +10,8 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include "ecs.h"
+
 using namespace Fresa;
 using namespace Graphics;
 
@@ -38,7 +40,12 @@ bool Graphics::init() {
 bool Graphics::update() {
     //---Update---
     
-    //TODO: Add drawing systems here
+    //: Systems
+    for (auto &[priority, system] : System::render_update_systems)
+        system();
+    
+    //: TODO: Camera
+    win.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     
     //: Render
     API::render(api, win);

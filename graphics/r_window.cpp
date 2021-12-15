@@ -59,6 +59,10 @@ WindowData Graphics::Window::create(Vec2<> size, str name) {
     //: V-Sync (it only changes something for OpenGL at the moment)
     win.vsync = true;
     
+    //: TODO: Projection
+    win.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
+    win.proj[1][1] *= -1;
+    
     return win;
 }
 

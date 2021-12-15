@@ -2593,9 +2593,8 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
 void API::render(Vulkan &vk, WindowData &win) {
     //TODO: View and projection matrices
     UniformBufferObject ubo{};
-    ubo.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
-    ubo.proj[1][1] *= -1;
+    ubo.view = win.view;
+    ubo.proj = win.proj;
     
     //: Get the current image
     ui32 index = VK::startRender(vk.device, vk.render.swapchain, vk.sync,
