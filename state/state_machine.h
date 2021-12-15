@@ -12,15 +12,6 @@
 
 #include "static_str.h"
 
-#ifndef __EMSCRIPTEN__
-#define CURR_STATE(SM) std::visit([](auto&&x) { \
-    using T = std::decay_t<decltype(*x)>; \
-    return make_string(Types<T>()).c_str(); \
-}, SM.curr_state)
-#else
-#define CURR_STATE(SM) ""
-#endif
-
 //---State machines---
 //      First attempt at an implementation of state machines, has room for improvement
 //      All the table descriptions are created at compile time so it should be really fast during runtime (however, it does take extra time to
@@ -214,12 +205,25 @@ namespace Fresa::State
     //: Make strings
     template <typename State>
     static constexpr auto make_string(Types<To<State>>) {
-        return Str{"To<"} + make_string(Types<State>{}) + Str{">"};
+        return std::string_view{"To<"} + make_string(Types<State>{}) + std::string_view{">"};
     }
     template <typename State>
     static constexpr auto make_string(Types<Maybe<State>>) {
-        return Str{"Maybe<"} + make_string(Types<State>{}) + Str{">"};
+        return std::string_view{"Maybe<"} + make_string(Types<State>{}) + std::string_view{">"};
     }
-    static constexpr auto make_string(Types<Nothing>) { return Str{"Nothing"}; }
+    static constexpr auto make_string(Types<Nothing>) { return std::string_view{"Nothing"}; }
+    
+    template <typename State>
+    static constexpr auto make_string(Types<State>) {
+        return type_name<State>();
+    }
+    
+    //------
+    
+    //: Current state
+    template <typename State>
+    constexpr auto getCurrentState(State state) {
+        return str(std::visit([](auto&&x)->decltype(auto){ return make_string(Types<std::decay_t<decltype(*x)>>()); }, state.curr_state));
+    }
 
 }

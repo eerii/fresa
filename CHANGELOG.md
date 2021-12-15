@@ -4,6 +4,17 @@
 
 ---
 
+#### 0.3.4 - 
+
+**added**
+- compile time type name generator
+
+**changed**
+- removed macros from state machine name generation and changed it to compile time names
+
+**up next**
+- state machine refactoring with new events!
+
 #### 0.3.3 - hey there! this is an event - _14 12 2021_
 
 **added**

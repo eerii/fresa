@@ -5,7 +5,6 @@
 #pragma once
 
 #include "state_machine.h"
-#include "state_machines_list.h"
 
 //---State tables---
 //      Generates compile time state tables for state machines
