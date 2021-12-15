@@ -23,7 +23,7 @@ namespace Fresa::State
         
         template <typename T>
         constexpr auto operator()(Types<T> t) const {
-            return make_string(t);
+            return make_string(t).data();
         }
     };
     template <std::size_t W>

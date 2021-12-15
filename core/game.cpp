@@ -21,9 +21,9 @@ using namespace Fresa;
 
 namespace {
     bool is_paused = false;
-    Events::Observer pausedObserver = Events::event_paused.createObserver([](const bool paused){ is_paused = paused; });
+    Event::Observer pausedObserver = Event::event_paused.createObserver([](const bool paused){ is_paused = paused; });
     bool is_quitting = false;
-    Events::Observer quitObserver = Events::event_quit.createObserver([](){ is_quitting = true; });
+    Event::Observer quitObserver = Event::event_quit.createObserver([](){ is_quitting = true; });
 }
 
 bool Game::init() {
@@ -59,7 +59,7 @@ bool Game::update() {
     //: Check if paused
     while (is_paused) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        Events::handleSystemEvents();
+        Event::handleSystemEvents();
         if (is_quitting) return false;
     }
     
@@ -101,7 +101,7 @@ bool Game::physicsUpdate() {
         Time::physics_delta = Config::timestep * 1.0e-3 * Config::game_speed; //: In seconds
         
         //: Events
-        Events::handleSystemEvents();
+        Event::handleSystemEvents();
         if (is_quitting) return false;
         
         //: Input

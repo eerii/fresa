@@ -22,7 +22,7 @@ namespace Fresa::Graphics
     bool stop();
     
     void onResize(Vec2<> size);
-    inline Events::Observer observer = Window::event_window_resize.createObserver(onResize);
+    inline Event::Observer observer = Window::event_window_resize.createObserver(onResize);
     
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     DrawID getDrawID(const std::vector<V> &vertices, const std::vector<ui16> &indices, Shaders shader = SHADER_DRAW_TEX) {

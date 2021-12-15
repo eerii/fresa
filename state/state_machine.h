@@ -11,6 +11,8 @@
 #include <typeinfo>
 
 #include "static_str.h"
+#include "events.h"
+#include "log.h"
 
 //---State machines---
 //      First attempt at an implementation of state machines, has room for improvement
@@ -68,6 +70,7 @@ namespace Fresa::State
         
         //: All possible states
         std::tuple<States...> states;
+        constexpr static auto number_states = std::tuple_size_v<decltype(states)>;
         
         void updateStates(States... p_states) {
             states = std::make_tuple(std::move(p_states)...);
@@ -92,7 +95,7 @@ namespace Fresa::State
         
         //: Get type
         std::type_info const& curr_type(){
-          return std::visit( [](auto&&x)->decltype(auto){ return typeid(*x); }, curr_state );
+            return std::visit( [](auto&&x)->decltype(auto){ return typeid(*x); }, curr_state );
         }
         template <typename State>
         bool is(const State& state) {
@@ -109,6 +112,17 @@ namespace Fresa::State
         
         //: State types
         constexpr static Types<States...> getStateTypes() { return {}; };
+    };
+    //-------------------------------------
+    
+    //State machine events
+    //-------------------------------------
+    template <typename E, typename... Ts>
+    struct StateEvent {
+        template <typename S>
+        static void link(const Event::Event<Ts...>& e, S& state) {
+            e.callback([&](Ts... v){ state.handle(E(v...)); });
+        }
     };
     //-------------------------------------
 
@@ -221,8 +235,8 @@ namespace Fresa::State
     //------
     
     //: Current state
-    template <typename State>
-    constexpr auto getCurrentState(State state) {
+    template <typename SM>
+    constexpr auto getCurrentState(SM state) {
         return str(std::visit([](auto&&x)->decltype(auto){ return make_string(Types<std::decay_t<decltype(*x)>>()); }, state.curr_state));
     }
 

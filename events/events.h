@@ -10,7 +10,7 @@
 
 #include <mutex>
 
-namespace Fresa::Events
+namespace Fresa::Event
 {
     template <typename... Args> struct Event;
     template <typename... Args> struct SharedEvent;
@@ -85,7 +85,7 @@ namespace Fresa::Events
         
         //---Observer---
         
-        struct Observer : ::Fresa::Events::Observer::Base {
+        struct Observer : ::Fresa::Event::Observer::Base {
             //: Observer data pointer
             std::weak_ptr<Data> data;
             //: Handler id

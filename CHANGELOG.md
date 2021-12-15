@@ -9,12 +9,10 @@
 **added**
 - compile time type name generator
 - component list documentation
+- state machine events can now be linked with new event system
 
 **changed**
 - removed macros from state machine name generation and changed it to compile time names
-
-**up next**
-- state machine refactoring with new events!
 
 #### 0.3.3 - hey there! this is an event - _14 12 2021_
 

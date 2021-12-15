@@ -18,8 +18,8 @@ namespace Fresa
         using Key = ui32;
         
         //: Events
-        inline Events::Event<Key> event_key_down;
-        inline Events::Event<Key> event_key_up;
+        inline Event::Event<Key> event_key_down;
+        inline Event::Event<Key> event_key_up;
         
         //: State
         struct KeyboardState {
@@ -44,10 +44,10 @@ namespace Fresa
         };
         
         //: Events
-        inline Events::Event<Vec2<float>> event_mouse_move;
-        inline Events::Event<int> event_mouse_wheel;
-        inline Events::Event<MouseButton> event_mouse_down;
-        inline Events::Event<MouseButton> event_mouse_up;
+        inline Event::Event<Vec2<float>> event_mouse_move;
+        inline Event::Event<int> event_mouse_wheel;
+        inline Event::Event<MouseButton> event_mouse_down;
+        inline Event::Event<MouseButton> event_mouse_up;
         
         //: State
         struct MouseState {

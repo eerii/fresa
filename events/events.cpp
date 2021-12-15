@@ -15,7 +15,7 @@ using namespace Fresa;
 //---Event handling---
 //      Here all the system events are processed with SDL built in event system, and they are translated to fresa's event system
 
-void Events::handleSystemEvents() {
+void Event::handleSystemEvents() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
