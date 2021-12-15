@@ -94,12 +94,9 @@ namespace Fresa::State
         }
         
         //: Get type
-        std::type_info const& curr_type(){
-            return std::visit( [](auto&&x)->decltype(auto){ return typeid(*x); }, curr_state );
-        }
         template <typename State>
         bool is(const State& state) {
-            return curr_type() == typeid(state);
+            return std::visit([](auto &&x)->decltype(auto){ return std::is_same_v<State, std::decay_t<decltype(*x)>>; }, curr_state);
         }
         
         //: Change state
