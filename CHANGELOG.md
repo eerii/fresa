@@ -14,6 +14,7 @@
 
 **changed**
 - removed macros from state machine name generation and changed it to compile time names
+- changed state machine `is()` function to remove accidental RTTI
 
 **up next**
 - projection and view matrices

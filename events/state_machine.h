@@ -12,7 +12,6 @@
 
 #include "static_str.h"
 #include "events.h"
-#include "log.h"
 
 //---State machines---
 //      First attempt at an implementation of state machines, has room for improvement
