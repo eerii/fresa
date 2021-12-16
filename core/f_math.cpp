@@ -4,9 +4,6 @@
 
 #include "f_math.h"
 
-#define STB_PERLIN_IMPLEMENTATION
-#include "stb_perlin.h"
-
 #include "log.h"
 
 using namespace Fresa;
