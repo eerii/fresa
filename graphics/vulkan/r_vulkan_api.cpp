@@ -2033,73 +2033,12 @@ std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescr
     return descriptor_sets;
 }
 
-WriteDescriptorBuffer VK::createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer) {
-    WriteDescriptorBuffer write_descriptor{};
-    
-    write_descriptor.info.buffer = uniform_buffer.buffer;
-    write_descriptor.info.offset = 0;
-    write_descriptor.info.range = VK_WHOLE_SIZE;
-    
-    write_descriptor.write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_descriptor.write.dstSet = descriptor_set;
-    write_descriptor.write.dstBinding = binding;
-    write_descriptor.write.dstArrayElement = 0;
-    write_descriptor.write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    write_descriptor.write.descriptorCount = 1;
-    write_descriptor.write.pBufferInfo = &write_descriptor.info;
-    write_descriptor.write.pImageInfo = nullptr;
-    write_descriptor.write.pTexelBufferView = nullptr;
-    
-    return write_descriptor;
-}
-
-WriteDescriptorImage VK::createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,
-                                                                       VkImageView image_view, VkSampler sampler) {
-    WriteDescriptorImage write_descriptor{};
-    
-    write_descriptor.info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    write_descriptor.info.imageView = image_view;
-    write_descriptor.info.sampler = sampler;
-    
-    write_descriptor.write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_descriptor.write.dstSet = descriptor_set;
-    write_descriptor.write.dstBinding = binding;
-    write_descriptor.write.dstArrayElement = 0;
-    write_descriptor.write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    write_descriptor.write.descriptorCount = 1;
-    write_descriptor.write.pBufferInfo = nullptr;
-    write_descriptor.write.pImageInfo = &write_descriptor.info;
-    write_descriptor.write.pTexelBufferView = nullptr;
-    
-    return write_descriptor;
-}
-
-WriteDescriptorImage VK::createWriteDescriptorInputAttachment(VkDescriptorSet descriptor_set, ui32 binding, VkImageView image_view) {
-    WriteDescriptorImage write_descriptor{};
-    
-    write_descriptor.info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    write_descriptor.info.imageView = image_view;
-    write_descriptor.info.sampler = VK_NULL_HANDLE;
-    
-    write_descriptor.write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_descriptor.write.dstSet = descriptor_set;
-    write_descriptor.write.dstBinding = binding;
-    write_descriptor.write.dstArrayElement = 0;
-    write_descriptor.write.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-    write_descriptor.write.descriptorCount = 1;
-    write_descriptor.write.pBufferInfo = nullptr;
-    write_descriptor.write.pImageInfo = &write_descriptor.info;
-    write_descriptor.write.pTexelBufferView = nullptr;
-    
-    return write_descriptor;
-}
-
 void API::updateDescriptorSets(const Vulkan &vk, const DrawData* draw) {
     if (draw->texture_id.has_value()) {
         const TextureData* tex = &API::texture_data.at(draw->texture_id.value());
         VK::updateDescriptorSets(vk, draw->descriptor_sets, vk.pipelines.at(draw->shader).descriptor_layout_bindings,
                                  {{0, &draw->uniform_buffers}},
-                                 {{1, &tex->image_view}});
+                                 {{1, tex->image_view}});
     } else {
         VK::updateDescriptorSets(vk, draw->descriptor_sets, vk.pipelines.at(draw->shader).descriptor_layout_bindings,
                                  {{0, &draw->uniform_buffers}});
@@ -2109,37 +2048,75 @@ void API::updateDescriptorSets(const Vulkan &vk, const DrawData* draw) {
 void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets,
                               const std::vector<VkDescriptorSetLayoutBinding> &layout_bindings,
                               std::map<ui32, const std::vector<BufferData>*> uniform_buffers,
-                              std::map<ui32, const VkImageView*> image_views,
-                              std::map<ui32, const VkImageView*> input_attachments) {
+                              std::map<ui32, VkImageView> image_views,
+                              std::map<ui32, VkImageView> input_attachments) {
     for (int i = 0; i < descriptor_sets.size(); i++) {
         std::vector<VkWriteDescriptorSet> write_descriptors;
         
-        auto add_descriptor = [&vk, &write_descriptors, &descriptor_sets, &uniform_buffers, &image_views, &input_attachments, i]
-                              (const VkDescriptorSetLayoutBinding &binding) {
-                                  
+        for (const auto &binding : layout_bindings) {
             bool has_uniform = uniform_buffers.find(binding.binding) != uniform_buffers.end();
             if (has_uniform and binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
-                auto uniform_write_descriptor = VK::createWriteDescriptorUniformBuffer(descriptor_sets.at(i), binding.binding,
-                                                                                       uniform_buffers.at(binding.binding)->at(i));
-                write_descriptors.push_back(uniform_write_descriptor.write);
+                WriteDescriptorBuffer write{};
+                
+                write.info.buffer = uniform_buffers.at(binding.binding)->at(i).buffer;
+                write.info.offset = 0;
+                write.info.range = VK_WHOLE_SIZE;
+                
+                write.write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                write.write.dstSet = descriptor_sets.at(i);
+                write.write.dstBinding = binding.binding;
+                write.write.dstArrayElement = 0;
+                write.write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                write.write.descriptorCount = 1;
+                write.write.pBufferInfo = &write.info;
+                write.write.pImageInfo = nullptr;
+                write.write.pTexelBufferView = nullptr;
+                
+                write_descriptors.push_back(write.write);
             }
                                   
             bool has_image = image_views.find(binding.binding) != image_views.end();
             if (has_image and binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-                auto image_write_descriptor = VK::createWriteDescriptorCombinedImageSampler(descriptor_sets.at(i), binding.binding,
-                                                                                            *image_views.at(binding.binding), vk.sampler);
-                write_descriptors.push_back(image_write_descriptor.write);
+                WriteDescriptorImage write{};
+                
+                write.info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                write.info.imageView = image_views.at(binding.binding);
+                write.info.sampler = vk.sampler;
+                
+                write.write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                write.write.dstSet = descriptor_sets.at(i);
+                write.write.dstBinding = binding.binding;
+                write.write.dstArrayElement = 0;
+                write.write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                write.write.descriptorCount = 1;
+                write.write.pBufferInfo = nullptr;
+                write.write.pImageInfo = &write.info;
+                write.write.pTexelBufferView = nullptr;
+                
+                write_descriptors.push_back(write.write);
             }
-                                  
-            if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
-                auto input_write_descriptor = VK::createWriteDescriptorInputAttachment(descriptor_sets.at(i), binding.binding,
-                                                                                       *input_attachments.at(binding.binding));
-                write_descriptors.push_back(input_write_descriptor.write);
+                                 
+            bool has_input = input_attachments.find(binding.binding) != input_attachments.end();
+            if (has_input and binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
+                WriteDescriptorImage write{};
+                
+                write.info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                write.info.imageView = input_attachments.at(binding.binding);
+                write.info.sampler = VK_NULL_HANDLE;
+                
+                write.write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                write.write.dstSet = descriptor_sets.at(i);
+                write.write.dstBinding = binding.binding;
+                write.write.dstArrayElement = 0;
+                write.write.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+                write.write.descriptorCount = 1;
+                write.write.pBufferInfo = nullptr;
+                write.write.pImageInfo = &write.info;
+                write.write.pTexelBufferView = nullptr;
+                
+                write_descriptors.push_back(write.write);
             }
-        };
-        
-        for (const auto &binding : layout_bindings)
-            add_descriptor(binding);
+        }
         
         vkUpdateDescriptorSets(vk.device, (ui32)write_descriptors.size(), write_descriptors.data(), 0, nullptr);
     }
@@ -2147,9 +2124,9 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
 
 void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline) {
     int i = 0;
-    std::map<ui32, const VkImageView*> input_attachments{};
+    std::map<ui32, VkImageView> input_attachments{};
     for (auto &attachment : vk.render.subpasses.at(pipeline.subpass).input_attachments) {
-        input_attachments[i] = &vk.render.attachments.at(attachment.attachment).image_view;
+        input_attachments[i] = vk.render.attachments.at(attachment.attachment).image_view;
         i++;
     }
     VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, {}, {}, input_attachments);
@@ -2513,7 +2490,8 @@ bool VK::hasDepthStencilComponent(VkFormat format) {
 ui32 VK::startRender(VkDevice device, const SwapchainData &swapchain, SyncData &sync, std::function<void()> recreate_swapchain) {
     ui32 image_index;
     
-    vkWaitForFences(device, 1, &sync.fences_in_flight[sync.current_frame], VK_TRUE, UINT64_MAX);
+    std::vector<VkFence> fences = { sync.fences_in_flight[sync.current_frame] };
+    vkWaitForFences(device, (ui32)fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
     
     VkResult result = vkAcquireNextImageKHR(device, swapchain.swapchain, UINT64_MAX,
                                             sync.semaphores_image_available[sync.current_frame], VK_NULL_HANDLE, &image_index);

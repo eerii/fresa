@@ -164,16 +164,11 @@ namespace Fresa::Graphics::VK
                                                         const std::vector<VkDescriptorPoolSize> &sizes,
                                                         std::vector<VkDescriptorPool> &pools, ui32 swapchain_size);
 
-    WriteDescriptorBuffer createWriteDescriptorUniformBuffer(VkDescriptorSet descriptor_set, ui32 binding, BufferData uniform_buffer);
-    WriteDescriptorImage createWriteDescriptorCombinedImageSampler(VkDescriptorSet descriptor_set, ui32 binding,
-                                                                   VkImageView image_view, VkSampler sampler);
-    WriteDescriptorImage createWriteDescriptorInputAttachment(VkDescriptorSet descriptor_set, ui32 binding, VkImageView image_view);
-
     void updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets,
                               const std::vector<VkDescriptorSetLayoutBinding> &layout_bindings,
                               std::map<ui32, const std::vector<BufferData>*> uniform_buffers = {},
-                              std::map<ui32, const VkImageView*> image_views = {},
-                              std::map<ui32, const VkImageView*> input_attachments = {});
+                              std::map<ui32, VkImageView> image_views = {},
+                              std::map<ui32, VkImageView> input_attachments = {});
     void updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline);
     //----------------------------------------
 

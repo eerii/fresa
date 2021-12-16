@@ -16,8 +16,12 @@
 - removed macros from state machine name generation and changed it to compile time names
 - changed state machine `is()` function to remove accidental RTTI
 
+**fixed**
+- fixed vulkan only working when the xcode address sanitizer was on (errors with use of memory after return)
+
 **up next**
 - projection and view matrices
+- fix vulkan dependency error
 
 #### 0.3.3 - hey there! this is an event - _14 12 2021_
 

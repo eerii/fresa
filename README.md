@@ -39,7 +39,7 @@ A tiny game engine made in C++20.
 
 **Platforms**
 
-Right now the project is in the **very pre-alpha** state, and I haven't set up build instructions for all platforms yet. Only macOS is functional and web is semi-functional. Please stay tuned for updated building instructions, or message me and I'll send you what I have now. I intend to support all mayor OS (Linux, macOS and Windows), as well as WebGL and mobile devices, but it is not there just yet.
+Right now the project is in the **very pre-alpha** state, and I haven't set up detailed build instructions yet. You can check [aguacate](https://github.com/josekoalas/aguacate) for an example on how one could set up a **fresa** project. Instructions on how to build it are there.
 
 **Dependencies**
 - SDL2 (cross-platform window and input)
@@ -47,6 +47,7 @@ Right now the project is in the **very pre-alpha** state, and I haven't set up b
 - imGUI (for a debug graphical interface)
 - SPIR-V Cross (shader reflection and compilation)
 - stb_image (loading images)
+- glm (glsl linear algebra)
 - VulkanMemoryAllocator (only Vulkan renderer, memory management)
 
 **Options**
@@ -87,11 +88,7 @@ int main(int argc, const char * argv[]) {
 
 **other files**
 
-ECS and other descriptions are defined in 4 separate files that must be created:
-- `component_list.h`
-- `system_list.h`
-
-I am working on a repository with a minimum working example, but it is not commented propperly just yet.
+For the ECS to work, a `component_list.h` file must be created that `#includes` all the component headers you create, as well as a variant for the component type. Follow the instructions on [`ecs.h`](https://github.com/josekoalas/fresa/blob/main/ecs/ecs.h) or the example in [aguacate](https://github.com/josekoalas/aguacate) to create one.
 
 ## license :pencil:
 
