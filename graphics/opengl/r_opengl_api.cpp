@@ -131,6 +131,7 @@ ShaderData GL::createShaderDataGL(str name, SubpassID subpass) {
     #ifdef __EMSCRIPTEN__
     options.version = 300;
     options.es = true; //: Mobile OpenGL
+    options.fragment.default_float_precision = options.Highp; //: High float precision, requirement for web
     #endif
     
     //: Variables where the GLSL converted code will be saved
@@ -164,11 +165,6 @@ ShaderData GL::createShaderDataGL(str name, SubpassID subpass) {
         //: Combined image samplers
         /*for (const auto &res : resources.sampled_images)
             str name = res.name;*/
-        
-        //: Add high precission float as a requirement for Web
-        #ifdef __EMSCRIPTEN__
-        options.Highp = true;
-        #endif
         
         //: Options
         compiler.set_common_options(options);

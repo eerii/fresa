@@ -29,13 +29,13 @@ WindowData Graphics::Window::create(Vec2<> size, str name) {
     //: SDL window
 #ifdef __EMSCRIPTEN__
     SDL_Renderer* renderer = nullptr;
-    SDL_CreateWindowAndRenderer(size_x, size_y, SDL_WINDOW_OPENGL, &win_info.window, &renderer);
+    SDL_CreateWindowAndRenderer(size.x, size.y, SDL_WINDOW_OPENGL, &win.window, &renderer);
     
-    if (win_info.window == nullptr or renderer == nullptr)
+    if (win.window == nullptr or renderer == nullptr)
         log::error("Failed to create a Window and a Renderer", SDL_GetError());
 #else
     win.window = SDL_CreateWindow((name + " - " + RENDERER_NAME).c_str(),
-                                       SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size.x, size.y, W_FLAGS);
+                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size.x, size.y, W_FLAGS);
     
     if (win.window == nullptr)
         log::error("Failed to create a Window", SDL_GetError());

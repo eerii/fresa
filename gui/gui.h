@@ -4,10 +4,6 @@
 
 #pragma once
 
-#ifdef __EMSCRIPTEN__
-#define DISABLE_GUI
-#endif
-
 #ifndef DISABLE_GUI
 
 #include "config.h"

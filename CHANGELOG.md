@@ -18,6 +18,7 @@
 
 **fixed**
 - fixed vulkan only working when the xcode address sanitizer was on (errors with use of memory after return)
+- fixed emscripten window and float precision
 
 **up next**
 - projection and view matrices
