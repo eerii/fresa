@@ -11,6 +11,9 @@
 #include <array>
 #include <map>
 
+#include <functional>
+#include <memory>
+
 #include "aliases.h"
 #include "vec2.h"
 #include "rect2.h"

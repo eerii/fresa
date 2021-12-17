@@ -17,7 +17,10 @@
     #include <OpenGL/OpenGL.h>
     #include <OpenGL/gl3.h>
 
-#else //OTHERS (Not tested)
+#else //LINUX and WINDOWS
+
+    #include <GL/glew.h>
+    #include <GL/gl.h>
 
     #include <SDL2/SDL_opengl.h>
     #include <SDL2/SDL_opengl_glext.h>
