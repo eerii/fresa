@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cmath>
+
 namespace Fresa
 {
     //---Vec2--- (2D Vector)

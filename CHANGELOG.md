@@ -4,7 +4,16 @@
 
 ---
 
-#### 0.3.4 - all about that state c: - _15 12 2021_
+#### 0.3.5 -
+
+**added**
+- .
+
+**up next**
+- projection and view matrices
+- fix vulkan dependency error
+
+#### 0.3.4 - all about that state c: - _18 12 2021_
 
 **added**
 - compile time type name generator
@@ -19,10 +28,6 @@
 **fixed**
 - fixed vulkan only working when the xcode address sanitizer was on (errors with use of memory after return)
 - fixed emscripten window and float precision
-
-**up next**
-- projection and view matrices
-- fix vulkan dependency error
 
 #### 0.3.3 - hey there! this is an event - _14 12 2021_
 
