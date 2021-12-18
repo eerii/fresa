@@ -7,9 +7,10 @@
 #### 0.3.5 -
 
 **added**
-- .
+- performance timings to physics and rendering
 
 **up next**
+- timing for vulkan command execution (requires a bit more work)
 - projection and view matrices
 - fix vulkan dependency error
 

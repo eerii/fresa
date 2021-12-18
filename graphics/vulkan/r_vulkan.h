@@ -6,12 +6,8 @@
 
 #ifdef USE_VULKAN
 
-#include <vulkan/vulkan.h>
-#include <SDL2/SDL_vulkan.h>
-
-#include "vk_mem_alloc.h"
-
 #include "r_dtypes.h"
+#include <SDL2/SDL_vulkan.h>
 
 namespace Fresa::Graphics
 {

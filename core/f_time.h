@@ -49,15 +49,52 @@ namespace Fresa
     double ms(Duration duration);
     double sec(Duration duration);
     
+    template <typename Callable, typename... Args>
+    auto callTime(double &call_time, Callable &f, const Args&... a) {
+        constexpr bool is_void = std::is_same_v<decltype(f(a...)), void> == true;
+        #ifdef DEBUG
+        Clock::time_point time_before_call = time();
+        if constexpr (is_void) {
+            f(a...);
+            call_time = ms(time() - time_before_call);
+        } else {
+            auto v = f(a...);
+            call_time = ms(time() - time_before_call);
+            return v;
+        }
+        #else
+        if constexpr (is_void)
+            f(a...);
+        else
+            return f(a...);
+        #endif
+    }
+    
     namespace Performance {
         //---Counters for performance metrics---
         
-        //: One iteration of the accumulator physics loop
-        inline double one_physics_iteration_time = 0.0;
-        //: The entire frame of physics updates (can be 0 since the physics might not be updated in the frame)
-        inline double physics_time = 0.0;
+        //---PHYSICS---
         
-        //: Render time
-        inline double render_time = 0.0;
+        //: The entire frame of physics updates (can be 0 since the physics might not be updated in the frame)
+        inline double physics_frame_time = 0.0;
+        
+        //: One iteration of the accumulator physics loop
+        inline double physics_iteration_time = 0.0;
+        
+        //: A list of the time of one iteration of each physics system (same order as the system list)
+        inline std::vector<double> physics_system_time{};
+        
+        //: One event handling iteration inside the physics time
+        inline double physics_event_time = 0.0;
+        
+        //: Render frame time (The time of the entire rendering call, including vsync)
+        inline double render_frame_time = 0.0;
+        
+        //: Render time for the draw commands to execute
+        inline double render_draw_time = 0.0;
+        //TODO: Implement this in vulkan, see (https://stackoverflow.com/questions/67358235/how-to-measure-execution-time-of-vulkan-pipeline)
+        
+        //: Timings of each render system
+        inline std::vector<double> render_system_time{};
     }
 }

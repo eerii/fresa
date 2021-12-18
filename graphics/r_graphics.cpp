@@ -11,6 +11,7 @@
 #include "stb_image_write.h"
 
 #include "ecs.h"
+#include "f_time.h"
 
 using namespace Fresa;
 using namespace Graphics;
@@ -41,8 +42,12 @@ bool Graphics::update() {
     //---Update---
     
     //: Systems
-    for (auto &[priority, system] : System::render_update_systems)
-        system();
+    
+    Performance::render_system_time.clear();
+    for (auto &[priority, system] : System::render_update_systems) {
+        Performance::render_system_time.push_back(0);
+        callTime(Performance::render_system_time.back(), system);
+    }
     
     //: TODO: Camera
     win.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));

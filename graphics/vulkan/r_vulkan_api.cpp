@@ -10,6 +10,7 @@
 #include "r_vulkan_api.h"
 
 #include "config.h"
+#include "f_time.h"
 
 #include <set>
 #include <numeric>

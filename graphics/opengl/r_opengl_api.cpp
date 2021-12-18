@@ -8,6 +8,7 @@
 
 #include "r_window.h"
 #include "log.h"
+#include "f_time.h"
 
 using namespace Fresa;
 using namespace Graphics;
@@ -594,6 +595,8 @@ void API::updateDescriptorSets(const OpenGL &gl, const DrawData* draw) { }
 //----------------------------------------
 
 void API::render(OpenGL &gl, WindowData &win) {
+    Clock::time_point time_before_draw = time();
+    
     //---Clear---
     for (const auto &[id, data] : gl.subpasses) {
         glBindFramebuffer(GL_FRAMEBUFFER, data.framebuffer);
@@ -683,6 +686,8 @@ void API::render(OpenGL &gl, WindowData &win) {
     }
     
     glBindVertexArray(0);
+    
+    Performance::render_draw_time = ms(time() - time_before_draw);
     
     //---Present---
     SDL_GL_SetSwapInterval(0); //See if it is needed all frames

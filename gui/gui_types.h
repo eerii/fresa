@@ -5,7 +5,6 @@
 #pragma once
 
 #include "gui.h"
-#include <functional>
 
 #ifndef DISABLE_GUI
 
