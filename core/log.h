@@ -31,7 +31,11 @@ namespace Fresa
         //Disable if compiler doesn't support __PRETTY_FUNCTION__ (gcc and clang should)
         template <typename T>
         void debug_func(T&&) {
+            #if defined _MSC_VER
+            std::cout << "[ DEBUG ] " << _MSC_VER << std::endl;
+            #else
             std::cout << "[ DEBUG ] " << __PRETTY_FUNCTION__ << std::endl;
+            #endif
         }
     
         template<typename T>

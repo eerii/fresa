@@ -4,6 +4,7 @@
 
 #include "f_math.h"
 
+#include <algorithm>
 #include "log.h"
 
 using namespace Fresa;

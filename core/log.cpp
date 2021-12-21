@@ -6,6 +6,10 @@
 
 #include <memory>
 
+#ifdef _MSC_VER
+#define LOG_LEVEL 0 //TODO: Add support for MSVC
+#endif
+
 #ifndef LOG_LEVEL
 #define LOG_LEVEL 2
 #endif
