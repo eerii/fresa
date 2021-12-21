@@ -138,6 +138,7 @@ VkInstance VK::createInstance(const WindowData &win) {
     //---Validation layers---
     //      Middleware for existing Vulkan functionality
     //      Primarily used for getting detailed error descriptions, in this case with VK_LAYER_KHRONOS_validation
+    //      Disabled when not using DEBUG mode
     ui32 validation_layer_count;
     vkEnumerateInstanceLayerProperties(&validation_layer_count, nullptr);
     std::vector<VkLayerProperties> available_validation_layers(validation_layer_count);
@@ -148,6 +149,7 @@ VkInstance VK::createInstance(const WindowData &win) {
     
     log::graphics("");
     
+    #ifdef DEBUG
     for (const auto &val : validation_layers) {
         bool layer_exists = false;
         for (const auto &layer : available_validation_layers) {
@@ -157,8 +159,9 @@ VkInstance VK::createInstance(const WindowData &win) {
             }
         }
         if (not layer_exists)
-            log::error("Attempted to use a validation layer but it is not supported (%s)", val);
+            log::warn("Attempted to use a validation layer but it is not supported (%s)", val);
     }
+    #endif
     
     //---App info---
     VkApplicationInfo app_info{};
@@ -173,10 +176,13 @@ VkInstance VK::createInstance(const WindowData &win) {
     VkInstanceCreateInfo instance_create_info{};
     instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instance_create_info.pApplicationInfo = &app_info;
-    instance_create_info.enabledLayerCount = (int)validation_layers.size();
-    instance_create_info.ppEnabledLayerNames = validation_layers.data();
     instance_create_info.enabledExtensionCount = (int)extension_names.size();
     instance_create_info.ppEnabledExtensionNames = extension_names.data();
+    
+    #ifdef DEBUG
+    instance_create_info.enabledLayerCount = (int)validation_layers.size();
+    instance_create_info.ppEnabledLayerNames = validation_layers.data();
+    #endif
     
     //---Create instance---
     VkInstance instance;

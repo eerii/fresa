@@ -4,14 +4,18 @@
 
 ---
 
-#### 0.3.5 - 
+#### 0.3.5 - make make make and make - 
 
 **added**
 - performance timings to physics and rendering
 
+**changed**
+- disable validation layers on release
+
 **fixed**
 - fixed vulkan render pass dependency flag validation error
 - temporary fix for msvc compilers, disabled logging since there was a compilation error
+- unsupported validations layers no longer crash the program, just issue a warning
 
 **up next**
 - timing for vulkan command execution (requires a bit more work)
