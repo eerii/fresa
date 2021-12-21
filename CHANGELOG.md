@@ -4,15 +4,18 @@
 
 ---
 
-#### 0.3.5 -
+#### 0.3.5 - 
 
 **added**
 - performance timings to physics and rendering
 
+**fixed**
+- fixed vulkan render pass dependency flag validation error
+- temporary fix for msvc compilers, disabled logging since there was a compilation error
+
 **up next**
 - timing for vulkan command execution (requires a bit more work)
 - projection and view matrices
-- fix vulkan dependency error
 
 #### 0.3.4 - all about that state c: - _18 12 2021_
 

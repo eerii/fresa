@@ -1206,6 +1206,8 @@ VkRenderPass VK::createRenderPass(VkDevice device, const RenderData &render) {
             dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
             dependency.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
             
+            dependency.dependencyFlags = 0;
+            
             render_pass_data.dependencies.push_back(dependency);
             
             log::graphics("Subpass dependency between %d and %d", dependency.srcSubpass, dependency.dstSubpass);
@@ -1222,6 +1224,8 @@ VkRenderPass VK::createRenderPass(VkDevice device, const RenderData &render) {
                 dependency.dstSubpass = index;
                 dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
                 dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                
+                dependency.dependencyFlags = 0;
                 
                 render_pass_data.dependencies.push_back(dependency);
                 log::graphics("Subpass dependency between VK_SUBPASS_EXTERNAL and %d", dependency.dstSubpass);

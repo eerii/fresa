@@ -19,6 +19,8 @@
 
 #else //LINUX and WINDOWS
 
+    #define USE_GLEW
+
     #include <GL/glew.h>
     #include <GL/gl.h>
 

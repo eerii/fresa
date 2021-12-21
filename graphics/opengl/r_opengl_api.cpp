@@ -87,7 +87,7 @@ SDL_GLContext GL::createContext(const WindowData &win) {
     }
     glCheckError();
 
-    #ifdef GLEW_STATIC
+    #ifdef USE_GLEW
     if (glewInit() != GLEW_OK)
         log::error("Error initializing GLEW");
     #endif
