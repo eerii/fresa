@@ -99,12 +99,12 @@ namespace Fresa
         //---Frame---
         inline void frame() {
             keyboard = keyboard_next;
-            keyboard.pressed.clear();
-            keyboard.released.clear();
+            keyboard_next.pressed.clear();
+            keyboard_next.released.clear();
             
             mouse = mouse_next;
-            mouse.pressed.clear();
-            mouse.released.clear();
+            mouse_next.pressed.clear();
+            mouse_next.released.clear();
         }
         
         //---Key name conversions---

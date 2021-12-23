@@ -6,6 +6,7 @@
 
 #include "r_opengl.h"
 #include "r_vulkan.h"
+#include "events.h"
 
 namespace Fresa::Graphics
 {
@@ -22,8 +23,11 @@ namespace Fresa::Graphics
 
 namespace Fresa::Graphics::API
 {
-    void configure();
-    GraphicsAPI create(WindowData &win);
+    WindowData createWindow(Vec2<> size, str name);
+    ui16 getRefreshRate(WindowData &win, bool force = false);
+    
+    void configureAPI();
+    GraphicsAPI createAPI(WindowData &win);
 
     TextureID registerTexture(const GraphicsAPI &api, Vec2<> size, Channels ch, ui8* pixels);
     DrawID registerDrawData(GraphicsAPI &api, DrawBufferID buffer, Shaders shader);
@@ -41,7 +45,7 @@ namespace Fresa::Graphics::API
 
     void resize(GraphicsAPI &api, WindowData &win);
 
-    void render(GraphicsAPI &api, WindowData &win);
+    void render(GraphicsAPI &api, WindowData &win, CameraData &cam);
 
     void clean(GraphicsAPI &api);
 

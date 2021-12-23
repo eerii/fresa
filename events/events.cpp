@@ -6,7 +6,7 @@
 
 #include "input.h"
 #include "gui.h"
-#include "r_window.h"
+#include "r_graphics.h"
 
 #include "log.h"
 
@@ -47,7 +47,7 @@ void Event::handleSystemEvents() {
                 if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
                     event_paused.publish(false);
                 if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-                    Graphics::Window::event_window_resize.publish(Vec2<>(event.window.data1, event.window.data2));
+                    Graphics::event_window_resize.publish(Vec2<>(event.window.data1, event.window.data2));
                 break;
             case SDL_USEREVENT:
                 bool* done = reinterpret_cast<bool*>(event.user.data1);

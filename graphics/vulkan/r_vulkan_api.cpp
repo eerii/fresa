@@ -44,11 +44,11 @@ namespace {
 //Initialization
 //----------------------------------------
 
-void API::configure() {
+void API::configureAPI() {
     
 }
 
-Vulkan API::create(WindowData &win) {
+Vulkan API::createAPI(WindowData &win) {
     Vulkan vk;
     
     //---Instance---
@@ -2611,15 +2611,15 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
 //Test
 //----------------------------------------
 
-void API::render(Vulkan &vk, WindowData &win) {
+void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     //TODO: View and projection matrices
     UniformBufferObject ubo{};
-    ubo.view = win.view;
-    ubo.proj = win.proj;
+    ubo.view = cam.view;
+    ubo.proj = cam.proj;
     
     //: Get the current image
     ui32 current = VK::startRender(vk.device, vk.render.swapchain, vk.sync,
-                                 [&vk, &win](){ VK::recreateSwapchain(vk, win); });
+                                   [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
     //: Timestamp queries
     ui64 queries[4];

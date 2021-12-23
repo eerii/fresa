@@ -27,7 +27,7 @@ namespace {
 //Initialization
 //----------------------------------------
 
-void API::configure() {
+void API::configureAPI() {
     #ifdef __EMSCRIPTEN__
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -42,7 +42,7 @@ void API::configure() {
     #endif
 }
 
-OpenGL API::create(WindowData &win) {
+OpenGL API::createAPI(WindowData &win) {
     OpenGL gl;
     
     gl.context = GL::createContext(win);
@@ -599,7 +599,7 @@ void API::updateDescriptorSets(const OpenGL &gl, const DrawData* draw) { }
 //Test
 //----------------------------------------
 
-void API::render(OpenGL &gl, WindowData &win) {
+void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
     Clock::time_point time_before_draw = time();
     
     //---Clear---
@@ -619,6 +619,11 @@ void API::render(OpenGL &gl, WindowData &win) {
         glUseProgram(gl.shaders.at(shader).pid);
         glCheckError();
         
+        //: View and projection
+        UniformBufferObject ubo{};
+        ubo.view = cam.view;
+        ubo.proj = cam.proj;
+        
         for (const auto &[buffer, tex_queue] : buffer_queue) {
             //: Bind VAO
             glBindVertexArray(buffer->vao);
@@ -629,17 +634,14 @@ void API::render(OpenGL &gl, WindowData &win) {
             glCheckError();
             
             for (const auto &[tex, draw_queue] : tex_queue) {
-                //...Bind texture
+                //: Bind texture
                 if (tex == &no_texture)
                     glBindTexture(GL_TEXTURE_2D, 0);
                 else
                     glBindTexture(GL_TEXTURE_2D, tex->id_);
                 
                 for (const auto &[data, model] : draw_queue) {
-                    //...Uniforms (improve)
-                    UniformBufferObject ubo{};
-                    ubo.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-                    ubo.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
+                    //: Uniforms
                     ubo.model = model;
                     
                     //: Update uniforms

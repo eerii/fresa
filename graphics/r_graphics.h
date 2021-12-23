@@ -6,7 +6,6 @@
 
 #include "r_vulkan_api.h"
 #include "r_opengl_api.h"
-#include "r_window.h"
 
 //---Graphics---
 //      This is fresa's API for graphics, what is meant to be used when designing games
@@ -15,6 +14,8 @@
 
 namespace Fresa::Graphics
 {
+    inline WindowData win;
+    inline CameraData camera;
     inline GraphicsAPI api;
     
     bool init();
@@ -22,7 +23,8 @@ namespace Fresa::Graphics
     bool stop();
     
     void onResize(Vec2<> size);
-    inline Event::Observer observer = Window::event_window_resize.createObserver(onResize);
+    inline Event::Event<Vec2<>> event_window_resize;
+    inline Event::Observer observer = event_window_resize.createObserver(onResize);
     
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     DrawID getDrawID(const std::vector<V> &vertices, const std::vector<ui16> &indices, Shaders shader = SHADER_DRAW_TEX) {
@@ -38,6 +40,9 @@ namespace Fresa::Graphics
     void unbindTexture(DrawID draw_id);
 
     void draw(const DrawID draw_id, glm::mat4 model);
+    
+    void setCameraProjection();
+    void updateCameraView();
     
     //---Vertices---
     //      Some common vertex definitions that can be used for quickly creating objects

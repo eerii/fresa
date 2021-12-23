@@ -37,6 +37,10 @@ namespace Fresa::Graphics
         ui16 refresh_rate = 0;
         
         bool vsync;
+    };
+    
+    struct CameraData {
+        Vec2<float> pos;
         
         glm::mat4 view;
         glm::mat4 proj;

@@ -10,6 +10,7 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include "config.h"
 #include "ecs.h"
 #include "f_time.h"
 
@@ -17,7 +18,6 @@ using namespace Fresa;
 using namespace Graphics;
 
 namespace {
-    WindowData win;
     std::map<str, TextureID> texture_locations{};
 }
 
@@ -25,15 +25,18 @@ bool Graphics::init() {
     //---Initialization---
     
     //: Pre configuration
-    API::configure();
+    API::configureAPI();
     
     //: Create window
     str version = std::to_string(Config::version[0]) + "." + std::to_string(Config::version[1]) + "." + std::to_string(Config::version[2]);
     str name = Config::name + " - Version " + version;
-    win = Window::create(Config::window_size, name);
+    win = API::createWindow(Config::window_size, name);
     
     //: Create renderer api
-    api = API::create(win);
+    api = API::createAPI(win);
+
+    //: Set projection
+    setCameraProjection();
     
     return true;
 }
@@ -42,18 +45,17 @@ bool Graphics::update() {
     //---Update---
     
     //: Systems
-    
     Performance::render_system_time.clear();
     for (auto &[priority, system] : System::render_update_systems) {
         Performance::render_system_time.push_back(0);
         callTime(Performance::render_system_time.back(), system);
     }
     
-    //: TODO: Camera
-    win.view = glm::lookAt(glm::vec3(3.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //: Update camera view
+    updateCameraView();
     
     //: Render
-    API::render(api, win);
+    API::render(api, win, camera);
     
     return true;
 }
@@ -191,4 +193,17 @@ void Graphics::draw(const DrawID draw_id, glm::mat4 model) {
     }
     
     API::draw_queue[queue_data.first->shader][buffer][tex].push_back(queue_data);
+}
+
+void Graphics::setCameraProjection() {
+    //: TODO: Improve and add options for perspective
+    camera.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
+    camera.proj[1][1] *= -1;
+}
+
+void Graphics::updateCameraView() {
+    //: Example of 2.5D camera, needs to be reworked for multiple camera view modes (2D, 3D...)
+    glm::vec3 camera_front = glm::vec3(0.0f, -0.2f, -1.0f);
+    glm::vec3 camera_pos = glm::vec3(camera.pos.x, camera.pos.y + 1.0f, 4.0f);
+    camera.view = glm::lookAt(camera_pos, camera_pos + camera_front, glm::vec3(0.0f, 1.0f, 0.0f));
 }
