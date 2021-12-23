@@ -121,6 +121,8 @@ namespace Fresa::Graphics
         
         VkQueueIndices queue_indices;
         VkQueueData queues;
+        
+        VkQueryPool query_pool;
     };
 
     struct SyncData {

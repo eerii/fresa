@@ -59,8 +59,7 @@ Vulkan API::create(WindowData &win) {
     vk.surface = VK::createSurface(vk.instance, win);
     
     //---Physical device---
-    vk.physical_device = VK::selectPhysicalDevice(vk.instance, vk.surface);
-    vk.physical_device_features = VK::getPhysicalDeviceFeatures(vk.physical_device);
+    vk.physical_device = VK::selectPhysicalDevice(vk.instance, vk.surface, vk.physical_device_features);
     
     //---Queues and logical device---
     vk.cmd.queue_indices = VK::getQueueFamilies(vk.surface, vk.physical_device);
@@ -80,6 +79,7 @@ Vulkan API::create(WindowData &win) {
         {"transfer", {vk.cmd.queue_indices.transfer.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
     });
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.render.swapchain.size, vk.cmd);
+    vk.cmd.query_pool = VK::createQueryPool(vk.device, vk.render.swapchain.size);
     
     //---Attachments---
     AttachmentID attachment_swapchain = VK::registerAttachment(vk, vk.render.attachments, ATTACHMENT_COLOR_SWAPCHAIN);
@@ -268,7 +268,7 @@ ui16 VK::ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physical_devi
     return score;
 }
 
-VkPhysicalDevice VK::selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface) {
+VkPhysicalDevice VK::selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDeviceFeatures &features) {
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
     
     //---Show requested device extensions---
@@ -306,19 +306,24 @@ VkPhysicalDevice VK::selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surf
         VkPhysicalDeviceProperties device_properties;
         vkGetPhysicalDeviceProperties(device, &device_properties);
         log::graphics(((device == physical_device) ? " > %s" : " - %s"), device_properties.deviceName);
+        
+        //: Get the timestamp period (For time performance metrics)
+        #ifdef DEBUG
+        if (device_properties.limits.timestampComputeAndGraphics)
+            Performance::timestamp_period = device_properties.limits.timestampPeriod;
+        else
+            log::warn("Timestamps not supported");
+        #endif
     }
     log::graphics("");
     
     if (physical_device == VK_NULL_HANDLE)
         log::error("No GPU passed the vulkan physical device requirements.");
     
+    //: Get physical device features
+    vkGetPhysicalDeviceFeatures(physical_device, &features);
+    
     return physical_device;
-}
-
-VkPhysicalDeviceFeatures VK::getPhysicalDeviceFeatures(VkPhysicalDevice physical_device) {
-    VkPhysicalDeviceFeatures device_features;
-    vkGetPhysicalDeviceFeatures(physical_device, &device_features);
-    return device_features;
 }
 
 VkFormat VK::chooseSupportedFormat(VkPhysicalDevice physical_device, const std::vector<VkFormat> &candidates,
@@ -440,7 +445,7 @@ VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeat
     
     //---Device required features---
     //      Enable some features here, try to keep it as small as possible
-    //: (optional) Anisotropy - vk.physical_device_features.samplerAnisotropy = VK_TRUE;
+    //: (optional) Anisotropy - physical_device_features.samplerAnisotropy = VK_TRUE;
     
     
     //---Create device---
@@ -832,10 +837,12 @@ std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui3
     return command_buffers;
 }
 
-void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const RenderData &render, ui32 index) {
-    //---Begin draw command buffer---
-    //      Helper function for creating drawing command buffers
-    //      It begins a command buffer and a render pass, adds clear values and binds the graphics pipeline
+void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
+    //---Draw command buffer---
+    //      We are going to use a command buffer for drawing
+    //      It needs to bind the vertex and index buffers, as well as the descriptor sets that map the shader inputs such as uniforms
+    //      We also have helper functions for begin and end the drawing buffer so it is easier to create different drawings
+    const VkCommandBuffer &cmd = vk.cmd.command_buffers.at("draw")[current];
     
     //: Begin buffer
     VkCommandBufferBeginInfo begin_info{};
@@ -846,9 +853,17 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const RenderData &render, u
     if (vkBeginCommandBuffer(cmd, &begin_info) != VK_SUCCESS)
         log::error("Failed to begin recording on a vulkan command buffer");
     
+    //: Reset query and timestamp before render pass
+    #ifdef DEBUG
+    if (Performance::timestamp_period > 0) {
+        vkCmdResetQueryPool(cmd, vk.cmd.query_pool, current * 2, 2);
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, vk.cmd.query_pool, current * 2);
+    }
+    #endif
+    
     //: Clear values
-    std::vector<VkClearValue> clear_values{render.attachments.size() + 1};
-    for (auto &[idx, a] : render.attachments) {
+    std::vector<VkClearValue> clear_values{vk.render.attachments.size() + 1};
+    for (auto &[idx, a] : vk.render.attachments) {
         if (a.type & ATTACHMENT_COLOR)
             clear_values[idx].color = {0.f, 0.f, 0.f, 1.0f};
         if (a.type & ATTACHMENT_DEPTH)
@@ -858,25 +873,14 @@ void VK::beginDrawCommandBuffer(VkCommandBuffer cmd, const RenderData &render, u
     //: Begin render pass
     VkRenderPassBeginInfo render_pass_info{};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = render.render_pass;
-    render_pass_info.framebuffer = render.swapchain.framebuffers[index];
+    render_pass_info.renderPass = vk.render.render_pass;
+    render_pass_info.framebuffer = vk.render.swapchain.framebuffers.at(current);
     render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = render.swapchain.extent;
+    render_pass_info.renderArea.extent = vk.render.swapchain.extent;
     render_pass_info.clearValueCount = (ui32)clear_values.size();
     render_pass_info.pClearValues = clear_values.data();
     
     vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-}
-
-void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
-    //---Draw command buffer---
-    //      We are going to use a command buffer for drawing
-    //      It needs to bind the vertex and index buffers, as well as the descriptor sets that map the shader inputs such as uniforms
-    //      We also have helper functions for begin and end the drawing buffer so it is easier to create different drawings
-    const VkCommandBuffer &cmd = vk.cmd.command_buffers.at("draw")[current];
-    
-    //: Begin command buffer and render pass
-    VK::beginDrawCommandBuffer(cmd, vk.render, current);
     
     //---Draw shaders---
     for (const auto &[shader, queue_buffer] : API::draw_queue) {
@@ -925,8 +929,16 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
         vkCmdDraw(cmd, 6, 1, 0, 0);
     }
     
-    //: End command buffer and render pass
+    //: End render pass
     vkCmdEndRenderPass(cmd);
+    
+    //: Timestamp after render pass
+    #ifdef DEBUG
+    if (Performance::timestamp_period > 0)
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, vk.cmd.query_pool, current * 2 + 1);
+    #endif
+    
+    //: End command buffer
     if (vkEndCommandBuffer(cmd) != VK_SUCCESS)
         log::error("Failed to end recording on a vulkan command buffer");
 }
@@ -971,6 +983,26 @@ void VK::endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buff
     vkQueueWaitIdle(queue);
     
     vkFreeCommandBuffers(device, pool, 1, &command_buffer);
+}
+
+VkQueryPool VK::createQueryPool(VkDevice device, ui32 swapchain_size) {
+    //---Query pool---
+    //      This will allocate queries that we can perform, for example, to measure the execution time for a command buffer
+    VkQueryPool query_pool;
+    
+    VkQueryPoolCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+    create_info.flags = 0;
+
+    create_info.queryType = VK_QUERY_TYPE_TIMESTAMP;
+    create_info.queryCount = swapchain_size * 2; //: One query before the command and one after to calculate the time
+    
+    if (vkCreateQueryPool(device, &create_info, nullptr, &query_pool) != VK_SUCCESS)
+        log::error("Failed to create a query pool");
+    
+    deletion_queue_program.push_back([query_pool, device](){ vkDestroyQueryPool(device, query_pool, nullptr); });
+    
+    return query_pool;
 }
 
 //----------------------------------------
@@ -2586,26 +2618,32 @@ void API::render(Vulkan &vk, WindowData &win) {
     ubo.proj = win.proj;
     
     //: Get the current image
-    ui32 index = VK::startRender(vk.device, vk.render.swapchain, vk.sync,
+    ui32 current = VK::startRender(vk.device, vk.render.swapchain, vk.sync,
                                  [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
+    //: Timestamp queries
+    ui64 queries[4];
+    vkGetQueryPoolResults(vk.device, vk.cmd.query_pool, current * 2, 2, 2 * 2 * sizeof(ui64), queries, 2 * sizeof(ui64), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+    if (queries[1] > 0 and queries[3] > 0) //: Available
+        Performance::render_draw_time = ((double)(queries[2] - queries[0]) / (double)Performance::timestamp_period) * 1e-6; //: Time in ms
+    
+    //: Update uniform buffers
     for (const auto &[shader, buffer_queue] : API::draw_queue) {
         for (const auto &[buffer, tex_queue] : buffer_queue) {
             for (const auto &[tex, draw_queue] : tex_queue) {
                 for (const auto &[data, model] : draw_queue) {
-                    //: Update uniform buffers
                     ubo.model = model;
-                    VK::updateUniformBuffer(vk.allocator, data->uniform_buffers.at(index), ubo);
+                    VK::updateUniformBuffer(vk.allocator, data->uniform_buffers.at(current), ubo);
                 }
             }
         }
     }
     
     //: Record command buffers
-    VK::recordDrawCommandBuffer(vk, index);
+    VK::recordDrawCommandBuffer(vk, current);
     
     //: Render the frame
-    VK::renderFrame(vk, win, index);
+    VK::renderFrame(vk, win, current);
     
     //: Clear draw queue
     API::draw_queue.clear();

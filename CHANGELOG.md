@@ -8,6 +8,7 @@
 
 **added**
 - performance timings to physics and rendering
+- tried to add vulkan timestamps 
 
 **changed**
 - disable validation layers on release
@@ -18,7 +19,6 @@
 - unsupported validations layers no longer crash the program, just issue a warning
 
 **up next**
-- timing for vulkan command execution (requires a bit more work)
 - projection and view matrices
 
 #### 0.3.4 - all about that state c: - _18 12 2021_

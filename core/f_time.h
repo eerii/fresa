@@ -92,9 +92,14 @@ namespace Fresa
         
         //: Render time for the draw commands to execute
         inline double render_draw_time = 0.0;
-        //TODO: Implement this in vulkan, see (https://stackoverflow.com/questions/67358235/how-to-measure-execution-time-of-vulkan-pipeline)
         
         //: Timings of each render system
         inline std::vector<double> render_system_time{};
+        
+        #ifdef USE_VULKAN
+        //: In Vulkan, a value that represents the number of nanoseconds it takes for a timestamp query to be incremented by 1
+        //: Additionally, if timestamps are not supported in the current graphics queue it will be set back to 0
+        inline float timestamp_period = 0.0f;
+        #endif
     }
 }

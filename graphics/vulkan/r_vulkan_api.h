@@ -27,8 +27,7 @@ namespace Fresa::Graphics::VK
     VkSurfaceKHR createSurface(VkInstance instance, const WindowData &win);
 
     ui16 ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
-    VkPhysicalDevice selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface);
-    VkPhysicalDeviceFeatures getPhysicalDeviceFeatures(VkPhysicalDevice physical_device);
+    VkPhysicalDevice selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDeviceFeatures &features);
     VkFormat chooseSupportedFormat(VkPhysicalDevice physical_device, const std::vector<VkFormat> &candidates,
                                    VkImageTiling tiling, VkFormatFeatureFlags features);
 
@@ -65,11 +64,12 @@ namespace Fresa::Graphics::VK
                                                     std::map<str, VkCommandPoolHelperData> data);
 
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const CommandData &cmd);
-    void beginDrawCommandBuffer(VkCommandBuffer cmd, const RenderData &render, ui32 index);
     void recordDrawCommandBuffer(const Vulkan &vk, ui32 current);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
     void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
+    
+    VkQueryPool createQueryPool(VkDevice device, ui32 swapchain_size);
     //----------------------------------------
 
 
