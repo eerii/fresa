@@ -6,7 +6,6 @@
 
 #include "r_opengl_api.h"
 
-#include "r_window.h"
 #include "log.h"
 #include "f_time.h"
 
@@ -131,7 +130,7 @@ ShaderData GL::createShaderDataGL(str name, SubpassID subpass) {
     spirv_cross::CompilerGLSL::Options options;
     options.version = 410; //: Max supported version
     options.es = false; //: Desktop OpenGL
-    options.enable_420pack_extension = false; //: Strip binding of uniforms and samplers
+    options.enable_420pack_extension = false; //: Strip binding of uniforms and samplers+
     
     //: Override for web
     #ifdef __EMSCRIPTEN__

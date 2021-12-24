@@ -8,7 +8,13 @@
 #include "CoreFoundation/CoreFoundation.h"
 #endif
 
+#include "types.h"
+#include <optional>
+#include <filesystem>
+
 namespace Fresa::File
 {
     void init();
+    str path(str p);
+    std::optional<str> path_optional(str p);
 }

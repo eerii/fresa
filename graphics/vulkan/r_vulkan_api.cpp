@@ -857,7 +857,7 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     #ifdef DEBUG
     if (Performance::timestamp_period > 0) {
         vkCmdResetQueryPool(cmd, vk.cmd.query_pool, current * 2, 2);
-        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, vk.cmd.query_pool, current * 2);
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, vk.cmd.query_pool, current * 2);
     }
     #endif
     
@@ -934,8 +934,9 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     
     //: Timestamp after render pass
     #ifdef DEBUG
-    if (Performance::timestamp_period > 0)
+    if (Performance::timestamp_period > 0) {
         vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, vk.cmd.query_pool, current * 2 + 1);
+    }
     #endif
     
     //: End command buffer
@@ -996,7 +997,7 @@ VkQueryPool VK::createQueryPool(VkDevice device, ui32 swapchain_size) {
 
     create_info.queryType = VK_QUERY_TYPE_TIMESTAMP;
     create_info.queryCount = swapchain_size * 2; //: One query before the command and one after to calculate the time
-    
+
     if (vkCreateQueryPool(device, &create_info, nullptr, &query_pool) != VK_SUCCESS)
         log::error("Failed to create a query pool");
     
@@ -2622,10 +2623,13 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
                                    [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
     //: Timestamp queries
+    #ifdef DEBUG
     ui64 queries[4];
     vkGetQueryPoolResults(vk.device, vk.cmd.query_pool, current * 2, 2, 2 * 2 * sizeof(ui64), queries, 2 * sizeof(ui64), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
     if (queries[1] > 0 and queries[3] > 0) //: Available
-        Performance::render_draw_time = ((double)(queries[2] - queries[0]) / (double)Performance::timestamp_period) * 1e-6; //: Time in ms
+        Performance::render_draw_time = ((double)(queries[2] - queries[0]) / (double)Performance::timestamp_period) * 1.0e-6; //: Time in ms
+    std::cout << queries[0] << " " << queries[2] << " : " << Performance::render_draw_time << " - Available " << queries[1] << " " << queries[3] << std::endl;
+    #endif
     
     //: Update uniform buffers
     for (const auto &[shader, buffer_queue] : API::draw_queue) {

@@ -13,11 +13,13 @@
 
 **changed**
 - disable validation layers on release
+- filesystem path helper for adding base path (in emscripten it is different)
 
 **fixed**
 - fixed vulkan render pass dependency flag validation error
 - temporary fix for msvc compilers, disabled logging since there was a compilation error
 - unsupported validations layers no longer crash the program, just issue a warning
+- fixed shader compiling for web
 
 #### 0.3.4 - all about that state c: - _18 12 2021_
 

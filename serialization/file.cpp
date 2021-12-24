@@ -11,6 +11,14 @@
 
 using namespace Fresa;
 
+namespace {
+    #ifdef __EMSCRIPTEN__
+    str base_path = "";
+    #else
+    str base_path = "res/";
+    #endif
+}
+
 void File::init() {
 #ifdef __APPLE__
     //---Init filesystem in MacOS---
@@ -25,4 +33,21 @@ void File::init() {
     log::debug("Path: %s", path);
 #endif
     //TODO: Add support for Linux and Windows
+}
+
+str File::path(str p) {
+    str full_path = base_path + p;
+    
+    if (not std::filesystem::exists(full_path))
+        log::error("Tried to access a path that does not exist: %s", full_path.c_str());
+    
+    return full_path;
+}
+
+std::optional<str> File::path_optional(str p) {
+    str full_path = base_path + p;
+    
+    if (std::filesystem::exists(full_path))
+        return full_path;
+    return std::nullopt;
 }

@@ -5,8 +5,8 @@
 #include "r_api.h"
 
 #include <fstream>
-#include <filesystem>
 
+#include "file.h"
 #include "log.h"
 #include "config.h"
 
@@ -105,19 +105,10 @@ ShaderData API::createShaderData(str name) {
     //      First it saves the locations and then it reads the SPIRV code
     ShaderData data;
     
-    std::filesystem::path vert_location{"res/shaders/" + name + "/" + name + ".vert.spv"};
-    std::filesystem::path frag_location{"res/shaders/" + name + "/" + name + ".frag.spv"};
-    std::filesystem::path compute_location{"res/shaders/" + name + "/" + name + ".compute.spv"};
-    std::filesystem::path geometry_location{"res/shaders/" + name + "/" + name + ".geometry.spv"};
-    
-    if (std::filesystem::exists(vert_location))
-        data.locations.vert = vert_location.string();
-    if (std::filesystem::exists(frag_location))
-        data.locations.frag = frag_location.string();
-    if (std::filesystem::exists(compute_location))
-        data.locations.compute = compute_location.string();
-    if (std::filesystem::exists(geometry_location))
-        data.locations.geometry = geometry_location.string();
+    data.locations.vert = File::path_optional("shaders/" + name + "/" + name + ".vert.spv");
+    data.locations.frag = File::path_optional("shaders/" + name + "/" + name + ".frag.spv");
+    data.locations.compute = File::path_optional("shaders/" + name + "/" + name + ".compute.spv");
+    data.locations.geometry = File::path_optional("shaders/" + name + "/" + name + ".geometry.spv");
     
     if (data.locations.vert.has_value())
         data.code.vert = readSPIRV(data.locations.vert.value());
