@@ -198,7 +198,9 @@ void Graphics::draw(const DrawID draw_id, glm::mat4 model) {
 void Graphics::setCameraProjection() {
     //: TODO: Improve and add options for perspective
     camera.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
+    #ifdef USE_VULKAN //: Vulkan needs the Y direction flipped to match OpenGL
     camera.proj[1][1] *= -1;
+    #endif
 }
 
 void Graphics::updateCameraView() {

@@ -348,6 +348,7 @@ ui32 GL::createAttachmentTexture(Vec2<> size, AttachmentType type) {
     } else if (type & ATTACHMENT_DEPTH) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     }
+    glCheckError();
     
     return tex;
 }
@@ -374,12 +375,12 @@ SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, const
         //: Input
         bool first_in_chain = true;
         if (attachment.type & ATTACHMENT_INPUT) {
-            for (int i = id - 1; i >= 0; i--) {
+            for (int i = (int)id - 1; i >= 0; i--) {
                 SubpassData &previous = subpasses.at(i);
-                if (std::count(previous.input_attachments.begin(), previous.input_attachments.end(), attachment.tex)) {
+                if (std::count(previous.input_attachments.begin(), previous.input_attachments.end(), binding)) {
                     log::error("Can't use an input attachment in more than 2 subpasses (origin and destination)");
                 }
-                if (std::count(previous.framebuffer_attachments.begin(), previous.framebuffer_attachments.end(), attachment.tex)) {
+                if (std::count(previous.framebuffer_attachments.begin(), previous.framebuffer_attachments.end(), binding)) {
                     first_in_chain = false;
                     subpasses[id].input_attachments.push_back(binding);
                     log::graphics(" - Input attachment: %d (Depends on subpass %d)", binding, i);
@@ -660,6 +661,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
             }
         }
     }
+    glBindTexture(GL_TEXTURE_2D, 0);
     
     //---Post shaders---
     for (const auto &[shader, data] : gl.shaders) {
@@ -687,7 +689,6 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
         
         //: Draw
         glDrawArrays(GL_TRIANGLES, 0, 6);
-        glBindTexture(GL_TEXTURE_2D, 0);
         glCheckError();
     }
     

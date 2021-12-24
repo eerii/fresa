@@ -4,7 +4,7 @@
 
 ---
 
-#### 0.3.5 - make make make and make - 
+#### 0.3.5 - make make make and make - _24 12 2021_
 
 **added**
 - performance timings to physics and rendering
@@ -20,6 +20,7 @@
 - temporary fix for msvc compilers, disabled logging since there was a compilation error
 - unsupported validations layers no longer crash the program, just issue a warning
 - fixed shader compiling for web
+- fixed an error with opengl input attachments, that seemed to work but it was a coincidence
 
 #### 0.3.4 - all about that state c: - _18 12 2021_
 
