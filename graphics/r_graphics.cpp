@@ -12,6 +12,7 @@
 
 #include "config.h"
 #include "ecs.h"
+#include "gui.h"
 #include "f_time.h"
 
 using namespace Fresa;
@@ -38,6 +39,9 @@ bool Graphics::init() {
     //: Set projection
     setCameraProjection();
     
+    //: Initialize GUI
+    IF_GUI(Gui::init(api, win));
+    
     return true;
 }
 
@@ -56,6 +60,11 @@ bool Graphics::update() {
     
     //: Render
     API::render(api, win, camera);
+    
+    //: Present
+    for (auto &[priority, system] : System::present_update_systems)
+        system();
+    API::present(api, win);
     
     return true;
 }
@@ -76,13 +85,6 @@ void Graphics::onResize(Vec2<> size) {
     //: Adjust render scale
     Vec2<float> ratios = win.size.to<float>() / win.resolution.to<float>();
     win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
-    
-    //: GUI adjustment
-    #ifndef DISABLE_GUI
-    ImGuiIO& io = ImGui::GetIO(); //TODO: Save this somewhere where we can access it later
-    io.DisplaySize.x = static_cast<float>(size.x);
-    io.DisplaySize.y = static_cast<float>(size.y);
-    #endif
     
     //: Pass the resize command to the API
     API::resize(api, win);

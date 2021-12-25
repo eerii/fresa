@@ -45,7 +45,6 @@ OpenGL API::createAPI(WindowData &win) {
     OpenGL gl;
     
     gl.context = GL::createContext(win);
-    GL::GUI::initImGUI(gl, win);
     
     AttachmentID swapchain_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_COLOR_SWAPCHAIN);
     AttachmentID color_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_COLOR_INPUT);
@@ -696,34 +695,14 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
     
     Performance::render_draw_time = ms(time() - time_before_draw);
     
-    //---Present---
-    SDL_GL_SetSwapInterval(0); //See if it is needed all frames
-    SDL_GL_SwapWindow(win.window);
-    
     //---Clear drawing queue---
     API::draw_queue.clear();
 }
 
-//----------------------------------------
-
-
-
-//GUI
-//----------------------------------------
-
-void GL::GUI::initImGUI(OpenGL &gl, const WindowData &win) {
-    #ifndef DISABLE_GUI
-    gl.imgui_context = ImGui::CreateContext();
-    if (gl.imgui_context == nullptr)
-        log::error("Error creating ImGui context: ", SDL_GetError());
-    //ImPlot::CreateContext();
-    gl.io = ImGui::GetIO();
-    if (not ImGui_ImplSDL2_InitForOpenGL(win.window, gl.context))
-        log::error("Error initializing ImGui for SDL");
-    if (not ImGui_ImplOpenGL3_Init())
-        log::error("Error initializing ImGui for OpenGL");
-    glCheckError();
-    #endif
+void API::present(OpenGL &gl, WindowData &win) {
+    //---Present---
+    SDL_GL_SetSwapInterval(0);
+    SDL_GL_SwapWindow(win.window);
 }
 
 //----------------------------------------

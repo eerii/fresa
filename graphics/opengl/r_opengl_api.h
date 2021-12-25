@@ -79,14 +79,6 @@ namespace Fresa::Graphics::GL
     }
     
     //----------------------------------------
-
-    //GUI
-    //----------------------------------------
-    namespace GUI
-    {
-        void initImGUI(OpenGL &gl, const WindowData &win);
-    }
-    //----------------------------------------
 }
 
 namespace Fresa::Graphics::API

@@ -9,7 +9,7 @@
 namespace Fresa::Config
 {
     inline const str name = "Proxecto Fresa";
-    inline const ui8 version[3] = {0, 3, 5};
+    inline const ui8 version[3] = {0, 3, 6};
     inline const Vec2<> window_size = Vec2(1024, 720);
     inline const Vec2<> resolution = Vec2(256, 180);
     

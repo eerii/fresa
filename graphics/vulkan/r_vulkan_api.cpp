@@ -607,7 +607,7 @@ VkExtent2D VK::selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const Win
     int w, h;
     SDL_Vulkan_GetDrawableSize(win.window, &w, &h);
     
-    VkExtent2D actual_extent{ static_cast<ui32>(w), static_cast<ui32>(h) };
+    VkExtent2D actual_extent{ (ui32)w, (ui32)h };
     
     std::clamp(actual_extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
     std::clamp(actual_extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
@@ -2300,8 +2300,8 @@ std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator 
     VkImageCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     create_info.imageType = VK_IMAGE_TYPE_2D;
-    create_info.extent.width = static_cast<ui32>(size.x);
-    create_info.extent.height = static_cast<ui32>(size.y);
+    create_info.extent.width = (ui32)size.x;
+    create_info.extent.height = (ui32)size.y;
     create_info.extent.depth = 1;
     create_info.mipLevels = 1;
     create_info.arrayLayers = 1;
@@ -2561,7 +2561,6 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
     VkPipelineStageFlags wait_stages[]{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished[vk.sync.current_frame] };
     
-    
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     
@@ -2575,35 +2574,10 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
     
-    
     vkResetFences(vk.device, 1, &vk.sync.fences_in_flight[vk.sync.current_frame]);
     
     if (vkQueueSubmit(vk.cmd.queues.graphics, 1, &submit_info, vk.sync.fences_in_flight[vk.sync.current_frame]) != VK_SUCCESS)
         log::error("Failed to submit Draw Command Buffer");
-    
-    
-    VkPresentInfoKHR present_info{};
-    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
-    present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = signal_semaphores;
-    
-    VkSwapchainKHR swapchains[]{ vk.render.swapchain.swapchain };
-    present_info.swapchainCount = 1;
-    present_info.pSwapchains = swapchains;
-    present_info.pImageIndices = &index;
-    present_info.pResults = nullptr;
-    
-    
-    VkResult result = vkQueuePresentKHR(vk.cmd.queues.present, &present_info);
-    
-    if (result == VK_ERROR_OUT_OF_DATE_KHR or result == VK_SUBOPTIMAL_KHR)
-        recreateSwapchain(vk, win);
-    else if (result != VK_SUCCESS)
-        log::error("Failed to present Swapchain Image");
-    
-    
-    vk.sync.current_frame = (vk.sync.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 //----------------------------------------
@@ -2613,7 +2587,6 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
 //----------------------------------------
 
 void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
-    //TODO: View and projection matrices
     UniformBufferObject ubo{};
     ubo.view = cam.view;
     ubo.proj = cam.proj;
@@ -2624,11 +2597,11 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     
     //: Timestamp queries
     #ifdef DEBUG
-    ui64 queries[4];
+    /*ui64 queries[4];
     vkGetQueryPoolResults(vk.device, vk.cmd.query_pool, current * 2, 2, 2 * 2 * sizeof(ui64), queries, 2 * sizeof(ui64), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
     if (queries[1] > 0 and queries[3] > 0) //: Available
         Performance::render_draw_time = ((double)(queries[2] - queries[0]) / (double)Performance::timestamp_period) * 1.0e-6; //: Time in ms
-    std::cout << queries[0] << " " << queries[2] << " : " << Performance::render_draw_time << " - Available " << queries[1] << " " << queries[3] << std::endl;
+    std::cout << queries[0] << " " << queries[2] << " : " << Performance::render_draw_time << " - Available " << queries[1] << " " << queries[3] << std::endl;*/
     #endif
     
     //: Update uniform buffers
@@ -2651,6 +2624,31 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     
     //: Clear draw queue
     API::draw_queue.clear();
+}
+
+void API::present(Vulkan &vk, WindowData &win) {
+    VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished[vk.sync.current_frame] };
+    
+    VkPresentInfoKHR present_info{};
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = signal_semaphores;
+    
+    VkSwapchainKHR swapchains[]{ vk.render.swapchain.swapchain };
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = swapchains;
+    present_info.pImageIndices = &index;
+    present_info.pResults = nullptr;
+    
+    VkResult result = vkQueuePresentKHR(vk.cmd.queues.present, &present_info);
+    
+    if (result == VK_ERROR_OUT_OF_DATE_KHR or result == VK_SUBOPTIMAL_KHR)
+        recreateSwapchain(vk, win);
+    else if (result != VK_SUCCESS)
+        log::error("Failed to present Swapchain Image");
+    
+    vk.sync.current_frame = (vk.sync.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 //----------------------------------------

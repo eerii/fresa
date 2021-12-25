@@ -31,8 +31,6 @@
 
 #include "r_dtypes.h"
 
-#include "gui.h"
-
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define glCheckError() glCheckError_(__FILENAME__, __LINE__)
 
@@ -59,11 +57,6 @@ namespace Fresa::Graphics
         std::map<Shaders, ShaderData> shaders;
         std::map<AttachmentID, AttachmentData> attachments;
         std::map<SubpassID, SubpassData> subpasses;
-        
-        #ifndef DISABLE_GUI
-        ImGuiContext* imgui_context;
-        ImGuiIO io;
-        #endif
     };
 
     [[maybe_unused]] static void glCheckError_(std::string file, int line) {

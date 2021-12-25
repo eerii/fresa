@@ -10,6 +10,8 @@
 #include "events.h"
 #include "log.h"
 
+using Keys = SDL_KeyCode;
+
 namespace Fresa
 {
     namespace Input
@@ -32,9 +34,9 @@ namespace Fresa
         inline KeyboardState keyboard_next{};
         
         //: Functions
-        inline bool keyboard_pressed(Key key) { return keyboard.pressed.count(key); }
-        inline bool keyboard_down(Key key) { return keyboard.down.count(key); }
-        inline bool keyboard_released(Key key) { return keyboard.released.count(key); }
+        inline bool key_pressed(Key key) { return keyboard.pressed.count(key); }
+        inline bool key_down(Key key) { return keyboard.down.count(key); }
+        inline bool key_released(Key key) { return keyboard.released.count(key); }
         
         //---Mouse---
         enum class MouseButton {
@@ -121,5 +123,11 @@ namespace Fresa
                 log::error("Couldn't get key from name (%s) : %s", name.c_str(), SDL_GetError());
             return key;
         }
+        
+        //---GUI---
+        #ifndef DISABLE_GUI
+        inline bool gui_using_keyboard = false;
+        inline bool gui_using_mouse = false;
+        #endif
     }
 }

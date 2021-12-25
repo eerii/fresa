@@ -15,31 +15,43 @@ using namespace Fresa;
 //---Event handling---
 //      Here all the system events are processed with SDL built in event system, and they are translated to fresa's event system
 
+#ifndef DISABLE_GUI
+    #define CHECK_GUI_USING_KEYBOARD if (not Input::gui_using_keyboard)
+    #define CHECK_GUI_USING_MOUSE if (not Input::gui_using_mouse)
+#else
+    #define CHECK_GUI_USING_KEYBOARD
+    #define CHECK_GUI_USING_MOUSE
+#endif
+
 void Event::handleSystemEvents() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        #ifndef DISABLE_GUI
+        ImGui_ImplSDL2_ProcessEvent(&event);
+        #endif
+        
         switch (event.type) {
             case SDL_QUIT:
                 event_quit.publish();
             case SDL_KEYDOWN:
                 if (event.key.repeat == 0)
-                    Input::event_key_down.publish((Input::Key)event.key.keysym.sym);
+                    CHECK_GUI_USING_KEYBOARD Input::event_key_down.publish((Input::Key)event.key.keysym.sym);
                 break;
             case SDL_KEYUP:
                 if (event.key.repeat == 0)
-                    Input::event_key_up.publish((Input::Key)event.key.keysym.sym);
+                    CHECK_GUI_USING_KEYBOARD Input::event_key_up.publish((Input::Key)event.key.keysym.sym);
                 break;
             case SDL_MOUSEMOTION:
-                Input::event_mouse_move.publish(Vec2<float>(event.motion.x, event.motion.y)); //This event consumes 5-10% of CPU, check in the future
+                CHECK_GUI_USING_MOUSE Input::event_mouse_move.publish(Vec2<float>(event.motion.x, event.motion.y));
                 break;
             case SDL_MOUSEBUTTONDOWN:
-                Input::event_mouse_down.publish((Input::MouseButton)event.button.button);
+                CHECK_GUI_USING_MOUSE Input::event_mouse_down.publish((Input::MouseButton)event.button.button);
                 break;
             case SDL_MOUSEBUTTONUP:
-                Input::event_mouse_up.publish((Input::MouseButton)event.button.button);
+                CHECK_GUI_USING_MOUSE Input::event_mouse_up.publish((Input::MouseButton)event.button.button);
                 break;
             case SDL_MOUSEWHEEL:
-                Input::event_mouse_wheel.publish(event.wheel.y);
+                CHECK_GUI_USING_MOUSE Input::event_mouse_wheel.publish(event.wheel.y);
                 break;
             case SDL_WINDOWEVENT:
                 if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)

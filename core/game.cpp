@@ -12,7 +12,6 @@
 #include "scene.h"
 #include "f_time.h"
 
-#include "gui.h"
 #include "r_graphics.h"
 
 #include <thread>
@@ -102,11 +101,6 @@ bool Game::physicsUpdate() {
         
         //: Input
         Input::frame();
-        
-        //: GUI
-        #ifndef DISABLE_GUI
-        Gui::update(c);
-        #endif
         
         //: Systems
         Performance::physics_system_time.clear();

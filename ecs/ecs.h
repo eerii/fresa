@@ -80,6 +80,7 @@ namespace Fresa::System
     enum UpdatePriorities {
         //: Common priorities
         PRIORITY_FIRST = 0,
+        PRIORITY_GUI = 31,
         PRIORITY_LAST = 32,
         
         //: Physics priorities
@@ -95,6 +96,7 @@ namespace Fresa::System
     //: Render and physics update systems
     inline std::multimap<UpdatePriorities, std::function<void()>> physics_update_systems{};
     inline std::multimap<UpdatePriorities, std::function<void()>> render_update_systems{};
+    inline std::multimap<UpdatePriorities, std::function<void()>> present_update_systems{};
     
     inline void addToMultimap(std::multimap<UpdatePriorities, std::function<void()>> &map, UpdatePriorities priority, std::function<void()> update) {
         map.insert({ priority, update });
@@ -117,7 +119,7 @@ namespace Fresa::System
     };
 
     template<typename Object, UpdatePriorities priority> typename PhysicsUpdate<Object, priority>::exec_register
-        PhysicsUpdate<Object, priority>::register_object;
+    PhysicsUpdate<Object, priority>::register_object;
     
     template<typename Object, UpdatePriorities priority = PRIORITY_LAST>
     struct RenderUpdate {
@@ -133,4 +135,19 @@ namespace Fresa::System
 
     template<typename Object, UpdatePriorities priority> typename RenderUpdate<Object, priority>::exec_register
     RenderUpdate<Object, priority>::register_object;
+    
+    template<typename Object, UpdatePriorities priority = PRIORITY_LAST>
+    struct PresentUpdate {
+        struct exec_register {
+            exec_register() {
+                addToMultimap(present_update_systems, priority, Object::present);
+            }
+        };
+        template<exec_register&> struct ref_it { };
+        static exec_register register_object;
+        static ref_it<register_object> referrer;
+    };
+
+    template<typename Object, UpdatePriorities priority> typename PresentUpdate<Object, priority>::exec_register
+    PresentUpdate<Object, priority>::register_object;
 }

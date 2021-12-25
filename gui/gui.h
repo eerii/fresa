@@ -6,10 +6,7 @@
 
 #ifndef DISABLE_GUI
 
-#include "config.h"
-
 #include "imgui.h"
-#include "imgui_stdlib.h"
 #include "imgui_impl_sdl.h"
 
 #if defined USE_OPENGL
@@ -18,59 +15,43 @@
 #include "imgui_impl_vulkan.h"
 #endif
 
+#include "types.h"
+#include "ecs.h"
+#include "r_api.h"
+
+#define IF_GUI(x) x
+
 //---WARNING---
-//      This is a disastrous and total chaotic file
-//      It will be rewritten soon using the new reflection API, please ignore until then
+//      This is a work in progress
 
-namespace Fresa::Gui
+struct ImVec3 { float x, y, z; ImVec3(float _x = 0.0f, float _y = 0.0f, float _z = 0.0f) { x = _x; y = _y; z = _z; } };
+
+namespace Fresa
 {
-    struct ActiveWindows {
-        static bool entities;
-        static bool test;
-        static bool performance;
-    };
-
-    void init(Config &c);
-    void update(Config &c);
-    void prerender(Config &c, SDL_Window* window);
-    void render();
-    void addInputKey(SDL_Keycode k);
+    namespace Gui {
+        inline ImGuiIO* io;
+        inline ImGuiStyle* style;
+        
+        struct ActiveWindows {
+            static bool test;
+        };
+        
+        void init(const Graphics::GraphicsAPI &api, const Graphics::WindowData &win);
+        
+        struct GuiSystem : System::PhysicsUpdate<GuiSystem, System::PRIORITY_GUI>,
+                           System::RenderUpdate<GuiSystem, System::PRIORITY_GUI>,
+                           System::PresentUpdate<GuiSystem, System::PRIORITY_FIRST> {
+            static void update();
+            static void render();
+            static void present();
+        };
+        
+        void setColors(ImVec3 text, ImVec3 head, ImVec3 area, ImVec3 body, ImVec3 pops);
+    }
 }
 
-namespace ImGui
-{
+#else
 
-static auto vector_getter = [](void* vec, int idx, const char** out_text)
-{
-    auto& vector = *static_cast<std::vector<std::string>*>(vec);
-    if (idx < 0 || idx >= static_cast<int>(vector.size())) { return false; }
-    *out_text = vector.at(idx).c_str();
-    return true;
-};
-
-[[maybe_unused]]
-static bool Combo(const char* label, int* curr_index, std::vector<Fresa::str>& values)
-{
-    if (values.empty()) { return false; }
-    return Combo(label, curr_index, vector_getter,
-        static_cast<void*>(&values), (int)values.size());
-}
-[[maybe_unused]]
-static bool Combo(const char* label, Fresa::ui8& curr_index, std::vector<Fresa::str>& values) {
-    int i = curr_index;
-    bool c = Combo(label, &i, values);
-    curr_index = i;
-    return c;
-}
-
-[[maybe_unused]]
-static bool ListBox(const char* label, int* currIndex, std::vector<Fresa::str>& values)
-{
-    if (values.empty()) { return false; }
-    return ListBox(label, currIndex, vector_getter,
-        static_cast<void*>(&values), (int)values.size());
-}
-
-}
+#define IF_GUI(x) 
 
 #endif
