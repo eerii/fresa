@@ -27,6 +27,22 @@
 
 #define INVALID_ENTITY Entity::createID(EntityIndex(-1), 0)
 
+#define UPDATE_LIST(update_name, update_map, update_function) \
+template<typename Object, UpdatePriorities priority = PRIORITY_LAST> \
+struct update_name { \
+    struct exec_register { \
+        exec_register() { \
+            addToMultimap(update_map, priority, Object::update_function); \
+        } \
+    }; \
+    template<exec_register&> struct ref_it { }; \
+    static exec_register register_object; \
+    static ref_it<register_object> referrer; \
+}; \
+\
+template<typename Object, UpdatePriorities priority> typename update_name<Object, priority>::exec_register \
+update_name<Object, priority>::register_object;
+
 //---ECS--
 //      Very (very) basic Entity Component System, which is formed by:
 //      - Components (a struct of data)
@@ -94,60 +110,19 @@ namespace Fresa::System
     };
     
     //: Render and physics update systems
-    inline std::multimap<UpdatePriorities, std::function<void()>> physics_update_systems{};
-    inline std::multimap<UpdatePriorities, std::function<void()>> render_update_systems{};
-    inline std::multimap<UpdatePriorities, std::function<void()>> present_update_systems{};
-    
     inline void addToMultimap(std::multimap<UpdatePriorities, std::function<void()>> &map, UpdatePriorities priority, std::function<void()> update) {
         map.insert({ priority, update });
     }
+    
+    inline std::multimap<UpdatePriorities, std::function<void()>> physics_update_systems{};
+    inline std::multimap<UpdatePriorities, std::function<void()>> render_update_systems{};
+    inline std::multimap<UpdatePriorities, std::function<void()>> present_update_systems{};
     
     //: Register the system when the template is instantiated, and adds it to the corresponding map of systems
     //      struct SomeSystem : PhysicsUpdate<SomeSystem, PRIORITY_MOVEMENT> {
     //          static void update();
     //      }
-    template<typename Object, UpdatePriorities priority = PRIORITY_LAST>
-    struct PhysicsUpdate {
-        struct exec_register {
-            exec_register() {
-                addToMultimap(physics_update_systems, priority, Object::update);
-            }
-        };
-        template<exec_register&> struct ref_it { };
-        static exec_register register_object;
-        static ref_it<register_object> referrer;
-    };
-
-    template<typename Object, UpdatePriorities priority> typename PhysicsUpdate<Object, priority>::exec_register
-    PhysicsUpdate<Object, priority>::register_object;
-    
-    template<typename Object, UpdatePriorities priority = PRIORITY_LAST>
-    struct RenderUpdate {
-        struct exec_register {
-            exec_register() {
-                addToMultimap(render_update_systems, priority, Object::render);
-            }
-        };
-        template<exec_register&> struct ref_it { };
-        static exec_register register_object;
-        static ref_it<register_object> referrer;
-    };
-
-    template<typename Object, UpdatePriorities priority> typename RenderUpdate<Object, priority>::exec_register
-    RenderUpdate<Object, priority>::register_object;
-    
-    template<typename Object, UpdatePriorities priority = PRIORITY_LAST>
-    struct PresentUpdate {
-        struct exec_register {
-            exec_register() {
-                addToMultimap(present_update_systems, priority, Object::present);
-            }
-        };
-        template<exec_register&> struct ref_it { };
-        static exec_register register_object;
-        static ref_it<register_object> referrer;
-    };
-
-    template<typename Object, UpdatePriorities priority> typename PresentUpdate<Object, priority>::exec_register
-    PresentUpdate<Object, priority>::register_object;
+    UPDATE_LIST(PhysicsUpdate, physics_update_systems, update)
+    UPDATE_LIST(RenderUpdate, render_update_systems, render)
+    UPDATE_LIST(PresentUpdate, present_update_systems, present)
 }

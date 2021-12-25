@@ -9,6 +9,9 @@
 **added**
 - imgui for opengl
 
+**changed**
+- refactored update lists
+
 #### 0.3.5 - make make make and make - _24 12 2021_
 
 **added**
