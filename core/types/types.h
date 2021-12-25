@@ -39,3 +39,9 @@ constexpr auto type_name() {
     name.remove_suffix(suffix.size());
     return name;
 }
+
+#ifndef DISABLE_GUI
+#define IF_GUI(x) x
+#else
+#define IF_GUI(x)
+#endif

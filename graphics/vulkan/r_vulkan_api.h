@@ -320,7 +320,7 @@ namespace Fresa::Graphics::VK
     //Render
     //----------------------------------------
     ui32 startRender(VkDevice device, const SwapchainData &swapchain, SyncData &sync, std::function<void()> recreate_swapchain);
-    void renderFrame(Vulkan &vk, WindowData &win, ui32 index);
+    void renderFrame(Vulkan &vk, WindowData &win);
     //----------------------------------------
 
 

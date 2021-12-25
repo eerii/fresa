@@ -45,6 +45,7 @@ namespace Fresa::Graphics
         VkSwapchainKHR swapchain;
         
         ui32 size;
+        ui32 min_image_count;
         
         std::vector<VkImage> images;
         std::vector<VkImageView> image_views;
@@ -123,6 +124,8 @@ namespace Fresa::Graphics
         VkQueueData queues;
         
         VkQueryPool query_pool;
+        
+        ui32 current_buffer;
     };
 
     struct SyncData {

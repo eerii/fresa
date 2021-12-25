@@ -8,6 +8,7 @@
 
 **added**
 - imgui for opengl
+- first steps for imgui in vulkan
 
 **changed**
 - refactored update lists

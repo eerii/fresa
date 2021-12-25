@@ -11,18 +11,68 @@
 
 using namespace Fresa;
 
+#ifdef USE_VULKAN
+namespace {
+    VkDescriptorPool gui_descriptor_pool;
+}
+#endif
+
 bool Gui::ActiveWindows::test = true;
 
 void Gui::init(const Graphics::GraphicsAPI &api, const Graphics::WindowData &win) {
     //---Initialization---
     ImGui::CreateContext();
+    
     #if defined USE_OPENGL
     if (not ImGui_ImplSDL2_InitForOpenGL(win.window, api.context))
         log::error("Error initializing ImGui for SDL");
     if (not ImGui_ImplOpenGL3_Init())
         log::error("Error initializing ImGui for OpenGL");
     #elif defined USE_VULKAN
+    if (not ImGui_ImplSDL2_InitForVulkan(win.window))
+        log::error("Error initializing ImGui for SDL");
     
+    VkDescriptorPoolSize pool_sizes[] = {
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+    };
+    VkDescriptorPoolCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    create_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+    create_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+    create_info.pPoolSizes = pool_sizes;
+    if (vkCreateDescriptorPool(api.device, &create_info, nullptr, &gui_descriptor_pool) != VK_SUCCESS)
+        log::error("Failed to create the GUI descriptor pool");
+    
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = api.instance;
+    init_info.PhysicalDevice = api.physical_device;
+    init_info.Device = api.device;
+    init_info.QueueFamily = api.cmd.queue_indices.graphics.value();
+    init_info.Queue = api.cmd.queues.graphics;
+    init_info.DescriptorPool = gui_descriptor_pool;
+    init_info.MinImageCount = api.render.swapchain.min_image_count;
+    init_info.ImageCount = api.render.swapchain.size;
+    init_info.Allocator = nullptr;
+    
+    if (not ImGui_ImplVulkan_Init(&init_info, api.render.render_pass))
+        log::error("Error initializing ImGui for OpenGL");
+    
+    //: Transfer fonts
+    VkCommandBuffer command_buffer = Graphics::VK::beginSingleUseCommandBuffer(api.device, api.cmd.command_pools.at("transfer"));
+    ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+    Graphics::VK::endSingleUseCommandBuffer(api.device, command_buffer, api.cmd.command_pools.at("transfer"), api.cmd.queues.transfer);
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
     #endif
     
     //---IO---

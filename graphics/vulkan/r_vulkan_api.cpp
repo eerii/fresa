@@ -636,9 +636,9 @@ SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_dev
     
     
     //---Number of images---
-    ui32 min_image_count = support.capabilities.minImageCount + 1;
-    if (support.capabilities.maxImageCount > 0 and min_image_count > support.capabilities.maxImageCount)
-        min_image_count = support.capabilities.maxImageCount;
+    swapchain.min_image_count = support.capabilities.minImageCount + 1;
+    if (support.capabilities.maxImageCount > 0 and swapchain.min_image_count > support.capabilities.maxImageCount)
+        swapchain.min_image_count = support.capabilities.maxImageCount;
     
     
     //---Create swapchain---
@@ -647,7 +647,7 @@ SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_dev
     create_info.surface = surface;
     
     //: Swapchain images
-    create_info.minImageCount = min_image_count;
+    create_info.minImageCount = swapchain.min_image_count;
     create_info.imageFormat = surface_format.format;
     create_info.imageColorSpace = surface_format.colorSpace;
     create_info.imageExtent = swapchain.extent;
@@ -2556,7 +2556,7 @@ ui32 VK::startRender(VkDevice device, const SwapchainData &swapchain, SyncData &
     return image_index;
 }
 
-void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
+void VK::renderFrame(Vulkan &vk, WindowData &win) {
     VkSemaphore wait_semaphores[]{ vk.sync.semaphores_image_available[vk.sync.current_frame] };
     VkPipelineStageFlags wait_stages[]{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished[vk.sync.current_frame] };
@@ -2569,7 +2569,7 @@ void VK::renderFrame(Vulkan &vk, WindowData &win, ui32 index) {
     submit_info.pWaitDstStageMask = wait_stages;
     
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &vk.cmd.command_buffers["draw"][index];
+    submit_info.pCommandBuffers = &vk.cmd.command_buffers["draw"][vk.cmd.current_buffer];
     
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
@@ -2592,8 +2592,7 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     ubo.proj = cam.proj;
     
     //: Get the current image
-    ui32 current = VK::startRender(vk.device, vk.render.swapchain, vk.sync,
-                                   [&vk, &win](){ VK::recreateSwapchain(vk, win); });
+    vk.cmd.current_buffer = VK::startRender(vk.device, vk.render.swapchain, vk.sync, [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
     //: Timestamp queries
     #ifdef DEBUG
@@ -2610,17 +2609,17 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
             for (const auto &[tex, draw_queue] : tex_queue) {
                 for (const auto &[data, model] : draw_queue) {
                     ubo.model = model;
-                    VK::updateUniformBuffer(vk.allocator, data->uniform_buffers.at(current), ubo);
+                    VK::updateUniformBuffer(vk.allocator, data->uniform_buffers.at(vk.cmd.current_buffer), ubo);
                 }
             }
         }
     }
     
     //: Record command buffers
-    VK::recordDrawCommandBuffer(vk, current);
+    VK::recordDrawCommandBuffer(vk, vk.cmd.current_buffer);
     
     //: Render the frame
-    VK::renderFrame(vk, win, current);
+    VK::renderFrame(vk, win);
     
     //: Clear draw queue
     API::draw_queue.clear();
@@ -2638,13 +2637,13 @@ void API::present(Vulkan &vk, WindowData &win) {
     VkSwapchainKHR swapchains[]{ vk.render.swapchain.swapchain };
     present_info.swapchainCount = 1;
     present_info.pSwapchains = swapchains;
-    present_info.pImageIndices = &index;
+    present_info.pImageIndices = &vk.cmd.current_buffer;
     present_info.pResults = nullptr;
     
     VkResult result = vkQueuePresentKHR(vk.cmd.queues.present, &present_info);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR or result == VK_SUBOPTIMAL_KHR)
-        recreateSwapchain(vk, win);
+        VK::recreateSwapchain(vk, win);
     else if (result != VK_SUCCESS)
         log::error("Failed to present Swapchain Image");
     

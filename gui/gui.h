@@ -19,8 +19,6 @@
 #include "ecs.h"
 #include "r_api.h"
 
-#define IF_GUI(x) x
-
 //---WARNING---
 //      This is a work in progress
 
@@ -49,9 +47,5 @@ namespace Fresa
         void setColors(ImVec3 text, ImVec3 head, ImVec3 area, ImVec3 body, ImVec3 pops);
     }
 }
-
-#else
-
-#define IF_GUI(x) 
 
 #endif
