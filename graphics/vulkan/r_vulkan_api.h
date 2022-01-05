@@ -178,13 +178,12 @@ namespace Fresa::Graphics::VK
 
     //Pipeline
     //----------------------------------------
-    VkPipelineHelperData preparePipelineCreateInfo(VkExtent2D extent, const std::vector<VkVertexInputBindingDescription> binding_description,
-                                                   const std::vector<VkVertexInputAttributeDescription> attribute_description);
+    VkPipelineHelperData preparePipelineCreateInfo(Rect2<float> view, Rect2<> cut, const std::vector<VkVertexInputBindingDescription> binding_description, const std::vector<VkVertexInputAttributeDescription> attribute_description);
     VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
         const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes);
     VkPipelineInputAssemblyStateCreateInfo preparePipelineCreateInfoInputAssembly();
-    VkViewport preparePipelineCreateInfoViewport(VkExtent2D extent);
-    VkRect2D preparePipelineCreateInfoScissor(VkExtent2D extent);
+    VkViewport preparePipelineCreateInfoViewport(Rect2<float> view);
+    VkRect2D preparePipelineCreateInfoScissor(Rect2<> cut);
     VkPipelineViewportStateCreateInfo preparePipelineCreateInfoViewportState(const VkViewport &viewport, const VkRect2D &scissor);
     VkPipelineRasterizationStateCreateInfo preparePipelineCreateInfoRasterizer();
     VkPipelineMultisampleStateCreateInfo preparePipelineCreateInfoMultisampling();
@@ -193,11 +192,11 @@ namespace Fresa::Graphics::VK
     VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
     
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
-    VkPipeline createGraphicsPipelineObject(VkDevice device, const PipelineData &data, VkExtent2D extent, const std::vector<RenderPassData> &render);
+    VkPipeline createGraphicsPipelineObject(VkDevice device, const PipelineData &data, const std::vector<RenderPassData> &render);
     void recreatePipeline(const Vulkan &vk, PipelineData &data);
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    PipelineData createPipeline(const Vulkan &vk, Shaders shader, SubpassID subpass) {
+    PipelineData createPipeline(const Vulkan &vk, Shaders shader, SubpassID subpass, Rect2<float> viewport, Rect2<> scissor) {
         PipelineData data;
         
         //---Subpass---
@@ -234,9 +233,13 @@ namespace Fresa::Graphics::VK
             }
         }
         
+        //---Viewport and scissor---
+        data.viewport = viewport;
+        data.scissor = scissor;
+        
         //---Pipeline---
         data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.swapchain.extent, vk.render_passes);
+        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render_passes);
         
         return data;
     }

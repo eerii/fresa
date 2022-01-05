@@ -11,6 +11,7 @@
 
 **changed**
 - refactored update lists
+- viewport refactoring
 
 **fixed**
 - hopefully fixed sdl_keycodes not being recognised on linux and web

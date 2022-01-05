@@ -32,7 +32,6 @@ namespace Fresa::Graphics
         SDL_Window* window;
         
         Vec2<> size;
-        Vec2<> resolution;
         ui16 scale;
         ui16 refresh_rate = 0;
         

@@ -98,9 +98,11 @@ Vulkan API::createAPI(WindowData &win) {
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //---Pipelines---
-    vk.pipelines[SHADER_DRAW_COLOR] = VK::createPipeline<VertexDataColor>(vk, SHADER_DRAW_COLOR, subpass_draw);
-    vk.pipelines[SHADER_DRAW_TEX] = VK::createPipeline<VertexDataTexture>(vk, SHADER_DRAW_TEX, subpass_draw);
-    vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST, subpass_post);
+    Rect2<float> viewport = {0.0f, 0.0f, (float)win.size.x, (float)win.size.y};
+    Rect2<> scissor = {0, 0, win.size.x, win.size.y};
+    vk.pipelines[SHADER_DRAW_COLOR] = VK::createPipeline<VertexDataColor>(vk, SHADER_DRAW_COLOR, subpass_draw, viewport, scissor);
+    vk.pipelines[SHADER_DRAW_TEX] = VK::createPipeline<VertexDataTexture>(vk, SHADER_DRAW_TEX, subpass_draw, viewport, scissor);
+    vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST, subpass_post, viewport, scissor);
     
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
@@ -744,8 +746,11 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //: Pipeline
-    for (auto &[shader, data] : vk.pipelines)
-        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.swapchain.extent, vk.render_passes);
+    for (auto &[shader, data] : vk.pipelines) {
+        data.viewport = {0.0f, 0.0f, (float)win.size.x, (float)win.size.y};
+        data.scissor = {0, 0, win.size.x, win.size.y};
+        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render_passes);
+    }
     
     //---Objects that depend on the swapchain size---
     if (previous_size != vk.swapchain.size) {
@@ -1498,8 +1503,7 @@ SyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
 //Pipeline
 //----------------------------------------
 
-VkPipelineHelperData VK::preparePipelineCreateInfo(VkExtent2D extent, const std::vector<VkVertexInputBindingDescription> binding_description,
-                                                   const std::vector<VkVertexInputAttributeDescription> attribute_description) {
+VkPipelineHelperData VK::preparePipelineCreateInfo(Rect2<float> view, Rect2<> cut, const std::vector<VkVertexInputBindingDescription> binding_description, const std::vector<VkVertexInputAttributeDescription> attribute_description) {
     //---Preprare pipeline info---
     //      Pipelines are huge objects in vulkan, and building them is both complicated and expensive
     //      There is a lot of configuration needed, so this with all the helper functions attempt to break it down into manageable components
@@ -1512,8 +1516,8 @@ VkPipelineHelperData VK::preparePipelineCreateInfo(VkExtent2D extent, const std:
     
     info.input_assembly = preparePipelineCreateInfoInputAssembly();
     
-    info.viewport = preparePipelineCreateInfoViewport(extent);
-    info.scissor = preparePipelineCreateInfoScissor(extent);
+    info.viewport = preparePipelineCreateInfoViewport(view);
+    info.scissor = preparePipelineCreateInfoScissor(cut);
     info.viewport_state = preparePipelineCreateInfoViewportState(info.viewport, info.scissor);
     
     info.rasterizer = preparePipelineCreateInfoRasterizer();
@@ -1563,28 +1567,28 @@ VkPipelineInputAssemblyStateCreateInfo VK::preparePipelineCreateInfoInputAssembl
     return input_assembly;
 }
 
-VkViewport VK::preparePipelineCreateInfoViewport(VkExtent2D extent) {
+VkViewport VK::preparePipelineCreateInfoViewport(Rect2<float> view) {
     //---Viewport---
     //      The offset and dimensions of the draw viewport inside the window, we just set this to the default
     VkViewport viewport{};
     
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = (float)extent.width;
-    viewport.height = (float)extent.height;
+    viewport.x = view.x;
+    viewport.y = view.y;
+    viewport.width = view.w;
+    viewport.height = view.h;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     
     return viewport;
 }
 
-VkRect2D VK::preparePipelineCreateInfoScissor(VkExtent2D extent) {
+VkRect2D VK::preparePipelineCreateInfoScissor(Rect2<> cut) {
     //---Scissor---
     //      It is possible to crop the viewport and only present a part of it, but for now we will leave it as default
     VkRect2D scissor{};
     
-    scissor.offset = {0, 0};
-    scissor.extent = extent;
+    scissor.offset = {cut.x, cut.y};
+    scissor.extent = {(ui32)cut.w, (ui32)cut.h};
     
     return scissor;
 }
@@ -1753,7 +1757,7 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
     return pipeline_layout;
 }
 
-VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const PipelineData &data, VkExtent2D extent, const std::vector<RenderPassData> &render) {
+VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const PipelineData &data, const std::vector<RenderPassData> &render) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
     //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
@@ -1770,7 +1774,7 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const PipelineData 
     create_info.pStages = stage_info.data();
     
     //: Pipeline info
-    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(extent, data.binding_descriptions, data.attribute_descriptions);
+    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(data.viewport, data.scissor, data.binding_descriptions, data.attribute_descriptions);
     create_info.pVertexInputState = &pipeline_create_info.vertex_input;
     create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
     create_info.pViewportState = &pipeline_create_info.viewport_state;
@@ -1815,7 +1819,7 @@ void VK::recreatePipeline(const Vulkan &vk, PipelineData &data) {
 
     //: Pipeline
     data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.swapchain.extent, vk.render_passes);
+    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render_passes);
 }
 
 //----------------------------------------

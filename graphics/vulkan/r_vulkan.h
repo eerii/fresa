@@ -92,6 +92,9 @@ namespace Fresa::Graphics
         
         SubpassID subpass;
         RenderPassID render_pass;
+        
+        Rect2<float> viewport;
+        Rect2<> scissor;
     };
 
     //: Helper structs

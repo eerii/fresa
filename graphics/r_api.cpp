@@ -24,7 +24,7 @@ using namespace Graphics;
 
 //---Common API calls for Vulkan and OpenGL---
 
-WindowData API::createWindow(Vec2<> size, str name) {
+WindowData API::createWindow(Vec2<ui32> size, str name) {
     //---Create window data---
     WindowData win;
     
@@ -54,8 +54,7 @@ WindowData API::createWindow(Vec2<> size, str name) {
     log::graphics("Refresh Rate: %d", win.refresh_rate);
     
     //: Calculate resolution and scale
-    win.resolution = Config::window_size;
-    Vec2<float> ratios = win.size.to<float>() / win.resolution.to<float>();
+    Vec2<float> ratios = win.size.to<float>() / Config::resolution.to<float>();
     win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
     
     //: V-Sync (it only changes something for OpenGL at the moment)

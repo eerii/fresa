@@ -80,7 +80,8 @@ void Gui::GuiSystem::render() {
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::ShowDemoWindow();
+    if (ActiveWindows::test)
+        ImGui::ShowDemoWindow();
     
     ImGui::Render();
 }

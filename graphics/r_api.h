@@ -23,7 +23,7 @@ namespace Fresa::Graphics
 
 namespace Fresa::Graphics::API
 {
-    WindowData createWindow(Vec2<> size, str name);
+    WindowData createWindow(Vec2<ui32> size, str name);
     ui16 getRefreshRate(WindowData &win, bool force = false);
     
     void configureAPI();

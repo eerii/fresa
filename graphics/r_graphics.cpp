@@ -81,7 +81,7 @@ void Graphics::onResize(Vec2<> size) {
     win.size = size;
     
     //: Adjust render scale
-    Vec2<float> ratios = win.size.to<float>() / win.resolution.to<float>();
+    Vec2<float> ratios = win.size.to<float>() / Config::resolution.to<float>();
     win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
     
     //: Pass the resize command to the API
