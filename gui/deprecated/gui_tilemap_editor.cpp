@@ -4,6 +4,7 @@
 
 #ifndef DISABLE_GUI
 
+/*
 #include "gui_tilemap_editor.h"
 #include "gui_types.h"
 
@@ -84,5 +85,5 @@ void Gui::tilemapEditor(Config &c, EntityID eid) {
     Fresa::Gui::draw_int(tile->layer, "layer", eid);
     ImGui::TableNextRow();
 }
-
+*/
 #endif

@@ -3,7 +3,7 @@
 //licensed under GPLv3 uwu
 
 #pragma once
-
+/*
 #include "gui.h"
 
 #ifndef DISABLE_GUI
@@ -134,5 +134,5 @@ inline void draw_vec2(float &x, float &y, str label, EntityID eid = 0,
 }
 
 }
-
+*/
 #endif

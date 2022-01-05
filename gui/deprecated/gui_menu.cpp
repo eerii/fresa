@@ -4,7 +4,7 @@
 
 #ifndef DISABLE_GUI
 
-#include "gui_menu.h"
+/*#include "gui_menu.h"
 
 #include "serialization.h"
 #include "scene_list.h"
@@ -123,5 +123,5 @@ void Gui::menu(Config &c) {
         ImGui::EndMainMenuBar();
     }
 }
-
+*/
 #endif

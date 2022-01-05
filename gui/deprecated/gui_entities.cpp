@@ -4,7 +4,7 @@
 
 #ifndef DISABLE_GUI
 
-#include "gui_entities.h"
+/*#include "gui_entities.h"
 #include "gui_types.h"
 #include "r_window.h"
 
@@ -172,6 +172,6 @@ void components(Config &c, Signature mask, EntityID e) {
             });
         }
     }
-}
+}*/
 
 #endif
