@@ -62,8 +62,6 @@ bool Graphics::update() {
     API::render(api, win, camera);
     
     //: Present
-    for (auto &[priority, system] : System::present_update_systems)
-        system();
     API::present(api, win);
     
     return true;

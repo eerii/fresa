@@ -34,14 +34,11 @@ namespace Fresa
             static bool test;
         };
         
-        void init(const Graphics::GraphicsAPI &api, const Graphics::WindowData &win);
+        void init(Graphics::GraphicsAPI &api, const Graphics::WindowData &win);
         
-        struct GuiSystem : System::PhysicsUpdate<GuiSystem, System::PRIORITY_GUI>,
-                           System::RenderUpdate<GuiSystem, System::PRIORITY_GUI>,
-                           System::PresentUpdate<GuiSystem, System::PRIORITY_FIRST> {
+        struct GuiSystem : System::PhysicsUpdate<GuiSystem, System::PRIORITY_GUI>, System::RenderUpdate<GuiSystem, System::PRIORITY_GUI> {
             static void update();
             static void render();
-            static void present();
         };
         
         void setColors(ImVec3 text, ImVec3 head, ImVec3 area, ImVec3 body, ImVec3 pops);

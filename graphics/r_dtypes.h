@@ -127,6 +127,7 @@ namespace Fresa::Graphics
     using ShaderResources = spirv_cross::ShaderResources;
     
     using SubpassID = ui8;
+    using RenderPassID = ui8;
 
     enum Shaders {
         SHADER_DRAW_COLOR,

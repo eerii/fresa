@@ -7,6 +7,7 @@
 #include "r_opengl_api.h"
 
 #include "log.h"
+#include "gui.h"
 #include "f_time.h"
 
 using namespace Fresa;
@@ -697,6 +698,9 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
     
     //---Clear drawing queue---
     API::draw_queue.clear();
+    
+    //---Gui---
+    IF_GUI(ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData()));
 }
 
 void API::present(OpenGL &gl, WindowData &win) {

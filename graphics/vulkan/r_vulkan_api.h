@@ -134,14 +134,17 @@ namespace Fresa::Graphics::VK
                              const CommandData &cmd, Vec2<> size, std::map<AttachmentID, AttachmentData> &attachments);
 
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
-    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, const RenderData &render);
+    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, VkRenderPass render_pass, const SwapchainData &swapchain,
+                                                  std::vector<AttachmentID> attachments,
+                                                  const std::map<AttachmentID, AttachmentData> &render_attachments);
     //----------------------------------------
 
 
     //Render pass
     //----------------------------------------
-    SubpassID registerSubpass(RenderData &render, std::vector<AttachmentID> ids);
-    VkRenderPass createRenderPass(VkDevice device, const RenderData &render);
+    SubpassID registerSubpass(std::vector<SubpassData> &subpasses, const std::map<AttachmentID, AttachmentData> &attachments,
+                              std::vector<AttachmentID> attachment_ids);
+    RenderPassData createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses);
     //----------------------------------------
 
 
@@ -190,7 +193,7 @@ namespace Fresa::Graphics::VK
     VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
     
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
-    VkPipeline createGraphicsPipelineObject(VkDevice device, const PipelineData &data, const RenderData &render);
+    VkPipeline createGraphicsPipelineObject(VkDevice device, const PipelineData &data, VkExtent2D extent, const std::vector<RenderPassData> &render);
     void recreatePipeline(const Vulkan &vk, PipelineData &data);
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
@@ -207,7 +210,7 @@ namespace Fresa::Graphics::VK
         data.shader.stages = VK::createShaderStages(vk.device, data.shader.code);
         
         //---Descriptor pool---
-        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.render.swapchain.size);
+        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.swapchain.size);
         data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
         data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
         data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
@@ -215,7 +218,7 @@ namespace Fresa::Graphics::VK
         //---Descriptor sets---
         if (data.subpass > 0) {
             data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
-                                                              data.descriptor_pools, vk.render.swapchain.size);
+                                                              data.descriptor_pools, vk.swapchain.size);
             VK::updatePostDescriptorSets(vk, data);
         }
         
@@ -223,9 +226,17 @@ namespace Fresa::Graphics::VK
         data.binding_descriptions = VK::getBindingDescriptions<V>();
         data.attribute_descriptions = VK::getAttributeDescriptions<V>();
         
+        //---Find render pass---
+        for (int i = 0; i < vk.render_passes.size(); i++) {
+            const auto &r = vk.render_passes.at(i);
+            if (std::count(r.subpasses.begin(), r.subpasses.end(), subpass)) {
+                data.render_pass = i; break;
+            }
+        }
+        
         //---Pipeline---
         data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render);
+        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.swapchain.extent, vk.render_passes);
         
         return data;
     }
@@ -330,6 +341,18 @@ namespace Fresa::Graphics::VK
     inline Vec2<> to_vec(VkExtent2D extent) {
         return Vec2<>(extent.width, extent.height);
     }
+    //----------------------------------------
+    
+    //Gui
+    //----------------------------------------
+    #ifndef DISABLE_GUI
+    namespace Gui
+    {
+        inline VkDescriptorPool descriptor_pool;
+        void init(Vulkan &vk, const WindowData &win);
+        void recordGuiCommandBuffer(const Vulkan &vk, ui32 current);
+    }
+    #endif
     //----------------------------------------
 }
 

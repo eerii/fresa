@@ -10,8 +10,6 @@
 #include "events.h"
 #include "log.h"
 
-using Keys = SDL_KeyCode;
-
 namespace Fresa
 {
     namespace Input

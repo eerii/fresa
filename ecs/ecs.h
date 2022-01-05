@@ -116,7 +116,6 @@ namespace Fresa::System
     
     inline std::multimap<UpdatePriorities, std::function<void()>> physics_update_systems{};
     inline std::multimap<UpdatePriorities, std::function<void()>> render_update_systems{};
-    inline std::multimap<UpdatePriorities, std::function<void()>> present_update_systems{};
     
     //: Register the system when the template is instantiated, and adds it to the corresponding map of systems
     //      struct SomeSystem : PhysicsUpdate<SomeSystem, PRIORITY_MOVEMENT> {
@@ -124,5 +123,4 @@ namespace Fresa::System
     //      }
     UPDATE_LIST(PhysicsUpdate, physics_update_systems, update)
     UPDATE_LIST(RenderUpdate, render_update_systems, render)
-    UPDATE_LIST(PresentUpdate, present_update_systems, present)
 }

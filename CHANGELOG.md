@@ -7,11 +7,13 @@
 #### 0.3.6 - 
 
 **added**
-- imgui for opengl
-- first steps for imgui in vulkan
+- imgui support
 
 **changed**
 - refactored update lists
+
+**fixed**
+- hopefully fixed sdl_keycodes not being recognised on linux and web
 
 #### 0.3.5 - make make make and make - _24 12 2021_
 
