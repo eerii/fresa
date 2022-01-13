@@ -196,7 +196,7 @@ namespace Fresa::Graphics::VK
     void recreatePipeline(const Vulkan &vk, PipelineData &data);
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    PipelineData createPipeline(const Vulkan &vk, Shaders shader, SubpassID subpass, Rect2<float> viewport, Rect2<> scissor) {
+    PipelineData createPipeline(const Vulkan &vk, Shaders shader, SubpassID subpass) {
         PipelineData data;
         
         //---Subpass---
@@ -234,8 +234,8 @@ namespace Fresa::Graphics::VK
         }
         
         //---Viewport and scissor---
-        data.viewport = viewport;
-        data.scissor = scissor;
+        data.viewport = vk.viewport;
+        data.scissor = vk.scissor;
         
         //---Pipeline---
         data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);

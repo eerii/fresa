@@ -8,6 +8,7 @@
 
 **added**
 - imgui support
+- orthographic perspective
 
 **changed**
 - refactored update lists

@@ -98,11 +98,11 @@ Vulkan API::createAPI(WindowData &win) {
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //---Pipelines---
-    Rect2<float> viewport = {0.0f, 0.0f, (float)win.size.x, (float)win.size.y};
-    Rect2<> scissor = {0, 0, win.size.x, win.size.y};
-    vk.pipelines[SHADER_DRAW_COLOR] = VK::createPipeline<VertexDataColor>(vk, SHADER_DRAW_COLOR, subpass_draw, viewport, scissor);
-    vk.pipelines[SHADER_DRAW_TEX] = VK::createPipeline<VertexDataTexture>(vk, SHADER_DRAW_TEX, subpass_draw, viewport, scissor);
-    vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST, subpass_post, viewport, scissor);
+    vk.viewport = {0.0f, 0.0f, (float)win.size.x, (float)win.size.y};
+    vk.scissor = {0, 0, win.size.x, win.size.y};
+    vk.pipelines[SHADER_DRAW_COLOR] = VK::createPipeline<VertexDataColor>(vk, SHADER_DRAW_COLOR, subpass_draw);
+    vk.pipelines[SHADER_DRAW_TEX] = VK::createPipeline<VertexDataTexture>(vk, SHADER_DRAW_TEX, subpass_draw);
+    vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST, subpass_post);
     
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
@@ -746,9 +746,11 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //: Pipeline
+    vk.viewport = {0.0f, 0.0f, (float)win.size.x, (float)win.size.y};
+    vk.scissor = {0, 0, win.size.x, win.size.y};
     for (auto &[shader, data] : vk.pipelines) {
-        data.viewport = {0.0f, 0.0f, (float)win.size.x, (float)win.size.y};
-        data.scissor = {0, 0, win.size.x, win.size.y};
+        data.viewport = vk.viewport;
+        data.scissor = vk.scissor;
         data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render_passes);
     }
     
