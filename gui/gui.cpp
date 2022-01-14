@@ -11,8 +11,6 @@
 
 using namespace Fresa;
 
-bool Gui::ActiveWindows::test = true;
-
 void Gui::init(Graphics::GraphicsAPI &api, const Graphics::WindowData &win) {
     //---Initialization---
     ImGui::CreateContext();
@@ -59,6 +57,9 @@ void Gui::init(Graphics::GraphicsAPI &api, const Graphics::WindowData &win) {
         io->DisplaySize.x = (float)size.x;
         io->DisplaySize.y = (float)size.y;
     });
+    
+    //---Windows---
+    registerWindows();
 }
 
 void Gui::GuiSystem::update() {
@@ -80,8 +81,11 @@ void Gui::GuiSystem::render() {
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
-    if (ActiveWindows::test)
-        ImGui::ShowDemoWindow();
+    widget_id = 0;
+    for (auto &win : windows) {
+        if (win.active)
+            win.show();
+    }
     
     ImGui::Render();
 }

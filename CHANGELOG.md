@@ -9,6 +9,7 @@
 **added**
 - imgui support
 - orthographic perspective
+- new gui menu
 
 **changed**
 - refactored update lists
