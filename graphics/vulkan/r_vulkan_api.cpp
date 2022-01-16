@@ -84,15 +84,16 @@ Vulkan API::createAPI(WindowData &win) {
     
     //---Attachments---
     AttachmentID attachment_swapchain = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
-    AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT_WIN, win.size);
-    AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH_WIN, win.size);
+    AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT_WIN, win.size);//Config::resolution.to<int>());
+    AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH_WIN, win.size);//Config::resolution.to<int>());
+    //AttachmentID attachment_color_post = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT, Config::resolution.to<int>());
     
-    //---Subpasses---
-    SubpassID subpass_draw = VK::registerSubpass(vk.subpasses, {attachment_color, attachment_depth});
-    SubpassID subpass_post = VK::registerSubpass(vk.subpasses, {attachment_color, attachment_swapchain});
-    
-    //---Render pass---
+    //---Render passes---
+    SubpassID subpass_draw = API::registerSubpass({attachment_color, attachment_depth});
+    SubpassID subpass_post = API::registerSubpass({attachment_color, attachment_swapchain});
     vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_draw, subpass_post}));
+    
+    //SubpassID subpass_win = API::registerSubpass({attachment_color_post, attachment_swapchain});
     
     //---Sync objects---
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
@@ -749,8 +750,6 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     vk.viewport = {0.0f, 0.0f, (float)win.size.x, (float)win.size.y};
     vk.scissor = {0, 0, win.size.x, win.size.y};
     for (auto &[shader, data] : vk.pipelines) {
-        data.viewport = vk.viewport;
-        data.scissor = vk.scissor;
         data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render_passes);
     }
     
@@ -880,7 +879,7 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     render_pass_info.renderPass = vk.render_passes.at(0).render_pass;
     render_pass_info.framebuffer = vk.render_passes.at(0).framebuffers.at(current);
     render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = vk.swapchain.extent;
+    render_pass_info.renderArea.extent = vk.render_passes.at(0).attachment_extent;
     render_pass_info.clearValueCount = (ui32)clear_values.size();
     render_pass_info.pClearValues = clear_values.data();
     
@@ -1080,7 +1079,7 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
     
     //: Image and image view
     if (not (type & ATTACHMENT_SWAPCHAIN)) {
-        auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, VK::to_vec(vk.swapchain.extent),
+        auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, size,
                                         attachment.format, attachment.initial_layout, attachment.usage);
         attachment.image = i_;
         attachment.allocation = a_;
@@ -1140,25 +1139,21 @@ VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, s
     return framebuffer;
 }
 
-std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, VkRenderPass render_pass, const SwapchainData &swapchain,
-                                                  std::vector<AttachmentID> attachments) {
+std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, VkRenderPass render_pass, VkExtent2D extent,
+                                                  const SwapchainData &swapchain, std::vector<AttachmentID> attachments) {
     //---Framebuffers---
     std::vector<VkFramebuffer> framebuffers;
     framebuffers.resize(swapchain.size);
     
     for (int i = 0; i < swapchain.size; i++) {
         std::vector<VkImageView> fb_attachments{};
-        Vec2<> size = API::attachments.at(0).size;
         for (auto &id : attachments) {
             if (API::attachments.at(id).type & ATTACHMENT_SWAPCHAIN)
                 fb_attachments.push_back(swapchain.image_views[i]);
             else
                 fb_attachments.push_back(API::attachments.at(id).image_view);
-            
-            if (API::attachments.at(id).size != size)
-                log::error("All attachments in a framebuffer must be of the same size");
         }
-        framebuffers[i] = VK::createFramebuffer(device, render_pass, fb_attachments, VkExtent2D{(ui32)size.x, (ui32)size.y});
+        framebuffers[i] = VK::createFramebuffer(device, render_pass, fb_attachments, extent);
     }
     
     deletion_queue_swapchain.push_back([framebuffers, device](){
@@ -1176,27 +1171,28 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, VkRenderPass 
 //Render Pass
 //----------------------------------------
 
-SubpassID VK::registerSubpass(std::vector<SubpassData> &subpasses, std::vector<AttachmentID> attachment_ids) {
-    SubpassID subpass_id = subpasses.size();
-    subpasses.push_back(SubpassData{});
-    SubpassData &data = subpasses.at(subpass_id);
+SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list) {
+    static SubpassID id = 0;
+    while (subpasses.find(id) != subpasses.end())
+        id++;
     
-    log::graphics("Registering subpass %d:", subpass_id);
+    log::graphics("Registering subpass %d:", id);
+    subpasses[id] = SubpassData{};
     
-    data.attachment_bindings = attachment_ids;
+    subpasses[id].attachment_bindings = attachment_list;
     
-    for (auto binding : attachment_ids) {
+    for (auto binding : attachment_list) {
         const AttachmentData &attachment = API::attachments.at(binding);
         bool first_in_chain = true;
         
         if (attachment.type & ATTACHMENT_INPUT) {
             //: Check if it is in one of the previous subpasses
-            for (int i = subpass_id - 1; i >= 0; i--) {
+            for (int i = id - 1; i >= 0; i--) {
                 SubpassData &previous = subpasses.at(i);
                 if (std::count(previous.attachment_bindings.begin(), previous.attachment_bindings.end(), binding)) {
                     first_in_chain = false;
-                    data.input_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
-                    data.previous_subpass_dependencies[binding] = i;
+                    subpasses[id].input_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+                    subpasses[id].previous_subpass_dependencies[binding] = i;
                     log::graphics(" - Input attachment: %d (Depends on subpass %d)", binding, i);
                     break;
                 }
@@ -1205,17 +1201,17 @@ SubpassID VK::registerSubpass(std::vector<SubpassData> &subpasses, std::vector<A
         
         if (first_in_chain) { //: First subpass that uses this attachment
             if (attachment.type & ATTACHMENT_COLOR) {
-                data.color_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
+                subpasses[id].color_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
                 log::graphics(" - Color attachment: %d", binding);
             }
             if (attachment.type & ATTACHMENT_DEPTH) {
-                data.depth_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL});
+                subpasses[id].depth_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL});
                 log::graphics(" - Depth attachment: %d", binding);
             }
         }
     }
     
-    return subpass_id;
+    return id;
 }
 
 RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses) {
@@ -1229,7 +1225,7 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
     //---Attachments---
     std::set<AttachmentID> attachments;
     for (auto s_id : subpasses)
-        for (auto a_id : vk.subpasses.at(s_id).attachment_bindings)
+        for (auto a_id : API::subpasses.at(s_id).attachment_bindings)
             attachments.insert(a_id);
     std::map<AttachmentID, ui32> map_attachment_to_render_pass;
     for (auto attachment : attachments) {
@@ -1240,11 +1236,12 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
     
     //---Subpasses---
     render.subpasses = subpasses;
+    render.attachment_extent = VkExtent2D{0, 0};
     std::map<SubpassID, std::vector<VkAttachmentReference>> color_attachments{};
     std::map<SubpassID, std::vector<VkAttachmentReference>> input_attachments{};
     std::map<SubpassID, VkAttachmentReference> depth_attachment{};
     for (auto id : subpasses) {
-        auto &subpass = vk.subpasses.at(id);
+        auto &subpass = API::subpasses.at(id);
         ui8 index = (ui8)render_pass_helper.subpasses.size();
         
         //---Description---
@@ -1254,8 +1251,13 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
         description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         
         if (subpass.color_attachments.size() > 0) {
-            for (const auto &a : subpass.color_attachments)
+            for (const auto &a : subpass.color_attachments) {
                 color_attachments[id].push_back(VkAttachmentReference{map_attachment_to_render_pass.at(a.attachment), a.layout});
+                if (render.attachment_extent.width == 0 or render.attachment_extent.height == 0)
+                    render.attachment_extent = to_extent(API::attachments.at(a.attachment).size);
+                else if (not (render.attachment_extent == API::attachments.at(a.attachment).size))
+                    log::error("All attachments being redenred to in a render pass must be of the same size");
+            }
             description.colorAttachmentCount = (ui32)color_attachments[id].size();
             description.pColorAttachments = color_attachments[id].data();
         }
@@ -1270,6 +1272,10 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
         if (subpass.depth_attachments.size() > 0) {
             if (subpass.depth_attachments.size() > 1)
                 log::error("Using more than one depth attachment in a subpass is not allowed");
+            if (render.attachment_extent.width == 0 or render.attachment_extent.height == 0)
+                render.attachment_extent = to_extent(API::attachments.at(subpass.depth_attachments.at(0).attachment).size);
+            else if (not (render.attachment_extent == API::attachments.at(subpass.depth_attachments.at(0).attachment).size))
+                log::error("All attachments being redenred to in a render pass must be of the same size");
             depth_attachment[id].attachment = map_attachment_to_render_pass.at(subpass.depth_attachments.at(0).attachment);
             depth_attachment[id].layout = subpass.depth_attachments.at(0).layout;
             description.pDepthStencilAttachment = &depth_attachment.at(id);
@@ -1337,7 +1343,7 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
                   render_pass_helper.subpasses.size(), render_pass_helper.attachments.size());
     
     //---Create framebuffers---
-    render.framebuffers = VK::createFramebuffers(vk.device, render.render_pass, vk.swapchain, attachments_v);
+    render.framebuffers = VK::createFramebuffers(vk.device, render.render_pass, render.attachment_extent, vk.swapchain, attachments_v);
     
     return render;
 }
@@ -1513,7 +1519,8 @@ SyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
 //Pipeline
 //----------------------------------------
 
-VkPipelineHelperData VK::preparePipelineCreateInfo(Rect2<float> view, Rect2<> cut, const std::vector<VkVertexInputBindingDescription> binding_description, const std::vector<VkVertexInputAttributeDescription> attribute_description) {
+VkPipelineHelperData VK::preparePipelineCreateInfo(const std::vector<VkVertexInputBindingDescription> binding_description,
+                                                   const std::vector<VkVertexInputAttributeDescription> attribute_description, VkExtent2D extent) {
     //---Preprare pipeline info---
     //      Pipelines are huge objects in vulkan, and building them is both complicated and expensive
     //      There is a lot of configuration needed, so this with all the helper functions attempt to break it down into manageable components
@@ -1526,8 +1533,8 @@ VkPipelineHelperData VK::preparePipelineCreateInfo(Rect2<float> view, Rect2<> cu
     
     info.input_assembly = preparePipelineCreateInfoInputAssembly();
     
-    info.viewport = preparePipelineCreateInfoViewport(view);
-    info.scissor = preparePipelineCreateInfoScissor(cut);
+    info.viewport = preparePipelineCreateInfoViewport(extent);
+    info.scissor = preparePipelineCreateInfoScissor(extent);
     info.viewport_state = preparePipelineCreateInfoViewportState(info.viewport, info.scissor);
     
     info.rasterizer = preparePipelineCreateInfoRasterizer();
@@ -1577,28 +1584,28 @@ VkPipelineInputAssemblyStateCreateInfo VK::preparePipelineCreateInfoInputAssembl
     return input_assembly;
 }
 
-VkViewport VK::preparePipelineCreateInfoViewport(Rect2<float> view) {
+VkViewport VK::preparePipelineCreateInfoViewport(VkExtent2D extent) {
     //---Viewport---
     //      The offset and dimensions of the draw viewport inside the window, we just set this to the default
     VkViewport viewport{};
     
-    viewport.x = view.x;
-    viewport.y = view.y;
-    viewport.width = view.w;
-    viewport.height = view.h;
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = extent.width;
+    viewport.height = extent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     
     return viewport;
 }
 
-VkRect2D VK::preparePipelineCreateInfoScissor(Rect2<> cut) {
+VkRect2D VK::preparePipelineCreateInfoScissor(VkExtent2D extent) {
     //---Scissor---
     //      It is possible to crop the viewport and only present a part of it, but for now we will leave it as default
     VkRect2D scissor{};
     
-    scissor.offset = {cut.x, cut.y};
-    scissor.extent = {(ui32)cut.w, (ui32)cut.h};
+    scissor.offset = {0, 0};
+    scissor.extent = extent;
     
     return scissor;
 }
@@ -1784,7 +1791,7 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const PipelineData 
     create_info.pStages = stage_info.data();
     
     //: Pipeline info
-    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(data.viewport, data.scissor, data.binding_descriptions, data.attribute_descriptions);
+    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(data.binding_descriptions, data.attribute_descriptions, render.at(data.render_pass).attachment_extent);
     create_info.pVertexInputState = &pipeline_create_info.vertex_input;
     create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
     create_info.pViewportState = &pipeline_create_info.viewport_state;
@@ -2215,7 +2222,7 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
 void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline) {
     int i = 0;
     std::map<ui32, VkImageView> input_attachments{};
-    for (auto &attachment : vk.subpasses.at(pipeline.subpass).input_attachments) {
+    for (auto &attachment : API::subpasses.at(pipeline.subpass).input_attachments) {
         input_attachments[i] = API::attachments.at(attachment.attachment).image_view;
         i++;
     }
@@ -2808,7 +2815,7 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
     
     //: Render pass
     AttachmentID attachment_swapchain_gui = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
-    SubpassID subpass_gui = VK::registerSubpass(vk.subpasses, {attachment_swapchain_gui});
+    SubpassID subpass_gui = API::registerSubpass({attachment_swapchain_gui});
     vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_gui})); //TODO: Render pass with propper map
     
     //: Init Vulkan implementation
@@ -2862,7 +2869,7 @@ void VK::Gui::recordGuiCommandBuffer(const Vulkan &vk, ui32 current) {
     render_pass_info.renderPass = vk.render_passes.at(1).render_pass;
     render_pass_info.framebuffer = vk.render_passes.at(1).framebuffers.at(current);
     render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = vk.swapchain.extent;
+    render_pass_info.renderArea.extent = vk.render_passes.at(1).attachment_extent;
     render_pass_info.clearValueCount = (ui32)clear_values.size();
     render_pass_info.pClearValues = clear_values.data();
     

@@ -110,7 +110,7 @@ namespace Fresa::Graphics
     inline const TextureData no_texture{};
     //----------------------------------------
 
-    //Framebuffer
+    //Attachments
     //----------------------------------------
     using AttachmentID = ui8;
 
@@ -157,13 +157,31 @@ namespace Fresa::Graphics
     };
     //----------------------------------------
     
+    //Subpasses
+    //----------------------------------------
+    using SubpassID = ui8;
+    using RenderPassID = ui8;
+    
+    struct SubpassData {
+        std::vector<AttachmentID> attachment_bindings;
+        #if defined USE_VULKAN
+        std::vector<VkAttachmentReference> color_attachments;
+        std::vector<VkAttachmentReference> depth_attachments;
+        std::vector<VkAttachmentReference> input_attachments;
+        std::map<AttachmentID, SubpassID> previous_subpass_dependencies;
+        #elif defined USE_OPENGL
+        ui32 framebuffer;
+        bool has_depth;
+        std::vector<AttachmentID> framebuffer_attachments;
+        std::vector<AttachmentID> input_attachments;
+        #endif
+    };
+    //----------------------------------------
+    
     //Shader
     //----------------------------------------
     using ShaderCompiler = spirv_cross::CompilerGLSL;
     using ShaderResources = spirv_cross::ShaderResources;
-    
-    using SubpassID = ui8;
-    using RenderPassID = ui8;
 
     enum Shaders {
         SHADER_DRAW_COLOR,

@@ -39,18 +39,9 @@
 
 namespace Fresa::Graphics
 {
-    struct SubpassData {
-        ui32 framebuffer;
-        bool has_depth;
-        std::vector<AttachmentID> framebuffer_attachments = {};
-        std::vector<AttachmentID> input_attachments = {};
-    };
-    
     struct OpenGL {
         SDL_GLContext context;
-        
         std::map<Shaders, ShaderData> shaders;
-        std::map<SubpassID, SubpassData> subpasses;
     };
 
     [[maybe_unused]] static void glCheckError_(std::string file, int line) {

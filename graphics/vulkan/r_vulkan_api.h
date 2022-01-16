@@ -130,14 +130,13 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
     VkAttachmentDescription createAttachmentDescription(const AttachmentData &attachment);
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
-    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, VkRenderPass render_pass, const SwapchainData &swapchain,
-                                                  std::vector<AttachmentID> attachments);
+    std::vector<VkFramebuffer> createFramebuffers(VkDevice device, VkRenderPass render_pass, VkExtent2D extent,
+                                                  const SwapchainData &swapchain, std::vector<AttachmentID> attachments);
     //----------------------------------------
 
 
     //Render pass
     //----------------------------------------
-    SubpassID registerSubpass(std::vector<SubpassData> &subpasses, std::vector<AttachmentID> attachment_ids);
     RenderPassData createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses);
     //----------------------------------------
 
@@ -172,12 +171,12 @@ namespace Fresa::Graphics::VK
 
     //Pipeline
     //----------------------------------------
-    VkPipelineHelperData preparePipelineCreateInfo(Rect2<float> view, Rect2<> cut, const std::vector<VkVertexInputBindingDescription> binding_description, const std::vector<VkVertexInputAttributeDescription> attribute_description);
+    VkPipelineHelperData preparePipelineCreateInfo(const std::vector<VkVertexInputBindingDescription> binding_description, const std::vector<VkVertexInputAttributeDescription> attribute_description, VkExtent2D extent);
     VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
         const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes);
     VkPipelineInputAssemblyStateCreateInfo preparePipelineCreateInfoInputAssembly();
-    VkViewport preparePipelineCreateInfoViewport(Rect2<float> view);
-    VkRect2D preparePipelineCreateInfoScissor(Rect2<> cut);
+    VkViewport preparePipelineCreateInfoViewport(VkExtent2D extent);
+    VkRect2D preparePipelineCreateInfoScissor(VkExtent2D extent);
     VkPipelineViewportStateCreateInfo preparePipelineCreateInfoViewportState(const VkViewport &viewport, const VkRect2D &scissor);
     VkPipelineRasterizationStateCreateInfo preparePipelineCreateInfoRasterizer();
     VkPipelineMultisampleStateCreateInfo preparePipelineCreateInfoMultisampling();
@@ -226,10 +225,6 @@ namespace Fresa::Graphics::VK
                 data.render_pass = i; break;
             }
         }
-        
-        //---Viewport and scissor---
-        data.viewport = vk.viewport;
-        data.scissor = vk.scissor;
         
         //---Pipeline---
         data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
@@ -337,6 +332,15 @@ namespace Fresa::Graphics::VK
     VkDebugReportCallbackEXT createDebug(VkInstance &instance);
     inline Vec2<> to_vec(VkExtent2D extent) {
         return Vec2<>(extent.width, extent.height);
+    }
+    inline VkExtent2D to_extent(Vec2<> vec) {
+        return VkExtent2D{(ui32)vec.x, (ui32)vec.y};
+    }
+    inline bool operator ==(const VkExtent2D &a, const VkExtent2D &b) {
+        return a.width == b.width and a.height == b.height;
+    }
+    inline bool operator ==(const VkExtent2D &a, const Vec2<> &b) {
+        return a.width == b.x and a.height == b.y;
     }
     //----------------------------------------
     

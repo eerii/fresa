@@ -51,8 +51,8 @@ OpenGL API::createAPI(WindowData &win) {
     AttachmentID color_attachment = API::registerAttachment(gl, ATTACHMENT_COLOR_INPUT_WIN, win.size);
     AttachmentID depth_attachment = API::registerAttachment(gl, ATTACHMENT_DEPTH_WIN, win.size);
     
-    SubpassID subpass_draw = GL::registerSubpass(gl.subpasses, {color_attachment, depth_attachment});
-    SubpassID subpass_post = GL::registerSubpass(gl.subpasses, {swapchain_attachment, color_attachment});
+    SubpassID subpass_draw = API::registerSubpass({color_attachment, depth_attachment});
+    SubpassID subpass_post = API::registerSubpass({swapchain_attachment, color_attachment});
     
     gl.shaders[SHADER_DRAW_COLOR] = GL::createShaderDataGL(shader_names.at(SHADER_DRAW_COLOR), subpass_draw);
     gl.shaders[SHADER_DRAW_TEX] = GL::createShaderDataGL(shader_names.at(SHADER_DRAW_TEX), subpass_draw);
@@ -354,7 +354,7 @@ ui32 GL::createAttachmentTexture(Vec2<> size, AttachmentType type) {
     return tex;
 }
 
-SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, std::vector<AttachmentID> list) {
+SubpassID API::registerSubpass(std::vector<AttachmentID> list) {
     static SubpassID id = 0;
     while (subpasses.find(id) != subpasses.end())
         id++;
@@ -409,7 +409,7 @@ SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, std::
     if (depth_attachment_count > 1)
         log::error("A subpass can contain at most 1 depth attachment");
     
-    subpasses[id].framebuffer = is_swapchain_subpass ? 0 : createFramebuffer(subpasses[id].framebuffer_attachments);
+    subpasses[id].framebuffer = is_swapchain_subpass ? 0 : GL::createFramebuffer(subpasses[id].framebuffer_attachments);
     log::graphics(" - This subpass includes the framebuffer %d", subpasses[id].framebuffer);
         
     return id;
@@ -603,7 +603,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
     Clock::time_point time_before_draw = time();
     
     //---Clear---
-    for (const auto &[id, data] : gl.subpasses) {
+    for (const auto &[id, data] : API::subpasses) {
         glBindFramebuffer(GL_FRAMEBUFFER, data.framebuffer);
         glClearColor(0.f, 0.f, 0.f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -612,7 +612,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
     //---Draw shaders---
     for (const auto &[shader, buffer_queue] : API::draw_queue) {
         //: Bind framebuffer
-        const SubpassData &subpass = gl.subpasses.at(gl.shaders.at(shader).subpass);
+        const SubpassData &subpass = API::subpasses.at(gl.shaders.at(shader).subpass);
         glBindFramebuffer(GL_FRAMEBUFFER, subpass.framebuffer);
         
         //: Bind shader
@@ -669,7 +669,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
             continue;
         
         //: Bind framebuffer
-        const SubpassData &subpass = gl.subpasses.at(gl.shaders.at(shader).subpass);
+        const SubpassData &subpass = API::subpasses.at(gl.shaders.at(shader).subpass);
         glBindFramebuffer(GL_FRAMEBUFFER, subpass.framebuffer);
         
         //: Bind shader
@@ -726,7 +726,7 @@ void API::resize(OpenGL &gl, WindowData &win) {
         }
     }
     
-    for (auto &[id, subpass] : gl.subpasses) {
+    for (auto &[id, subpass] : API::subpasses) {
         if (subpass.framebuffer == 0)
             continue;
         

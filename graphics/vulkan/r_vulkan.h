@@ -25,23 +25,12 @@ namespace Fresa::Graphics
         std::vector<VkImage> images;
         std::vector<VkImageView> image_views;
     };
-
-    struct SubpassData {
-        //---Subpass---
-        //      There can be multiple subpasses in a render pass, they perform commands (in our case shader and draw operations) on a range
-        //      of associated attachments. They are used for post processing and other effects
-        std::vector<AttachmentID> attachment_bindings;
-        std::vector<VkAttachmentReference> color_attachments;
-        std::vector<VkAttachmentReference> depth_attachments;
-        std::vector<VkAttachmentReference> input_attachments;
-        
-        std::map<AttachmentID, SubpassID> previous_subpass_dependencies;
-    };
     
     struct RenderPassData {
         VkRenderPass render_pass;
         std::vector<VkFramebuffer> framebuffers;
         std::vector<SubpassID> subpasses;
+        VkExtent2D attachment_extent;
     };
 
     struct PipelineData {
@@ -67,9 +56,6 @@ namespace Fresa::Graphics
         
         SubpassID subpass;
         RenderPassID render_pass;
-        
-        Rect2<float> viewport;
-        Rect2<> scissor;
     };
 
     //: Helper structs
@@ -175,7 +161,6 @@ namespace Fresa::Graphics
         
         //: Render data
         SwapchainData swapchain;
-        std::vector<SubpassData> subpasses;
         std::vector<RenderPassData> render_passes;
         
         //: Commands

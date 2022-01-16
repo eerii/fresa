@@ -18,7 +18,6 @@ namespace Fresa::Graphics::GL
     //Render passes
     //----------------------------------------
     ui32 createAttachmentTexture(Vec2<> size, AttachmentType type);
-    SubpassID registerSubpass(std::map<SubpassID, SubpassData> &subpasses, std::vector<AttachmentID> list);
     ui32 createFramebuffer(std::vector<AttachmentID> list);
     //----------------------------------------
 
