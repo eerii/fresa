@@ -2,6 +2,8 @@
 //by jose pazos perez
 //licensed under GPLv3
 
+#ifndef DISABLE_GUI
+
 #include "gui.h"
 #include "config.h"
 
@@ -43,3 +45,5 @@ void Gui::win_menu() {
         ImGui::EndMainMenuBar();
     }
 }
+
+#endif

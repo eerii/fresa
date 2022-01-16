@@ -195,22 +195,18 @@ void Graphics::draw(const DrawID draw_id, glm::mat4 model) {
 
 void Graphics::setCameraProjection() {
     //: Example perspective projection
-    //camera.proj = glm::perspective(glm::radians(45.0f), win.size.x / (float) win.size.y, 0.1f, 10.0f);
+    camera.proj = glm::perspective(glm::radians(45.0f), (float) win.size.x / (float) win.size.y, 0.1f, 10000.0f);
+    camera.proj[1][1] *= -viewport_y;
     
     //: Example orthographic projection (with (0,0) on the corner)
     //camera.proj = glm::ortho(0.0f, win.size.x, 0.0f, win.size.y, -1000.0f, 1000.0f);
     
     //: Example orthographic projection (with (0,0) on the middle of the screen)
-    camera.proj = glm::ortho(-win.size.x/2.0f, win.size.x/2.0f, win.size.y/2.0f, -win.size.y/2.0f, -10000.0f, 10000.0f);
-    
-    #ifdef USE_VULKAN //: Vulkan needs the Y direction flipped to match OpenGL
-    camera.proj[1][1] *= -1.0f;
-    #endif
+    //camera.proj = glm::ortho(-win.size.x/2.0f, win.size.x/2.0f, win.size.y/2.0f, -win.size.y/2.0f, -10000.0f, 10000.0f);
+    //camera.proj[1][1] *= viewport_y;
 }
 
 void Graphics::updateCameraView() {
     //: Example of view matrix
-    glm::vec3 camera_front = glm::vec3(0.0f, 0.0f, -1.0f);
-    glm::vec3 camera_pos = glm::vec3(camera.pos.x, camera.pos.y, 200.0f);
-    camera.view = glm::lookAt(camera_pos, camera_pos + camera_front, glm::vec3(0.0f, 1.0f, 0.0f));
+    camera.view = glm::translate(glm::mat4(1.0f), glm::vec3(-camera.pos.x, -camera.pos.y * viewport_y, -camera.pos.z));
 }

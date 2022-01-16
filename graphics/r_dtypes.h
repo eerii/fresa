@@ -17,9 +17,9 @@
 
 #include "spirv_glsl.hpp" //SPIRV-cross for reflection
 
-#ifdef USE_VULKAN
-#include <vulkan/vulkan.h>
-#include "vk_mem_alloc.h"
+#if defined USE_VULKAN
+    #include <vulkan/vulkan.h>
+    #include "vk_mem_alloc.h"
 #endif
 
 //---Data types for graphics---
@@ -39,11 +39,16 @@ namespace Fresa::Graphics
     };
     
     struct CameraData {
-        Vec2<float> pos;
-        
+        glm::vec3 pos;
         glm::mat4 view;
         glm::mat4 proj;
     };
+    
+    #if defined USE_OPENGL
+    constexpr float viewport_y = 1.0f;
+    #elif defined USE_VULKAN
+    constexpr float viewport_y = -1.0f;
+    #endif
     //----------------------------------------
 
     //Buffer
