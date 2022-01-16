@@ -59,7 +59,7 @@ friend bool operator!=(const Type& lhs, const OT& rhs) { return !(lhs == rhs); }
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Fresa::Reflection::is_detected<::Fresa::Reflection::t_smaller, OT>, int> = 0> \
 friend bool operator< (const OT& lhs, const OT& rhs) { return ::Fresa::Reflection::less(lhs, rhs); } \
 template<typename OT, std::enable_if_t<std::is_same_v<OT,Type> && !::Fresa::Reflection::is_detected<::Fresa::Reflection::t_print, OT>, int> = 0> \
-friend std::ostream& operator<<(std::ostream& os, const OT& t) { ::Fresa::Reflection::printYAML<1>(os, t); return os; }
+friend std::ostream& operator<<(std::ostream& os, const OT& t) { ::Fresa::Reflection::printJSON(os, t); return os; }
 
 namespace Fresa
 {

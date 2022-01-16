@@ -84,16 +84,13 @@ Vulkan API::createAPI(WindowData &win) {
     
     //---Attachments---
     AttachmentID attachment_swapchain = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
-    AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT_WIN, win.size);//Config::resolution.to<int>());
-    AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH_WIN, win.size);//Config::resolution.to<int>());
-    //AttachmentID attachment_color_post = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT, Config::resolution.to<int>());
+    AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT_WIN, win.size);
+    AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH_WIN, win.size);
     
     //---Render passes---
     SubpassID subpass_draw = API::registerSubpass({attachment_color, attachment_depth});
     SubpassID subpass_post = API::registerSubpass({attachment_color, attachment_swapchain});
     vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_draw, subpass_post}));
-    
-    //SubpassID subpass_win = API::registerSubpass({attachment_color_post, attachment_swapchain});
     
     //---Sync objects---
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);

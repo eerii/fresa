@@ -12,7 +12,7 @@ A tiny game engine made in C++20.
 
 **Graphics** 
 - Custom renderer with Vulkan, OpenGL and WebGL support.
-- Multiple subpasses
+- Multiple shader subpasses
 - Automatic shader compilation for each API and reflection using SPIRV-Cross
 - Supports the creating of vertex buffers and textures at the start of the program for better performance (they can also be created dynamically)
 
@@ -27,13 +27,13 @@ A tiny game engine made in C++20.
 - _Automatic serialization (save/load) WIP_
 
 **Other**
-- Custom compile time **state machine** implementation
+- Custom compile time state machine implementation
 - Input handling
 - Logging and debugging tools
 - Collision checking
 - Time managment and timers
 - Event handling
-- _GUI (legacy, new version upcoming)_
+- Editor GUI
 
 ## building :hammer:
 

@@ -15,6 +15,7 @@
 - refactored update lists
 - viewport refactoring
 - moved attachment registering to the API
+- improved logging
 
 **fixed**
 - hopefully fixed sdl_keycodes not being recognised on linux and web
