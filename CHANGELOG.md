@@ -18,6 +18,7 @@
 
 **fixed**
 - hopefully fixed sdl_keycodes not being recognised on linux and web
+- culling was reversed on vulkan
 
 #### 0.3.5 - make make make and make - _24 12 2021_
 

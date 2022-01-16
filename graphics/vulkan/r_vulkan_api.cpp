@@ -1148,19 +1148,17 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, VkRenderPass 
     
     for (int i = 0; i < swapchain.size; i++) {
         std::vector<VkImageView> fb_attachments{};
-        bool use_swapchain_extent = false;
-        VkExtent2D extent{};
+        Vec2<> size = API::attachments.at(0).size;
         for (auto &id : attachments) {
-            if (API::attachments.at(id).type & ATTACHMENT_SWAPCHAIN) {
-                use_swapchain_extent = true;
+            if (API::attachments.at(id).type & ATTACHMENT_SWAPCHAIN)
                 fb_attachments.push_back(swapchain.image_views[i]);
-            } else {
-                extent = VkExtent2D{std::max(extent.width, (ui32)API::attachments.at(id).size.x),
-                                    std::max(extent.height, (ui32)API::attachments.at(id).size.y)};
+            else
                 fb_attachments.push_back(API::attachments.at(id).image_view);
-            }
+            
+            if (API::attachments.at(id).size != size)
+                log::error("All attachments in a framebuffer must be of the same size");
         }
-        framebuffers[i] = VK::createFramebuffer(device, render_pass, fb_attachments, use_swapchain_extent ? swapchain.extent : extent);
+        framebuffers[i] = VK::createFramebuffer(device, render_pass, fb_attachments, VkExtent2D{(ui32)size.x, (ui32)size.y});
     }
     
     deletion_queue_swapchain.push_back([framebuffers, device](){
