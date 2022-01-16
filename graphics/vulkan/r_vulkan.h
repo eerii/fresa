@@ -11,31 +11,6 @@
 
 namespace Fresa::Graphics
 {
-    struct AttachmentData {
-        //---Attachment---
-        //      An attachment is an image the renderer writes to, it can either be the one in the swapchain that is presented
-        //      or an intermediary that is used by a subpass.
-        AttachmentType type;
-        
-        VkImage image;
-        VmaAllocation allocation;
-        
-        VkImageView image_view;
-        
-        VkFormat format;
-        
-        VkImageUsageFlagBits usage;
-        VkImageAspectFlagBits aspect;
-        
-        VkImageLayout initial_layout;
-        VkImageLayout final_layout;
-        
-        VkAttachmentLoadOp load_op;
-        VkAttachmentStoreOp store_op;
-        
-        VkAttachmentDescription description;
-    };
-
     struct SwapchainData {
         //---Swapchain---
         //      The swapchain is responsible for presenting images to the screen. It holds several images that will swap at appropiate times
@@ -200,7 +175,6 @@ namespace Fresa::Graphics
         
         //: Render data
         SwapchainData swapchain;
-        std::map<AttachmentID, AttachmentData> attachments;
         std::vector<SubpassData> subpasses;
         std::vector<RenderPassData> render_passes;
         

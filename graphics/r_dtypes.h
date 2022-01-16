@@ -17,7 +17,7 @@
 
 #include "spirv_glsl.hpp" //SPIRV-cross for reflection
 
-#if defined USE_VULKAN
+#ifdef USE_VULKAN
     #include <vulkan/vulkan.h>
     #include "vk_mem_alloc.h"
 #endif
@@ -44,21 +44,21 @@ namespace Fresa::Graphics
         glm::mat4 proj;
     };
     
-    #if defined USE_OPENGL
-    constexpr float viewport_y = 1.0f;
-    #elif defined USE_VULKAN
+    #if defined USE_VULKAN
     constexpr float viewport_y = -1.0f;
+    #elif defined USE_OPENGL
+    constexpr float viewport_y = 1.0f;
     #endif
     //----------------------------------------
 
     //Buffer
     //----------------------------------------
     struct BufferData {
-        #if defined USE_OPENGL
-        ui32 id_;
-        #elif defined USE_VULKAN
+        #if defined USE_VULKAN
         VkBuffer buffer;
         VmaAllocation allocation;
+        #elif defined USE_OPENGL
+        ui32 id_;
         #endif
     };
 
@@ -96,14 +96,14 @@ namespace Fresa::Graphics
 
     struct TextureData {
         int w, h, ch;
-        #if defined USE_OPENGL
-        ui32 id_;
-        #elif defined USE_VULKAN
+        #if defined USE_VULKAN
         VkImage image;
         VmaAllocation allocation;
         VkFormat format;
         VkImageLayout layout;
         VkImageView image_view;
+        #elif defined USE_OPENGL
+        ui32 id_;
         #endif
     };
 
@@ -119,9 +119,41 @@ namespace Fresa::Graphics
         ATTACHMENT_DEPTH = 1 << 1,
         ATTACHMENT_INPUT = 1 << 2,
         ATTACHMENT_SWAPCHAIN = 1 << 3,
+        ATTACHMENT_WINDOW = 1 << 4,
         ATTACHMENT_COLOR_INPUT = ATTACHMENT_COLOR | ATTACHMENT_INPUT,
+        ATTACHMENT_COLOR_WIN = ATTACHMENT_COLOR | ATTACHMENT_WINDOW,
+        ATTACHMENT_COLOR_INPUT_WIN = ATTACHMENT_COLOR | ATTACHMENT_INPUT | ATTACHMENT_WINDOW,
         ATTACHMENT_DEPTH_INPUT = ATTACHMENT_DEPTH | ATTACHMENT_INPUT,
-        ATTACHMENT_COLOR_SWAPCHAIN = ATTACHMENT_COLOR | ATTACHMENT_SWAPCHAIN,
+        ATTACHMENT_DEPTH_WIN = ATTACHMENT_DEPTH | ATTACHMENT_WINDOW,
+        ATTACHMENT_DEPTH_INPUT_WIN = ATTACHMENT_DEPTH | ATTACHMENT_INPUT | ATTACHMENT_WINDOW,
+        ATTACHMENT_COLOR_SWAPCHAIN = ATTACHMENT_COLOR | ATTACHMENT_SWAPCHAIN | ATTACHMENT_WINDOW,
+    };
+    
+    struct AttachmentData {
+        AttachmentType type;
+        Vec2<> size;
+        
+        #if defined USE_VULKAN
+        VkImage image;
+        VmaAllocation allocation;
+        
+        VkImageView image_view;
+        
+        VkFormat format;
+        
+        VkImageUsageFlagBits usage;
+        VkImageAspectFlagBits aspect;
+        
+        VkImageLayout initial_layout;
+        VkImageLayout final_layout;
+        
+        VkAttachmentLoadOp load_op;
+        VkAttachmentStoreOp store_op;
+        
+        VkAttachmentDescription description;
+        #elif defined USE_OPENGL
+        ui32 tex;
+        #endif
     };
     //----------------------------------------
     
@@ -172,12 +204,12 @@ namespace Fresa::Graphics
     struct ShaderData {
         ShaderLocations locations;
         ShaderCode code;
-        #if defined USE_OPENGL
+        #if defined USE_VULKAN
+        ShaderStages stages;
+        #elif defined USE_OPENGL
         ui8 pid;
         std::map<str, ui32> uniforms;
         SubpassID subpass;
-        #elif defined USE_VULKAN
-        ShaderStages stages;
         #endif
     };
     //----------------------------------------

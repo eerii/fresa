@@ -47,12 +47,12 @@ OpenGL API::createAPI(WindowData &win) {
     
     gl.context = GL::createContext(win);
     
-    AttachmentID swapchain_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_COLOR_SWAPCHAIN);
-    AttachmentID color_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_COLOR_INPUT);
-    AttachmentID depth_attachment = GL::registerAttachment(gl.attachments, win.size, ATTACHMENT_DEPTH);
+    AttachmentID swapchain_attachment = API::registerAttachment(gl, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+    AttachmentID color_attachment = API::registerAttachment(gl, ATTACHMENT_COLOR_INPUT_WIN, win.size);
+    AttachmentID depth_attachment = API::registerAttachment(gl, ATTACHMENT_DEPTH_WIN, win.size);
     
-    SubpassID subpass_draw = GL::registerSubpass(gl.subpasses, gl.attachments, {color_attachment, depth_attachment});
-    SubpassID subpass_post = GL::registerSubpass(gl.subpasses, gl.attachments, {swapchain_attachment, color_attachment});
+    SubpassID subpass_draw = GL::registerSubpass(gl.subpasses, {color_attachment, depth_attachment});
+    SubpassID subpass_post = GL::registerSubpass(gl.subpasses, {swapchain_attachment, color_attachment});
     
     gl.shaders[SHADER_DRAW_COLOR] = GL::createShaderDataGL(shader_names.at(SHADER_DRAW_COLOR), subpass_draw);
     gl.shaders[SHADER_DRAW_TEX] = GL::createShaderDataGL(shader_names.at(SHADER_DRAW_TEX), subpass_draw);
@@ -324,7 +324,7 @@ void GL::validateShaderData(ui32 vao_id, const std::map<Shaders, ShaderData> &sh
 //Attachments
 //----------------------------------------
 
-AttachmentID GL::registerAttachment(std::map<AttachmentID, AttachmentData> &attachments, Vec2<> size, AttachmentType type) {
+AttachmentID API::registerAttachment(const OpenGL &gl, AttachmentType type, Vec2<> size) {
     static AttachmentID id = 0;
     while (attachments.find(id) != attachments.end())
         id++;
@@ -332,6 +332,7 @@ AttachmentID GL::registerAttachment(std::map<AttachmentID, AttachmentData> &atta
     attachments[id] = AttachmentData{};
     attachments[id].tex = GL::createAttachmentTexture(size, type);
     attachments[id].type = type;
+    attachments[id].size = size;
     
     return id;
 }
@@ -353,8 +354,7 @@ ui32 GL::createAttachmentTexture(Vec2<> size, AttachmentType type) {
     return tex;
 }
 
-SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, const std::map<AttachmentID, AttachmentData> &attachments,
-                              std::vector<AttachmentID> list) {
+SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, std::vector<AttachmentID> list) {
     static SubpassID id = 0;
     while (subpasses.find(id) != subpasses.end())
         id++;
@@ -366,7 +366,7 @@ SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, const
     bool is_swapchain_subpass = false;
     
     for (auto &binding : list) {
-        const AttachmentData &attachment = attachments.at(binding);
+        const AttachmentData &attachment = API::attachments.at(binding);
         
         //: Swapchain
         if (attachment.type & ATTACHMENT_SWAPCHAIN)
@@ -409,13 +409,13 @@ SubpassID GL::registerSubpass(std::map<SubpassID, SubpassData> &subpasses, const
     if (depth_attachment_count > 1)
         log::error("A subpass can contain at most 1 depth attachment");
     
-    subpasses[id].framebuffer = is_swapchain_subpass ? 0 : createFramebuffer(attachments, subpasses[id].framebuffer_attachments);
+    subpasses[id].framebuffer = is_swapchain_subpass ? 0 : createFramebuffer(subpasses[id].framebuffer_attachments);
     log::graphics(" - This subpass includes the framebuffer %d", subpasses[id].framebuffer);
         
     return id;
 }
 
-ui32 GL::createFramebuffer(const std::map<AttachmentID, AttachmentData> &attachments, std::vector<AttachmentID> list) {
+ui32 GL::createFramebuffer(std::vector<AttachmentID> list) {
     //---Framebuffer---
     //      A texture that you can draw to, useful for multi step shader pipelines
     //      It can have a color, depth or both attachments
@@ -425,13 +425,13 @@ ui32 GL::createFramebuffer(const std::map<AttachmentID, AttachmentData> &attachm
     
     ui8 color_attachment_count = 0;
     for (auto &attachment : list) {
-        if (attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN) {
+        if (API::attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN) {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glDeleteFramebuffers(1, &fb);
             return 0;
         }
         
-        if (attachments.at(attachment).type & ATTACHMENT_COLOR) {
+        if (API::attachments.at(attachment).type & ATTACHMENT_COLOR) {
             GLenum color_attachment_value = [color_attachment_count](){
                 if (color_attachment_count == 0) return GL_COLOR_ATTACHMENT0;
                 if (color_attachment_count == 1) return GL_COLOR_ATTACHMENT1;
@@ -446,11 +446,11 @@ ui32 GL::createFramebuffer(const std::map<AttachmentID, AttachmentData> &attachm
             }();
             color_attachment_count++;
             
-            glFramebufferTexture2D(GL_FRAMEBUFFER, color_attachment_value, GL_TEXTURE_2D, attachments.at(attachment).tex, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, color_attachment_value, GL_TEXTURE_2D, API::attachments.at(attachment).tex, 0);
         }
             
-        if (attachments.at(attachment).type & ATTACHMENT_DEPTH) {
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, attachments.at(attachment).tex, 0);
+        if (API::attachments.at(attachment).type & ATTACHMENT_DEPTH) {
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, API::attachments.at(attachment).tex, 0);
         }
     }
     
@@ -684,7 +684,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
         
         //: Previous textures from attachments
         for (auto &binding : subpass.input_attachments) {
-            glBindTexture(GL_TEXTURE_2D, gl.attachments.at(binding).tex);
+            glBindTexture(GL_TEXTURE_2D, API::attachments.at(binding).tex);
         }
         
         //: Draw
@@ -719,17 +719,19 @@ void API::present(OpenGL &gl, WindowData &win) {
 void API::resize(OpenGL &gl, WindowData &win) {
     glViewport(0, 0, win.size.x, win.size.y);
     
-    //TODO: Only resize attachments that depend on window size
-    
-    for (auto &[id, attachment] : gl.attachments)
-        attachment.tex = GL::createAttachmentTexture(win.size, attachment.type);
+    for (auto &[id, attachment] : API::attachments) {
+        if (attachment.type & ATTACHMENT_WINDOW) {
+            attachment.size = win.size;
+            attachment.tex = GL::createAttachmentTexture(attachment.size, attachment.type);
+        }
+    }
     
     for (auto &[id, subpass] : gl.subpasses) {
         if (subpass.framebuffer == 0)
             continue;
         
         glDeleteFramebuffers(1, &subpass.framebuffer);
-        subpass.framebuffer = GL::createFramebuffer(gl.attachments, subpass.framebuffer_attachments);
+        subpass.framebuffer = GL::createFramebuffer(subpass.framebuffer_attachments);
     }
     glCheckError();
 }

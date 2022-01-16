@@ -35,6 +35,10 @@ namespace Fresa::Graphics::API
     inline std::map<TextureID, TextureData> texture_data{};
     inline std::map<DrawID, DrawData> draw_data{};
     inline DrawQueueMap draw_queue{};
+    
+    AttachmentID registerAttachment(const GraphicsAPI &api, AttachmentType type, Vec2<> size);
+    void recreateAttachments(const GraphicsAPI &api);
+    inline std::map<AttachmentID, AttachmentData> attachments{};
 
     void updateDescriptorSets(const GraphicsAPI &api, const DrawData* draw);
 

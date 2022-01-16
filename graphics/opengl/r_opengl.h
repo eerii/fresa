@@ -39,11 +39,6 @@
 
 namespace Fresa::Graphics
 {
-    struct AttachmentData {
-        ui32 tex;
-        AttachmentType type;
-    };
-    
     struct SubpassData {
         ui32 framebuffer;
         bool has_depth;
@@ -55,7 +50,6 @@ namespace Fresa::Graphics
         SDL_GLContext context;
         
         std::map<Shaders, ShaderData> shaders;
-        std::map<AttachmentID, AttachmentData> attachments;
         std::map<SubpassID, SubpassData> subpasses;
     };
 

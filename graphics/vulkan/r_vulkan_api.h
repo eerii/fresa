@@ -129,21 +129,15 @@ namespace Fresa::Graphics::VK
     //Attachments
     //----------------------------------------
     VkAttachmentDescription createAttachmentDescription(const AttachmentData &attachment);
-    AttachmentID registerAttachment(const Vulkan &vk, std::map<AttachmentID, AttachmentData> &attachments, AttachmentType type);
-    void recreateAttachments(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                             const CommandData &cmd, Vec2<> size, std::map<AttachmentID, AttachmentData> &attachments);
-
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
     std::vector<VkFramebuffer> createFramebuffers(VkDevice device, VkRenderPass render_pass, const SwapchainData &swapchain,
-                                                  std::vector<AttachmentID> attachments,
-                                                  const std::map<AttachmentID, AttachmentData> &render_attachments);
+                                                  std::vector<AttachmentID> attachments);
     //----------------------------------------
 
 
     //Render pass
     //----------------------------------------
-    SubpassID registerSubpass(std::vector<SubpassData> &subpasses, const std::map<AttachmentID, AttachmentData> &attachments,
-                              std::vector<AttachmentID> attachment_ids);
+    SubpassID registerSubpass(std::vector<SubpassData> &subpasses, std::vector<AttachmentID> attachment_ids);
     RenderPassData createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses);
     //----------------------------------------
 

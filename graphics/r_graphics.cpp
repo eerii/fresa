@@ -208,5 +208,5 @@ void Graphics::setCameraProjection() {
 
 void Graphics::updateCameraView() {
     //: Example of view matrix
-    camera.view = glm::translate(glm::mat4(1.0f), glm::vec3(-camera.pos.x, -camera.pos.y * viewport_y, -camera.pos.z));
+    camera.view = glm::translate(glm::mat4(1.0f), glm::vec3(-camera.pos.x, -camera.pos.y, -camera.pos.z));
 }

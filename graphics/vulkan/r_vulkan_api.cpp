@@ -83,13 +83,13 @@ Vulkan API::createAPI(WindowData &win) {
     vk.cmd.query_pool = VK::createQueryPool(vk.device, vk.swapchain.size);
     
     //---Attachments---
-    AttachmentID attachment_swapchain = VK::registerAttachment(vk, vk.attachments, ATTACHMENT_COLOR_SWAPCHAIN);
-    AttachmentID attachment_color = VK::registerAttachment(vk, vk.attachments, ATTACHMENT_COLOR_INPUT);
-    AttachmentID attachment_depth = VK::registerAttachment(vk, vk.attachments, ATTACHMENT_DEPTH);
+    AttachmentID attachment_swapchain = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+    AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT_WIN, win.size);
+    AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH_WIN, win.size);
     
     //---Subpasses---
-    SubpassID subpass_draw = VK::registerSubpass(vk.subpasses, vk.attachments, {attachment_color, attachment_depth});
-    SubpassID subpass_post = VK::registerSubpass(vk.subpasses, vk.attachments, {attachment_color, attachment_swapchain});
+    SubpassID subpass_draw = VK::registerSubpass(vk.subpasses, {attachment_color, attachment_depth});
+    SubpassID subpass_post = VK::registerSubpass(vk.subpasses, {attachment_color, attachment_swapchain});
     
     //---Render pass---
     vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_draw, subpass_post}));
@@ -731,7 +731,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     IF_GUI(vk.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd));
     
     //: Attachments
-    VK::recreateAttachments(vk.device, vk.allocator, vk.physical_device, vk.cmd, to_vec(vk.swapchain.extent), vk.attachments);
+    API::recreateAttachments(vk);
     for (const auto &[shader, data] : vk.pipelines) {
         if (shader > LAST_DRAW_SHADER)
             VK::updatePostDescriptorSets(vk, data);
@@ -866,8 +866,8 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     #endif
     
     //: Clear values
-    std::vector<VkClearValue> clear_values{vk.attachments.size() + 1};
-    for (auto &[idx, a] : vk.attachments) {
+    std::vector<VkClearValue> clear_values{API::attachments.size() + 1};
+    for (auto &[idx, a] : API::attachments) {
         if (a.type & ATTACHMENT_COLOR)
             clear_values[idx].color = {0.f, 0.f, 0.f, 1.0f};
         if (a.type & ATTACHMENT_DEPTH)
@@ -1032,15 +1032,16 @@ VkAttachmentDescription VK::createAttachmentDescription(const AttachmentData &at
     return description;
 }
 
-AttachmentID VK::registerAttachment(const Vulkan &vk, std::map<AttachmentID, AttachmentData> &attachments, AttachmentType type) {
+AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2<> size) {
     static AttachmentID id = 0;
-    while (attachments.find(id) != attachments.end())
+    while (API::attachments.find(id) != API::attachments.end())
         id++;
     
-    attachments[id] = AttachmentData{};
-    AttachmentData &attachment = attachments.at(id);
+    API::attachments[id] = AttachmentData{};
+    AttachmentData &attachment = API::attachments.at(id);
     
     attachment.type = type;
+    attachment.size = size;
     
     attachment.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     
@@ -1079,34 +1080,36 @@ AttachmentID VK::registerAttachment(const Vulkan &vk, std::map<AttachmentID, Att
     
     //: Image and image view
     if (not (type & ATTACHMENT_SWAPCHAIN)) {
-        auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, to_vec(vk.swapchain.extent),
+        auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, VK::to_vec(vk.swapchain.extent),
                                         attachment.format, attachment.initial_layout, attachment.usage);
         attachment.image = i_;
         attachment.allocation = a_;
         
         attachment.image_view = VK::createImageView(vk.device, attachment.image, attachment.aspect, attachment.format);
-        deletion_queue_swapchain.push_back([vk, attachment](){ vkDestroyImageView(vk.device, attachment.image_view, nullptr); });
+        VK::deletion_queue_swapchain.push_back([vk, attachment](){ vkDestroyImageView(vk.device, attachment.image_view, nullptr); });
     }
     
     //: Description
-    attachment.description = createAttachmentDescription(attachment);
+    attachment.description = VK::createAttachmentDescription(attachment);
     
     return id;
 }
 
-void VK::recreateAttachments(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                             const CommandData &cmd, Vec2<> size, std::map<AttachmentID, AttachmentData> &attachments) {
+void API::recreateAttachments(const Vulkan &vk) {
     for (auto &[idx, attachment] : attachments) {
+        if (attachment.type & ATTACHMENT_WINDOW) {
+            attachment.size = VK::to_vec(vk.swapchain.extent);
+        }
         if (not (attachment.type & ATTACHMENT_SWAPCHAIN)) {
-            auto [i_, a_] = VK::createImage(device, allocator, VMA_MEMORY_USAGE_GPU_ONLY, size,
+            auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, attachment.size,
                                             attachment.format, attachment.initial_layout, attachment.usage);
             attachment.image = i_;
             attachment.allocation = a_;
             
-            attachment.image_view = VK::createImageView(device, attachment.image, attachment.aspect, attachment.format);
+            attachment.image_view = VK::createImageView(vk.device, attachment.image, attachment.aspect, attachment.format);
             
             AttachmentData &attachment_ref = attachments.at(idx);
-            deletion_queue_swapchain.push_back([device, attachment_ref](){ vkDestroyImageView(device, attachment_ref.image_view, nullptr); });
+            VK::deletion_queue_swapchain.push_back([vk, attachment_ref](){ vkDestroyImageView(vk.device, attachment_ref.image_view, nullptr); });
         }
     }
 }
@@ -1138,18 +1141,26 @@ VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, s
 }
 
 std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, VkRenderPass render_pass, const SwapchainData &swapchain,
-                                                  std::vector<AttachmentID> attachments,
-                                                  const std::map<AttachmentID, AttachmentData> &render_attachments) {
+                                                  std::vector<AttachmentID> attachments) {
     //---Framebuffers---
     std::vector<VkFramebuffer> framebuffers;
     framebuffers.resize(swapchain.size);
     
     for (int i = 0; i < swapchain.size; i++) {
-        std::vector<VkImageView> framebuffer_attachments{};
-        for (auto &id : attachments)
-            framebuffer_attachments.push_back(render_attachments.at(id).type & ATTACHMENT_SWAPCHAIN ? swapchain.image_views[i] :
-                                                                                                      render_attachments.at(id).image_view);
-        framebuffers[i] = VK::createFramebuffer(device, render_pass, framebuffer_attachments, swapchain.extent);
+        std::vector<VkImageView> fb_attachments{};
+        bool use_swapchain_extent = false;
+        VkExtent2D extent{};
+        for (auto &id : attachments) {
+            if (API::attachments.at(id).type & ATTACHMENT_SWAPCHAIN) {
+                use_swapchain_extent = true;
+                fb_attachments.push_back(swapchain.image_views[i]);
+            } else {
+                extent = VkExtent2D{std::max(extent.width, (ui32)API::attachments.at(id).size.x),
+                                    std::max(extent.height, (ui32)API::attachments.at(id).size.y)};
+                fb_attachments.push_back(API::attachments.at(id).image_view);
+            }
+        }
+        framebuffers[i] = VK::createFramebuffer(device, render_pass, fb_attachments, use_swapchain_extent ? swapchain.extent : extent);
     }
     
     deletion_queue_swapchain.push_back([framebuffers, device](){
@@ -1167,8 +1178,7 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, VkRenderPass 
 //Render Pass
 //----------------------------------------
 
-SubpassID VK::registerSubpass(std::vector<SubpassData> &subpasses, const std::map<AttachmentID, AttachmentData> &attachments,
-                              std::vector<AttachmentID> attachment_ids) {
+SubpassID VK::registerSubpass(std::vector<SubpassData> &subpasses, std::vector<AttachmentID> attachment_ids) {
     SubpassID subpass_id = subpasses.size();
     subpasses.push_back(SubpassData{});
     SubpassData &data = subpasses.at(subpass_id);
@@ -1178,7 +1188,7 @@ SubpassID VK::registerSubpass(std::vector<SubpassData> &subpasses, const std::ma
     data.attachment_bindings = attachment_ids;
     
     for (auto binding : attachment_ids) {
-        const AttachmentData &attachment = attachments.at(binding);
+        const AttachmentData &attachment = API::attachments.at(binding);
         bool first_in_chain = true;
         
         if (attachment.type & ATTACHMENT_INPUT) {
@@ -1226,7 +1236,7 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
     std::map<AttachmentID, ui32> map_attachment_to_render_pass;
     for (auto attachment : attachments) {
         map_attachment_to_render_pass[attachment] = (ui32)render_pass_helper.attachments.size();
-        render_pass_helper.attachments.push_back(vk.attachments.at(attachment).description);
+        render_pass_helper.attachments.push_back(API::attachments.at(attachment).description);
     }
     std::vector<AttachmentID> attachments_v(attachments.begin(), attachments.end());
     
@@ -1289,7 +1299,7 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
         }
         //: Swapchain (Ensure that swapchain images are transitioned before they are written to)
         for (const auto &attachment : subpass.color_attachments) {
-            if (vk.attachments.at(attachment.attachment).type & ATTACHMENT_SWAPCHAIN) {
+            if (API::attachments.at(attachment.attachment).type & ATTACHMENT_SWAPCHAIN) {
                 VkSubpassDependency dependency;
                 
                 dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -1329,7 +1339,7 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
                   render_pass_helper.subpasses.size(), render_pass_helper.attachments.size());
     
     //---Create framebuffers---
-    render.framebuffers = VK::createFramebuffers(vk.device, render.render_pass, vk.swapchain, attachments_v, vk.attachments);
+    render.framebuffers = VK::createFramebuffers(vk.device, render.render_pass, vk.swapchain, attachments_v);
     
     return render;
 }
@@ -2208,7 +2218,7 @@ void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline
     int i = 0;
     std::map<ui32, VkImageView> input_attachments{};
     for (auto &attachment : vk.subpasses.at(pipeline.subpass).input_attachments) {
-        input_attachments[i] = vk.attachments.at(attachment.attachment).image_view;
+        input_attachments[i] = API::attachments.at(attachment.attachment).image_view;
         i++;
     }
     VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, {}, {}, input_attachments);
@@ -2799,8 +2809,8 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
     Gui::descriptor_pool = createDescriptorPool(vk.device, pool_sizes);
     
     //: Render pass
-    AttachmentID attachment_swapchain_gui = VK::registerAttachment(vk, vk.attachments, ATTACHMENT_COLOR_SWAPCHAIN);
-    SubpassID subpass_gui = VK::registerSubpass(vk.subpasses, vk.attachments, {attachment_swapchain_gui});
+    AttachmentID attachment_swapchain_gui = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+    SubpassID subpass_gui = VK::registerSubpass(vk.subpasses, {attachment_swapchain_gui});
     vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_gui})); //TODO: Render pass with propper map
     
     //: Init Vulkan implementation
