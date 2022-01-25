@@ -4,12 +4,13 @@
 
 ---
 
-#### 0.3.6 - 
+#### 0.3.6 - looking sharp - _24 01 2022_
 
 **added**
 - imgui support
 - orthographic perspective
 - new gui menu
+- multiple sized attachments for scaled rendering
 
 **changed**
 - refactored update lists

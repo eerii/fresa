@@ -208,7 +208,7 @@ namespace Fresa::Graphics::VK
         data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
         
         //---Descriptor sets---
-        if (data.subpass > 0) {
+        if (shader > LAST_DRAW_SHADER) {
             data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
                                                               data.descriptor_pools, vk.swapchain.size);
             VK::updatePostDescriptorSets(vk, data);

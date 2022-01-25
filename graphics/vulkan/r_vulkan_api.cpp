@@ -83,27 +83,32 @@ Vulkan API::createAPI(WindowData &win) {
     vk.cmd.query_pool = VK::createQueryPool(vk.device, vk.swapchain.size);
     
     //---Attachments---
+    AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT, Config::resolution.to<int>());
+    AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH, Config::resolution.to<int>());
+    AttachmentID attachment_post = API::registerAttachment(vk, ATTACHMENT_COLOR_EXTERNAL, Config::resolution.to<int>());
     AttachmentID attachment_swapchain = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
-    AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT_WIN, win.size);
-    AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH_WIN, win.size);
     
     //---Render passes---
     SubpassID subpass_draw = API::registerSubpass({attachment_color, attachment_depth});
-    SubpassID subpass_post = API::registerSubpass({attachment_color, attachment_swapchain});
+    SubpassID subpass_post = API::registerSubpass({attachment_color, attachment_post});
     vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_draw, subpass_post}));
+    
+    AttachmentID attachment_swapchain_2 = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+    
+    SubpassID subpass_window = API::registerSubpass({attachment_swapchain_2}, {attachment_post});
+    vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_window}));
     
     //---Sync objects---
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
+    //---Image sampler---
+    vk.sampler = VK::createSampler(vk.device);
+    
     //---Pipelines---
-    vk.viewport = {0.0f, 0.0f, (float)win.size.x, (float)win.size.y};
-    vk.scissor = {0, 0, win.size.x, win.size.y};
     vk.pipelines[SHADER_DRAW_COLOR] = VK::createPipeline<VertexDataColor>(vk, SHADER_DRAW_COLOR, subpass_draw);
     vk.pipelines[SHADER_DRAW_TEX] = VK::createPipeline<VertexDataTexture>(vk, SHADER_DRAW_TEX, subpass_draw);
     vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST, subpass_post);
-    
-    //---Image sampler---
-    vk.sampler = VK::createSampler(vk.device);
+    vk.pipelines[SHADER_WINDOW] = VK::createPipeline<VertexDataWindow>(vk, SHADER_WINDOW, subpass_window);
     
     //---Window vertex buffer---
     window_vertex_buffer = VK::createVertexBuffer(vk, window_vertices);
@@ -744,8 +749,6 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //: Pipeline
-    vk.viewport = {0.0f, 0.0f, (float)win.size.x, (float)win.size.y};
-    vk.scissor = {0, 0, win.size.x, win.size.y};
     for (auto &[shader, data] : vk.pipelines) {
         data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render_passes);
     }
@@ -871,66 +874,85 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     }
     
     //: Begin render pass
-    VkRenderPassBeginInfo render_pass_info{};
-    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = vk.render_passes.at(0).render_pass;
-    render_pass_info.framebuffer = vk.render_passes.at(0).framebuffers.at(current);
-    render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = vk.render_passes.at(0).attachment_extent;
-    render_pass_info.clearValueCount = (ui32)clear_values.size();
-    render_pass_info.pClearValues = clear_values.data();
-    
-    vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-    
-    //---Draw shaders---
-    for (const auto &[shader, queue_buffer] : API::draw_queue) {
-        //: Bind pipeline
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
+    for (const auto &render_pass : vk.render_passes) {
+        VkRenderPassBeginInfo render_pass_info{};
+        render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        render_pass_info.renderPass = render_pass.render_pass;
+        render_pass_info.framebuffer = render_pass.framebuffers.at(current);
+        render_pass_info.renderArea.offset = {0, 0};
+        render_pass_info.renderArea.extent = render_pass.attachment_extent;
+        render_pass_info.clearValueCount = (ui32)clear_values.size();
+        render_pass_info.pClearValues = clear_values.data();
         
-        for (const auto &[buffer, queue_tex] : queue_buffer) {
-            //: Vertex buffer
-            VkDeviceSize offsets[]{ 0 };
-            vkCmdBindVertexBuffers(cmd, 0, 1, &buffer->vertex_buffer.buffer, offsets);
+        vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+        
+        for (const auto &subpass : render_pass.subpasses) {
+            //: Next subpass
+            if (subpass != render_pass.subpasses.at(0))
+                vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
             
-            //: Index buffer
-            vkCmdBindIndexBuffer(cmd, buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+            //: Get all shaders associated with this subpass
+            std::vector<Shaders> shaders;
+            for (const auto &[shader, pipeline] : vk.pipelines) {
+                if (pipeline.subpass == subpass)
+                    shaders.push_back(shader);
+            }
             
-            for (const auto &[tex, queue_draw] : queue_tex) {
-                for (const auto &[data, model] : queue_draw) {
-                    //: Descriptor set
-                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
-                                            &data->descriptor_sets.at(current), 0, nullptr);
+            for (const auto &shader : shaders) {
+                //---Draw shaders---
+                if (shader <= LAST_DRAW_SHADER) {
+                    if (not API::draw_queue.count(shader))
+                        continue;
+                    auto queue_buffer = API::draw_queue.at(shader);
+                    
+                    for (const auto &[shader, queue_buffer] : API::draw_queue) {
+                        //: Bind pipeline
+                        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
+                        
+                        for (const auto &[buffer, queue_tex] : queue_buffer) {
+                            //: Vertex buffer
+                            VkDeviceSize offsets[]{ 0 };
+                            vkCmdBindVertexBuffers(cmd, 0, 1, &buffer->vertex_buffer.buffer, offsets);
+                            
+                            //: Index buffer
+                            vkCmdBindIndexBuffer(cmd, buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+                            
+                            for (const auto &[tex, queue_draw] : queue_tex) {
+                                for (const auto &[data, model] : queue_draw) {
+                                    //: Descriptor set
+                                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
+                                                            &data->descriptor_sets.at(current), 0, nullptr);
 
-                    //: Draw vertices (Optimize this in the future for a single mesh with instantiation)
-                    vkCmdDrawIndexed(cmd, buffer->index_size, 1, 0, 0, 0);
+                                    //: Draw vertices (Optimize this in the future for a single mesh with instantiation)
+                                    vkCmdDrawIndexed(cmd, buffer->index_size, 1, 0, 0, 0);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                //---Post shaders---
+                else {
+                    //: Pipeline
+                    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
+                    
+                    //: Descriptor sets
+                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
+                                            &vk.pipelines.at(shader).descriptor_sets.at(current), 0, nullptr);
+                    
+                    //: Vertex buffer (It has the 4 vertices of the window area)
+                    VkDeviceSize offsets[]{ 0 };
+                    vkCmdBindVertexBuffers(cmd, 0, 1, &window_vertex_buffer.buffer, offsets);
+                    
+                    //: Draw
+                    vkCmdDraw(cmd, 6, 1, 0, 0);
                 }
             }
         }
+        
+        //: End render pass
+        vkCmdEndRenderPass(cmd);
     }
-    //---Post shaders---
-    for (const auto &[shader, pipeline] : vk.pipelines) {
-        if (shader <= LAST_DRAW_SHADER)
-            continue;
-        
-        //: Next subpass
-        vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
-        
-        //: Pipeline
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
-        
-        //: Descriptor sets
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets.at(current), 0, nullptr);
-        
-        //: Vertex buffer (It has the 4 vertices of the window area)
-        VkDeviceSize offsets[]{ 0 };
-        vkCmdBindVertexBuffers(cmd, 0, 1, &window_vertex_buffer.buffer, offsets);
-        
-        //: Draw
-        vkCmdDraw(cmd, 6, 1, 0, 0);
-    }
-    
-    //: End render pass
-    vkCmdEndRenderPass(cmd);
     
     //: Timestamp after render pass
     #ifdef DEBUG
@@ -1064,6 +1086,12 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
         attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
     }
     
+    if (type & ATTACHMENT_EXTERNAL) {
+        attachment.usage = VkImageUsageFlagBits(attachment.usage | VK_IMAGE_USAGE_SAMPLED_BIT);
+        attachment.final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
+    }
+    
     if (type & ATTACHMENT_SWAPCHAIN) {
         attachment.final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
@@ -1168,7 +1196,7 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, VkRenderPass 
 //Render Pass
 //----------------------------------------
 
-SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list) {
+SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list) {
     static SubpassID id = 0;
     while (subpasses.find(id) != subpasses.end())
         id++;
@@ -1177,6 +1205,7 @@ SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list) {
     subpasses[id] = SubpassData{};
     
     subpasses[id].attachment_bindings = attachment_list;
+    subpasses[id].external_attachments = external_attachment_list;
     
     for (auto binding : attachment_list) {
         const AttachmentData &attachment = API::attachments.at(binding);
@@ -1280,7 +1309,6 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
         
         //---Dependencies---
         //      Input (Ensure that the previous subpass has finished writting to the attachment this uses)
-        
         for (const auto &attachment : subpass.input_attachments) {
             VkSubpassDependency dependency;
             
@@ -1804,7 +1832,8 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const PipelineData 
     
     //: Render pass
     create_info.renderPass = render.at(data.render_pass).render_pass;
-    create_info.subpass = (ui32)data.subpass;
+    auto it = std::find(render.at(data.render_pass).subpasses.begin(), render.at(data.render_pass).subpasses.end(), data.subpass);
+    create_info.subpass = (ui32)(it - render.at(data.render_pass).subpasses.begin());
     
     //: Recreation info
     create_info.basePipelineHandle = VK_NULL_HANDLE;
@@ -2217,13 +2246,27 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
 }
 
 void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline) {
-    int i = 0;
+    ui32 i_input = 0; ui32 i_image = 0;
     std::map<ui32, VkImageView> input_attachments{};
-    for (auto &attachment : API::subpasses.at(pipeline.subpass).input_attachments) {
-        input_attachments[i] = API::attachments.at(attachment.attachment).image_view;
-        i++;
+    std::map<ui32, VkImageView> image_views{};
+    
+    for (const auto &binding : pipeline.descriptor_layout_bindings) {
+        //: Input attachments
+        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
+            auto &attachment = API::subpasses.at(pipeline.subpass).input_attachments.at(i_input);
+            input_attachments[binding.binding] = API::attachments.at(attachment.attachment).image_view;
+            i_input++;
+        }
+        
+        //: Image views
+        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+            auto &attachment = API::subpasses.at(pipeline.subpass).external_attachments.at(i_image);
+            image_views[binding.binding] = API::attachments.at(attachment).image_view;
+            i_image++;
+        }
     }
-    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, {}, {}, input_attachments);
+    
+    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, {}, image_views, input_attachments);
 }
 
 //----------------------------------------

@@ -120,13 +120,11 @@ namespace Fresa::Graphics
         ATTACHMENT_INPUT = 1 << 2,
         ATTACHMENT_SWAPCHAIN = 1 << 3,
         ATTACHMENT_WINDOW = 1 << 4,
+        ATTACHMENT_EXTERNAL = 1 << 5,
         ATTACHMENT_COLOR_INPUT = ATTACHMENT_COLOR | ATTACHMENT_INPUT,
-        ATTACHMENT_COLOR_WIN = ATTACHMENT_COLOR | ATTACHMENT_WINDOW,
-        ATTACHMENT_COLOR_INPUT_WIN = ATTACHMENT_COLOR | ATTACHMENT_INPUT | ATTACHMENT_WINDOW,
         ATTACHMENT_DEPTH_INPUT = ATTACHMENT_DEPTH | ATTACHMENT_INPUT,
-        ATTACHMENT_DEPTH_WIN = ATTACHMENT_DEPTH | ATTACHMENT_WINDOW,
-        ATTACHMENT_DEPTH_INPUT_WIN = ATTACHMENT_DEPTH | ATTACHMENT_INPUT | ATTACHMENT_WINDOW,
-        ATTACHMENT_COLOR_SWAPCHAIN = ATTACHMENT_COLOR | ATTACHMENT_SWAPCHAIN | ATTACHMENT_WINDOW,
+        ATTACHMENT_COLOR_SWAPCHAIN = ATTACHMENT_COLOR | ATTACHMENT_SWAPCHAIN | ATTACHMENT_WINDOW,
+        ATTACHMENT_COLOR_EXTERNAL = ATTACHMENT_COLOR | ATTACHMENT_EXTERNAL,
     };
     
     struct AttachmentData {
@@ -168,6 +166,7 @@ namespace Fresa::Graphics
         std::vector<VkAttachmentReference> color_attachments;
         std::vector<VkAttachmentReference> depth_attachments;
         std::vector<VkAttachmentReference> input_attachments;
+        std::vector<AttachmentID> external_attachments;
         std::map<AttachmentID, SubpassID> previous_subpass_dependencies;
         #elif defined USE_OPENGL
         ui32 framebuffer;
@@ -187,6 +186,7 @@ namespace Fresa::Graphics
         SHADER_DRAW_COLOR,
         SHADER_DRAW_TEX,
         SHADER_POST,
+        SHADER_WINDOW,
     };
     #define LAST_DRAW_SHADER SHADER_DRAW_TEX
 
@@ -194,6 +194,7 @@ namespace Fresa::Graphics
         {SHADER_DRAW_COLOR, "test_color"},
         {SHADER_DRAW_TEX, "test_tex"},
         {SHADER_POST, "test_subpass"},
+        {SHADER_WINDOW, "test_window"}
     };
 
     struct ShaderLocations {

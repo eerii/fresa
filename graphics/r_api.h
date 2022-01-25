@@ -40,7 +40,7 @@ namespace Fresa::Graphics::API
     void recreateAttachments(const GraphicsAPI &api);
     inline std::map<AttachmentID, AttachmentData> attachments{};
     
-    SubpassID registerSubpass(std::vector<AttachmentID> attachment_list);
+    SubpassID registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list = {});
     inline std::map<SubpassID, SubpassData> subpasses{};
 
     void updateDescriptorSets(const GraphicsAPI &api, const DrawData* draw);

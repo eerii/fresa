@@ -168,8 +168,6 @@ namespace Fresa::Graphics
         SyncData sync;
         
         //: Pipelines
-        Rect2<float> viewport;
-        Rect2<> scissor;
         std::map<Shaders, PipelineData> pipelines;
         
         //: Image sampler
