@@ -82,20 +82,18 @@ Vulkan API::createAPI(WindowData &win) {
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     vk.cmd.query_pool = VK::createQueryPool(vk.device, vk.swapchain.size);
     
-    //---Attachments---
+    //---Render passes---
     AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT, Config::resolution.to<int>());
     AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH, Config::resolution.to<int>());
     AttachmentID attachment_post = API::registerAttachment(vk, ATTACHMENT_COLOR_EXTERNAL, Config::resolution.to<int>());
-    AttachmentID attachment_swapchain = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
     
-    //---Render passes---
     SubpassID subpass_draw = API::registerSubpass({attachment_color, attachment_depth});
     SubpassID subpass_post = API::registerSubpass({attachment_color, attachment_post});
     vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_draw, subpass_post}));
     
-    AttachmentID attachment_swapchain_2 = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+    AttachmentID attachment_swapchain = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
     
-    SubpassID subpass_window = API::registerSubpass({attachment_swapchain_2}, {attachment_post});
+    SubpassID subpass_window = API::registerSubpass({attachment_swapchain}, {attachment_post});
     vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_window}));
     
     //---Sync objects---
@@ -1095,11 +1093,8 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
     if (type & ATTACHMENT_SWAPCHAIN) {
         attachment.final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
-        for (auto &[key, a] : attachments) {
-            if (key == id) continue;
-            if (a.type & ATTACHMENT_SWAPCHAIN) //: There are previous attachments that write to the swapchain, keep the contents
-                attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
-        }
+        if (vk.render_passes.size() > 0)
+            attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
     }
     
     //: Image and image view
