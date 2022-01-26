@@ -138,6 +138,7 @@ namespace Fresa::Graphics::VK
     //Render pass
     //----------------------------------------
     RenderPassData createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses);
+    void recreateRenderPasses(Vulkan &vk);
     //----------------------------------------
 
 
@@ -185,7 +186,7 @@ namespace Fresa::Graphics::VK
     VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
     
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
-    VkPipeline createGraphicsPipelineObject(VkDevice device, const PipelineData &data, const std::vector<RenderPassData> &render);
+    VkPipeline createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data);
     void recreatePipeline(const Vulkan &vk, PipelineData &data);
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
@@ -219,8 +220,8 @@ namespace Fresa::Graphics::VK
         data.attribute_descriptions = VK::getAttributeDescriptions<V>();
         
         //---Find render pass---
-        for (int i = 0; i < vk.render_passes.size(); i++) {
-            const auto &r = vk.render_passes.at(i);
+        for (int i = 0; i < API::render_passes.size(); i++) {
+            const auto &r = API::render_passes.at(i);
             if (std::count(r.subpasses.begin(), r.subpasses.end(), subpass)) {
                 data.render_pass = i; break;
             }
@@ -228,7 +229,7 @@ namespace Fresa::Graphics::VK
         
         //---Pipeline---
         data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render_passes);
+        data.pipeline = VK::createGraphicsPipelineObject(vk, data);
         
         return data;
     }
@@ -330,18 +331,6 @@ namespace Fresa::Graphics::VK
     //Debug
     //----------------------------------------
     VkDebugReportCallbackEXT createDebug(VkInstance &instance);
-    inline Vec2<> to_vec(VkExtent2D extent) {
-        return Vec2<>(extent.width, extent.height);
-    }
-    inline VkExtent2D to_extent(Vec2<> vec) {
-        return VkExtent2D{(ui32)vec.x, (ui32)vec.y};
-    }
-    inline bool operator ==(const VkExtent2D &a, const VkExtent2D &b) {
-        return a.width == b.width and a.height == b.height;
-    }
-    inline bool operator ==(const VkExtent2D &a, const Vec2<> &b) {
-        return a.width == b.x and a.height == b.y;
-    }
     //----------------------------------------
     
     //Gui
@@ -355,6 +344,21 @@ namespace Fresa::Graphics::VK
     }
     #endif
     //----------------------------------------
+}
+
+namespace Fresa::Graphics {
+    inline Vec2<> to_vec(VkExtent2D extent) {
+        return Vec2<>(extent.width, extent.height);
+    }
+    inline VkExtent2D to_extent(Vec2<> vec) {
+        return VkExtent2D{(ui32)vec.x, (ui32)vec.y};
+    }
+    inline bool operator ==(const VkExtent2D &a, const VkExtent2D &b) {
+        return a.width == b.width and a.height == b.height;
+    }
+    inline bool operator ==(const VkExtent2D &a, const Vec2<> &b) {
+        return a.width == b.x and a.height == b.y;
+    }
 }
 
 namespace Fresa::Graphics::API {

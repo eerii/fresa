@@ -89,12 +89,12 @@ Vulkan API::createAPI(WindowData &win) {
     
     SubpassID subpass_draw = API::registerSubpass({attachment_color, attachment_depth});
     SubpassID subpass_post = API::registerSubpass({attachment_color, attachment_post});
-    vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_draw, subpass_post}));
+    API::registerRenderPass(vk, {subpass_draw, subpass_post});
     
     AttachmentID attachment_swapchain = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
     
     SubpassID subpass_window = API::registerSubpass({attachment_swapchain}, {attachment_post});
-    vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_window}));
+    API::registerRenderPass(vk, {subpass_window});
     
     //---Sync objects---
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
@@ -739,8 +739,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     }
     
     //: Render passes and framebuffers
-    for (auto &render : vk.render_passes)
-        render = VK::createRenderPass(vk, render.subpasses);
+    VK::recreateRenderPasses(vk);
     
     //: Sync objects
     if (previous_size != vk.swapchain.size)
@@ -748,7 +747,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     
     //: Pipeline
     for (auto &[shader, data] : vk.pipelines) {
-        data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render_passes);
+        data.pipeline = VK::createGraphicsPipelineObject(vk, data);
     }
     
     //---Objects that depend on the swapchain size---
@@ -872,21 +871,21 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     }
     
     //: Begin render pass
-    for (const auto &render_pass : vk.render_passes) {
+    for (const auto &[id, render] : API::render_passes) {
         VkRenderPassBeginInfo render_pass_info{};
         render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        render_pass_info.renderPass = render_pass.render_pass;
-        render_pass_info.framebuffer = render_pass.framebuffers.at(current);
+        render_pass_info.renderPass = render.render_pass;
+        render_pass_info.framebuffer = render.framebuffers.at(current);
         render_pass_info.renderArea.offset = {0, 0};
-        render_pass_info.renderArea.extent = render_pass.attachment_extent;
+        render_pass_info.renderArea.extent = render.attachment_extent;
         render_pass_info.clearValueCount = (ui32)clear_values.size();
         render_pass_info.pClearValues = clear_values.data();
         
         vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
         
-        for (const auto &subpass : render_pass.subpasses) {
+        for (const auto &subpass : render.subpasses) {
             //: Next subpass
-            if (subpass != render_pass.subpasses.at(0))
+            if (subpass != render.subpasses.at(0))
                 vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
             
             //: Get all shaders associated with this subpass
@@ -1093,7 +1092,7 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
     if (type & ATTACHMENT_SWAPCHAIN) {
         attachment.final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
-        if (vk.render_passes.size() > 0)
+        if (API::render_passes.size() > 0)
             attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
     }
     
@@ -1117,7 +1116,7 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
 void API::recreateAttachments(const Vulkan &vk) {
     for (auto &[idx, attachment] : attachments) {
         if (attachment.type & ATTACHMENT_WINDOW) {
-            attachment.size = VK::to_vec(vk.swapchain.extent);
+            attachment.size = to_vec(vk.swapchain.extent);
         }
         if (not (attachment.type & ATTACHMENT_SWAPCHAIN)) {
             auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, attachment.size,
@@ -1235,12 +1234,12 @@ SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list, std::v
     return id;
 }
 
-RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses) {
+RenderPassData VK::createRenderPass(Vulkan  &vk, std::vector<SubpassID> subpasses) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
     //      It will render to a framebuffer
-    RenderPassData render;
+    RenderPassData render{};
     VkRenderPassHelperData render_pass_helper{};
     
     //---Attachments---
@@ -1253,7 +1252,7 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
         map_attachment_to_render_pass[attachment] = (ui32)render_pass_helper.attachments.size();
         render_pass_helper.attachments.push_back(API::attachments.at(attachment).description);
     }
-    std::vector<AttachmentID> attachments_v(attachments.begin(), attachments.end());
+    render.attachments = std::vector<AttachmentID>(attachments.begin(), attachments.end());
     
     //---Subpasses---
     render.subpasses = subpasses;
@@ -1358,14 +1357,36 @@ RenderPassData VK::createRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses
     if (vkCreateRenderPass(vk.device, &create_info, nullptr, &render.render_pass) != VK_SUCCESS)
         log::error("Error creating a vulkan render pass");
     
-    deletion_queue_swapchain.push_back([render, vk](){ vkDestroyRenderPass(vk.device, render.render_pass, nullptr); });
+    VK::deletion_queue_swapchain.push_back([render, vk](){ vkDestroyRenderPass(vk.device, render.render_pass, nullptr); });
     log::graphics("Created a vulkan render pass with %d subpasses and %d attachments",
                   render_pass_helper.subpasses.size(), render_pass_helper.attachments.size());
     
-    //---Create framebuffers---
-    render.framebuffers = VK::createFramebuffers(vk.device, render.render_pass, render.attachment_extent, vk.swapchain, attachments_v);
-    
     return render;
+}
+
+RenderPassID API::registerRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses) {
+    static RenderPassID id = 0;
+    while (API::render_passes.find(id) != API::render_passes.end())
+        id++;
+    
+    log::graphics("Registering render pass %d:", id);
+    str s_list = std::accumulate(subpasses.begin(), subpasses.end(), std::to_string(subpasses.at(0)), [](str s, SubpassID subpass){ return s + " " + std::to_string(subpass); });
+    log::graphics("It contains subpasses %s", s_list.c_str());
+    
+    //---Create render pass---
+    API::render_passes[id] = VK::createRenderPass(vk, subpasses);
+    
+    //---Create framebuffers---
+    API::render_passes[id].framebuffers = VK::createFramebuffers(vk.device, API::render_passes[id].render_pass, API::render_passes[id].attachment_extent, vk.swapchain, API::render_passes[id].attachments);
+    
+    return id;
+}
+
+void VK::recreateRenderPasses(Vulkan &vk) {
+    for (auto &[id, render] : API::render_passes) {
+        render = VK::createRenderPass(vk, render.subpasses);
+        render.framebuffers = VK::createFramebuffers(vk.device, render.render_pass, render.attachment_extent, vk.swapchain, render.attachments);
+    }
 }
 
 //----------------------------------------
@@ -1794,7 +1815,7 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
     return pipeline_layout;
 }
 
-VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const PipelineData &data, const std::vector<RenderPassData> &render) {
+VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
     //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
@@ -1811,7 +1832,7 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const PipelineData 
     create_info.pStages = stage_info.data();
     
     //: Pipeline info
-    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(data.binding_descriptions, data.attribute_descriptions, render.at(data.render_pass).attachment_extent);
+    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(data.binding_descriptions, data.attribute_descriptions, API::render_passes.at(data.render_pass).attachment_extent);
     create_info.pVertexInputState = &pipeline_create_info.vertex_input;
     create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
     create_info.pViewportState = &pipeline_create_info.viewport_state;
@@ -1826,19 +1847,20 @@ VkPipeline VK::createGraphicsPipelineObject(VkDevice device, const PipelineData 
     create_info.layout = data.pipeline_layout;
     
     //: Render pass
-    create_info.renderPass = render.at(data.render_pass).render_pass;
-    auto it = std::find(render.at(data.render_pass).subpasses.begin(), render.at(data.render_pass).subpasses.end(), data.subpass);
-    create_info.subpass = (ui32)(it - render.at(data.render_pass).subpasses.begin());
+    create_info.renderPass = API::render_passes.at(data.render_pass).render_pass;
+    const std::vector<SubpassID> &subpasses = API::render_passes.at(data.render_pass).subpasses;
+    auto it = std::find(subpasses.begin(), subpasses.end(), data.subpass);
+    create_info.subpass = (ui32)(it - subpasses.begin());
     
     //: Recreation info
     create_info.basePipelineHandle = VK_NULL_HANDLE;
     create_info.basePipelineIndex = -1;
     
     //---Create pipeline---
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline) != VK_SUCCESS)
+    if (vkCreateGraphicsPipelines(vk.device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline) != VK_SUCCESS)
         log::error("Error while creating a vulkan graphics pipeline");
     
-    deletion_queue_swapchain.push_back([pipeline, device](){ vkDestroyPipeline(device, pipeline, nullptr); });
+    deletion_queue_swapchain.push_back([pipeline, vk](){ vkDestroyPipeline(vk.device, pipeline, nullptr); });
     log::graphics("Created a vulkan graphics pipeline");
     log::graphics("");
     return pipeline;
@@ -1857,7 +1879,7 @@ void VK::recreatePipeline(const Vulkan &vk, PipelineData &data) {
 
     //: Pipeline
     data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(vk.device, data, vk.render_passes);
+    data.pipeline = VK::createGraphicsPipelineObject(vk, data);
 }
 
 //----------------------------------------
@@ -2851,7 +2873,7 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
     //: Render pass
     AttachmentID attachment_swapchain_gui = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
     SubpassID subpass_gui = API::registerSubpass({attachment_swapchain_gui});
-    vk.render_passes.push_back(VK::createRenderPass(vk, {subpass_gui})); //TODO: Render pass with propper map
+    API::registerRenderPass(vk, {subpass_gui});
     
     //: Init Vulkan implementation
     ImGui_ImplVulkan_InitInfo init_info = {};
@@ -2864,7 +2886,7 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
     init_info.MinImageCount = vk.swapchain.min_image_count;
     init_info.ImageCount = vk.swapchain.size;
     init_info.Allocator = nullptr;
-    if (not ImGui_ImplVulkan_Init(&init_info, vk.render_passes.at(1).render_pass))
+    if (not ImGui_ImplVulkan_Init(&init_info, API::render_passes.at(1).render_pass))
         log::error("Error initializing ImGui for Vulkan");
     
     //: Transfer fonts
@@ -2901,10 +2923,10 @@ void VK::Gui::recordGuiCommandBuffer(const Vulkan &vk, ui32 current) {
     //: Begin render pass
     VkRenderPassBeginInfo render_pass_info{};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = vk.render_passes.at(1).render_pass;
-    render_pass_info.framebuffer = vk.render_passes.at(1).framebuffers.at(current);
+    render_pass_info.renderPass = API::render_passes.at(1).render_pass;
+    render_pass_info.framebuffer = API::render_passes.at(1).framebuffers.at(current);
     render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = vk.render_passes.at(1).attachment_extent;
+    render_pass_info.renderArea.extent = API::render_passes.at(1).attachment_extent;
     render_pass_info.clearValueCount = (ui32)clear_values.size();
     render_pass_info.pClearValues = clear_values.data();
     

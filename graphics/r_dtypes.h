@@ -175,6 +175,16 @@ namespace Fresa::Graphics
         std::vector<AttachmentID> input_attachments;
         #endif
     };
+    
+    struct RenderPassData {
+        #if defined USE_VULKAN
+        VkRenderPass render_pass;
+        std::vector<VkFramebuffer> framebuffers;
+        std::vector<SubpassID> subpasses;
+        VkExtent2D attachment_extent;
+        std::vector<AttachmentID> attachments;
+        #endif
+    };
     //----------------------------------------
     
     //Shader

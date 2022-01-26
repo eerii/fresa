@@ -11,6 +11,7 @@
 - orthographic perspective
 - new gui menu
 - multiple sized attachments for scaled rendering
+- bidirectional maps
 
 **changed**
 - refactored update lists

@@ -25,13 +25,6 @@ namespace Fresa::Graphics
         std::vector<VkImage> images;
         std::vector<VkImageView> image_views;
     };
-    
-    struct RenderPassData {
-        VkRenderPass render_pass;
-        std::vector<VkFramebuffer> framebuffers;
-        std::vector<SubpassID> subpasses;
-        VkExtent2D attachment_extent;
-    };
 
     struct PipelineData {
         //---Pipeline---
@@ -161,7 +154,6 @@ namespace Fresa::Graphics
         
         //: Render data
         SwapchainData swapchain;
-        std::vector<RenderPassData> render_passes;
         
         //: Commands
         CommandData cmd;

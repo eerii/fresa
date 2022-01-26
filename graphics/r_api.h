@@ -7,6 +7,8 @@
 #include "r_opengl.h"
 #include "r_vulkan.h"
 #include "events.h"
+#include "bimap.h"
+#include <set>
 
 namespace Fresa::Graphics
 {
@@ -29,6 +31,7 @@ namespace Fresa::Graphics::API
     void configureAPI();
     GraphicsAPI createAPI(WindowData &win);
 
+    //---Textures---
     TextureID registerTexture(const GraphicsAPI &api, Vec2<> size, Channels ch, ui8* pixels);
     DrawID registerDrawData(GraphicsAPI &api, DrawBufferID buffer, Shaders shader);
     inline std::map<DrawBufferID, DrawBufferData> draw_buffer_data{};
@@ -36,13 +39,18 @@ namespace Fresa::Graphics::API
     inline std::map<DrawID, DrawData> draw_data{};
     inline DrawQueueMap draw_queue{};
     
+    //---Render passes and attachments---
     AttachmentID registerAttachment(const GraphicsAPI &api, AttachmentType type, Vec2<> size);
     void recreateAttachments(const GraphicsAPI &api);
     inline std::map<AttachmentID, AttachmentData> attachments{};
     
     SubpassID registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list = {});
     inline std::map<SubpassID, SubpassData> subpasses{};
+    
+    RenderPassID registerRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses);
+    inline std::map<RenderPassID, RenderPassData> render_passes{};
 
+    //---Shaders---
     void updateDescriptorSets(const GraphicsAPI &api, const DrawData* draw);
 
     std::vector<char> readSPIRV(std::string filename);
@@ -50,6 +58,7 @@ namespace Fresa::Graphics::API
     ShaderData createShaderData(str name);
     ShaderCompiler getShaderCompiler(const std::vector<char> &code);
 
+    //---Other---
     void resize(GraphicsAPI &api, WindowData &win);
 
     void render(GraphicsAPI &api, WindowData &win, CameraData &cam);
@@ -90,4 +99,99 @@ namespace Fresa::Graphics::API
         log::graphics("");
         return attribute_descriptions;
     }
+    
+    //---Mappings---
+    namespace Mappings {
+        inline bi_map_AvB_BA<RenderPassID, SubpassID> renderpass_subpass;
+        inline bi_map_AvB_BvA<SubpassID, AttachmentID> subpass_attachment;
+        inline bi_map_AvB_BvA<SubpassID, Shaders> subpass_shader;
+        
+        struct renderpass {
+            RenderPassID r_id;
+            renderpass(RenderPassID i) : r_id(i) {}
+            
+            auto get_subpasses() {
+                return getBimapAtoB_v(r_id, renderpass_subpass, subpasses);
+            }
+            auto get_attachments() {
+                auto subpass_list = getBimapAtoB<SubpassID>(r_id, renderpass_subpass);
+                std::map<AttachmentID, const AttachmentData&> attachment_list;
+                for (auto s_id : subpass_list)
+                    attachment_list.merge(getBimapAtoB_v(s_id, subpass_attachment, attachments));
+                return attachment_list;
+            }
+            auto get_shaders() {
+                auto subpass_list = getBimapAtoB<SubpassID>(r_id, renderpass_subpass);
+                std::set<Shaders> shader_list;
+                for (auto s_id : subpass_list) {
+                    auto list = getBimapAtoB<Shaders>(s_id, subpass_shader);
+                    shader_list.insert(list.begin(), list.end());
+                }
+                return std::vector<Shaders>{shader_list.begin(), shader_list.end()};
+            }
+        };
+        
+        struct subpass {
+            SubpassID s_id;
+            subpass(SubpassID i) : s_id(i) {}
+            
+            auto get_renderpasses() {
+                return getBimapBtoA_v(s_id, renderpass_subpass, render_passes);
+            }
+            auto get_attachments() {
+                return getBimapAtoB_v(s_id, subpass_attachment, attachments);
+            }
+            auto get_shaders() {
+                return getBimapAtoB<Shaders>(s_id, subpass_shader);
+            }
+        };
+        
+        struct attachment {
+            AttachmentID a_id;
+            attachment(AttachmentID i) : a_id(i) {}
+            
+            auto get_subpasses() {
+                return getBimapBtoA_v(a_id, subpass_attachment, subpasses);
+            }
+            auto get_renderpasses() {
+                auto subpass_list = getBimapBtoA<SubpassID>(a_id, subpass_attachment);
+                std::map<RenderPassID, const RenderPassData&> renderpass_list;
+                for (auto s_id : subpass_list)
+                    renderpass_list.merge(getBimapBtoA_v(s_id, renderpass_subpass, render_passes));
+                return renderpass_list;
+            }
+            auto get_shaders() {
+                auto subpass_list = getBimapBtoA<SubpassID>(a_id, subpass_attachment);
+                std::set<Shaders> shader_list;
+                for (auto s_id : subpass_list) {
+                    auto list = getBimapAtoB<Shaders>(s_id, subpass_shader);
+                    shader_list.insert(list.begin(), list.end());
+                }
+                return std::vector<Shaders>{shader_list.begin(), shader_list.end()};
+            }
+        };
+        
+        struct shader {
+            Shaders sh;
+            shader(Shaders i) : sh(i) {}
+            
+            auto get_subpasses() {
+                return getBimapBtoA_v(sh, subpass_shader, subpasses);
+            }
+            auto get_renderpasses() {
+                auto subpass_list = getBimapBtoA<SubpassID>(sh, subpass_shader);
+                std::map<RenderPassID, const RenderPassData&> renderpass_list;
+                for (auto s_id : subpass_list)
+                    renderpass_list.merge(getBimapBtoA_v(s_id, renderpass_subpass, render_passes));
+                return renderpass_list;
+            }
+            auto get_attachments() {
+                auto subpass_list = getBimapBtoA<SubpassID>(sh, subpass_shader);
+                std::map<AttachmentID, const AttachmentData&> attachment_list;
+                for (auto s_id : subpass_list)
+                    attachment_list.merge(getBimapAtoB_v(s_id, subpass_attachment, attachments));
+                return attachment_list;
+            }
+        };
+    };
 }
