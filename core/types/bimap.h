@@ -52,8 +52,13 @@ namespace Fresa
     
     template <typename B, typename A, typename M>
     auto getBimapAtoB(A a_id, M &bi_map){
-        if (not bi_map.a_to_b.count(a_id))
-            log::error("Accessing bi map before it is available.");
+        if (not bi_map.a_to_b.count(a_id)) {
+            log::warn("Accessing bidirectional map before it's A key is available.");
+            if constexpr (std::is_same_v<M, bi_map_AB_BA<A,B>>)
+                return B{};
+            else
+                return std::vector<B>{};
+        }
         return bi_map.a_to_b.at(a_id);
     };
     
@@ -75,8 +80,13 @@ namespace Fresa
     
     template <typename A, typename B, typename M>
     auto getBimapBtoA(B b_id, M &bi_map){
-        if (not bi_map.b_to_a.count(b_id))
-            log::error("Accessing bi map before it is available.");
+        if (not bi_map.b_to_a.count(b_id)) {
+            log::warn("Accessing bidirectional map before it's B key is available.");
+            if constexpr (not std::is_same_v<M, bi_map_AvB_BvA<A,B>>)
+                return A{};
+            else
+                return std::vector<A>{};
+        }
         return bi_map.b_to_a.at(b_id);
     };
     

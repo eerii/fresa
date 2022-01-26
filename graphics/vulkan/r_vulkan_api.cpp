@@ -1200,6 +1200,8 @@ SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list, std::v
     
     subpasses[id].attachment_bindings = attachment_list;
     subpasses[id].external_attachments = external_attachment_list;
+    for (auto &a : attachment_list)
+        API::Mappings::subpass_attachment.add(id, a);
     
     for (auto binding : attachment_list) {
         const AttachmentData &attachment = API::attachments.at(binding);
@@ -1370,8 +1372,10 @@ RenderPassID API::registerRenderPass(Vulkan &vk, std::vector<SubpassID> subpasse
         id++;
     
     log::graphics("Registering render pass %d:", id);
-    str s_list = std::accumulate(subpasses.begin(), subpasses.end(), std::to_string(subpasses.at(0)), [](str s, SubpassID subpass){ return s + " " + std::to_string(subpass); });
+    str s_list = std::accumulate(subpasses.begin(), subpasses.end(), str{""}, [](str s, SubpassID subpass){ return s + " " + std::to_string(subpass); });
     log::graphics("It contains subpasses %s", s_list.c_str());
+    for (auto &s : subpasses)
+        API::Mappings::renderpass_subpass.add(id, s);
     
     //---Create render pass---
     API::render_passes[id] = VK::createRenderPass(vk, subpasses);

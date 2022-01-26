@@ -201,6 +201,7 @@ namespace Fresa::Graphics::VK
         //---Shader data---
         data.shader = API::createShaderData(shader_names.at(shader));
         data.shader.stages = VK::createShaderStages(vk.device, data.shader.code);
+        API::Mappings::subpass_shader.add(subpass, shader);
         
         //---Descriptor pool---
         data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.swapchain.size);
