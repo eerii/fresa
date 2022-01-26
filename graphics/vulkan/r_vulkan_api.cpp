@@ -735,7 +735,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     API::recreateAttachments(vk);
     for (const auto &[shader, data] : vk.pipelines) {
         if (shader > LAST_DRAW_SHADER)
-            VK::updatePostDescriptorSets(vk, data);
+            VK::updatePostDescriptorSets(vk, data, shader);
     }
     
     //: Render passes and framebuffers
@@ -746,9 +746,8 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //: Pipeline
-    for (auto &[shader, data] : vk.pipelines) {
-        data.pipeline = VK::createGraphicsPipelineObject(vk, data);
-    }
+    for (auto &[shader, data] : vk.pipelines)
+        data.pipeline = VK::createGraphicsPipelineObject(vk, data, shader);
     
     //---Objects that depend on the swapchain size---
     if (previous_size != vk.swapchain.size) {
@@ -759,7 +758,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         
         //: Recreate pipelines
         for (auto &[shader, data] : vk.pipelines)
-            recreatePipeline(vk, data);
+            recreatePipeline(vk, data, shader);
         
         //: Update draw data
         for (auto &[id, draw] : API::draw_data) {
@@ -872,6 +871,9 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     
     //: Begin render pass
     for (const auto &[id, render] : API::render_passes) {
+        if (id == API::render_passes.rbegin()->first) //: Skip last render pass, the gui one, TODO: Improve this
+            continue;
+        
         VkRenderPassBeginInfo render_pass_info{};
         render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         render_pass_info.renderPass = render.render_pass;
@@ -889,11 +891,7 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
                 vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
             
             //: Get all shaders associated with this subpass
-            std::vector<Shaders> shaders;
-            for (const auto &[shader, pipeline] : vk.pipelines) {
-                if (pipeline.subpass == subpass)
-                    shaders.push_back(shader);
-            }
+            std::vector<Shaders> shaders = API::Mappings::subpass(subpass).get_shaders();
             
             for (const auto &shader : shaders) {
                 //---Draw shaders---
@@ -1819,7 +1817,7 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
     return pipeline_layout;
 }
 
-VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data) {
+VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, Shaders shader) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
     //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
@@ -1830,13 +1828,20 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     VkGraphicsPipelineCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     
+    //: Render pass
+    auto renderpass = API::Mappings::shader(shader).get_renderpass();
+    auto subpass = API::Mappings::shader(shader).get_subpass();
+    create_info.renderPass = renderpass.begin()->second.render_pass;
+    create_info.subpass = API::relative_subpass(renderpass.begin()->first, subpass.begin()->first);
+    
     //: Shader stages
     std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(data.shader.stages);
     create_info.stageCount = (int)stage_info.size();
     create_info.pStages = stage_info.data();
     
     //: Pipeline info
-    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(data.binding_descriptions, data.attribute_descriptions, API::render_passes.at(data.render_pass).attachment_extent);
+    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(data.binding_descriptions, data.attribute_descriptions,
+                                                                          renderpass.begin()->second.attachment_extent);
     create_info.pVertexInputState = &pipeline_create_info.vertex_input;
     create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
     create_info.pViewportState = &pipeline_create_info.viewport_state;
@@ -1849,12 +1854,6 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     
     //: Layout
     create_info.layout = data.pipeline_layout;
-    
-    //: Render pass
-    create_info.renderPass = API::render_passes.at(data.render_pass).render_pass;
-    const std::vector<SubpassID> &subpasses = API::render_passes.at(data.render_pass).subpasses;
-    auto it = std::find(subpasses.begin(), subpasses.end(), data.subpass);
-    create_info.subpass = (ui32)(it - subpasses.begin());
     
     //: Recreation info
     create_info.basePipelineHandle = VK_NULL_HANDLE;
@@ -1870,7 +1869,7 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     return pipeline;
 }
 
-void VK::recreatePipeline(const Vulkan &vk, PipelineData &data) {
+void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, Shaders shader) {
     //: Descriptor set
     data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.swapchain.size);
     data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
@@ -1878,12 +1877,12 @@ void VK::recreatePipeline(const Vulkan &vk, PipelineData &data) {
     data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
     data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
     
-    if (data.subpass > LAST_DRAW_SHADER)
-        VK::updatePostDescriptorSets(vk, data);
+    if (shader > LAST_DRAW_SHADER)
+        VK::updatePostDescriptorSets(vk, data, shader);
 
     //: Pipeline
     data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(vk, data);
+    data.pipeline = VK::createGraphicsPipelineObject(vk, data, shader);
 }
 
 //----------------------------------------
@@ -2266,22 +2265,23 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
     }
 }
 
-void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline) {
+void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, Shaders shader) {
     ui32 i_input = 0; ui32 i_image = 0;
     std::map<ui32, VkImageView> input_attachments{};
     std::map<ui32, VkImageView> image_views{};
     
+    auto subpass = API::Mappings::shader(shader).get_subpass().begin()->second;
     for (const auto &binding : pipeline.descriptor_layout_bindings) {
         //: Input attachments
         if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
-            auto &attachment = API::subpasses.at(pipeline.subpass).input_attachments.at(i_input);
+            auto &attachment = subpass.input_attachments.at(i_input);
             input_attachments[binding.binding] = API::attachments.at(attachment.attachment).image_view;
             i_input++;
         }
         
         //: Image views
         if (binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-            auto &attachment = API::subpasses.at(pipeline.subpass).external_attachments.at(i_image);
+            auto &attachment = subpass.external_attachments.at(i_image);
             image_views[binding.binding] = API::attachments.at(attachment).image_view;
             i_image++;
         }

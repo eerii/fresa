@@ -166,7 +166,7 @@ namespace Fresa::Graphics::VK
                               std::map<ui32, const std::vector<BufferData>*> uniform_buffers = {},
                               std::map<ui32, VkImageView> image_views = {},
                               std::map<ui32, VkImageView> input_attachments = {});
-    void updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline);
+    void updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, Shaders shader);
     //----------------------------------------
 
 
@@ -186,22 +186,21 @@ namespace Fresa::Graphics::VK
     VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
     
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
-    VkPipeline createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data);
-    void recreatePipeline(const Vulkan &vk, PipelineData &data);
+    VkPipeline createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, Shaders shader);
+    void recreatePipeline(const Vulkan &vk, PipelineData &data, Shaders shader);
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     PipelineData createPipeline(const Vulkan &vk, Shaders shader, SubpassID subpass) {
         PipelineData data;
         
         //---Subpass---
-        data.subpass = subpass;
-        log::graphics("Pipeline %s, subpass %d", shader_names.at(shader).c_str(), data.subpass);
+        API::Mappings::subpass_shader.add(subpass, shader);
+        log::graphics("Pipeline %s, subpass %d", shader_names.at(shader).c_str(), subpass);
         log::graphics("---");
         
         //---Shader data---
         data.shader = API::createShaderData(shader_names.at(shader));
         data.shader.stages = VK::createShaderStages(vk.device, data.shader.code);
-        API::Mappings::subpass_shader.add(subpass, shader);
         
         //---Descriptor pool---
         data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.swapchain.size);
@@ -213,24 +212,16 @@ namespace Fresa::Graphics::VK
         if (shader > LAST_DRAW_SHADER) {
             data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
                                                               data.descriptor_pools, vk.swapchain.size);
-            VK::updatePostDescriptorSets(vk, data);
+            VK::updatePostDescriptorSets(vk, data, shader);
         }
         
         //---Binding and attribute descriptors---
         data.binding_descriptions = VK::getBindingDescriptions<V>();
         data.attribute_descriptions = VK::getAttributeDescriptions<V>();
         
-        //---Find render pass---
-        for (int i = 0; i < API::render_passes.size(); i++) {
-            const auto &r = API::render_passes.at(i);
-            if (std::count(r.subpasses.begin(), r.subpasses.end(), subpass)) {
-                data.render_pass = i; break;
-            }
-        }
-        
         //---Pipeline---
         data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-        data.pipeline = VK::createGraphicsPipelineObject(vk, data);
+        data.pipeline = VK::createGraphicsPipelineObject(vk, data, shader);
         
         return data;
     }

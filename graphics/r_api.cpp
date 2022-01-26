@@ -78,6 +78,15 @@ ui16 API::getRefreshRate(WindowData &win, bool force) {
     return (ui16)mode.refresh_rate;
 }
 
+ui32 relative_subpass(RenderPassID r_id, SubpassID s_id) {
+    auto subpass_list = getBimapAtoB<SubpassID>(r_id, renderpass_subpass);
+    auto it = std::find(subpass_list.begin(), subpass_list.end(), s_id);
+    if (it == subpass_list.end()) {
+        log::error("The subpass %d is not part of the render pass %d", s_id, r_id);
+        return 0;
+    }
+    return (ui32)(it - subpass_list.begin());
+}
 
 std::vector<char> API::readSPIRV(std::string filename) {
     //---Read SPIRV---

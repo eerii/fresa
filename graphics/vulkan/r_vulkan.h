@@ -46,9 +46,6 @@ namespace Fresa::Graphics
         
         VkPipelineLayout pipeline_layout;
         VkPipeline pipeline;
-        
-        SubpassID subpass;
-        RenderPassID render_pass;
     };
 
     //: Helper structs
