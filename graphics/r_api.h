@@ -7,7 +7,7 @@
 #include "r_opengl.h"
 #include "r_vulkan.h"
 #include "events.h"
-#include "bimap.h"
+#include "bidirectional_map.h"
 #include <set>
 
 namespace Fresa::Graphics
@@ -102,91 +102,12 @@ namespace Fresa::Graphics::API
     }
     
     //---Mappings---
-    namespace Mappings {
-        inline bi_map_AvB_BA<RenderPassID, SubpassID> renderpass_subpass;
-        inline bi_map_AvB_BvA<SubpassID, AttachmentID> subpass_attachment;
-        inline bi_map_AvB_BA<SubpassID, Shaders> subpass_shader;
+    namespace Map {
+        inline map_AvB_BA<RenderPassID, SubpassID> renderpass_subpass;
+        inline map_AvB_BvA<SubpassID, AttachmentID> subpass_attachment;
+        inline map_AvB_BA<SubpassID, Shaders> subpass_shader;
         
-        struct renderpass {
-            RenderPassID r_id;
-            renderpass(RenderPassID i) : r_id(i) {}
-            
-            auto get_subpasses() {
-                return getBimapAtoB_v(r_id, renderpass_subpass, subpasses);
-            }
-            auto get_attachments() {
-                auto subpass_list = getBimapAtoB<SubpassID>(r_id, renderpass_subpass);
-                std::map<AttachmentID, const AttachmentData&> attachment_list;
-                for (auto s_id : subpass_list)
-                    attachment_list.merge(getBimapAtoB_v(s_id, subpass_attachment, attachments));
-                return attachment_list;
-            }
-            auto get_shaders() {
-                auto subpass_list = getBimapAtoB<SubpassID>(r_id, renderpass_subpass);
-                std::set<Shaders> shader_list;
-                for (auto s_id : subpass_list) {
-                    auto list = getBimapAtoB<Shaders>(s_id, subpass_shader);
-                    shader_list.insert(list.begin(), list.end());
-                }
-                return std::vector<Shaders>{shader_list.begin(), shader_list.end()};
-            }
-        };
-        
-        struct subpass {
-            SubpassID s_id;
-            subpass(SubpassID i) : s_id(i) {}
-            
-            auto get_renderpass() {
-                return getBimapBtoA_v(s_id, renderpass_subpass, render_passes);
-            }
-            auto get_attachments() {
-                return getBimapAtoB_v(s_id, subpass_attachment, attachments);
-            }
-            auto get_shaders() {
-                return getBimapAtoB<Shaders>(s_id, subpass_shader);
-            }
-        };
-        
-        struct attachment {
-            AttachmentID a_id;
-            attachment(AttachmentID i) : a_id(i) {}
-            
-            auto get_subpasses() {
-                return getBimapBtoA_v(a_id, subpass_attachment, subpasses);
-            }
-            auto get_renderpasses() {
-                auto subpass_list = getBimapBtoA<SubpassID>(a_id, subpass_attachment);
-                std::map<RenderPassID, const RenderPassData&> renderpass_list;
-                for (auto s_id : subpass_list)
-                    renderpass_list.merge(getBimapBtoA_v(s_id, renderpass_subpass, render_passes));
-                return renderpass_list;
-            }
-            auto get_shaders() {
-                auto subpass_list = getBimapBtoA<SubpassID>(a_id, subpass_attachment);
-                std::set<Shaders> shader_list;
-                for (auto s_id : subpass_list) {
-                    auto list = getBimapAtoB<Shaders>(s_id, subpass_shader);
-                    shader_list.insert(list.begin(), list.end());
-                }
-                return std::vector<Shaders>{shader_list.begin(), shader_list.end()};
-            }
-        };
-        
-        struct shader {
-            Shaders sh;
-            shader(Shaders i) : sh(i) {}
-            
-            auto get_subpass() {
-                return getBimapBtoA_v(sh, subpass_shader, subpasses);
-            }
-            auto get_renderpass() {
-                auto subpass = getBimapBtoA<SubpassID>(sh, subpass_shader);
-                return getBimapBtoA_v(subpass, renderpass_subpass, render_passes);
-            }
-            auto get_attachments() {
-                auto subpass = getBimapBtoA<SubpassID>(sh, subpass_shader);
-                return getBimapAtoB_v(subpass, subpass_attachment, attachments);
-            }
-        };
+        inline auto renderpass_attachment = map_chain(renderpass_subpass, subpass_attachment);
+        inline auto renderpass_shader = map_chain(renderpass_subpass, subpass_shader);
     };
 }

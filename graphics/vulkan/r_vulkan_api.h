@@ -194,7 +194,7 @@ namespace Fresa::Graphics::VK
         PipelineData data;
         
         //---Subpass---
-        API::Mappings::subpass_shader.add(subpass, shader);
+        API::Map::subpass_shader.add(subpass, shader);
         log::graphics("Pipeline %s, subpass %d", shader_names.at(shader).c_str(), subpass);
         log::graphics("---");
         

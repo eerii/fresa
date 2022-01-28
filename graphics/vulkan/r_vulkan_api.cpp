@@ -891,7 +891,7 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
                 vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
             
             //: Get all shaders associated with this subpass
-            std::vector<Shaders> shaders = API::Mappings::subpass(subpass).get_shaders();
+            std::vector<Shaders> shaders = getAtoB<Shaders>(subpass, API::Map::subpass_shader);
             
             for (const auto &shader : shaders) {
                 //---Draw shaders---
@@ -1199,7 +1199,7 @@ SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list, std::v
     subpasses[id].attachment_bindings = attachment_list;
     subpasses[id].external_attachments = external_attachment_list;
     for (auto &a : attachment_list)
-        API::Mappings::subpass_attachment.add(id, a);
+        API::Map::subpass_attachment.add(id, a);
     
     for (auto binding : attachment_list) {
         const AttachmentData &attachment = API::attachments.at(binding);
@@ -1373,7 +1373,7 @@ RenderPassID API::registerRenderPass(Vulkan &vk, std::vector<SubpassID> subpasse
     str s_list = std::accumulate(subpasses.begin(), subpasses.end(), str{""}, [](str s, SubpassID subpass){ return s + " " + std::to_string(subpass); });
     log::graphics("It contains subpasses %s", s_list.c_str());
     for (auto &s : subpasses)
-        API::Mappings::renderpass_subpass.add(id, s);
+        API::Map::renderpass_subpass.add(id, s);
     
     //---Create render pass---
     API::render_passes[id] = VK::createRenderPass(vk, subpasses);
@@ -1829,10 +1829,10 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     
     //: Render pass
-    auto renderpass = API::Mappings::shader(shader).get_renderpass();
-    auto subpass = API::Mappings::shader(shader).get_subpass();
-    create_info.renderPass = renderpass.begin()->second.render_pass;
-    create_info.subpass = API::relative_subpass(renderpass.begin()->first, subpass.begin()->first);
+    auto renderpass = getBtoA_v(shader, API::Map::renderpass_shader, API::render_passes);
+    auto subpass = getBtoA_v(shader, API::Map::subpass_shader, API::subpasses);
+    create_info.renderPass = renderpass.second.render_pass;
+    create_info.subpass = API::relative_subpass(renderpass.first, subpass.first);
     
     //: Shader stages
     std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(data.shader.stages);
@@ -1841,7 +1841,7 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     
     //: Pipeline info
     VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(data.binding_descriptions, data.attribute_descriptions,
-                                                                          renderpass.begin()->second.attachment_extent);
+                                                                          renderpass.second.attachment_extent);
     create_info.pVertexInputState = &pipeline_create_info.vertex_input;
     create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
     create_info.pViewportState = &pipeline_create_info.viewport_state;
@@ -2270,18 +2270,19 @@ void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline
     std::map<ui32, VkImageView> input_attachments{};
     std::map<ui32, VkImageView> image_views{};
     
-    auto subpass = API::Mappings::shader(shader).get_subpass().begin()->second;
+    auto subpass = getBtoA_v(shader, API::Map::subpass_shader, API::subpasses);
+    
     for (const auto &binding : pipeline.descriptor_layout_bindings) {
         //: Input attachments
         if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
-            auto &attachment = subpass.input_attachments.at(i_input);
+            auto &attachment = subpass.second.input_attachments.at(i_input);
             input_attachments[binding.binding] = API::attachments.at(attachment.attachment).image_view;
             i_input++;
         }
         
         //: Image views
         if (binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-            auto &attachment = subpass.external_attachments.at(i_image);
+            auto &attachment = subpass.second.external_attachments.at(i_image);
             image_views[binding.binding] = API::attachments.at(attachment).image_view;
             i_image++;
         }
