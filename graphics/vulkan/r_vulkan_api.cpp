@@ -870,8 +870,8 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
     }
     
     //: Begin render pass
-    for (const auto &[id, render] : API::render_passes) {
-        if (id == API::render_passes.rbegin()->first) //: Skip last render pass, the gui one, TODO: Improve this
+    for (const auto &[r_id, render] : API::render_passes) {
+        if (r_id == API::render_passes.rbegin()->first) //: Skip last render pass, the gui one, TODO: Improve this
             continue;
         
         VkRenderPassBeginInfo render_pass_info{};
@@ -885,13 +885,15 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
         
         vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
         
-        for (const auto &subpass : render.subpasses) {
+        auto subpasses = getAtoB<SubpassID>(r_id, API::Map::renderpass_subpass);
+        
+        for (const auto &s_id : subpasses) {
             //: Next subpass
-            if (subpass != render.subpasses.at(0))
+            if (s_id != subpasses.at(0))
                 vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
             
             //: Get all shaders associated with this subpass
-            std::vector<Shaders> shaders = getAtoB<Shaders>(subpass, API::Map::subpass_shader);
+            std::vector<Shaders> shaders = getAtoB<Shaders>(s_id, API::Map::subpass_shader);
             
             for (const auto &shader : shaders) {
                 //---Draw shaders---
@@ -1156,21 +1158,23 @@ VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, s
     return framebuffer;
 }
 
-std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, VkRenderPass render_pass, VkExtent2D extent,
-                                                  const SwapchainData &swapchain, std::vector<AttachmentID> attachments) {
+std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, RenderPassID r_id, VkExtent2D extent, const SwapchainData &swapchain) {
     //---Framebuffers---
     std::vector<VkFramebuffer> framebuffers;
     framebuffers.resize(swapchain.size);
     
+    auto attachments = getAtoB_v(r_id, API::Map::renderpass_attachment, API::attachments);
+    RenderPassData &render = API::render_passes.at(r_id);
+    
     for (int i = 0; i < swapchain.size; i++) {
         std::vector<VkImageView> fb_attachments{};
-        for (auto &id : attachments) {
-            if (API::attachments.at(id).type & ATTACHMENT_SWAPCHAIN)
+        for (auto &[id, data] : attachments) {
+            if (data.type & ATTACHMENT_SWAPCHAIN)
                 fb_attachments.push_back(swapchain.image_views[i]);
             else
-                fb_attachments.push_back(API::attachments.at(id).image_view);
+                fb_attachments.push_back(data.image_view);
         }
-        framebuffers[i] = VK::createFramebuffer(device, render_pass, fb_attachments, extent);
+        framebuffers[i] = VK::createFramebuffer(device, render.render_pass, fb_attachments, extent);
     }
     
     deletion_queue_swapchain.push_back([framebuffers, device](){
@@ -1196,37 +1200,37 @@ SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list, std::v
     log::graphics("Registering subpass %d:", id);
     subpasses[id] = SubpassData{};
     
-    subpasses[id].attachment_bindings = attachment_list;
     subpasses[id].external_attachments = external_attachment_list;
-    for (auto &a : attachment_list)
-        API::Map::subpass_attachment.add(id, a);
     
-    for (auto binding : attachment_list) {
-        const AttachmentData &attachment = API::attachments.at(binding);
+    for (auto &a_id : attachment_list)
+        API::Map::subpass_attachment.add(id, a_id);
+    
+    for (auto &a_id : attachment_list) {
+        const AttachmentData &data = API::attachments.at(a_id);
         bool first_in_chain = true;
         
-        if (attachment.type & ATTACHMENT_INPUT) {
+        if (data.type & ATTACHMENT_INPUT) {
             //: Check if it is in one of the previous subpasses
             for (int i = id - 1; i >= 0; i--) {
-                SubpassData &previous = subpasses.at(i);
-                if (std::count(previous.attachment_bindings.begin(), previous.attachment_bindings.end(), binding)) {
+                auto previous_attachments = getAtoB<AttachmentID>(i, API::Map::subpass_attachment);
+                if (std::count(previous_attachments.begin(), previous_attachments.end(), a_id)) {
                     first_in_chain = false;
-                    subpasses[id].input_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
-                    subpasses[id].previous_subpass_dependencies[binding] = i;
-                    log::graphics(" - Input attachment: %d (Depends on subpass %d)", binding, i);
+                    subpasses[id].attachment_descriptions[a_id] = ATTACHMENT_INPUT;
+                    subpasses[id].previous_subpass_dependencies[a_id] = i;
+                    log::graphics(" - Input attachment: %d (Depends on subpass %d)", a_id, i);
                     break;
                 }
             }
         }
         
         if (first_in_chain) { //: First subpass that uses this attachment
-            if (attachment.type & ATTACHMENT_COLOR) {
-                subpasses[id].color_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
-                log::graphics(" - Color attachment: %d", binding);
+            if (data.type & ATTACHMENT_COLOR) {
+                subpasses[id].attachment_descriptions[a_id] = ATTACHMENT_COLOR;
+                log::graphics(" - Color attachment: %d", a_id);
             }
-            if (attachment.type & ATTACHMENT_DEPTH) {
-                subpasses[id].depth_attachments.push_back(VkAttachmentReference{binding, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL});
-                log::graphics(" - Depth attachment: %d", binding);
+            if (data.type & ATTACHMENT_DEPTH) {
+                subpasses[id].attachment_descriptions[a_id] = ATTACHMENT_DEPTH;
+                log::graphics(" - Depth attachment: %d", a_id);
             }
         }
     }
@@ -1234,7 +1238,7 @@ SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list, std::v
     return id;
 }
 
-RenderPassData VK::createRenderPass(Vulkan  &vk, std::vector<SubpassID> subpasses) {
+RenderPassData VK::createRenderPass(Vulkan &vk, RenderPassID r_id) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
@@ -1242,102 +1246,116 @@ RenderPassData VK::createRenderPass(Vulkan  &vk, std::vector<SubpassID> subpasse
     RenderPassData render{};
     VkRenderPassHelperData render_pass_helper{};
     
-    //---Attachments---
-    std::set<AttachmentID> attachments;
-    for (auto s_id : subpasses)
-        for (auto a_id : API::subpasses.at(s_id).attachment_bindings)
-            attachments.insert(a_id);
-    std::map<AttachmentID, ui32> map_attachment_to_render_pass;
-    for (auto attachment : attachments) {
-        map_attachment_to_render_pass[attachment] = (ui32)render_pass_helper.attachments.size();
-        render_pass_helper.attachments.push_back(API::attachments.at(attachment).description);
-    }
-    render.attachments = std::vector<AttachmentID>(attachments.begin(), attachments.end());
+    //---Subpass list---
+    auto subpasses = getAtoB_v(r_id, API::Map::renderpass_subpass, API::subpasses);
+    std::map<SubpassID, ui8> relative_subpasses{}; ui8 i = 0;
+    for (auto &[s_id, data] : subpasses)
+        relative_subpasses[s_id] = i++;
     
-    //---Subpasses---
-    render.subpasses = subpasses;
+    //---Attachment list---
+    auto attachments = getAtoB_v(r_id, API::Map::renderpass_attachment, API::attachments);
+    std::map<AttachmentID, ui32> relative_att_map{}; ui32 j = 0;
+    for (auto &[a_id, data] : attachments) {
+        relative_att_map[a_id] = j++;
+        render_pass_helper.attachments.push_back(data.description);
+    }
+    
+    //---Relative thematic attachment lists---
+    std::map<SubpassID, std::vector<VkAttachmentReference>> relative_color_attachments{};
+    std::map<SubpassID, VkAttachmentReference> relative_depth_attachment{};
+    std::map<SubpassID, std::vector<VkAttachmentReference>> relative_input_attachments{};
+    //---Input attachment list for dependencies---
+    std::map<SubpassID, std::vector<AttachmentID>> input_attachments{};
+    
+    //---Subpass descriptions---
     render.attachment_extent = VkExtent2D{0, 0};
-    std::map<SubpassID, std::vector<VkAttachmentReference>> color_attachments{};
-    std::map<SubpassID, std::vector<VkAttachmentReference>> input_attachments{};
-    std::map<SubpassID, VkAttachmentReference> depth_attachment{};
-    for (auto id : subpasses) {
-        auto &subpass = API::subpasses.at(id);
-        ui8 index = (ui8)render_pass_helper.subpasses.size();
+    for (auto &[s_id, data] : subpasses) {
+        ui8 relative_subpass = relative_subpasses.at(s_id);
         
-        //---Description---
-        //      We need to fix the subpass descriptions to take the attachment id relative to the render pass this subpass is attached to
+        //: Description
         render_pass_helper.subpasses.push_back(VkSubpassDescription{});
         VkSubpassDescription &description = render_pass_helper.subpasses.back();
         description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         
-        if (subpass.color_attachments.size() > 0) {
-            for (const auto &a : subpass.color_attachments) {
-                color_attachments[id].push_back(VkAttachmentReference{map_attachment_to_render_pass.at(a.attachment), a.layout});
-                if (render.attachment_extent.width == 0 or render.attachment_extent.height == 0)
-                    render.attachment_extent = to_extent(API::attachments.at(a.attachment).size);
-                else if (not (render.attachment_extent == API::attachments.at(a.attachment).size))
-                    log::error("All attachments being redenred to in a render pass must be of the same size");
-            }
-            description.colorAttachmentCount = (ui32)color_attachments[id].size();
-            description.pColorAttachments = color_attachments[id].data();
-        }
-        
-        if (subpass.input_attachments.size() > 0) {
-            for (const auto &a : subpass.input_attachments)
-                input_attachments[id].push_back(VkAttachmentReference{map_attachment_to_render_pass.at(a.attachment), a.layout});
-            description.inputAttachmentCount = (ui32)input_attachments[id].size();
-            description.pInputAttachments = input_attachments[id].data();
-        }
-        
-        if (subpass.depth_attachments.size() > 0) {
-            if (subpass.depth_attachments.size() > 1)
-                log::error("Using more than one depth attachment in a subpass is not allowed");
+        //: Attachments
+        int depth_count = 0; bool has_swapchain_attachment = false;
+        for (auto &[a_id, a_type] : data.attachment_descriptions) {
+            auto &a_data = API::attachments.at(a_id);
+            
+            VkExtent2D attachment_extent = to_extent(a_data.size);
             if (render.attachment_extent.width == 0 or render.attachment_extent.height == 0)
-                render.attachment_extent = to_extent(API::attachments.at(subpass.depth_attachments.at(0).attachment).size);
-            else if (not (render.attachment_extent == API::attachments.at(subpass.depth_attachments.at(0).attachment).size))
+                render.attachment_extent = attachment_extent;
+            else if (not (render.attachment_extent == attachment_extent))
                 log::error("All attachments being redenred to in a render pass must be of the same size");
-            depth_attachment[id].attachment = map_attachment_to_render_pass.at(subpass.depth_attachments.at(0).attachment);
-            depth_attachment[id].layout = subpass.depth_attachments.at(0).layout;
-            description.pDepthStencilAttachment = &depth_attachment.at(id);
+            
+            if (a_type == ATTACHMENT_COLOR) {
+                relative_color_attachments[s_id].push_back(VkAttachmentReference{relative_att_map.at(a_id), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
+                if (a_data.type & ATTACHMENT_SWAPCHAIN)
+                    has_swapchain_attachment = true;
+            }
+            if (a_type == ATTACHMENT_DEPTH) {
+                if (depth_count++ > 0)
+                    log::error("Using more than one depth attachment in a subpass is not allowed");
+                relative_depth_attachment[s_id] = VkAttachmentReference{relative_att_map.at(a_id), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+            }
+            if (a_type == ATTACHMENT_INPUT) {
+                relative_input_attachments[s_id].push_back(VkAttachmentReference{relative_att_map.at(a_id), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+                input_attachments[s_id].push_back(a_id);
+            }
+        }
+        
+        //: Description fields
+        if (relative_color_attachments.size() > 0) {
+            description.colorAttachmentCount = (ui32)relative_color_attachments.at(s_id).size();
+            description.pColorAttachments = relative_color_attachments.at(s_id).data();
+        }
+        
+        if (depth_count > 0) {
+            description.pDepthStencilAttachment = &relative_depth_attachment.at(s_id);
+        }
+        
+        if (relative_input_attachments.size() > 0) {
+            description.inputAttachmentCount = (ui32)relative_input_attachments.at(s_id).size();
+            description.pInputAttachments = relative_input_attachments.at(s_id).data();
         }
         
         //---Dependencies---
-        //      Input (Ensure that the previous subpass has finished writting to the attachment this uses)
-        for (const auto &attachment : subpass.input_attachments) {
-            VkSubpassDependency dependency;
-            
-            dependency.srcSubpass = subpass.previous_subpass_dependencies.at(attachment.attachment);
-            dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            
-            dependency.dstSubpass = index;
-            dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            dependency.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-            
-            dependency.dependencyFlags = 0;
-            
-            render_pass_helper.dependencies.push_back(dependency);
-            
-            log::graphics("Subpass dependency between %d and %d", dependency.srcSubpass, dependency.dstSubpass);
-        }
-        //: Swapchain (Ensure that swapchain images are transitioned before they are written to)
-        for (const auto &attachment : subpass.color_attachments) {
-            if (API::attachments.at(attachment.attachment).type & ATTACHMENT_SWAPCHAIN) {
+        //: Input (Ensure that the previous subpass has finished writting to the attachment this uses)
+        if (input_attachments.count(s_id)) {
+            for (const auto &a_id : input_attachments.at(s_id)) {
                 VkSubpassDependency dependency;
                 
-                dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+                dependency.srcSubpass = data.previous_subpass_dependencies.at(a_id);
                 dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                dependency.srcAccessMask = 0;
+                dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
                 
-                dependency.dstSubpass = index;
-                dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                dependency.dstSubpass = (ui32)relative_subpass;
+                dependency.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+                dependency.dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
                 
                 dependency.dependencyFlags = 0;
                 
                 render_pass_helper.dependencies.push_back(dependency);
-                log::graphics("Subpass dependency between VK_SUBPASS_EXTERNAL and %d", dependency.dstSubpass);
+                
+                log::graphics("Subpass dependency between %d and %d", dependency.srcSubpass, dependency.dstSubpass);
             }
+        }
+        //: Swapchain (Ensure that swapchain images are transitioned before they are written to)
+        if (has_swapchain_attachment) {
+            VkSubpassDependency dependency;
+            
+            dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependency.srcAccessMask = 0;
+            
+            dependency.dstSubpass = (ui32)relative_subpass;
+            dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            
+            dependency.dependencyFlags = 0;
+            
+            render_pass_helper.dependencies.push_back(dependency);
+            log::graphics("Subpass dependency between VK_SUBPASS_EXTERNAL and %d", dependency.dstSubpass);
         }
     }
     
@@ -1376,18 +1394,18 @@ RenderPassID API::registerRenderPass(Vulkan &vk, std::vector<SubpassID> subpasse
         API::Map::renderpass_subpass.add(id, s);
     
     //---Create render pass---
-    API::render_passes[id] = VK::createRenderPass(vk, subpasses);
+    API::render_passes[id] = VK::createRenderPass(vk, id);
     
     //---Create framebuffers---
-    API::render_passes[id].framebuffers = VK::createFramebuffers(vk.device, API::render_passes[id].render_pass, API::render_passes[id].attachment_extent, vk.swapchain, API::render_passes[id].attachments);
+    API::render_passes[id].framebuffers = VK::createFramebuffers(vk.device, id, API::render_passes[id].attachment_extent, vk.swapchain);
     
     return id;
 }
 
 void VK::recreateRenderPasses(Vulkan &vk) {
     for (auto &[id, render] : API::render_passes) {
-        render = VK::createRenderPass(vk, render.subpasses);
-        render.framebuffers = VK::createFramebuffers(vk.device, render.render_pass, render.attachment_extent, vk.swapchain, render.attachments);
+        render = VK::createRenderPass(vk, id);
+        render.framebuffers = VK::createFramebuffers(vk.device, id, render.attachment_extent, vk.swapchain);
     }
 }
 
@@ -1830,9 +1848,16 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     
     //: Render pass
     auto renderpass = getBtoA_v(shader, API::Map::renderpass_shader, API::render_passes);
+    auto subpass_list = getAtoB<SubpassID>(renderpass.first, API::Map::renderpass_subpass);
     auto subpass = getBtoA_v(shader, API::Map::subpass_shader, API::subpasses);
+    
+    auto it = std::find(subpass_list.begin(), subpass_list.end(), subpass.first);
+    if (it == subpass_list.end())
+        log::error("The subpass %d is not part of the render pass %d", subpass.first, renderpass.first);
+    ui32 relative_subpass = (ui32)(it - subpass_list.begin());
+    
     create_info.renderPass = renderpass.second.render_pass;
-    create_info.subpass = API::relative_subpass(renderpass.first, subpass.first);
+    create_info.subpass = relative_subpass;
     
     //: Shader stages
     std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(data.shader.stages);
@@ -2271,20 +2296,20 @@ void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline
     std::map<ui32, VkImageView> image_views{};
     
     auto subpass = getBtoA_v(shader, API::Map::subpass_shader, API::subpasses);
+    std::vector<VkImageView> input_views;
+    for (auto &[id, type] : subpass.second.attachment_descriptions)
+        if (type == ATTACHMENT_INPUT)
+            input_views.push_back(API::attachments.at(id).image_view);
     
     for (const auto &binding : pipeline.descriptor_layout_bindings) {
         //: Input attachments
-        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
-            auto &attachment = subpass.second.input_attachments.at(i_input);
-            input_attachments[binding.binding] = API::attachments.at(attachment.attachment).image_view;
-            i_input++;
-        }
+        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
+            input_attachments[binding.binding] = input_views.at(i_input++);
         
         //: Image views
         if (binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-            auto &attachment = subpass.second.external_attachments.at(i_image);
+            auto &attachment = subpass.second.external_attachments.at(i_image++);
             image_views[binding.binding] = API::attachments.at(attachment).image_view;
-            i_image++;
         }
     }
     

@@ -45,11 +45,20 @@ namespace Fresa::Graphics::API
     inline std::map<AttachmentID, AttachmentData> attachments{};
     
     SubpassID registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list = {});
-    ui32 relative_subpass(RenderPassID r_id, SubpassID s_id);
     inline std::map<SubpassID, SubpassData> subpasses{};
     
     RenderPassID registerRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses);
     inline std::map<RenderPassID, RenderPassData> render_passes{};
+    
+    //---Mappings---
+    namespace Map {
+        inline map_AvB_BA<RenderPassID, SubpassID> renderpass_subpass;
+        inline map_AvB_BvA<SubpassID, AttachmentID> subpass_attachment;
+        inline map_AvB_BA<SubpassID, Shaders> subpass_shader;
+        
+        inline auto renderpass_attachment = map_chain(renderpass_subpass, subpass_attachment);
+        inline auto renderpass_shader = map_chain(renderpass_subpass, subpass_shader);
+    };
 
     //---Shaders---
     void updateDescriptorSets(const GraphicsAPI &api, const DrawData* draw);
@@ -100,14 +109,4 @@ namespace Fresa::Graphics::API
         log::graphics("");
         return attribute_descriptions;
     }
-    
-    //---Mappings---
-    namespace Map {
-        inline map_AvB_BA<RenderPassID, SubpassID> renderpass_subpass;
-        inline map_AvB_BvA<SubpassID, AttachmentID> subpass_attachment;
-        inline map_AvB_BA<SubpassID, Shaders> subpass_shader;
-        
-        inline auto renderpass_attachment = map_chain(renderpass_subpass, subpass_attachment);
-        inline auto renderpass_shader = map_chain(renderpass_subpass, subpass_shader);
-    };
 }

@@ -72,10 +72,7 @@ namespace Fresa::Graphics
         ui32 vao;
         #endif
     };
-    //----------------------------------------
-
-    //Uniform
-    //----------------------------------------
+    
     struct UniformBufferObject {
         glm::mat4 model;
         glm::mat4 view;
@@ -161,11 +158,8 @@ namespace Fresa::Graphics
     using RenderPassID = ui8;
     
     struct SubpassData {
-        std::vector<AttachmentID> attachment_bindings;
         #if defined USE_VULKAN
-        std::vector<VkAttachmentReference> color_attachments;
-        std::vector<VkAttachmentReference> depth_attachments;
-        std::vector<VkAttachmentReference> input_attachments;
+        std::map<AttachmentID, AttachmentType> attachment_descriptions;
         std::vector<AttachmentID> external_attachments;
         std::map<AttachmentID, SubpassID> previous_subpass_dependencies;
         #elif defined USE_OPENGL
@@ -180,9 +174,7 @@ namespace Fresa::Graphics
         #if defined USE_VULKAN
         VkRenderPass render_pass;
         std::vector<VkFramebuffer> framebuffers;
-        std::vector<SubpassID> subpasses;
         VkExtent2D attachment_extent;
-        std::vector<AttachmentID> attachments;
         #endif
     };
     //----------------------------------------
