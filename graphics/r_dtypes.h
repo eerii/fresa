@@ -158,15 +158,12 @@ namespace Fresa::Graphics
     using RenderPassID = ui8;
     
     struct SubpassData {
-        #if defined USE_VULKAN
-        std::map<AttachmentID, AttachmentType> attachment_descriptions;
         std::vector<AttachmentID> external_attachments;
+        std::map<AttachmentID, AttachmentType> attachment_descriptions;
         std::map<AttachmentID, SubpassID> previous_subpass_dependencies;
-        #elif defined USE_OPENGL
+        #if defined USE_OPENGL
         ui32 framebuffer;
         bool has_depth;
-        std::vector<AttachmentID> framebuffer_attachments;
-        std::vector<AttachmentID> input_attachments;
         #endif
     };
     
@@ -230,6 +227,7 @@ namespace Fresa::Graphics
         #elif defined USE_OPENGL
         ui8 pid;
         std::map<str, ui32> uniforms;
+        std::map<str, ui32> images;
         SubpassID subpass;
         #endif
     };

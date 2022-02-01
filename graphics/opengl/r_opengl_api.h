@@ -18,12 +18,12 @@ namespace Fresa::Graphics::GL
     //Render passes
     //----------------------------------------
     ui32 createAttachmentTexture(Vec2<> size, AttachmentType type);
-    ui32 createFramebuffer(std::vector<AttachmentID> list);
+    ui32 createFramebuffer(SubpassID subpass);
     //----------------------------------------
 
     //Shaders
     //----------------------------------------
-    ShaderData createShaderDataGL(str name, SubpassID subpass);
+    ShaderData createShaderDataGL(Shaders shader, SubpassID subpass);
     ui8 compileShader(const char* source, ui32 shader_type);
     ui8 compileProgram(str vert_source = "", str frag_source = "");
     void validateShaderData(ui32 vao_id, const std::map<Shaders, ShaderData> &shaders);

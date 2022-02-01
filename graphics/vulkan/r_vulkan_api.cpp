@@ -1238,7 +1238,7 @@ SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list, std::v
     return id;
 }
 
-RenderPassData VK::createRenderPass(Vulkan &vk, RenderPassID r_id) {
+RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
@@ -1382,7 +1382,7 @@ RenderPassData VK::createRenderPass(Vulkan &vk, RenderPassID r_id) {
     return render;
 }
 
-RenderPassID API::registerRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses) {
+RenderPassID API::registerRenderPass(const Vulkan &vk, std::vector<SubpassID> subpasses) {
     static RenderPassID id = 0;
     while (API::render_passes.find(id) != API::render_passes.end())
         id++;

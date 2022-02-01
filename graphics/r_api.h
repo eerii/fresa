@@ -47,7 +47,7 @@ namespace Fresa::Graphics::API
     SubpassID registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list = {});
     inline std::map<SubpassID, SubpassData> subpasses{};
     
-    RenderPassID registerRenderPass(Vulkan &vk, std::vector<SubpassID> subpasses);
+    RenderPassID registerRenderPass(const GraphicsAPI &api, std::vector<SubpassID> subpasses);
     inline std::map<RenderPassID, RenderPassData> render_passes{};
     
     //---Mappings---

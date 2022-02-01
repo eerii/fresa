@@ -136,7 +136,7 @@ namespace Fresa::Graphics::VK
 
     //Render pass
     //----------------------------------------
-    RenderPassData createRenderPass(Vulkan &vk, RenderPassID r_id);
+    RenderPassData createRenderPass(const Vulkan &vk, RenderPassID r_id);
     void recreateRenderPasses(Vulkan &vk);
     //----------------------------------------
 
