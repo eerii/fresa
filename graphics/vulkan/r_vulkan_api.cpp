@@ -1414,11 +1414,11 @@ void API::processRendererDescription(Vulkan &vk, const WindowData &win, str path
             //: Name
             str name = a.at(1);
             if (name == "swapchain") {
-                attachment_list[name + std::to_string(swapchain_count++)] = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+                attachment_list[name + std::to_string(++swapchain_count)] = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
                 continue;
             }
-            if (attachment_list.count(a.at(1)))
-                log::error("Duplicated attachment name %s", a.at(1).c_str());
+            if (attachment_list.count(name))
+                log::error("Duplicated attachment name %s", name.c_str());
             if (a.size() != 4)
                 log::error("You have not provided all the required parameters for an attachment");
             
@@ -1456,37 +1456,90 @@ void API::processRendererDescription(Vulkan &vk, const WindowData &win, str path
         }
         
         if (s.at(0) == 's') {
+            std::vector<str> s1 = split(s, "["); //: s name [a1 a2 a3] [ext1 ext2]
+            if (s1.size() < 2)
+                log::error("You need to provide at least an attachment list for the subpass, for example 's name [a1 a2]'");
+            if (s1.size() > 3)
+                log::error("There are too many arguments for this subpass");
             
+            //: Name
+            str name = s1.at(0).substr(2); name.pop_back();
+            if (subpass_list.count(name))
+                log::error("Duplicated subpass name %s", name.c_str());
+            
+            //: Attachments
+            std::vector<AttachmentID> subpass_attachments{};
+            std::vector<str> s2 = split(s1.at(1).substr(0, s1.at(1).find("]")));
+            for (auto a : s2) {
+                if (a == "swapchain")
+                    a += std::to_string(swapchain_count);
+                if (not attachment_list.count(a))
+                    log::error("You have used an incorrect attachment name, %s", a.c_str());
+                subpass_attachments.push_back(attachment_list.at(a));
+            }
+            
+            //: External attachments
+            std::vector<AttachmentID> external_attachments{};
+            if (s1.size() == 3) {
+                std::vector<str> s3 = split(s1.at(2).substr(0, s1.at(2).find("]")));
+                for (auto &a : s3) {
+                    if (not attachment_list.count(a))
+                        log::error("You have used an incorrect external attachment name, %s", a.c_str());
+                    external_attachments.push_back(attachment_list.at(a));
+                }
+            }
+            
+            //: Register subpass
+            subpass_list[name] = API::registerSubpass(subpass_attachments, external_attachments);
         }
         
         if (s.at(0) == 'r') {
+            std::vector<str> r1 = split(s, "["); //: r [s1 s2 s3]
+            if (r1.size() != 2)
+                log::error("The description of the renderpass is invalid, it has to be 'r [s1 s2]'");
             
+            //: Subpasses
+            std::vector<SubpassID> renderpass_subpasses{};
+            std::vector<str> r2 = split(r1.at(1).substr(0, r1.at(1).find("]")));
+            for (auto &sp : r2) {
+                if (not subpass_list.count(sp))
+                    log::error("You have used an incorrect subpass name, %s", sp.c_str());
+                renderpass_subpasses.push_back(subpass_list.at(sp));
+            }
+            
+            //: Register renderpass
+            API::registerRenderPass(vk, renderpass_subpasses);
         }
         
         if (s.at(0) == 'p') {
+            std::vector<str> p = split(s); //: p shader subpass vertexdata
+            if (p.size() != 4)
+                log::error("The description of the pipeline is invalid, it has to be 'p shader subpass vertexdata'");
             
+            //: Shader
+            Shaders shader = [p](){
+                for (const auto &[sh, name] : shader_names) {
+                    if (p.at(1) == name)
+                        return sh;
+                }
+                log::error("The shader name provided (%s) is not valid", p.at(1).c_str());
+                return Shaders{};
+            }();
+            
+            //: Subpass
+            if (not subpass_list.count(p.at(2)))
+                log::error("You have used an incorrect subpass name, %s", p.at(2).c_str());
+            SubpassID subpass = subpass_list.at(p.at(2));
+            
+            //: Register pipeline
+            if (p.at(3) == "vd_color")
+                vk.pipelines[shader] = VK::createPipeline<VertexDataColor>(vk, shader, subpass);
+            if (p.at(3) == "vd_tex")
+                vk.pipelines[shader] = VK::createPipeline<VertexDataTexture>(vk, shader, subpass);
+            if (p.at(3) == "vd_win")
+                vk.pipelines[shader] = VK::createPipeline<VertexDataWindow>(vk, shader, subpass);
         }
     }
-    
-    //---Render passes---
-    //AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT, Config::resolution.to<int>());
-    //AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH, Config::resolution.to<int>());
-    //AttachmentID attachment_post = API::registerAttachment(vk, ATTACHMENT_COLOR_EXTERNAL, Config::resolution.to<int>());
-    
-    SubpassID subpass_draw = API::registerSubpass({attachment_list.at("color"), attachment_list.at("depth")});
-    SubpassID subpass_post = API::registerSubpass({attachment_list.at("color"), attachment_list.at("post")});
-    API::registerRenderPass(vk, {subpass_draw, subpass_post});
-    
-    AttachmentID attachment_swapchain = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
-    
-    SubpassID subpass_window = API::registerSubpass({attachment_swapchain}, {attachment_list.at("post")});
-    API::registerRenderPass(vk, {subpass_window});
-    
-    //---Pipelines---
-    vk.pipelines[SHADER_DRAW_COLOR] = VK::createPipeline<VertexDataColor>(vk, SHADER_DRAW_COLOR, subpass_draw);
-    vk.pipelines[SHADER_DRAW_TEX] = VK::createPipeline<VertexDataTexture>(vk, SHADER_DRAW_TEX, subpass_draw);
-    vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST, subpass_post);
-    vk.pipelines[SHADER_WINDOW] = VK::createPipeline<VertexDataWindow>(vk, SHADER_WINDOW, subpass_window);
 }
 
 //----------------------------------------

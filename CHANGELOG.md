@@ -13,6 +13,7 @@
 - multiple sized attachments for scaled rendering
 - bidirectional maps (new and improved)
 - opengl multiple image support
+- renderer description with parser
 
 **changed**
 - refactored update lists
