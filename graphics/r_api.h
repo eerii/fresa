@@ -40,15 +40,17 @@ namespace Fresa::Graphics::API
     inline DrawQueueMap draw_queue{};
     
     //---Render passes and attachments---
-    AttachmentID registerAttachment(const GraphicsAPI &api, AttachmentType type, Vec2<> size);
-    void recreateAttachments(const GraphicsAPI &api);
-    inline std::map<AttachmentID, AttachmentData> attachments{};
+    void processRendererDescription(GraphicsAPI &api, const WindowData &win, str path);
+    
+    RenderPassID registerRenderPass(const GraphicsAPI &api, std::vector<SubpassID> subpasses);
+    inline std::map<RenderPassID, RenderPassData> render_passes{};
     
     SubpassID registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list = {});
     inline std::map<SubpassID, SubpassData> subpasses{};
     
-    RenderPassID registerRenderPass(const GraphicsAPI &api, std::vector<SubpassID> subpasses);
-    inline std::map<RenderPassID, RenderPassData> render_passes{};
+    AttachmentID registerAttachment(const GraphicsAPI &api, AttachmentType type, Vec2<> size);
+    void recreateAttachments(const GraphicsAPI &api);
+    inline std::map<AttachmentID, AttachmentData> attachments{};
     
     //---Mappings---
     namespace Map {

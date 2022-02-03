@@ -14,4 +14,16 @@ namespace Fresa
 
     //---String---
     using str = std::string;
+    inline std::vector<str> split(str s, str del = " ") {
+        std::vector<str> ss{};
+        int a = 0;
+        int b = (int)s.find(del);
+        while (b != -1) {
+            ss.push_back(s.substr(a, b - a));
+            a = (int)(b + del.size());
+            b = (int)s.find(del, a);
+        }
+        ss.push_back(s.substr(a, b - a));
+        return ss;
+    }
 }

@@ -103,10 +103,10 @@ ShaderData API::createShaderData(str name) {
     //      First it saves the locations and then it reads the SPIRV code
     ShaderData data;
     
-    data.locations.vert = File::path_optional("shaders/" + name + "/" + name + ".vert.spv");
-    data.locations.frag = File::path_optional("shaders/" + name + "/" + name + ".frag.spv");
-    data.locations.compute = File::path_optional("shaders/" + name + "/" + name + ".compute.spv");
-    data.locations.geometry = File::path_optional("shaders/" + name + "/" + name + ".geometry.spv");
+    data.locations.vert = File::path_optional("render/" + name + "/" + name + ".vert.spv");
+    data.locations.frag = File::path_optional("render/" + name + "/" + name + ".frag.spv");
+    data.locations.compute = File::path_optional("render/" + name + "/" + name + ".compute.spv");
+    data.locations.geometry = File::path_optional("render/" + name + "/" + name + ".geometry.spv");
     
     if (data.locations.vert.has_value())
         data.code.vert = readSPIRV(data.locations.vert.value());

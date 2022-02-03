@@ -57,7 +57,7 @@ OpenGL API::createAPI(WindowData &win) {
     
     AttachmentID attachment_swapchain = API::registerAttachment(gl, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
     
-    SubpassID subpass_window = API::registerSubpass({attachment_swapchain}, {attachment_color, attachment_post});
+    SubpassID subpass_window = API::registerSubpass({attachment_swapchain}, {attachment_post});
     
     gl.shaders[SHADER_DRAW_COLOR] = GL::createShaderDataGL(SHADER_DRAW_COLOR, subpass_draw);
     gl.shaders[SHADER_DRAW_TEX] = GL::createShaderDataGL(SHADER_DRAW_TEX, subpass_draw);

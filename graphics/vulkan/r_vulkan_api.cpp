@@ -15,6 +15,8 @@
 
 #include <set>
 #include <numeric>
+#include <filesystem>
+#include <fstream>
 
 #define MAX_POOL_SETS 1024
 #define PREFER_MAILBOX_DISPLAY_MODE
@@ -82,31 +84,14 @@ Vulkan API::createAPI(WindowData &win) {
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     vk.cmd.query_pool = VK::createQueryPool(vk.device, vk.swapchain.size);
     
-    //---Render passes---
-    AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT, Config::resolution.to<int>());
-    AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH, Config::resolution.to<int>());
-    AttachmentID attachment_post = API::registerAttachment(vk, ATTACHMENT_COLOR_EXTERNAL, Config::resolution.to<int>());
-    
-    SubpassID subpass_draw = API::registerSubpass({attachment_color, attachment_depth});
-    SubpassID subpass_post = API::registerSubpass({attachment_color, attachment_post});
-    API::registerRenderPass(vk, {subpass_draw, subpass_post});
-    
-    AttachmentID attachment_swapchain = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
-    
-    SubpassID subpass_window = API::registerSubpass({attachment_swapchain}, {attachment_post});
-    API::registerRenderPass(vk, {subpass_window});
-    
     //---Sync objects---
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
     
     //---Image sampler---
     vk.sampler = VK::createSampler(vk.device);
     
-    //---Pipelines---
-    vk.pipelines[SHADER_DRAW_COLOR] = VK::createPipeline<VertexDataColor>(vk, SHADER_DRAW_COLOR, subpass_draw);
-    vk.pipelines[SHADER_DRAW_TEX] = VK::createPipeline<VertexDataTexture>(vk, SHADER_DRAW_TEX, subpass_draw);
-    vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST, subpass_post);
-    vk.pipelines[SHADER_WINDOW] = VK::createPipeline<VertexDataWindow>(vk, SHADER_WINDOW, subpass_window);
+    //---Render passes---
+    API::processRendererDescription(vk, win, "res/render/renderer_description");
     
     //---Window vertex buffer---
     window_vertex_buffer = VK::createVertexBuffer(vk, window_vertices);
@@ -1407,6 +1392,101 @@ void VK::recreateRenderPasses(Vulkan &vk) {
         render = VK::createRenderPass(vk, id);
         render.framebuffers = VK::createFramebuffers(vk.device, id, render.attachment_extent, vk.swapchain);
     }
+}
+
+void API::processRendererDescription(Vulkan &vk, const WindowData &win, str path) {
+    if (not std::filesystem::exists(std::filesystem::path{path}))
+        log::error("Error creating the rederer description. Please make sure that you have created an appropiate file at '%s'. The renderer description is a list of the attachments, subpasses, renderpasses and pipelines/shaders in your rendering application. It needs to be filled accordingly. There is an example of a valid file in https://github.com/josekoalas/aguacate", path.c_str());
+    
+    std::map<str, AttachmentID> attachment_list{};
+    std::map<str, SubpassID> subpass_list{};
+    int swapchain_count = 0; //: Support for multiple swapchain attachments
+    
+    std::ifstream f(path);
+    std::string s;
+    while (std::getline(f, s)) {
+        if (s.size() == 0)
+            continue;
+        
+        if (s.at(0) == 'a') {
+            std::vector<str> a = split(s); //: a name attachment_type resolution
+            
+            //: Name
+            str name = a.at(1);
+            if (name == "swapchain") {
+                attachment_list[name + std::to_string(swapchain_count++)] = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+                continue;
+            }
+            if (attachment_list.count(a.at(1)))
+                log::error("Duplicated attachment name %s", a.at(1).c_str());
+            if (a.size() != 4)
+                log::error("You have not provided all the required parameters for an attachment");
+            
+            //: Attachment type
+            std::vector<str> type_str = split(a.at(2), "_");
+            if (type_str.size() == 0)
+                log::error("You must provide an attachment type for attachments other than swapchain");
+            if (not attachment_type_names.count(type_str.at(0)))
+                log::error("You provided an invalid attachment type, check the name list for all the options, index 0");
+            AttachmentType type = attachment_type_names.at(type_str.at(0));
+            for (int i = 1; i < type_str.size(); i++) {
+                if (not attachment_type_names.count(type_str.at(i)))
+                    log::error("You provided an invalid attachment type, check the name list for all the options, index %d", i);
+                type = (AttachmentType)(type | attachment_type_names.at(type_str.at(i)));
+            }
+            attachment_list[a.at(1)] = type;
+            
+            //: Resolution
+            Vec2<> resolution{};
+            if (a.at(3) == "res") {
+                resolution = Config::resolution.to<int>();
+            }
+            else if (a.at(3) == "win") {
+                resolution = win.size;
+            }
+            else {
+                std::vector<str> res_str = split(a.at(3), "x");
+                if (not (res_str.size() == 2))
+                    log::error("You need to either provide an smart attachment resolution (win, res...) or a numeric value in the form 1920x1080");
+                resolution = Vec2<>(std::stoi(res_str.at(0)), std::stoi(res_str.at(1)));
+            }
+            
+            //: Register attachment
+            attachment_list[name] = API::registerAttachment(vk, type, resolution);
+        }
+        
+        if (s.at(0) == 's') {
+            
+        }
+        
+        if (s.at(0) == 'r') {
+            
+        }
+        
+        if (s.at(0) == 'p') {
+            
+        }
+    }
+    
+    //---Render passes---
+    //AttachmentID attachment_color = API::registerAttachment(vk, ATTACHMENT_COLOR_INPUT, Config::resolution.to<int>());
+    //AttachmentID attachment_depth = API::registerAttachment(vk, ATTACHMENT_DEPTH, Config::resolution.to<int>());
+    //AttachmentID attachment_post = API::registerAttachment(vk, ATTACHMENT_COLOR_EXTERNAL, Config::resolution.to<int>());
+    
+    SubpassID subpass_draw = API::registerSubpass({attachment_list.at("color"), attachment_list.at("depth")});
+    SubpassID subpass_post = API::registerSubpass({attachment_list.at("color"), attachment_list.at("post")});
+    API::registerRenderPass(vk, {subpass_draw, subpass_post});
+    
+    AttachmentID attachment_swapchain = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+    
+    SubpassID subpass_window = API::registerSubpass({attachment_swapchain}, {attachment_list.at("post")});
+    API::registerRenderPass(vk, {subpass_window});
+    
+    //---Pipelines---
+    vk.pipelines[SHADER_DRAW_COLOR] = VK::createPipeline<VertexDataColor>(vk, SHADER_DRAW_COLOR, subpass_draw);
+    vk.pipelines[SHADER_DRAW_TEX] = VK::createPipeline<VertexDataTexture>(vk, SHADER_DRAW_TEX, subpass_draw);
+    vk.pipelines[SHADER_POST] = VK::createPipeline<VertexDataWindow>(vk, SHADER_POST, subpass_post);
+    vk.pipelines[SHADER_WINDOW] = VK::createPipeline<VertexDataWindow>(vk, SHADER_WINDOW, subpass_window);
 }
 
 //----------------------------------------

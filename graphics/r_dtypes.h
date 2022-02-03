@@ -124,6 +124,14 @@ namespace Fresa::Graphics
         ATTACHMENT_COLOR_EXTERNAL = ATTACHMENT_COLOR | ATTACHMENT_EXTERNAL,
     };
     
+    inline std::map<str, AttachmentType> attachment_type_names = {
+        {"color", ATTACHMENT_COLOR},
+        {"depth", ATTACHMENT_DEPTH},
+        {"input", ATTACHMENT_INPUT},
+        {"swapchain", ATTACHMENT_COLOR_SWAPCHAIN},
+        {"external", ATTACHMENT_EXTERNAL},
+    };
+    
     struct AttachmentData {
         AttachmentType type;
         Vec2<> size;
