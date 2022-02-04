@@ -14,9 +14,11 @@
 #if defined USE_VULKAN
     #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN
     #define RENDERER_NAME "Vulkan"
+    #include "r_vulkan_api.h"
 #elif defined USE_OPENGL
     #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
     #define RENDERER_NAME "OpenGL"
+    #include "r_opengl_api.h"
 #endif
 
 using namespace Fresa;
@@ -134,4 +136,161 @@ ShaderCompiler API::getShaderCompiler(const std::vector<char> &code) {
     }
     
     return spirv_cross::CompilerGLSL(std::move(spirv));
+}
+
+void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
+    if (API::renderer_description_path.size() == 0)
+        log::error("You need to set API::renderer_description_path with the location of your renderer description file");
+    
+    if (not std::filesystem::exists(std::filesystem::path{API::renderer_description_path}))
+        log::error("Error creating the rederer description. Please make sure that you have created an appropiate file at '%s'. The renderer description is a list of the attachments, subpasses, renderpasses and pipelines/shaders in your rendering application. It needs to be filled accordingly. There is an example of a valid file in https://github.com/josekoalas/aguacate", API::renderer_description_path.c_str());
+    
+    std::map<str, AttachmentID> attachment_list{};
+    std::map<str, SubpassID> subpass_list{};
+    int swapchain_count = 0; //: Support for multiple swapchain attachments
+    
+    std::ifstream f(API::renderer_description_path);
+    std::string s;
+    while (std::getline(f, s)) {
+        if (s.size() == 0)
+            continue;
+        
+        if (s.at(0) == 'a') {
+            std::vector<str> a = split(s); //: a name attachment_type resolution
+            
+            //: Name
+            str name = a.at(1);
+            if (name == "swapchain") {
+                attachment_list[name + std::to_string(++swapchain_count)] = API::registerAttachment(api, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+                continue;
+            }
+            if (attachment_list.count(name))
+                log::error("Duplicated attachment name %s", name.c_str());
+            if (a.size() != 4)
+                log::error("You have not provided all the required parameters for an attachment");
+            
+            //: Attachment type
+            std::vector<str> type_str = split(a.at(2), "_");
+            if (type_str.size() == 0)
+                log::error("You must provide an attachment type for attachments other than swapchain");
+            if (not attachment_type_names.count(type_str.at(0)))
+                log::error("You provided an invalid attachment type, check the name list for all the options, index 0");
+            AttachmentType type = attachment_type_names.at(type_str.at(0));
+            for (int i = 1; i < type_str.size(); i++) {
+                if (not attachment_type_names.count(type_str.at(i)))
+                    log::error("You provided an invalid attachment type, check the name list for all the options, index %d", i);
+                type = (AttachmentType)(type | attachment_type_names.at(type_str.at(i)));
+            }
+            attachment_list[a.at(1)] = type;
+            
+            //: Resolution
+            Vec2<> resolution{};
+            if (a.at(3) == "res") {
+                resolution = Config::resolution.to<int>();
+            }
+            else if (a.at(3) == "win") {
+                resolution = win.size;
+            }
+            else {
+                std::vector<str> res_str = split(a.at(3), "x");
+                if (not (res_str.size() == 2))
+                    log::error("You need to either provide an smart attachment resolution (win, res...) or a numeric value in the form 1920x1080");
+                resolution = Vec2<>(std::stoi(res_str.at(0)), std::stoi(res_str.at(1)));
+            }
+            
+            //: Register attachment
+            attachment_list[name] = API::registerAttachment(api, type, resolution);
+        }
+        
+        if (s.at(0) == 's') {
+            std::vector<str> s1 = split(s, "["); //: s name [a1 a2 a3] [ext1 ext2]
+            if (s1.size() < 2)
+                log::error("You need to provide at least an attachment list for the subpass, for example 's name [a1 a2]'");
+            if (s1.size() > 3)
+                log::error("There are too many arguments for this subpass");
+            
+            //: Name
+            str name = s1.at(0).substr(2); name.pop_back();
+            if (subpass_list.count(name))
+                log::error("Duplicated subpass name %s", name.c_str());
+            
+            //: Attachments
+            std::vector<AttachmentID> subpass_attachments{};
+            std::vector<str> s2 = split(s1.at(1).substr(0, s1.at(1).find("]")));
+            for (auto a : s2) {
+                if (a == "swapchain")
+                    a += std::to_string(swapchain_count);
+                if (not attachment_list.count(a))
+                    log::error("You have used an incorrect attachment name, %s", a.c_str());
+                subpass_attachments.push_back(attachment_list.at(a));
+            }
+            
+            //: External attachments
+            std::vector<AttachmentID> external_attachments{};
+            if (s1.size() == 3) {
+                std::vector<str> s3 = split(s1.at(2).substr(0, s1.at(2).find("]")));
+                for (auto &a : s3) {
+                    if (not attachment_list.count(a))
+                        log::error("You have used an incorrect external attachment name, %s", a.c_str());
+                    external_attachments.push_back(attachment_list.at(a));
+                }
+            }
+            
+            //: Register subpass
+            subpass_list[name] = API::registerSubpass(subpass_attachments, external_attachments);
+        }
+        
+        #if defined USE_VULKAN
+        if (s.at(0) == 'r') {
+            std::vector<str> r1 = split(s, "["); //: r [s1 s2 s3]
+            if (r1.size() != 2)
+                log::error("The description of the renderpass is invalid, it has to be 'r [s1 s2]'");
+            
+            //: Subpasses
+            std::vector<SubpassID> renderpass_subpasses{};
+            std::vector<str> r2 = split(r1.at(1).substr(0, r1.at(1).find("]")));
+            for (auto &sp : r2) {
+                if (not subpass_list.count(sp))
+                    log::error("You have used an incorrect subpass name, %s", sp.c_str());
+                renderpass_subpasses.push_back(subpass_list.at(sp));
+            }
+            
+            //: Register renderpass
+            API::registerRenderPass(api, renderpass_subpasses);
+        }
+        #endif
+        
+        if (s.at(0) == 'p') {
+            std::vector<str> p = split(s); //: p shader subpass vertexdata
+            if (p.size() != 4)
+                log::error("The description of the pipeline is invalid, it has to be 'p shader subpass vertexdata'");
+            
+            //: Shader
+            Shaders shader = [p](){
+                for (const auto &[sh, name] : shader_names) {
+                    if (p.at(1) == name)
+                        return sh;
+                }
+                log::error("The shader name provided (%s) is not valid", p.at(1).c_str());
+                return Shaders{};
+            }();
+            
+            //: Subpass
+            if (not subpass_list.count(p.at(2)))
+                log::error("You have used an incorrect subpass name, %s", p.at(2).c_str());
+            SubpassID subpass = subpass_list.at(p.at(2));
+            
+            //: Register pipeline
+            #if defined USE_VULKAN
+                if (p.at(3) == "vd_color")
+                    api.pipelines[shader] = VK::createPipeline<VertexDataColor>(api, shader, subpass);
+                if (p.at(3) == "vd_tex")
+                    api.pipelines[shader] = VK::createPipeline<VertexDataTexture>(api, shader, subpass);
+                if (p.at(3) == "vd_win")
+                    api.pipelines[shader] = VK::createPipeline<VertexDataWindow>(api, shader, subpass);
+            #elif defined USE_OPENGL
+                api.shaders[shader] = GL::createShaderDataGL(shader, subpass);
+            #endif
+        }
+    }
 }

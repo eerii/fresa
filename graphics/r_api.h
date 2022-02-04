@@ -40,7 +40,8 @@ namespace Fresa::Graphics::API
     inline DrawQueueMap draw_queue{};
     
     //---Render passes and attachments---
-    void processRendererDescription(GraphicsAPI &api, const WindowData &win, str path);
+    void processRendererDescription(GraphicsAPI &api, const WindowData &win);
+    inline str renderer_description_path = "";
     
     RenderPassID registerRenderPass(const GraphicsAPI &api, std::vector<SubpassID> subpasses);
     inline std::map<RenderPassID, RenderPassData> render_passes{};

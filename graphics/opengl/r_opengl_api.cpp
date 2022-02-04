@@ -48,21 +48,7 @@ OpenGL API::createAPI(WindowData &win) {
     
     gl.context = GL::createContext(win);
     
-    AttachmentID attachment_color = API::registerAttachment(gl, ATTACHMENT_COLOR_INPUT, Config::resolution.to<int>());
-    AttachmentID attachment_depth = API::registerAttachment(gl, ATTACHMENT_DEPTH, Config::resolution.to<int>());
-    AttachmentID attachment_post = API::registerAttachment(gl, ATTACHMENT_COLOR_EXTERNAL, Config::resolution.to<int>());
-    
-    SubpassID subpass_draw = API::registerSubpass({attachment_color, attachment_depth});
-    SubpassID subpass_post = API::registerSubpass({attachment_color, attachment_post});
-    
-    AttachmentID attachment_swapchain = API::registerAttachment(gl, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
-    
-    SubpassID subpass_window = API::registerSubpass({attachment_swapchain}, {attachment_post});
-    
-    gl.shaders[SHADER_DRAW_COLOR] = GL::createShaderDataGL(SHADER_DRAW_COLOR, subpass_draw);
-    gl.shaders[SHADER_DRAW_TEX] = GL::createShaderDataGL(SHADER_DRAW_TEX, subpass_draw);
-    gl.shaders[SHADER_POST] = GL::createShaderDataGL(SHADER_POST, subpass_post);
-    gl.shaders[SHADER_WINDOW] = GL::createShaderDataGL(SHADER_WINDOW, subpass_window);
+    API::processRendererDescription(gl, win);
     
     ui32 temp_vao = GL::createVertexArray(); //Needed for shader validation
     deletion_queue.push_back([temp_vao](){glDeleteVertexArrays(1, &temp_vao);});
@@ -433,6 +419,11 @@ SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list, std::v
     log::graphics(" - This subpass includes the framebuffer %d", subpasses[id].framebuffer);
         
     return id;
+}
+
+RenderPassID API::registerRenderPass(const OpenGL &gl, std::vector<SubpassID> subpasses) {
+    log::debug("Render passes are not used in OpenGL");
+    return 0;
 }
 
 ui32 GL::createFramebuffer(SubpassID subpass) {

@@ -34,6 +34,7 @@ bool Graphics::init() {
     win = API::createWindow(Config::window_size, name);
     
     //: Create renderer api
+    API::renderer_description_path = "res/render/renderer_description";
     api = API::createAPI(win);
 
     //: Set projection
