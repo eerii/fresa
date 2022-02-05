@@ -38,7 +38,8 @@ bool Graphics::init() {
     api = API::createAPI(win);
 
     //: Set projection
-    setCameraProjection();
+    camera.proj_type = PROJECTION_ORTHOGRAPHIC;
+    updateCameraProjection(camera);
     
     //: Initialize GUI
     IF_GUI(Gui::init(api, win));
@@ -57,7 +58,7 @@ bool Graphics::update() {
     }
     
     //: Update camera view
-    updateCameraView();
+    updateCameraView(camera);
     
     //: Render
     API::render(api, win, camera);
@@ -84,7 +85,7 @@ void Graphics::onResize(Vec2<> size) {
     //: Adjust render scale
     Vec2<float> ratios = win.size.to<float>() / Config::resolution.to<float>();
     win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
-    setCameraProjection();
+    updateCameraProjection(camera);
     
     //: Pass the resize command to the API
     API::resize(api, win);
@@ -194,20 +195,23 @@ void Graphics::draw(const DrawID draw_id, glm::mat4 model) {
     API::draw_queue[queue_data.first->shader][buffer][tex].push_back(queue_data);
 }
 
-void Graphics::setCameraProjection() {
-    //: Example perspective projection
-    camera.proj = glm::perspective(glm::radians(45.0f), (float) win.size.x / (float) win.size.y, 0.1f, 10000.0f);
-    camera.proj[1][1] *= -viewport_y;
-    
-    //: Example orthographic projection (with (0,0) on the corner)
-    //camera.proj = glm::ortho(0.0f, win.size.x, 0.0f, win.size.y, -1000.0f, 1000.0f);
-    
-    //: Example orthographic projection (with (0,0) on the middle of the screen)
-    //camera.proj = glm::ortho(-win.size.x/2.0f, win.size.x/2.0f, win.size.y/2.0f, -win.size.y/2.0f, -10000.0f, 10000.0f);
-    //camera.proj[1][1] *= viewport_y;
+void Graphics::updateCameraView(CameraData &cam) {
+    //: Example of view matrix
+    cam.view = glm::translate(glm::mat4(1.0f), glm::vec3(-camera.pos.x, -camera.pos.y, -camera.pos.z));
 }
 
-void Graphics::updateCameraView() {
-    //: Example of view matrix
-    camera.view = glm::translate(glm::mat4(1.0f), glm::vec3(-camera.pos.x, -camera.pos.y, -camera.pos.z));
+void Graphics::updateCameraProjection(CameraData &cam) {
+    //: Orthographic (2D)
+    if (cam.proj_type == PROJECTION_ORTHOGRAPHIC)
+        cam.proj = glm::ortho(0.0f, (float)win.size.x, 0.0f, (float)win.size.y, -10000.0f, 10000.0f);
+    
+    //: Orthographic scaled (2D, pixel perfect)
+    if (cam.proj_type == PROJECTION_ORTHOGRAPHIC_SCALED)
+        cam.proj = glm::ortho(0.0f, (float)Config::resolution.x, 0.0f, (float)Config::resolution.y, -10000.0f, 10000.0f);
+    
+    //: Perspective (3D)
+    if (cam.proj_type == PROJECTION_PERSPECTIVE)
+        cam.proj = glm::perspective(glm::radians(45.0f), (float) win.size.x / (float) win.size.y, 0.1f, 10000.0f);
+    
+    cam.proj[1][1] *= -viewport_y;
 }

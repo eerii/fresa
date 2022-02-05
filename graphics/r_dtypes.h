@@ -38,10 +38,18 @@ namespace Fresa::Graphics
         bool vsync;
     };
     
+    enum Projection {
+        PROJECTION_ORTHOGRAPHIC,
+        PROJECTION_ORTHOGRAPHIC_SCALED,
+        PROJECTION_PERSPECTIVE,
+        PROJECTION_LAST,
+    };
+    
     struct CameraData {
         glm::vec3 pos;
         glm::mat4 view;
         glm::mat4 proj;
+        Projection proj_type;
     };
     
     #if defined USE_VULKAN

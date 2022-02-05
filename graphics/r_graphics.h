@@ -41,29 +41,29 @@ namespace Fresa::Graphics
 
     void draw(const DrawID draw_id, glm::mat4 model);
     
-    void setCameraProjection();
-    void updateCameraView();
+    constexpr int projection_border = 16;
+    void updateCameraView(CameraData &cam);
+    void updateCameraProjection(CameraData &cam);
     
     //---Vertices---
     //      Some common vertex definitions that can be used for quickly creating objects
-    namespace Vertices
-    {
+    namespace Vertices {
         inline const std::vector<VertexDataTexture> rect_vertices_texture = {
-            {{-1.f, -1.f, 0.f}, {0.0f, 0.0f}},
-            {{1.f, -1.f, 0.f}, {1.0f, 0.0f}},
+            {{0.f, 0.f, 0.f}, {0.0f, 0.0f}},
+            {{1.f, 0.f, 0.f}, {1.0f, 0.0f}},
             {{1.f, 1.f, 0.f}, {1.0f, 1.0f}},
-            {{-1.f, 1.f, 0.f}, {0.0f, 1.0f}},
+            {{0.f, 1.f, 0.f}, {0.0f, 1.0f}},
         };
         
         inline const std::vector<VertexDataColor> rect_vertices_color = {
-            {{-1.f, -1.f, 0.f}, {1.0f, 0.0f, 0.0f}},
-            {{1.f, -1.f, 0.f}, {0.0f, 1.0f, 0.0f}},
+            {{0.f, 0.f, 0.f}, {1.0f, 0.0f, 0.0f}},
+            {{1.f, 0.f, 0.f}, {0.0f, 1.0f, 0.0f}},
             {{1.f, 1.f, 0.f}, {0.0f, 0.0f, 1.0f}},
-            {{-1.f, 1.f, 0.f}, {1.0f, 1.0f, 1.0f}},
+            {{0.f, 1.f, 0.f}, {1.0f, 1.0f, 1.0f}},
         };
         
         inline const std::vector<ui16> rect_indices = {
-            0, 3, 1, 2, 1, 3
+            0, 2, 1, 0, 3, 2
         };
         
         //: Example colored cube
