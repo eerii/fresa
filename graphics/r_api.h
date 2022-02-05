@@ -27,6 +27,7 @@ namespace Fresa::Graphics::API
 {
     WindowData createWindow(Vec2<ui32> size, str name);
     ui16 getRefreshRate(WindowData &win, bool force = false);
+    UniformBufferObject getScaledWindowUBO(const WindowData &win);
     
     void configureAPI();
     GraphicsAPI createAPI(WindowData &win);

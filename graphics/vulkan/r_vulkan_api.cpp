@@ -2276,7 +2276,8 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
 }
 
 void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, Shaders shader) {
-    ui32 i_input = 0; ui32 i_image = 0;
+    ui32 i_uniform = 0; ui32 i_input = 0; ui32 i_image = 0;
+    std::map<ui32, const std::vector<BufferData>*> uniform_buffers{};
     std::map<ui32, VkImageView> input_attachments{};
     std::map<ui32, VkImageView> image_views{};
     
@@ -2287,6 +2288,10 @@ void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline
             input_views.push_back(API::attachments.at(id).image_view);
     
     for (const auto &binding : pipeline.descriptor_layout_bindings) {
+        //: Uniform buffers
+        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+            uniform_buffers[binding.binding] = &pipeline.uniform_buffers.at(i_uniform++);
+        
         //: Input attachments
         if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
             input_attachments[binding.binding] = input_views.at(i_input++);
@@ -2298,7 +2303,7 @@ void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline
         }
     }
     
-    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, {}, image_views, input_attachments);
+    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniform_buffers, image_views, input_attachments);
 }
 
 //----------------------------------------
@@ -2331,6 +2336,14 @@ std::vector<BufferData> VK::createUniformBuffers(VmaAllocator allocator, ui32 sw
     });
     //log::graphics("Created vulkan uniform buffers");
     return uniform_buffers;
+}
+
+std::vector<std::vector<BufferData>> VK::createPostUniformBuffers(const Vulkan &vk, const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
+    std::vector<std::vector<BufferData>> uniforms{};
+    for (auto &binding : bindings)
+        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+            uniforms.push_back(createUniformBuffers(vk.allocator, vk.swapchain.size));
+    return uniforms;
 }
 
 //----------------------------------------
@@ -2741,6 +2754,10 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
             }
         }
     }
+    
+    //TODO: TEMP
+    for (auto &u : vk.pipelines.at(SHADER_WINDOW).uniform_buffers)
+        VK::updateUniformBuffer(vk.allocator, u.at(vk.cmd.current_buffer), win.scaled_ubo);
     
     //: Record command buffers
     VK::recordDrawCommandBuffer(vk, vk.cmd.current_buffer);

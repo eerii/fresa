@@ -80,6 +80,18 @@ ui16 API::getRefreshRate(WindowData &win, bool force) {
     return (ui16)mode.refresh_rate;
 }
 
+UniformBufferObject API::getScaledWindowUBO(const WindowData &win) {
+    UniformBufferObject ubo{};
+    
+    Vec2<float> scaled_res = Config::resolution.to<float>() * win.scale;
+    
+    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(scaled_res.x, scaled_res.y, 1.0f));
+    ubo.view = glm::mat4(1.0f);
+    ubo.proj = glm::ortho((float)-win.size.x, (float)win.size.x, (float)-win.size.y, (float)win.size.y); //: This is to fix the coords going from -1 to 1
+    
+    return ubo;
+}
+
 std::vector<char> API::readSPIRV(std::string filename) {
     //---Read SPIRV---
     //      Opens a SPIRV shader file and returns an array with the data

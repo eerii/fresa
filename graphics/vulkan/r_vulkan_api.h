@@ -167,6 +167,21 @@ namespace Fresa::Graphics::VK
                               std::map<ui32, VkImageView> input_attachments = {});
     void updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, Shaders shader);
     //----------------------------------------
+    
+    
+    //Uniforms
+    //----------------------------------------
+    std::vector<BufferData> createUniformBuffers(VmaAllocator allocator, ui32 swapchain_size);
+    std::vector<std::vector<BufferData>> createPostUniformBuffers(const Vulkan &vk, const std::vector<VkDescriptorSetLayoutBinding> &bindings);
+
+    template<typename T>
+    void updateUniformBuffer(VmaAllocator allocator, BufferData buffer, T ubo) {
+        void* data;
+        vmaMapMemory(allocator, buffer.allocation, &data);
+        memcpy(data, &ubo, sizeof(ubo));
+        vmaUnmapMemory(allocator, buffer.allocation);
+    }
+    //----------------------------------------
 
 
     //Pipeline
@@ -211,6 +226,7 @@ namespace Fresa::Graphics::VK
         if (shader > LAST_DRAW_SHADER) {
             data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
                                                               data.descriptor_pools, vk.swapchain.size);
+            data.uniform_buffers = VK::createPostUniformBuffers(vk, data.descriptor_layout_bindings);
             VK::updatePostDescriptorSets(vk, data, shader);
         }
         
@@ -273,20 +289,6 @@ namespace Fresa::Graphics::VK
         });
         
         return vertex_buffer;
-    }
-    //----------------------------------------
-
-
-    //Uniforms
-    //----------------------------------------
-    std::vector<BufferData> createUniformBuffers(VmaAllocator allocator, ui32 swapchain_size);
-
-    template<typename T>
-    void updateUniformBuffer(VmaAllocator allocator, BufferData buffer, T ubo) {
-        void* data;
-        vmaMapMemory(allocator, buffer.allocation, &data);
-        memcpy(data, &ubo, sizeof(ubo));
-        vmaUnmapMemory(allocator, buffer.allocation);
     }
     //----------------------------------------
 

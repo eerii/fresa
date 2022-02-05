@@ -26,39 +26,6 @@
 
 namespace Fresa::Graphics
 {
-    //Window
-    //----------------------------------------
-    struct WindowData {
-        SDL_Window* window;
-        
-        Vec2<> size;
-        ui16 scale;
-        ui16 refresh_rate = 0;
-        
-        bool vsync;
-    };
-    
-    enum Projection {
-        PROJECTION_ORTHOGRAPHIC,
-        PROJECTION_ORTHOGRAPHIC_SCALED,
-        PROJECTION_PERSPECTIVE,
-        PROJECTION_LAST,
-    };
-    
-    struct CameraData {
-        glm::vec3 pos;
-        glm::mat4 view;
-        glm::mat4 proj;
-        Projection proj_type;
-    };
-    
-    #if defined USE_VULKAN
-    constexpr float viewport_y = -1.0f;
-    #elif defined USE_OPENGL
-    constexpr float viewport_y = 1.0f;
-    #endif
-    //----------------------------------------
-
     //Buffer
     //----------------------------------------
     struct BufferData {
@@ -86,6 +53,41 @@ namespace Fresa::Graphics
         glm::mat4 view;
         glm::mat4 proj;
     };
+    //----------------------------------------
+    
+    //Window
+    //----------------------------------------
+    struct WindowData {
+        SDL_Window* window;
+        
+        Vec2<> size;
+        ui16 scale;
+        ui16 refresh_rate = 0;
+        
+        bool vsync;
+        
+        UniformBufferObject scaled_ubo;
+    };
+    
+    enum Projection {
+        PROJECTION_ORTHOGRAPHIC,
+        PROJECTION_ORTHOGRAPHIC_SCALED,
+        PROJECTION_PERSPECTIVE,
+        PROJECTION_LAST,
+    };
+    
+    struct CameraData {
+        glm::vec3 pos;
+        glm::mat4 view;
+        glm::mat4 proj;
+        Projection proj_type;
+    };
+    
+    #if defined USE_VULKAN
+    constexpr float viewport_y = -1.0f;
+    #elif defined USE_OPENGL
+    constexpr float viewport_y = 1.0f;
+    #endif
     //----------------------------------------
 
     //Texture

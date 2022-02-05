@@ -38,8 +38,10 @@ bool Graphics::init() {
     api = API::createAPI(win);
 
     //: Set projection
-    camera.proj_type = PROJECTION_ORTHOGRAPHIC;
+    camera.proj_type = PROJECTION_ORTHOGRAPHIC_SCALED;
     updateCameraProjection(camera);
+    win.scaled_ubo = (camera.proj_type == PROJECTION_ORTHOGRAPHIC_SCALED) ? API::getScaledWindowUBO(win) :
+                                                                            UniformBufferObject{glm::mat4(1.0f),glm::mat4(1.0f),glm::mat4(1.0f)};
     
     //: Initialize GUI
     IF_GUI(Gui::init(api, win));
@@ -85,6 +87,8 @@ void Graphics::onResize(Vec2<> size) {
     //: Adjust render scale
     Vec2<float> ratios = win.size.to<float>() / Config::resolution.to<float>();
     win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
+    if (camera.proj_type == PROJECTION_ORTHOGRAPHIC_SCALED)
+        win.scaled_ubo = API::getScaledWindowUBO(win);
     updateCameraProjection(camera);
     
     //: Pass the resize command to the API

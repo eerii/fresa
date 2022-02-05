@@ -41,7 +41,6 @@ namespace Fresa::Graphics
 
     void draw(const DrawID draw_id, glm::mat4 model);
     
-    constexpr int projection_border = 16;
     void updateCameraView(CameraData &cam);
     void updateCameraProjection(CameraData &cam);
     
