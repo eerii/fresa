@@ -70,10 +70,9 @@ namespace Fresa::Graphics
     };
     
     enum Projection {
-        PROJECTION_ORTHOGRAPHIC,
-        PROJECTION_ORTHOGRAPHIC_SCALED,
-        PROJECTION_PERSPECTIVE,
-        PROJECTION_LAST,
+        PROJECTION_ORTHOGRAPHIC = 1 << 0,
+        PROJECTION_PERSPECTIVE = 1 << 1,
+        PROJECTION_SCALED = 1 << 2,
     };
     
     struct CameraData {

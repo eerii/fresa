@@ -38,10 +38,10 @@ bool Graphics::init() {
     api = API::createAPI(win);
 
     //: Set projection
-    camera.proj_type = PROJECTION_ORTHOGRAPHIC_SCALED;
+    camera.proj_type = Projection(PROJECTION_ORTHOGRAPHIC | PROJECTION_SCALED);
     updateCameraProjection(camera);
-    win.scaled_ubo = (camera.proj_type == PROJECTION_ORTHOGRAPHIC_SCALED) ? API::getScaledWindowUBO(win) :
-                                                                            UniformBufferObject{glm::mat4(1.0f),glm::mat4(1.0f),glm::mat4(1.0f)};
+    win.scaled_ubo = (camera.proj_type & PROJECTION_SCALED) ? API::getScaledWindowUBO(win) :
+                                                              UniformBufferObject{glm::mat4(1.0f),glm::mat4(1.0f),glm::mat4(1.0f)};
     
     //: Initialize GUI
     IF_GUI(Gui::init(api, win));
@@ -87,7 +87,7 @@ void Graphics::onResize(Vec2<> size) {
     //: Adjust render scale
     Vec2<float> ratios = win.size.to<float>() / Config::resolution.to<float>();
     win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
-    if (camera.proj_type == PROJECTION_ORTHOGRAPHIC_SCALED)
+    if (camera.proj_type & PROJECTION_SCALED)
         win.scaled_ubo = API::getScaledWindowUBO(win);
     updateCameraProjection(camera);
     
@@ -205,17 +205,15 @@ void Graphics::updateCameraView(CameraData &cam) {
 }
 
 void Graphics::updateCameraProjection(CameraData &cam) {
-    //: Orthographic (2D)
-    if (cam.proj_type == PROJECTION_ORTHOGRAPHIC)
-        cam.proj = glm::ortho(0.0f, (float)win.size.x, 0.0f, (float)win.size.y, -10000.0f, 10000.0f);
+    Vec2<float> resolution = (cam.proj_type & PROJECTION_SCALED) ? Config::resolution.to<float>() : win.size.to<float>();
     
-    //: Orthographic scaled (2D, pixel perfect)
-    if (cam.proj_type == PROJECTION_ORTHOGRAPHIC_SCALED)
-        cam.proj = glm::ortho(0.0f, (float)Config::resolution.x, 0.0f, (float)Config::resolution.y, -10000.0f, 10000.0f);
+    //: Orthographic (2D)
+    if (cam.proj_type & PROJECTION_ORTHOGRAPHIC)
+        cam.proj = glm::ortho(0.0f, resolution.x, 0.0f, resolution.y, -10000.0f, 10000.0f);
     
     //: Perspective (3D)
-    if (cam.proj_type == PROJECTION_PERSPECTIVE)
-        cam.proj = glm::perspective(glm::radians(45.0f), (float) win.size.x / (float) win.size.y, 0.1f, 10000.0f);
+    if (cam.proj_type & PROJECTION_PERSPECTIVE)
+        cam.proj = glm::perspective(glm::radians(45.0f), (float)resolution.x / (float)resolution.y, 0.1f, 10000.0f);
     
     cam.proj[1][1] *= -viewport_y;
 }
