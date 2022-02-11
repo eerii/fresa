@@ -2755,10 +2755,6 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
         }
     }
     
-    //TODO: TEMP
-    for (auto &u : vk.pipelines.at(SHADER_WINDOW).uniform_buffers)
-        VK::updateUniformBuffer(vk.allocator, u.at(vk.cmd.current_buffer), win.scaled_ubo);
-    
     //: Record command buffers
     VK::recordDrawCommandBuffer(vk, vk.cmd.current_buffer);
     IF_GUI(VK::Gui::recordGuiCommandBuffer(vk, vk.cmd.current_buffer));
@@ -2804,6 +2800,11 @@ void API::present(Vulkan &vk, WindowData &win) {
 
 void API::resize(Vulkan &vk, WindowData &win) {
     VK::recreateSwapchain(vk, win);
+    
+    //: Update scaled projection
+    for (auto &uniforms : vk.pipelines.at(SHADER_WINDOW).uniform_buffers)
+        for (auto &u : uniforms)
+            VK::updateUniformBuffer(vk.allocator, u, win.scaled_ubo);
 }
 
 //----------------------------------------

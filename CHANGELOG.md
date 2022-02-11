@@ -4,7 +4,7 @@
 
 ---
 
-#### 0.3.6 - looking sharp - _24 01 2022_
+#### 0.3.6 - looking sharp - _11 02 2022_
 
 **added**
 - imgui support
@@ -14,6 +14,7 @@
 - bidirectional maps (new and improved)
 - opengl multiple image support
 - renderer description with parser
+- scaled rendering
 
 **changed**
 - refactored update lists
