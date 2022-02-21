@@ -12,14 +12,23 @@
 #include <variant>
 #include <bitset>
 
+#ifndef _MSC_VER
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Weverything" //: Disable warnings for external libraries
+#endif
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "spirv_glsl.hpp" //SPIRV-cross for reflection
+#include "spirv_glsl.hpp" //: SPIRV-cross for reflection
 
 #ifdef USE_VULKAN
     #include <vulkan/vulkan.h>
     #include "vk_mem_alloc.h"
+#endif
+
+#ifndef _MSC_VER
+    #pragma clang diagnostic pop
 #endif
 
 //---Data types for graphics---

@@ -21,6 +21,7 @@
 - viewport refactoring
 - moved attachment registering to the API
 - improved logging
+- improved modules and imports
 
 **fixed**
 - hopefully fixed sdl_keycodes not being recognised on linux and web

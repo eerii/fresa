@@ -5,7 +5,14 @@
 #ifdef USE_VULKAN
 
 #define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
+#ifndef _MSC_VER
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Weverything"
+    #include "vk_mem_alloc.h"
+    #pragma clang diagnostic pop
+#else
+    #include "vk_mem_alloc.h"
+#endif
 
 #include "r_vulkan_api.h"
 
