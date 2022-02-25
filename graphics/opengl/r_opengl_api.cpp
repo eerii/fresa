@@ -55,6 +55,7 @@ OpenGL API::createAPI(WindowData &win) {
     GL::validateShaderData(temp_vao, gl.shaders);
     
     window_vertex_buffer = GL::createVertexBuffer(gl, window_vertices);
+    gl.scaled_window_uniform = GL::createBuffer(sizeof(UniformBufferObject), GL_UNIFORM_BUFFER, GL_STREAM_DRAW);
     
     return gl;
 }
@@ -164,6 +165,8 @@ ShaderData GL::createShaderDataGL(Shaders shader, SubpassID subpass) {
         
         //: Combined image samplers
         for (const auto &res : resources.sampled_images)
+            data.images[res.name] = compiler.get_decoration(res.id, spv::DecorationBinding);
+        for (const auto &res : resources.subpass_inputs)
             data.images[res.name] = compiler.get_decoration(res.id, spv::DecorationBinding);
         
         //: Options
@@ -703,6 +706,10 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                 //: Bind vertex buffer
                 glBindBuffer(GL_ARRAY_BUFFER, window_vertex_buffer.first.id_);
                 
+                //: Temporary - Scaled window UBO
+                if (shader == SHADER_WINDOW)
+                    glBindBufferBase(GL_UNIFORM_BUFFER, 0, gl.scaled_window_uniform.id_);
+                
                 //: Get textures from attachments
                 //  (These are different vectors since the Vulkan renderer handles them as different concepts, but in OpenGL they are treated the same)
                 std::vector<ui32> textures{};
@@ -713,10 +720,14 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                 for (auto &a_id : data.external_attachments) //: External attachments
                     textures.push_back(API::attachments.at(a_id).tex);
                 
-                //: Assign texture units
-                for (int i = 0; i < textures.size(); i++) {
-                    glActiveTexture(GL_TEXTURE0 + i);
-                    glBindTexture(GL_TEXTURE_2D, textures.at(i));
+                //: Binds images to the shader
+                //      You need to provide the list of image attachments in the same order as the shader
+                int i = 0;
+                if (gl.shaders.at(shader).images.size() != textures.size())
+                    log::error("Mismatched attachment size between the shader and the attachments, review renderer_description. Make sure they are in the same order. Shader images: %d, Renderer description images: %d", gl.shaders.at(shader).images.size(), textures.size());
+                for (auto &[name, binding] : gl.shaders.at(shader).images) {
+                    glActiveTexture(GL_TEXTURE0 + binding);
+                    glBindTexture(GL_TEXTURE_2D, textures.at(i++));
                 }
                 
                 //: Draw
@@ -769,6 +780,9 @@ void API::resize(OpenGL &gl, WindowData &win) {
         glDeleteFramebuffers(1, &subpass.framebuffer);
         subpass.framebuffer = GL::createFramebuffer(id);
     }
+    
+    GL::updateUniformBuffer(gl.scaled_window_uniform, &win.scaled_ubo);
+    
     glCheckError();
 }
 

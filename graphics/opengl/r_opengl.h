@@ -42,6 +42,7 @@ namespace Fresa::Graphics
     struct OpenGL {
         SDL_GLContext context;
         std::map<Shaders, ShaderData> shaders;
+        BufferData scaled_window_uniform;
     };
 
     [[maybe_unused]] static void glCheckError_(std::string file, int line) {
