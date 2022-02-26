@@ -34,6 +34,7 @@ bool Graphics::init() {
     win = API::createWindow(Config::window_size, name);
     
     //: Create renderer api
+    API::createShaderList();
     API::renderer_description_path = "res/render/renderer_description";
     api = API::createAPI(win);
 
@@ -93,37 +94,6 @@ void Graphics::onResize(Vec2<> size) {
     
     //: Pass the resize command to the API
     API::resize(api, win);
-}
-
-DrawID Graphics::getDrawID_Rect(Shaders shader) {
-    //---Create DrawID for a Rect---
-    //      This uses the rect vertex definition and registers a new DrawID for a rect-like object
-    //      Has support for multiple shaders, so it can return the correct vertex type (color, tex...) and initialize the descriptor sets
-    if (shader == SHADER_DRAW_TEX) {
-        static DrawBufferID rect_buffer_tex = API::registerDrawBuffer(api, Vertices::rect_vertices_texture, Vertices::rect_indices);
-        return API::registerDrawData(api, rect_buffer_tex, shader); //: Descriptor sets for texture are updated when the texture is binded
-    }
-    if (shader == SHADER_DRAW_COLOR) {
-        static DrawBufferID rect_buffer_color = API::registerDrawBuffer(api, Vertices::rect_vertices_color, Vertices::rect_indices);
-        DrawID id = API::registerDrawData(api, rect_buffer_color, shader);
-        API::updateDescriptorSets(api, &API::draw_data.at(id));
-        return id;
-    }
-    log::error("Shader not supported for rect");
-    return 0;
-}
-
-DrawID Graphics::getDrawID_Cube(Shaders shader) {
-    //---Create DrawID for a Cube---
-    //      This uses the cube vertex definition and registers a new DrawID for a cube-like object
-    if (shader == SHADER_DRAW_COLOR) {
-        static DrawBufferID cube_buffer_color = API::registerDrawBuffer(api, Vertices::cube_vertices_color, Vertices::cube_indices);
-        DrawID id = API::registerDrawData(api, cube_buffer_color, shader);
-        API::updateDescriptorSets(api, &API::draw_data.at(id));
-        return id;
-    }
-    log::error("Shader not supported for cube");
-    return 0;
 }
 
 TextureID Graphics::getTextureID(str path, Channels ch) {
@@ -216,4 +186,8 @@ void Graphics::updateCameraProjection(CameraData &cam) {
         cam.proj = glm::perspective(glm::radians(45.0f), (float)resolution.x / (float)resolution.y, 0.1f, 10000.0f);
     
     cam.proj[1][1] *= -viewport_y;
+    
+    //: None (Vertex passthrough)
+    if (cam.proj_type & PROJECTION_NONE)
+        cam.proj = glm::mat4(1.0f);
 }

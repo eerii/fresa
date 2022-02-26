@@ -38,7 +38,7 @@ void File::init() {
 str File::path(str p) {
     str full_path = base_path + p;
     
-    if (not std::filesystem::exists(full_path))
+    if (not fs::exists(full_path))
         log::error("Tried to access a path that does not exist: %s", full_path.c_str());
     
     return full_path;
@@ -47,7 +47,7 @@ str File::path(str p) {
 std::optional<str> File::path_optional(str p) {
     str full_path = base_path + p;
     
-    if (std::filesystem::exists(full_path))
+    if (fs::exists(full_path))
         return full_path;
     return std::nullopt;
 }

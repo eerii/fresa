@@ -82,6 +82,7 @@ namespace Fresa::Graphics
         PROJECTION_ORTHOGRAPHIC = 1 << 0,
         PROJECTION_PERSPECTIVE = 1 << 1,
         PROJECTION_SCALED = 1 << 2,
+        PROJECTION_NONE = 1 << 3,
     };
     
     struct CameraData {
@@ -206,21 +207,7 @@ namespace Fresa::Graphics
     //----------------------------------------
     using ShaderCompiler = spirv_cross::CompilerGLSL;
     using ShaderResources = spirv_cross::ShaderResources;
-
-    enum Shaders {
-        SHADER_DRAW_COLOR,
-        SHADER_DRAW_TEX,
-        SHADER_POST,
-        SHADER_WINDOW,
-    };
-    #define LAST_DRAW_SHADER SHADER_DRAW_TEX
-
-    inline std::map<Shaders, str> shader_names = {
-        {SHADER_DRAW_COLOR, "test_color"},
-        {SHADER_DRAW_TEX, "test_tex"},
-        {SHADER_POST, "test_subpass"},
-        {SHADER_WINDOW, "test_window"}
-    };
+    using ShaderID = str;
 
     struct ShaderLocations {
         std::optional<str> vert;
@@ -266,7 +253,7 @@ namespace Fresa::Graphics
     struct DrawData {
         DrawBufferID buffer_id;
         std::optional<TextureID> texture_id;
-        Shaders shader;
+        ShaderID shader;
         std::vector<BufferData> uniform_buffers;
         #ifdef USE_VULKAN
         std::vector<VkDescriptorSet> descriptor_sets;
@@ -281,7 +268,7 @@ namespace Fresa::Graphics
     using DrawQueueData = std::pair<const DrawData*, glm::mat4>;
     using DrawQueueMapTextures = std::map<const TextureData*, std::vector<DrawQueueData>>;
     using DrawQueueMapBuffers = std::map<const DrawBufferData*, DrawQueueMapTextures>;
-    using DrawQueueMap = std::map<Shaders, DrawQueueMapBuffers>;
+    using DrawQueueMap = std::map<ShaderID, DrawQueueMapBuffers>;
 
     //----------------------------------------
     

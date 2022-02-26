@@ -726,7 +726,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //: Attachments
     API::recreateAttachments(vk);
     for (const auto &[shader, data] : vk.pipelines) {
-        if (shader > LAST_DRAW_SHADER)
+        if (not API::is_draw_shader(shader))
             VK::updatePostDescriptorSets(vk, data, shader);
     }
     
@@ -885,36 +885,34 @@ void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
                 vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
             
             //: Get all shaders associated with this subpass
-            std::vector<Shaders> shaders = getAtoB<Shaders>(s_id, API::Map::subpass_shader);
+            std::vector<ShaderID> shaders = getAtoB<ShaderID>(s_id, API::Map::subpass_shader);
             
             for (const auto &shader : shaders) {
                 //---Draw shaders---
-                if (shader <= LAST_DRAW_SHADER) {
+                if (API::is_draw_shader(shader)) {
                     if (not API::draw_queue.count(shader))
                         continue;
                     auto queue_buffer = API::draw_queue.at(shader);
                     
-                    for (const auto &[shader, queue_buffer] : API::draw_queue) {
-                        //: Bind pipeline
-                        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
+                    //: Bind pipeline
+                    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
+                    
+                    for (const auto &[buffer, queue_tex] : queue_buffer) {
+                        //: Vertex buffer
+                        VkDeviceSize offsets[]{ 0 };
+                        vkCmdBindVertexBuffers(cmd, 0, 1, &buffer->vertex_buffer.buffer, offsets);
                         
-                        for (const auto &[buffer, queue_tex] : queue_buffer) {
-                            //: Vertex buffer
-                            VkDeviceSize offsets[]{ 0 };
-                            vkCmdBindVertexBuffers(cmd, 0, 1, &buffer->vertex_buffer.buffer, offsets);
-                            
-                            //: Index buffer
-                            vkCmdBindIndexBuffer(cmd, buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
-                            
-                            for (const auto &[tex, queue_draw] : queue_tex) {
-                                for (const auto &[data, model] : queue_draw) {
-                                    //: Descriptor set
-                                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
-                                                            &data->descriptor_sets.at(current), 0, nullptr);
+                        //: Index buffer
+                        vkCmdBindIndexBuffer(cmd, buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+                        
+                        for (const auto &[tex, queue_draw] : queue_tex) {
+                            for (const auto &[data, model] : queue_draw) {
+                                //: Descriptor set
+                                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
+                                                        &data->descriptor_sets.at(current), 0, nullptr);
 
-                                    //: Draw vertices (Optimize this in the future for a single mesh with instantiation)
-                                    vkCmdDrawIndexed(cmd, buffer->index_size, 1, 0, 0, 0);
-                                }
+                                //: Draw vertices (Optimize this in the future for a single mesh with instantiation)
+                                vkCmdDrawIndexed(cmd, buffer->index_size, 1, 0, 0, 0);
                             }
                         }
                     }
@@ -1827,7 +1825,7 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
     return pipeline_layout;
 }
 
-VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, Shaders shader) {
+VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
     //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
@@ -1852,7 +1850,7 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     create_info.subpass = relative_subpass;
     
     //: Shader stages
-    std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(data.shader.stages);
+    std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(API::shaders.at(shader).stages);
     create_info.stageCount = (int)stage_info.size();
     create_info.pStages = stage_info.data();
     
@@ -1886,15 +1884,15 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     return pipeline;
 }
 
-void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, Shaders shader) {
+void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader) {
     //: Descriptor set
-    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.swapchain.size);
+    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::shaders.at(shader).code, vk.swapchain.size);
     data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
     data.descriptor_pools.clear();
     data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
     data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
     
-    if (shader > LAST_DRAW_SHADER)
+    if (not API::is_draw_shader(shader))
         VK::updatePostDescriptorSets(vk, data, shader);
 
     //: Pipeline
@@ -2282,7 +2280,7 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
     }
 }
 
-void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, Shaders shader) {
+void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, ShaderID shader) {
     ui32 i_uniform = 0; ui32 i_input = 0; ui32 i_image = 0;
     std::map<ui32, const std::vector<BufferData>*> uniform_buffers{};
     std::map<ui32, VkImageView> input_attachments{};
@@ -2634,7 +2632,7 @@ VkSampler VK::createSampler(VkDevice device) {
 //Draw
 //----------------------------------------
 
-DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer, Shaders shader) {
+DrawID API::registerDrawData(Vulkan &vk, DrawBufferID buffer, ShaderID shader) {
     static DrawID id = 0;
     do id++;
     while (draw_data.find(id) != draw_data.end());
@@ -2809,9 +2807,10 @@ void API::resize(Vulkan &vk, WindowData &win) {
     VK::recreateSwapchain(vk, win);
     
     //: Update scaled projection
-    for (auto &uniforms : vk.pipelines.at(SHADER_WINDOW).uniform_buffers)
-        for (auto &u : uniforms)
-            VK::updateUniformBuffer(vk.allocator, u, win.scaled_ubo);
+    if (shaders.count("window"))
+        for (auto &uniforms : vk.pipelines.at("window").uniform_buffers)
+            for (auto &u : uniforms)
+                VK::updateUniformBuffer(vk.allocator, u, win.scaled_ubo);
 }
 
 //----------------------------------------

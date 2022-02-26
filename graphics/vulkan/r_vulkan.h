@@ -31,8 +31,6 @@ namespace Fresa::Graphics
         //      A pipeline is the device that has all the draw stages, such as vertex, fragment, geometry, rasterization...
         //      It can be configured through a series of descriptions
         //      We create one pipeline for each shader that we use
-        ShaderData shader;
-        
         std::vector<VkDescriptorSetLayoutBinding> descriptor_layout_bindings;
         VkDescriptorSetLayout descriptor_layout;
         
@@ -159,7 +157,7 @@ namespace Fresa::Graphics
         SyncData sync;
         
         //: Pipelines
-        std::map<Shaders, PipelineData> pipelines;
+        std::map<ShaderID, PipelineData> pipelines;
         
         //: Image sampler
         VkSampler sampler;

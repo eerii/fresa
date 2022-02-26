@@ -27,13 +27,12 @@ namespace Fresa::Graphics
     inline Event::Observer observer = event_window_resize.createObserver(onResize);
     
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    DrawID getDrawID(const std::vector<V> &vertices, const std::vector<ui16> &indices, Shaders shader = SHADER_DRAW_TEX) {
+    DrawID getDrawID(const std::vector<V> &vertices, const std::vector<ui16> &indices, ShaderID shader) {
         DrawBufferID buffer = API::registerDrawBuffer(api, vertices, indices);
-        return API::registerDrawData(api, buffer, shader);
+        DrawID id = API::registerDrawData(api, buffer, shader);
+        API::updateDescriptorSets(api, &API::draw_data.at(id));
+        return id;
     }
-    
-    DrawID getDrawID_Rect(Shaders shader = SHADER_DRAW_TEX);
-    DrawID getDrawID_Cube(Shaders shader = SHADER_DRAW_COLOR);
 
     TextureID getTextureID(str path, Channels ch = TEXTURE_CHANNELS_RGBA);
     void bindTexture(DrawID draw_id, TextureID texture_id);

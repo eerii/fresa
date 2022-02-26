@@ -12,6 +12,8 @@
 #include <optional>
 #include <filesystem>
 
+namespace fs = std::filesystem;
+
 namespace Fresa::File
 {
     void init();

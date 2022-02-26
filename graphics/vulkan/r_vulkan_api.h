@@ -165,7 +165,7 @@ namespace Fresa::Graphics::VK
                               std::map<ui32, const std::vector<BufferData>*> uniform_buffers = {},
                               std::map<ui32, VkImageView> image_views = {},
                               std::map<ui32, VkImageView> input_attachments = {});
-    void updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, Shaders shader);
+    void updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, ShaderID shader);
     //----------------------------------------
     
     
@@ -200,30 +200,29 @@ namespace Fresa::Graphics::VK
     VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
     
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
-    VkPipeline createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, Shaders shader);
-    void recreatePipeline(const Vulkan &vk, PipelineData &data, Shaders shader);
+    VkPipeline createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader);
+    void recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader);
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    PipelineData createPipeline(const Vulkan &vk, Shaders shader, SubpassID subpass) {
+    PipelineData createPipeline(const Vulkan &vk, ShaderID shader, SubpassID subpass) {
         PipelineData data;
         
         //---Subpass---
         API::Map::subpass_shader.add(subpass, shader);
-        log::graphics("Pipeline %s, subpass %d", shader_names.at(shader).c_str(), subpass);
+        log::graphics("Pipeline %s, subpass %d", shader.c_str(), subpass);
         log::graphics("---");
         
         //---Shader data---
-        data.shader = API::createShaderData(shader_names.at(shader));
-        data.shader.stages = VK::createShaderStages(vk.device, data.shader.code);
+        API::shaders.at(shader).stages = VK::createShaderStages(vk.device, API::shaders.at(shader).code);
         
         //---Descriptor pool---
-        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, data.shader.code, vk.swapchain.size);
+        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::shaders.at(shader).code, vk.swapchain.size);
         data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
         data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
         data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
         
         //---Descriptor sets---
-        if (shader > LAST_DRAW_SHADER) {
+        if (not API::is_draw_shader(shader)) {
             data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
                                                               data.descriptor_pools, vk.swapchain.size);
             data.uniform_buffers = VK::createPostUniformBuffers(vk, data.descriptor_layout_bindings);

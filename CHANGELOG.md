@@ -4,6 +4,14 @@
 
 ---
 
+#### 0.3.7 - NAME - _25 02 2022_
+
+**changed**
+- shader names used as id, automatic shader detection
+
+
+---
+
 #### 0.3.6 - looking sharp - _11 02 2022_
 
 **added**

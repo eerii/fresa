@@ -92,6 +92,19 @@ UniformBufferObject API::getScaledWindowUBO(const WindowData &win) {
     return ubo;
 }
 
+void API::createShaderList() {
+    //---Shader list---
+    //      Fills API::shaders with a list of ShaderID (the names of the shaders) and the processed ShaderData
+    auto shader_path = File::path("render/");
+    for (auto &f : fs::recursive_directory_iterator(shader_path)) {
+        if (f.path().extension() == ".vert" or f.path().extension() == ".frag") {
+            str name = f.path().stem().string();
+            if (not API::shaders.count(name))
+                API::shaders[name] = API::createShaderData(name);
+        }
+    }
+}
+
 std::vector<char> API::readSPIRV(std::string filename) {
     //---Read SPIRV---
     //      Opens a SPIRV shader file and returns an array with the data
@@ -154,7 +167,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
     if (API::renderer_description_path.size() == 0)
         log::error("You need to set API::renderer_description_path with the location of your renderer description file");
     
-    if (not std::filesystem::exists(std::filesystem::path{API::renderer_description_path}))
+    if (not fs::exists(fs::path{API::renderer_description_path}))
         log::error("Error creating the rederer description. Please make sure that you have created an appropiate file at '%s'. The renderer description is a list of the attachments, subpasses, renderpasses and pipelines/shaders in your rendering application. It needs to be filled accordingly. There is an example of a valid file in https://github.com/josekoalas/aguacate", API::renderer_description_path.c_str());
     
     std::map<str, AttachmentID> attachment_list{};
@@ -278,14 +291,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                 log::error("The description of the pipeline is invalid, it has to be 'p shader subpass vertexdata'");
             
             //: Shader
-            Shaders shader = [p](){
-                for (const auto &[sh, name] : shader_names) {
-                    if (p.at(1) == name)
-                        return sh;
-                }
-                log::error("The shader name provided (%s) is not valid", p.at(1).c_str());
-                return Shaders{};
-            }();
+            ShaderID shader = p.at(1);
             
             //: Subpass
             if (not subpass_list.count(p.at(2)))

@@ -34,7 +34,7 @@ namespace Fresa::Graphics::API
 
     //---Textures---
     TextureID registerTexture(const GraphicsAPI &api, Vec2<> size, Channels ch, ui8* pixels);
-    DrawID registerDrawData(GraphicsAPI &api, DrawBufferID buffer, Shaders shader);
+    DrawID registerDrawData(GraphicsAPI &api, DrawBufferID buffer, ShaderID shader);
     inline std::map<DrawBufferID, DrawBufferData> draw_buffer_data{};
     inline std::map<TextureID, TextureData> texture_data{};
     inline std::map<DrawID, DrawData> draw_data{};
@@ -58,19 +58,26 @@ namespace Fresa::Graphics::API
     namespace Map {
         inline map_AvB_BA<RenderPassID, SubpassID> renderpass_subpass;
         inline map_AvB_BvA<SubpassID, AttachmentID> subpass_attachment;
-        inline map_AvB_BA<SubpassID, Shaders> subpass_shader;
+        inline map_AvB_BA<SubpassID, ShaderID> subpass_shader;
         
         inline auto renderpass_attachment = map_chain(renderpass_subpass, subpass_attachment);
         inline auto renderpass_shader = map_chain(renderpass_subpass, subpass_shader);
     };
 
     //---Shaders---
-    void updateDescriptorSets(const GraphicsAPI &api, const DrawData* draw);
+    inline std::map<ShaderID, ShaderData> shaders;
+    void createShaderList();
+    
+    inline bool is_draw_shader(ShaderID s) {
+        return s.rfind("draw", 0) == 0;
+    }
 
     std::vector<char> readSPIRV(std::string filename);
     ShaderCode readSPIRV(const ShaderLocations &locations);
     ShaderData createShaderData(str name);
     ShaderCompiler getShaderCompiler(const std::vector<char> &code);
+    
+    void updateDescriptorSets(const GraphicsAPI &api, const DrawData* draw);
 
     //---Other---
     void resize(GraphicsAPI &api, WindowData &win);
