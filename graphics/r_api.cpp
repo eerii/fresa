@@ -307,7 +307,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                 if (p.at(3) == "vd_win")
                     api.pipelines[shader] = VK::createPipeline<VertexDataWindow>(api, shader, subpass);
             #elif defined USE_OPENGL
-                api.shaders[shader] = GL::createShaderDataGL(shader, subpass);
+                GL::createShaderDataGL(shader, subpass);
             #endif
         }
     }

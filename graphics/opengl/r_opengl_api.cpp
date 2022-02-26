@@ -52,7 +52,7 @@ OpenGL API::createAPI(WindowData &win) {
     
     ui32 temp_vao = GL::createVertexArray(); //Needed for shader validation
     deletion_queue.push_back([temp_vao](){glDeleteVertexArrays(1, &temp_vao);});
-    GL::validateShaderData(temp_vao, gl.shaders);
+    GL::validateShaderData(temp_vao);
     
     window_vertex_buffer = GL::createVertexBuffer(gl, window_vertices);
     gl.scaled_window_uniform = GL::createBuffer(sizeof(UniformBufferObject), GL_UNIFORM_BUFFER, GL_STREAM_DRAW);
@@ -108,18 +108,13 @@ SDL_GLContext GL::createContext(const WindowData &win) {
     return context;
 }
 
-ShaderData GL::createShaderDataGL(Shaders shader, SubpassID subpass) {
+ShaderData GL::createShaderDataGL(ShaderID shader, SubpassID subpass) {
     //---Prepare shaders---
     //      In this step we are loading the shader "name" and creating all the important elements it needs
     //      This includes reading the shader SPIR-V code, performing reflection on it and converting it to compatible GLSL
     //      The final code is then used to create a GL program which contains the shader information and we can use for rendering
-    ShaderData data{};
+    ShaderData &data = API::shaders.at(shader);
     API::Map::subpass_shader.add(subpass, shader);
-    
-    //: Shader data
-    //      Returns a ShaderData object which contains all the locations as well as the SPIR-V code
-    str name = shader_names.at(shader);
-    data = API::createShaderData(name);
     
     //: Options
     spirv_cross::CompilerGLSL::Options options;
@@ -181,7 +176,7 @@ ShaderData GL::createShaderDataGL(Shaders shader, SubpassID subpass) {
     ui32 pid = GL::compileProgram(vert_source_glsl, frag_source_glsl);
     data.pid = pid;
     
-    log::graphics("Program (%s) ID: %d", name.c_str(), data.pid);
+    log::graphics("Program (%s) ID: %d", shader.c_str(), data.pid);
     
     //: Set uniform bindings
     log::graphics("Uniform binding:");
@@ -198,7 +193,7 @@ ShaderData GL::createShaderDataGL(Shaders shader, SubpassID subpass) {
     for (auto &[n, bind] : data.images) {
         int tex_location = glGetUniformLocation(data.pid, n.c_str());
         if (tex_location == -1)
-            log::error("The image sampler at binding %d in the shader %s is not valid, probably because it is not used.", bind, name.c_str());
+            log::error("The image sampler at binding %d in the shader %s is not valid, probably because it is not used.", bind, shader.c_str());
         glUseProgram(data.pid);
         glUniform1i(tex_location, bind);
         glUseProgram(0);
@@ -299,10 +294,10 @@ ui8 GL::compileProgram(str vert_source, str frag_source) {
     return pid;
 }
 
-void GL::validateShaderData(ui32 vao_id, const std::map<Shaders, ShaderData> &shaders) {
+void GL::validateShaderData(ui32 vao_id) {
     //---Validate shaders---
     glBindVertexArray(vao_id);
-    for (const auto &[key, s] : shaders) {
+    for (const auto &[key, s] : API::shaders) {
         glValidateProgram(s.pid);
         
         int program_valid = GL_FALSE;
@@ -595,7 +590,7 @@ TextureID API::registerTexture(const OpenGL &gl, Vec2<> size, Channels ch, ui8* 
 //Draw
 //----------------------------------------
 
-DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer, Shaders shader) {
+DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer, ShaderID shader) {
     static DrawID id = 0;
     do id++;
     while (draw_data.find(id) != draw_data.end());
@@ -635,14 +630,11 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
         glBindFramebuffer(GL_FRAMEBUFFER, data.framebuffer);
         
         //: Shaders
-        std::vector<Shaders> shaders = getAtoB<Shaders>(s_id, API::Map::subpass_shader);
+        std::vector<ShaderID> shaders = getAtoB<ShaderID>(s_id, API::Map::subpass_shader);
         
         for (const auto &shader : shaders) {
-            if (shader <= LAST_DRAW_SHADER and not API::draw_queue.count(shader))
-                continue;
-            
             //: Bind shader
-            glUseProgram(gl.shaders.at(shader).pid);
+            glUseProgram(API::shaders.at(shader).pid);
             glCheckError();
             
             //: Set viewport
@@ -651,7 +643,10 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                 glViewport(0, 0, attachments.begin()->second.size.x, attachments.begin()->second.size.y); // All subpass attachments have the same size
             
             //---Draw shaders---
-            if (shader <= LAST_DRAW_SHADER) {
+            if (API::is_draw_shader(shader)) {
+                if (not API::draw_queue.count(shader))
+                    continue;
+                
                 auto queue_buffer = API::draw_queue.at(shader);
                 
                 //: View and projection
@@ -671,9 +666,9 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                     for (const auto &[tex, draw_queue] : tex_queue) {
                         //: Bind texture
                         if (tex != &no_texture) {
-                            if (gl.shaders.at(shader).images.size() == 0)
+                            if (API::shaders.at(shader).images.size() == 0)
                                 log::error("You are drawing a texture with a shader tht does not support texture inputs");
-                            glActiveTexture(GL_TEXTURE0 + gl.shaders.at(shader).images.begin()->second);
+                            glActiveTexture(GL_TEXTURE0 + API::shaders.at(shader).images.begin()->second);
                             glBindTexture(GL_TEXTURE_2D, (tex == &no_texture) ? 0 : tex->id_);
                         }
                         
@@ -685,7 +680,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                             GL::updateUniformBuffer(data->uniform_buffers[0], &ubo);
                             
                             //: Upload uniforms
-                            for (auto &[name, index] : gl.shaders[shader].uniforms) {
+                            for (auto &[name, index] : API::shaders[shader].uniforms) {
                                 if (name == "UniformBufferObject")
                                     glBindBufferBase(GL_UNIFORM_BUFFER, index, data->uniform_buffers[0].id_);
                             }
@@ -707,7 +702,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                 glBindBuffer(GL_ARRAY_BUFFER, window_vertex_buffer.first.id_);
                 
                 //: Temporary - Scaled window UBO
-                if (shader == SHADER_WINDOW)
+                if (shader == "window")
                     glBindBufferBase(GL_UNIFORM_BUFFER, 0, gl.scaled_window_uniform.id_);
                 
                 //: Get textures from attachments
@@ -723,9 +718,9 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                 //: Binds images to the shader
                 //      You need to provide the list of image attachments in the same order as the shader
                 int i = 0;
-                if (gl.shaders.at(shader).images.size() != textures.size())
-                    log::error("Mismatched attachment size between the shader and the attachments, review renderer_description. Make sure they are in the same order. Shader images: %d, Renderer description images: %d", gl.shaders.at(shader).images.size(), textures.size());
-                for (auto &[name, binding] : gl.shaders.at(shader).images) {
+                if (API::shaders.at(shader).images.size() != textures.size())
+                    log::error("Mismatched attachment size between the shader and the attachments, review renderer_description. Make sure they are in the same order. Shader images: %d, Renderer description images: %d", API::shaders.at(shader).images.size(), textures.size());
+                for (auto &[name, binding] : API::shaders.at(shader).images) {
                     glActiveTexture(GL_TEXTURE0 + binding);
                     glBindTexture(GL_TEXTURE_2D, textures.at(i++));
                 }
