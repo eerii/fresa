@@ -88,6 +88,20 @@ namespace Fresa::Graphics::API
     void clean(GraphicsAPI &api);
 
     //---Templates---
+    template<typename T>
+    void updateUniformBuffer(GraphicsAPI &api, BufferData buffer, const T& ubo) {
+        #if defined USE_VULKAN
+        void* data;
+        vmaMapMemory(api.allocator, buffer.allocation, &data);
+        memcpy(data, &ubo, sizeof(ubo));
+        vmaUnmapMemory(api.allocator, buffer.allocation);
+        #elif defined USE_OPENGL
+        glBindBuffer(GL_UNIFORM_BUFFER, buffer.id_);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(T), &ubo);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+        #endif
+    }
+    
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     std::vector<VertexAttributeDescription> getAttributeDescriptions() {
         std::vector<VertexAttributeDescription> attribute_descriptions = {};

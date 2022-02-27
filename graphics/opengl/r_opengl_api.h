@@ -37,14 +37,6 @@ namespace Fresa::Graphics::GL
     //Buffers
     //----------------------------------------
     BufferData createBuffer(size_t size = 0, GLenum type = GL_UNIFORM_BUFFER, GLenum usage = GL_STATIC_DRAW);
-
-    template <typename T>
-    void updateUniformBuffer(BufferData buffer, const T* uniform) {
-        glBindBuffer(GL_UNIFORM_BUFFER, buffer.id_);
-        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(T), uniform);
-        glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    };
-
     BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
     
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>

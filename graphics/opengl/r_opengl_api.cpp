@@ -677,7 +677,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                             ubo.model = model;
                             
                             //: Update uniforms
-                            GL::updateUniformBuffer(data->uniform_buffers[0], &ubo);
+                            GL::updateUniformBuffer(gl, data->uniform_buffers[0], ubo);
                             
                             //: Upload uniforms
                             for (auto &[name, index] : API::shaders[shader].uniforms) {
@@ -776,7 +776,7 @@ void API::resize(OpenGL &gl, WindowData &win) {
         subpass.framebuffer = GL::createFramebuffer(id);
     }
     
-    GL::updateUniformBuffer(gl.scaled_window_uniform, &win.scaled_ubo);
+    GL::updateUniformBuffer(gl, gl.scaled_window_uniform, win.scaled_ubo);
     
     glCheckError();
 }

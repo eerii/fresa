@@ -828,7 +828,7 @@ std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui3
     return command_buffers;
 }
 
-void VK::recordDrawCommandBuffer(const Vulkan &vk, ui32 current) {
+void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
     //---Draw command buffer---
     //      We are going to use a command buffer for drawing
     //      It needs to bind the vertex and index buffers, as well as the descriptor sets that map the shader inputs such as uniforms
@@ -2732,10 +2732,6 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
 //----------------------------------------
 
 void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
-    UniformBufferObject ubo{};
-    ubo.view = cam.view;
-    ubo.proj = cam.proj;
-    
     //: Get the current image
     vk.cmd.current_buffer = VK::startRender(vk.device, vk.swapchain, vk.sync, [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
@@ -2748,20 +2744,20 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     std::cout << queries[0] << " " << queries[2] << " : " << Performance::render_draw_time << " - Available " << queries[1] << " " << queries[3] << std::endl;*/
     #endif
     
-    //: Update uniform buffers
+    //: Update draw uniform buffers
+    UniformBufferObject ubo{};
+    ubo.view = cam.view;
+    ubo.proj = cam.proj;
     for (const auto &[shader, buffer_queue] : API::draw_queue) {
         for (const auto &[buffer, tex_queue] : buffer_queue) {
             for (const auto &[tex, draw_queue] : tex_queue) {
                 for (const auto &[data, model] : draw_queue) {
                     ubo.model = model;
-                    VK::updateUniformBuffer(vk.allocator, data->uniform_buffers.at(vk.cmd.current_buffer), ubo);
-                }
-            }
-        }
-    }
+                    API::updateUniformBuffer(vk, data->uniform_buffers.at(vk.cmd.current_buffer), ubo);
+    }}}}
     
     //: Record command buffers
-    VK::recordDrawCommandBuffer(vk, vk.cmd.current_buffer);
+    VK::recordRenderCommandBuffer(vk, vk.cmd.current_buffer);
     IF_GUI(VK::Gui::recordGuiCommandBuffer(vk, vk.cmd.current_buffer));
     
     //: Render the frame
@@ -2810,7 +2806,7 @@ void API::resize(Vulkan &vk, WindowData &win) {
     if (shaders.count("window"))
         for (auto &uniforms : vk.pipelines.at("window").uniform_buffers)
             for (auto &u : uniforms)
-                VK::updateUniformBuffer(vk.allocator, u, win.scaled_ubo);
+                API::updateUniformBuffer(vk, u, win.scaled_ubo);
 }
 
 //----------------------------------------

@@ -64,7 +64,7 @@ namespace Fresa::Graphics::VK
                                                     std::map<str, VkCommandPoolHelperData> data);
 
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const CommandData &cmd);
-    void recordDrawCommandBuffer(const Vulkan &vk, ui32 current);
+    void recordRenderCommandBuffer(const Vulkan &vk, ui32 current);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
     void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
@@ -173,14 +173,6 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
     std::vector<BufferData> createUniformBuffers(VmaAllocator allocator, ui32 swapchain_size);
     std::vector<std::vector<BufferData>> createPostUniformBuffers(const Vulkan &vk, const std::vector<VkDescriptorSetLayoutBinding> &bindings);
-
-    template<typename T>
-    void updateUniformBuffer(VmaAllocator allocator, BufferData buffer, T ubo) {
-        void* data;
-        vmaMapMemory(allocator, buffer.allocation, &data);
-        memcpy(data, &ubo, sizeof(ubo));
-        vmaUnmapMemory(allocator, buffer.allocation);
-    }
     //----------------------------------------
 
 
