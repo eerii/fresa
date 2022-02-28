@@ -181,7 +181,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             continue;
         
         if (s.at(0) == 'a') {
-            std::vector<str> a = split(s); //: a name attachment_type resolution
+            std::vector<str> a = split(s, " ", true); //: a name attachment_type resolution
             
             //: Name
             str name = a.at(1);
@@ -235,7 +235,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                 log::error("There are too many arguments for this subpass");
             
             //: Name
-            str name = s1.at(0).substr(2); name.pop_back();
+            str name = s1.at(0).substr(2); name = name.substr(0, name.find(" "));
             if (subpass_list.count(name))
                 log::error("Duplicated subpass name %s", name.c_str());
             
@@ -285,13 +285,14 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
         }
         #endif
         
-        if (s.at(0) == 'p') {
-            std::vector<str> p = split(s); //: p shader subpass vertexdata
+        if (s.at(0) == 'd' or s.at(0) == 'p') {
+            std::vector<str> p = split(s, " ", true); //: p shader subpass vertexdata
             if (p.size() != 4)
-                log::error("The description of the pipeline is invalid, it has to be 'p shader subpass vertexdata'");
+                log::error("The description of the shader is invalid, it has to be 'd/p shader subpass vertexdata'");
             
             //: Shader
             ShaderID shader = p.at(1);
+            API::shaders.at(shader).is_draw = s.at(0) == 'd';
             
             //: Subpass
             if (not subpass_list.count(p.at(2)))
@@ -300,12 +301,19 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             
             //: Register pipeline
             #if defined USE_VULKAN
-                if (p.at(3) == "vd_color")
-                    api.pipelines[shader] = VK::createPipeline<VertexDataColor>(api, shader, subpass);
-                if (p.at(3) == "vd_tex")
-                    api.pipelines[shader] = VK::createPipeline<VertexDataTexture>(api, shader, subpass);
-                if (p.at(3) == "vd_win")
-                    api.pipelines[shader] = VK::createPipeline<VertexDataWindow>(api, shader, subpass);
+                for_<VertexType>([&api, &shader, &subpass, &p](auto i){
+                    using V = std::variant_alternative_t<i.value, VertexType>;
+                    
+                    str name = V::type_name;
+                    if (name.rfind("Vertex", 0) != 0)
+                        log::error("All vertex types need to start with 'Vertex', this is %s", name.c_str());
+                    name = name.substr(6);
+                    lower(name);
+                    lower(p.at(3));
+                    
+                    if (p.at(3) == name)
+                        api.pipelines[shader] = VK::createPipeline<V>(api, shader, subpass);
+                });
             #elif defined USE_OPENGL
                 GL::createShaderDataGL(shader, subpass);
             #endif

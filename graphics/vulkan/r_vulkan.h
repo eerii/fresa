@@ -162,6 +162,9 @@ namespace Fresa::Graphics
         //: Image sampler
         VkSampler sampler;
         
+        //: Window vertex buffer
+        BufferData window_vertex_buffer;
+        
         //: Debug
         VkDebugReportCallbackEXT debug_callback;
     };

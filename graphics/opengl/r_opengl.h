@@ -41,7 +41,9 @@ namespace Fresa::Graphics
 {
     struct OpenGL {
         SDL_GLContext context;
+        
         BufferData scaled_window_uniform;
+        std::pair<BufferData, ui32> window_vertex_buffer;
     };
 
     [[maybe_unused]] static void glCheckError_(std::string file, int line) {

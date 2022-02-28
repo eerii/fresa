@@ -40,13 +40,6 @@ namespace {
         "VK_KHR_portability_subset",
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
-
-    const std::vector<VertexDataWindow> window_vertices = {
-        {{-1.f, -1.f}}, {{-1.f, 1.f}},
-        {{1.f, -1.f}}, {{1.f, 1.f}},
-        {{1.f, -1.f}}, {{-1.f, 1.f}},
-    };
-    BufferData window_vertex_buffer;
 }
 
 
@@ -101,7 +94,7 @@ Vulkan API::createAPI(WindowData &win) {
     API::processRendererDescription(vk, win);
     
     //---Window vertex buffer---
-    window_vertex_buffer = VK::createVertexBuffer(vk, window_vertices);
+    vk.window_vertex_buffer = VK::createVertexBuffer(vk, Vertices::window);
     
     return vk;
 }
@@ -726,7 +719,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //: Attachments
     API::recreateAttachments(vk);
     for (const auto &[shader, data] : vk.pipelines) {
-        if (not API::is_draw_shader(shader))
+        if (not API::shaders.at(shader).is_draw)
             VK::updatePostDescriptorSets(vk, data, shader);
     }
     
@@ -889,7 +882,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
             
             for (const auto &shader : shaders) {
                 //---Draw shaders---
-                if (API::is_draw_shader(shader)) {
+                if (API::shaders.at(shader).is_draw) {
                     if (not API::draw_queue.count(shader))
                         continue;
                     auto queue_buffer = API::draw_queue.at(shader);
@@ -929,7 +922,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                     
                     //: Vertex buffer (It has the 4 vertices of the window area)
                     VkDeviceSize offsets[]{ 0 };
-                    vkCmdBindVertexBuffers(cmd, 0, 1, &window_vertex_buffer.buffer, offsets);
+                    vkCmdBindVertexBuffers(cmd, 0, 1, &vk.window_vertex_buffer.buffer, offsets);
                     
                     //: Draw
                     vkCmdDraw(cmd, 6, 1, 0, 0);
@@ -1892,7 +1885,7 @@ void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader)
     data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
     data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
     
-    if (not API::is_draw_shader(shader))
+    if (not API::shaders.at(shader).is_draw)
         VK::updatePostDescriptorSets(vk, data, shader);
 
     //: Pipeline

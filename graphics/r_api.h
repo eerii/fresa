@@ -67,10 +67,6 @@ namespace Fresa::Graphics::API
     //---Shaders---
     inline std::map<ShaderID, ShaderData> shaders;
     void createShaderList();
-    
-    inline bool is_draw_shader(ShaderID s) {
-        return s.rfind("draw", 0) == 0;
-    }
 
     std::vector<char> readSPIRV(std::string filename);
     ShaderCode readSPIRV(const ShaderLocations &locations);

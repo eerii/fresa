@@ -44,4 +44,12 @@ namespace Fresa
 
     template <typename T, typename... Ts>
     struct getVariantIndex<T, std::variant<Ts...>> : std::integral_constant<size_t, std::variant<tag<Ts>...>(tag<T>()).index()> { };
+    
+    //---Combine two variants---
+    template <typename T, typename... Args> struct concatenate_;
+
+    template <typename... Args0, typename... Args1>
+    struct concatenate_<std::variant<Args0...>, std::variant<Args1...>> {
+        using type = std::variant<Args0..., Args1...>;
+    };
 }

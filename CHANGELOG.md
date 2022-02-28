@@ -8,7 +8,7 @@
 
 **changed**
 - shader names used as id, automatic shader detection
-
+- improved renderer description
 
 ---
 

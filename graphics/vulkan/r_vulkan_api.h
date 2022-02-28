@@ -214,7 +214,7 @@ namespace Fresa::Graphics::VK
         data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
         
         //---Descriptor sets---
-        if (not API::is_draw_shader(shader)) {
+        if (not API::shaders.at(shader).is_draw) {
             data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
                                                               data.descriptor_pools, vk.swapchain.size);
             data.uniform_buffers = VK::createPostUniformBuffers(vk, data.descriptor_layout_bindings);

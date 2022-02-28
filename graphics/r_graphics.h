@@ -42,47 +42,4 @@ namespace Fresa::Graphics
     
     void updateCameraView(CameraData &cam);
     void updateCameraProjection(CameraData &cam);
-    
-    //---Vertices---
-    //      Some common vertex definitions that can be used for quickly creating objects
-    namespace Vertices {
-        inline const std::vector<VertexDataTexture> rect_vertices_texture = {
-            {{0.f, 0.f, 0.f}, {0.0f, 0.0f}},
-            {{1.f, 0.f, 0.f}, {1.0f, 0.0f}},
-            {{1.f, 1.f, 0.f}, {1.0f, 1.0f}},
-            {{0.f, 1.f, 0.f}, {0.0f, 1.0f}},
-        };
-        
-        inline const std::vector<VertexDataColor> rect_vertices_color = {
-            {{0.f, 0.f, 0.f}, {1.0f, 0.0f, 0.0f}},
-            {{1.f, 0.f, 0.f}, {0.0f, 1.0f, 0.0f}},
-            {{1.f, 1.f, 0.f}, {0.0f, 0.0f, 1.0f}},
-            {{0.f, 1.f, 0.f}, {1.0f, 1.0f, 1.0f}},
-        };
-        
-        inline const std::vector<ui16> rect_indices = {
-            0, 2, 1, 0, 3, 2
-        };
-        
-        //: Example colored cube
-        inline const std::vector<VertexDataColor> cube_vertices_color = {
-            {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
-            {{1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
-            {{1.f, 1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
-            {{-1.f, 1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
-            {{-1.f, -1.f, 1.f}, {0.925f, 0.254f, 0.345f}}, //Red
-            {{1.f, -1.f, 1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
-            {{1.f, 1.f, 1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
-            {{-1.f, 1.f, 1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
-        };
-
-        inline const std::vector<ui16> cube_indices = {
-            0, 1, 3, 3, 1, 2,
-            1, 5, 2, 2, 5, 6,
-            4, 0, 7, 7, 0, 3,
-            3, 2, 7, 7, 2, 6,
-            4, 5, 0, 0, 5, 1,
-            5, 4, 6, 6, 4, 7,
-        };
-    }
 }

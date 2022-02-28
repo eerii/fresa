@@ -2,11 +2,23 @@
 //by jose pazos perez
 //licensed under GPLv3 uwu
 
+//: You can add additional vertex data definitions creating a file called "vertex_list.h" and including it in your project
+//: An example of such definition is as follows
+//      struct VertexExample {
+//          Serialize(VertexExample, a, b);
+//          glm::vec3 a;
+//          glm::vec2 b;
+//      };
+//: Please also create a variant with all custom types
+//      using CustomVertexType = std::variant<VertexExample, ...>
+//: To specify it in the renderer_description, the name will be everything except for Vertex, so in this case, it is "example" (a-A is the same)
+
 #pragma once
 
 #include "types.h"
 #include "reflection.h"
 #include "log.h"
+#include "variant_helper.h"
 
 #include <optional>
 #include <variant>
@@ -235,6 +247,7 @@ namespace Fresa::Graphics
     struct ShaderData {
         ShaderLocations locations;
         ShaderCode code;
+        bool is_draw;
         #if defined USE_VULKAN
         ShaderStages stages;
         #elif defined USE_OPENGL
@@ -275,23 +288,6 @@ namespace Fresa::Graphics
     //Vertex
     //----------------------------------------
     //Needs to be ordered the same way as the shader
-    struct VertexDataColor {
-        Serialize(VertexDataColor, pos, color);
-        glm::vec3 pos;
-        glm::vec3 color;
-    };
-    
-    struct VertexDataTexture {
-        Serialize(VertexDataTexture, pos, uv);
-        glm::vec3 pos;
-        glm::vec2 uv;
-    };
-
-    struct VertexDataWindow {
-        Serialize(VertexDataWindow, pos);
-        glm::vec2 pos;
-    };
-
     enum VertexFormat {
         VERTEX_FORMAT_R_F = 1,
         VERTEX_FORMAT_RG_F = 2,
@@ -305,5 +301,136 @@ namespace Fresa::Graphics
         VertexFormat format;
         ui32 offset;
     };
+    
+    struct VertexPos2 {
+        Serialize(VertexPos2, pos);
+        glm::vec2 pos;
+    };
+    
+    struct VertexPos2Color {
+        Serialize(VertexPos2Color, pos, color);
+        glm::vec2 pos;
+        glm::vec3 color;
+    };
+    
+    struct VertexPos2UV {
+        Serialize(VertexPos2UV, pos, uv);
+        glm::vec2 pos;
+        glm::vec2 uv;
+    };
+    
+    struct VertexPos3 {
+        Serialize(VertexPos3, pos);
+        glm::vec3 pos;
+    };
+    
+    struct VertexPos3Color {
+        Serialize(VertexPos3Color, pos, color);
+        glm::vec3 pos;
+        glm::vec3 color;
+    };
+    
+    struct VertexPos3UV {
+        Serialize(VertexPos3UV, pos, uv);
+        glm::vec3 pos;
+        glm::vec2 uv;
+    };
+    
+    namespace Vertices {
+        inline const std::vector<VertexPos2> rect2 = {
+            {{0.f, 0.f}},
+            {{1.f, 0.f}},
+            {{1.f, 1.f}},
+            {{0.f, 1.f}},
+        };
+        
+        inline const std::vector<VertexPos2UV> rect2_tex = {
+            {{0.f, 0.f}, {0.0f, 0.0f}},
+            {{1.f, 0.f}, {1.0f, 0.0f}},
+            {{1.f, 1.f}, {1.0f, 1.0f}},
+            {{0.f, 1.f}, {0.0f, 1.0f}},
+        };
+        
+        inline const std::vector<VertexPos2Color> rect2_color = {
+            {{0.f, 0.f}, {1.0f, 0.0f, 0.0f}},
+            {{1.f, 0.f}, {0.0f, 1.0f, 0.0f}},
+            {{1.f, 1.f}, {0.0f, 0.0f, 1.0f}},
+            {{0.f, 1.f}, {1.0f, 1.0f, 1.0f}},
+        };
+        
+        inline const std::vector<VertexPos3> rect3 = {
+            {{0.f, 0.f, 0.0f}},
+            {{1.f, 0.f, 0.0f}},
+            {{1.f, 1.f, 0.0f}},
+            {{0.f, 1.f, 0.0f}},
+        };
+        
+        inline const std::vector<VertexPos3UV> rect3_tex = {
+            {{0.f, 0.f, 0.f}, {0.0f, 0.0f}},
+            {{1.f, 0.f, 0.f}, {1.0f, 0.0f}},
+            {{1.f, 1.f, 0.f}, {1.0f, 1.0f}},
+            {{0.f, 1.f, 0.f}, {0.0f, 1.0f}},
+        };
+        
+        inline const std::vector<VertexPos3Color> rect3_color = {
+            {{0.f, 0.f, 0.f}, {1.0f, 0.0f, 0.0f}},
+            {{1.f, 0.f, 0.f}, {0.0f, 1.0f, 0.0f}},
+            {{1.f, 1.f, 0.f}, {0.0f, 0.0f, 1.0f}},
+            {{0.f, 1.f, 0.f}, {1.0f, 1.0f, 1.0f}},
+        };
+        
+        inline const std::vector<VertexPos3> cube = {
+            {{-1.f, -1.f, -1.f}},
+            {{ 1.f, -1.f, -1.f}},
+            {{ 1.f,  1.f, -1.f}},
+            {{-1.f,  1.f, -1.f}},
+            {{-1.f, -1.f,  1.f}},
+            {{ 1.f, -1.f,  1.f}},
+            {{ 1.f,  1.f,  1.f}},
+            {{-1.f,  1.f,  1.f}},
+        };
+        
+        inline const std::vector<VertexPos3Color> cube_color = {
+            {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
+            {{ 1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
+            {{ 1.f,  1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
+            {{-1.f,  1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
+            {{-1.f, -1.f,  1.f}, {0.925f, 0.254f, 0.345f}}, //Red
+            {{ 1.f, -1.f,  1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
+            {{ 1.f,  1.f,  1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
+            {{-1.f,  1.f,  1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
+        };
+        
+        inline const std::vector<VertexPos2> window = {
+            {{-1.f, -1.f}}, {{-1.f, 1.f}},
+            {{ 1.f, -1.f}}, {{ 1.f, 1.f}},
+            {{ 1.f, -1.f}}, {{-1.f, 1.f}},
+        };
+    }
+    
+    namespace Indices {
+        inline const std::vector<ui16> rect = {
+            0, 2, 1, 0, 3, 2
+        };
+        
+        inline const std::vector<ui16> cube = {
+            0, 1, 3, 3, 1, 2,
+            1, 5, 2, 2, 5, 6,
+            4, 0, 7, 7, 0, 3,
+            3, 2, 7, 7, 2, 6,
+            4, 5, 0, 0, 5, 1,
+            5, 4, 6, 6, 4, 7,
+        };
+    }
+    
+    using FresaVertexType = std::variant<VertexPos2, VertexPos2Color, VertexPos2UV, VertexPos3, VertexPos3Color, VertexPos3UV>;
+    
+    #if __has_include("vertex_data.h")
+        #include "vertex_data.h"
+    #else
+        using CustomVertexType = std::variant<>;
+    #endif
+    
+    using VertexType = concatenate_<FresaVertexType, CustomVertexType>::type;
     //----------------------------------------
 }

@@ -16,13 +16,6 @@ using namespace Graphics;
 
 namespace {
     std::vector<std::function<void()>> deletion_queue;
-    
-    const std::vector<VertexDataWindow> window_vertices = {
-        {{-1.f, -1.f}}, {{-1.f, 1.f}},
-        {{1.f, -1.f}}, {{1.f, 1.f}},
-        {{1.f, -1.f}}, {{-1.f, 1.f}},
-    };
-    std::pair<BufferData, ui32> window_vertex_buffer;
 }
 
 //Initialization
@@ -54,7 +47,7 @@ OpenGL API::createAPI(WindowData &win) {
     deletion_queue.push_back([temp_vao](){glDeleteVertexArrays(1, &temp_vao);});
     GL::validateShaderData(temp_vao);
     
-    window_vertex_buffer = GL::createVertexBuffer(gl, window_vertices);
+    gl.window_vertex_buffer = GL::createVertexBuffer(gl, Vertices::window);
     gl.scaled_window_uniform = GL::createBuffer(sizeof(UniformBufferObject), GL_UNIFORM_BUFFER, GL_STREAM_DRAW);
     
     return gl;
@@ -643,7 +636,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                 glViewport(0, 0, attachments.begin()->second.size.x, attachments.begin()->second.size.y); // All subpass attachments have the same size
             
             //---Draw shaders---
-            if (API::is_draw_shader(shader)) {
+            if (API::shaders.at(shader).is_draw) {
                 if (not API::draw_queue.count(shader))
                     continue;
                 
@@ -667,7 +660,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                         //: Bind texture
                         if (tex != &no_texture) {
                             if (API::shaders.at(shader).images.size() == 0)
-                                log::error("You are drawing a texture with a shader tht does not support texture inputs");
+                                log::error("You are drawing a texture with a shader that does not support texture inputs");
                             glActiveTexture(GL_TEXTURE0 + API::shaders.at(shader).images.begin()->second);
                             glBindTexture(GL_TEXTURE_2D, (tex == &no_texture) ? 0 : tex->id_);
                         }
@@ -677,7 +670,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                             ubo.model = model;
                             
                             //: Update uniforms
-                            GL::updateUniformBuffer(gl, data->uniform_buffers[0], ubo);
+                            API::updateUniformBuffer(gl, data->uniform_buffers[0], ubo);
                             
                             //: Upload uniforms
                             for (auto &[name, index] : API::shaders[shader].uniforms) {
@@ -696,10 +689,10 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
             //---Post shaders---
             else {
                 //: Bind VAO
-                glBindVertexArray(window_vertex_buffer.second);
+                glBindVertexArray(gl.window_vertex_buffer.second);
                 
                 //: Bind vertex buffer
-                glBindBuffer(GL_ARRAY_BUFFER, window_vertex_buffer.first.id_);
+                glBindBuffer(GL_ARRAY_BUFFER, gl.window_vertex_buffer.first.id_);
                 
                 //: Temporary - Scaled window UBO
                 if (shader == "window")
@@ -776,7 +769,7 @@ void API::resize(OpenGL &gl, WindowData &win) {
         subpass.framebuffer = GL::createFramebuffer(id);
     }
     
-    GL::updateUniformBuffer(gl, gl.scaled_window_uniform, win.scaled_ubo);
+    API::updateUniformBuffer(gl, gl.scaled_window_uniform, win.scaled_ubo);
     
     glCheckError();
 }
