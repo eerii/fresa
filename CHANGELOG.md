@@ -6,9 +6,13 @@
 
 #### 0.3.7 - NAME - _25 02 2022_
 
+**added**
+- include custom vertex types creating a vertex_list.h file
+
 **changed**
 - shader names used as id, automatic shader detection
 - improved renderer description
+- component_list.h is now optional (still required to use ecs features)
 
 ---
 

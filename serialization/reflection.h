@@ -10,6 +10,9 @@
 
 #pragma once
 
+#ifndef USING_REFLECTION
+#define USING_REFLECTION
+
 #include <array>
 #include <tuple>
 #include <ostream>
@@ -259,3 +262,5 @@ namespace Fresa
         }
     }
 }
+
+#endif

@@ -21,7 +21,12 @@
 //          int something;
 //          str another_thing; ...
 //      };
-#include "component_list.h"
+
+#if __has_include("component_list.h")
+    #include "component_list.h"
+#else
+    using ComponentType = std::variant<>;
+#endif
 
 #include <bitset>
 
