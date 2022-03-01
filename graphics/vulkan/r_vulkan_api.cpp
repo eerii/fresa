@@ -622,7 +622,7 @@ SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_dev
     
     
     //---Number of images---
-    swapchain.min_image_count = support.capabilities.minImageCount + 1;
+    swapchain.min_image_count = support.capabilities.minImageCount;
     if (support.capabilities.maxImageCount > 0 and swapchain.min_image_count > support.capabilities.maxImageCount)
         swapchain.min_image_count = support.capabilities.maxImageCount;
     

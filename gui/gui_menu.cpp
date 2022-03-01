@@ -1,4 +1,4 @@
-//project verse, 2017-2022
+//project fresa, 2017-2022
 //by jose pazos perez
 //licensed under GPLv3
 

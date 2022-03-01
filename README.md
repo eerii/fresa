@@ -42,7 +42,7 @@ Right now the project is in the **very pre-alpha** state, so use it at your own 
 
 **Examples:**
 - :avocado: [aguacate](https://github.com/josekoalas/aguacate): Full **fresa** template, with detailed instructions on how to build
-- :sun_behind_large_cloud: [raymarching](https://github.com/josekoalas/maracuya/raymarching): Quick and simple raymarching example
+- :sun_behind_large_cloud: [raymarching](https://github.com/josekoalas/maracuya/tree/main/raymarching): Quick and simple raymarching example
 
 You can check  for an example on how one could set up a **fresa** project. Instructions on how to build it are there.
 

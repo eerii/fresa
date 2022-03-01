@@ -6,6 +6,8 @@
 
 #### 0.3.7 - NAME - _25 02 2022_
 
+TODO: System init function
+
 **added**
 - include custom vertex types creating a vertex_list.h file
 
