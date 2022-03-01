@@ -3,22 +3,23 @@
 A tiny game engine made in C++20.
 
 <p float="left">
-  <img src="https://user-images.githubusercontent.com/22449369/145628926-ca734a35-6a0e-4193-872b-4be45b886a48.gif" width="30%" />
-  <img src="https://user-images.githubusercontent.com/22449369/145629231-f2f51bd6-330a-4533-9b1a-021ce0859508.gif" width="30%" />
-  <img src="https://user-images.githubusercontent.com/22449369/145630097-151555b5-30fc-4fef-b062-72e9581a5731.png" width="30%" />
+  <img src="https://user-images.githubusercontent.com/22449369/145628926-ca734a35-6a0e-4193-872b-4be45b886a48.gif" width="24%" />
+  <img src="https://user-images.githubusercontent.com/22449369/145629231-f2f51bd6-330a-4533-9b1a-021ce0859508.gif" width="24%" />
+  <img src="https://user-images.githubusercontent.com/22449369/145630097-151555b5-30fc-4fef-b062-72e9581a5731.png" width="24%" />
+  <img src="https://user-images.githubusercontent.com/22449369/156197502-0e555a4a-8a71-4920-bb01-b29cefcf4a25.gif" width="24%" />
 </p>
 
 ## features :sparkles:
 
 **Graphics** 
-- Custom renderer with Vulkan, OpenGL and WebGL support.
+- Custom renderer with Vulkan, OpenGL and WebGL support
 - Multiple shader subpasses
-- Automatic shader compilation for each API and reflection using SPIRV-Cross
-- Supports the creating of vertex buffers and textures at the start of the program for better performance (they can also be created dynamically)
+- Automatic GLSL shader compilation for each API and reflection using SPIRV-Cross
+- High level API that allows complete customization of the cross platform renderer
 
 **ECS**
 - Data oriented Entity Component System
-- Scenes
+- Scene management
 - Custom component controllers for specialized behaviour
 
 **Reflection**
@@ -37,18 +38,22 @@ A tiny game engine made in C++20.
 
 ## building :hammer:
 
-**Platforms**
+Right now the project is in the **very pre-alpha** state, so use it at your own risk.
 
-Right now the project is in the **very pre-alpha** state, and I haven't set up detailed build instructions yet. You can check [aguacate](https://github.com/josekoalas/aguacate) for an example on how one could set up a **fresa** project. Instructions on how to build it are there.
+**Examples:**
+- :avocado: [aguacate](https://github.com/josekoalas/aguacate): Full **fresa** template, with detailed instructions on how to build
+- :sun_behind_large_cloud: [raymarching](https://github.com/josekoalas/maracuya/raymarching): Quick and simple raymarching example
+
+You can check  for an example on how one could set up a **fresa** project. Instructions on how to build it are there.
 
 **Dependencies**
 - SDL2 (cross-platform window and input)
 - Vulkan/OpenGL (renderer of choice)
-- imGUI (for a debug graphical interface)
 - SPIR-V Cross (shader reflection and compilation)
+- VulkanMemoryAllocator (only Vulkan renderer, memory management)
+- imGUI (for a debug graphical interface)
 - stb_image (loading images)
 - glm (glsl linear algebra)
-- VulkanMemoryAllocator (only Vulkan renderer, memory management)
 
 **Options**
 - `USE_VULKAN` or `USE_OPENGL`: Enables the desired renderer
@@ -88,7 +93,9 @@ int main(int argc, const char * argv[]) {
 
 **other files**
 
-For the ECS to work, a `component_list.h` file must be created that `#includes` all the component headers you create, as well as a variant for the component type. Follow the instructions on [`ecs.h`](https://github.com/josekoalas/fresa/blob/main/ecs/ecs.h) or the example in [aguacate](https://github.com/josekoalas/aguacate) to create one.
+To access the ECS capabilities, a `component_list.h` file may be created that `#includes` all the component headers you create, as well as a variant for the component type. Follow the instructions on [`ecs.h`](https://github.com/josekoalas/fresa/blob/main/ecs/ecs.h) or the example in [aguacate](https://github.com/josekoalas/aguacate) to create one.
+
+You can also create a `vertex_list.h` to add new vertex type definitions to use with glsl.
 
 ## license :pencil:
 

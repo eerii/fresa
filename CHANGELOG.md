@@ -14,6 +14,9 @@
 - improved renderer description
 - component_list.h is now optional (still required to use ecs features)
 
+**fixed**
+- vulkan memory issue that was not detected before due to xcode's address sanitizer :c
+
 ---
 
 #### 0.3.6 - looking sharp - _11 02 2022_

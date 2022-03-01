@@ -726,10 +726,6 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //: Render passes and framebuffers
     VK::recreateRenderPasses(vk);
     
-    //: Sync objects
-    if (previous_size != vk.swapchain.size)
-        vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
-    
     //: Pipeline
     for (auto &[shader, data] : vk.pipelines)
         data.pipeline = VK::createGraphicsPipelineObject(vk, data, shader);
@@ -740,6 +736,9 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         for (auto it = deletion_queue_size_change.rbegin(); it != deletion_queue_size_change.rend(); ++it)
             (*it)();
         deletion_queue_size_change.clear();
+        
+        //: Sync
+        vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
         
         //: Recreate pipelines
         for (auto &[shader, data] : vk.pipelines)
@@ -1505,16 +1504,17 @@ SyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
     //          - Signal: Operation locks semaphore when executing and unlocks after it is finished
     //          - Wait: Wait until semaphore is unlocked to execute the command
     SyncData sync;
+    sync.current_frame = 0;
     
     //---Frames in flight---
     //      Defined in r_vulkan_api.h, indicates how many frames can be processed concurrently
-    
     
     //---Semaphores--- (GPU->GPU)
     //: Image available, locks when vkAcquireNextImageKHR() is getting a new image, then submits command buffer
     sync.semaphores_image_available.resize(MAX_FRAMES_IN_FLIGHT);
     //: Render finished, locks while the command buffer is in execution, then finishes frame
     sync.semaphores_render_finished.resize(MAX_FRAMES_IN_FLIGHT);
+    
     //: Default semaphore creation info
     VkSemaphoreCreateInfo semaphore_info{};
     semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1525,34 +1525,34 @@ SyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
     sync.fences_in_flight.resize(MAX_FRAMES_IN_FLIGHT);
     //: Images in flight, we need to track for each swapchain image if a frame in flight is currently using it, has size of swapchain
     sync.fences_images_in_flight.resize(swapchain_size, VK_NULL_HANDLE);
+    
     //: Default fence creation info, signaled bit means they start like they have already finished once
     VkFenceCreateInfo fence_info{};
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     
-    
     //---Create semaphores and fences---
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (vkCreateSemaphore(device, &semaphore_info, nullptr, &sync.semaphores_image_available[i]) != VK_SUCCESS)
+        if (vkCreateSemaphore(device, &semaphore_info, nullptr, &sync.semaphores_image_available.at(i)) != VK_SUCCESS)
             log::error("Failed to create a vulkan semaphore (image available)");
         
-        if (vkCreateSemaphore(device, &semaphore_info, nullptr, &sync.semaphores_render_finished[i]) != VK_SUCCESS)
+        if (vkCreateSemaphore(device, &semaphore_info, nullptr, &sync.semaphores_render_finished.at(i)) != VK_SUCCESS)
             log::error("Failed to create a vulkan semaphore (render finished)");
         
-        if (vkCreateFence(device, &fence_info, nullptr, &sync.fences_in_flight[i]) != VK_SUCCESS)
+        if (vkCreateFence(device, &fence_info, nullptr, &sync.fences_in_flight.at(i)) != VK_SUCCESS)
             log::error("Failed to create a vulkan fence (frame in flight)");
     }
     
-    
-    deletion_queue_program.push_back([device, sync](){
+    deletion_queue_size_change.push_back([device, sync](){
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            vkDestroySemaphore(device, sync.semaphores_image_available[i], nullptr);
-            vkDestroySemaphore(device, sync.semaphores_render_finished[i], nullptr);
-            vkDestroyFence(device, sync.fences_in_flight[i], nullptr);
+            vkDestroySemaphore(device, sync.semaphores_image_available.at(i), nullptr);
+            vkDestroySemaphore(device, sync.semaphores_render_finished.at(i), nullptr);
+            vkDestroyFence(device, sync.fences_in_flight.at(i), nullptr);
         }
     });
     log::graphics("Created all vulkan sync objects");
     log::graphics("");
+    
     return sync;
 }
 
@@ -2670,11 +2670,11 @@ bool VK::hasDepthStencilComponent(VkFormat format) {
 ui32 VK::startRender(VkDevice device, const SwapchainData &swapchain, SyncData &sync, std::function<void()> recreate_swapchain) {
     ui32 image_index;
     
-    std::vector<VkFence> fences = { sync.fences_in_flight[sync.current_frame] };
+    std::vector<VkFence> fences = { sync.fences_in_flight.at(sync.current_frame) };
     vkWaitForFences(device, (ui32)fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
     
     VkResult result = vkAcquireNextImageKHR(device, swapchain.swapchain, UINT64_MAX,
-                                            sync.semaphores_image_available[sync.current_frame], VK_NULL_HANDLE, &image_index);
+                                            sync.semaphores_image_available.at(sync.current_frame), VK_NULL_HANDLE, &image_index);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         recreate_swapchain();
@@ -2684,18 +2684,18 @@ ui32 VK::startRender(VkDevice device, const SwapchainData &swapchain, SyncData &
     if (result != VK_SUCCESS and result != VK_SUBOPTIMAL_KHR)
         log::error("Failed to acquire swapchain image");
     
-    if (sync.fences_images_in_flight[image_index] != VK_NULL_HANDLE)
-        vkWaitForFences(device, 1, &sync.fences_images_in_flight[image_index], VK_TRUE, UINT64_MAX);
+    if (sync.fences_images_in_flight.at(image_index) != VK_NULL_HANDLE)
+        vkWaitForFences(device, 1, &sync.fences_images_in_flight.at(image_index), VK_TRUE, UINT64_MAX);
     
-    sync.fences_images_in_flight[image_index] = sync.fences_in_flight[sync.current_frame];
+    sync.fences_images_in_flight.at(image_index) = sync.fences_in_flight.at(sync.current_frame);
     
     return image_index;
 }
 
 void VK::renderFrame(Vulkan &vk, WindowData &win) {
-    VkSemaphore wait_semaphores[]{ vk.sync.semaphores_image_available[vk.sync.current_frame] };
+    VkSemaphore wait_semaphores[]{ vk.sync.semaphores_image_available.at(vk.sync.current_frame) };
     VkPipelineStageFlags wait_stages[]{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished[vk.sync.current_frame] };
+    VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished.at(vk.sync.current_frame) };
     
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -2704,17 +2704,17 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
     submit_info.pWaitSemaphores = wait_semaphores;
     submit_info.pWaitDstStageMask = wait_stages;
     
-    std::vector<VkCommandBuffer> command_buffers = { vk.cmd.command_buffers["draw"][vk.cmd.current_buffer] };
-    IF_GUI(command_buffers.push_back( vk.cmd.command_buffers["gui"][vk.cmd.current_buffer] ));
+    std::vector<VkCommandBuffer> command_buffers = { vk.cmd.command_buffers.at("draw").at(vk.cmd.current_buffer) };
+    IF_GUI(command_buffers.push_back( vk.cmd.command_buffers.at("gui").at(vk.cmd.current_buffer) ));
     submit_info.commandBufferCount = (ui32)command_buffers.size();
     submit_info.pCommandBuffers = command_buffers.data();
     
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
     
-    vkResetFences(vk.device, 1, &vk.sync.fences_in_flight[vk.sync.current_frame]);
+    vkResetFences(vk.device, 1, &vk.sync.fences_in_flight.at(vk.sync.current_frame));
     
-    if (vkQueueSubmit(vk.cmd.queues.graphics, 1, &submit_info, vk.sync.fences_in_flight[vk.sync.current_frame]) != VK_SUCCESS)
+    if (vkQueueSubmit(vk.cmd.queues.graphics, 1, &submit_info, vk.sync.fences_in_flight.at(vk.sync.current_frame)) != VK_SUCCESS)
         log::error("Failed to submit Draw Command Buffer");
 }
 
@@ -2761,7 +2761,7 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
 }
 
 void API::present(Vulkan &vk, WindowData &win) {
-    VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished[vk.sync.current_frame] };
+    VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished.at(vk.sync.current_frame) };
     
     VkPresentInfoKHR present_info{};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;

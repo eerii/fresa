@@ -29,15 +29,14 @@ bool Game::init() {
     //---Game setup---
     log::debug("Starting the game...");
     
-    //: File system
-    //  (only working for macos at the moment)
+    //: File system (only for macos)
     File::init();
 
     //: SDL
     SDL_version version;
     SDL_GetVersion(&version);
     log::debug("SDL v%d.%d.%d", version.major, version.minor, version.patch);
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
         log::error("SDL_Init has failed!!", SDL_GetError());
         return false;
     }
