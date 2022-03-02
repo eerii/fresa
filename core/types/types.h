@@ -14,7 +14,13 @@
 #include <functional>
 #include <memory>
 
-#include "aliases.h"
+//: Unsigned int
+using ui8 = std::uint8_t;
+using ui16 = std::uint16_t;
+using ui32 = std::uint32_t;
+using ui64 = std::uint64_t;
+
+#include "strings.h"
 #include "vec2.h"
 #include "rect2.h"
 

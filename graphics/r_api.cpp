@@ -180,8 +180,10 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
         if (s.size() == 0)
             continue;
         
+        //---Attachment---
+        //:     a name attachment_type resolution
         if (s.at(0) == 'a') {
-            std::vector<str> a = split(s, " ", true); //: a name attachment_type resolution
+            std::vector<str> a = split(s, " ", true);
             
             //: Name
             str name = a.at(1);
@@ -227,8 +229,10 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             attachment_list[name] = API::registerAttachment(api, type, resolution);
         }
         
+        //---Subpass---
+        //:     s name [a1 a2 a3] [ext1 ext2]
         if (s.at(0) == 's') {
-            std::vector<str> s1 = split(s, "["); //: s name [a1 a2 a3] [ext1 ext2]
+            std::vector<str> s1 = split(s, "[");
             if (s1.size() < 2)
                 log::error("You need to provide at least an attachment list for the subpass, for example 's name [a1 a2]'");
             if (s1.size() > 3)
@@ -265,9 +269,11 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             subpass_list[name] = API::registerSubpass(subpass_attachments, external_attachments);
         }
         
+        //---Render pass--- (only vulkan needs it)
+        //:     r [s1 s2 s3]
         #if defined USE_VULKAN
         if (s.at(0) == 'r') {
-            std::vector<str> r1 = split(s, "["); //: r [s1 s2 s3]
+            std::vector<str> r1 = split(s, "[");
             if (r1.size() != 2)
                 log::error("The description of the renderpass is invalid, it has to be 'r [s1 s2]'");
             
@@ -285,6 +291,8 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
         }
         #endif
         
+        //---Shaders---
+        //:     d/p shader subpass vertices      d - draw shader, p - post shader
         if (s.at(0) == 'd' or s.at(0) == 'p') {
             std::vector<str> p = split(s, " ", true); //: p shader subpass vertexdata
             if (p.size() != 4)

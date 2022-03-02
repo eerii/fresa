@@ -5,7 +5,6 @@
 #pragma once
 
 #include <SDL2/SDL.h>
-#include "aliases.h"
 #include "vec2.h"
 
 namespace Fresa

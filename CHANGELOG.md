@@ -15,6 +15,7 @@ TODO: System init function
 - shader names used as id, automatic shader detection
 - improved renderer description
 - component_list.h is now optional (still required to use ecs features)
+- config values are now defined outside of fresa, to be easily modifiable
 
 **fixed**
 - vulkan memory issue that was not detected before due to xcode's address sanitizer :c

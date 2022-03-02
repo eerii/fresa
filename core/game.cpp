@@ -29,7 +29,7 @@ bool Game::init() {
     //---Game setup---
     log::debug("Starting the game...");
     
-    //: File system (only for macos)
+    //: File system
     File::init();
 
     //: SDL

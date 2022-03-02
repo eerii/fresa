@@ -17,6 +17,12 @@ namespace Fresa::Graphics
 #elif defined USE_OPENGL
     using GraphicsAPI = OpenGL;
 #endif
+    
+    //TODO: Refactor the graphics API, use a BaseAPI and derived Vulkan and OpenGL classes.
+    //      Also in API functions do not pass the &api, create an inline global member, research multithread
+    /*struct BaseAPI {
+        
+    };*/
 }
 
 //---API---

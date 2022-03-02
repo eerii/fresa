@@ -8,17 +8,15 @@
 
 namespace Fresa
 {
-    //---Unsigned int---
-    using ui8 = std::uint8_t;
-    using ui16 = std::uint16_t;
-    using ui32 = std::uint32_t;
-    using ui64 = std::uint64_t;
-
-    //---String---
+    //: String
     using str = std::string;
+    
+    //: To lowercase
     inline void lower(str &s) {
         std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return std::tolower(c); });
     }
+    
+    //: Split
     inline std::vector<str> split(str s, str del = " ", bool recursive = false) {
         std::vector<str> ss{};
         int a = 0;
