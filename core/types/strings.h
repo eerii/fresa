@@ -12,8 +12,10 @@ namespace Fresa
     using str = std::string;
     
     //: To lowercase
-    inline void lower(str &s) {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return std::tolower(c); });
+    inline str lower(str s) {
+        for (auto &c : s)
+            c = std::tolower(c);
+        return s;
     }
     
     //: Split
@@ -41,5 +43,10 @@ namespace Fresa
         }
         ss.push_back(s.substr(a, b - a));
         return ss;
+    }
+    
+    //: Get list contents (from a string like '[a b c]' returns 'a b c')
+    inline str list_contents(str s) {
+        return s.substr(1, s.size() - 2);
     }
 }

@@ -179,46 +179,38 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
     while (std::getline(f, s)) {
         if (s.size() == 0) continue;
         
+        std::vector<str> line = split(s, " ", true, true);
+        
         //---Attachment---
         //:     a name attachment_type resolution
-        if (s.at(0) == 'a') {
-            std::vector<str> a = split(s, " ", true);
-            
+        if (line.at(0) == "a") {
             //: Name
-            str name = a.at(1);
+            str name = line.at(1);
             if (name == "swapchain") {
                 attachment_list[name + std::to_string(++swapchain_count)] = API::registerAttachment(api, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
                 continue;
             }
-            if (attachment_list.count(name))
-                log::error("Duplicated attachment name %s", name.c_str());
-            if (a.size() != 4)
-                log::error("You have not provided all the required parameters for an attachment");
+            if (line.size() != 4) log::error("You have not provided all the required parameters for an attachment");
+            if (attachment_list.count(name)) log::error("Duplicated attachment name %s", name.c_str());
             
             //: Attachment type
-            std::vector<str> type_str = split(a.at(2), "_");
-            if (type_str.size() == 0)
-                log::error("You must provide an attachment type for attachments other than swapchain");
-            if (not attachment_type_names.count(type_str.at(0)))
-                log::error("You provided an invalid attachment type, check the name list for all the options, index 0");
-            AttachmentType type = attachment_type_names.at(type_str.at(0));
-            for (int i = 1; i < type_str.size(); i++) {
+            std::vector<str> type_str = split(line.at(2), "_");
+            if (type_str.size() == 0) log::error("You must provide an attachment type for attachments other than swapchain");
+            AttachmentType type{};
+            for (int i = 0; i < type_str.size(); i++) {
                 if (not attachment_type_names.count(type_str.at(i)))
                     log::error("You provided an invalid attachment type, check the name list for all the options, index %d", i);
                 type = (AttachmentType)(type | attachment_type_names.at(type_str.at(i)));
             }
-            attachment_list[a.at(1)] = type;
+            attachment_list[name] = type;
             
             //: Resolution
+            str res = line.at(3);
             Vec2<> resolution{};
-            if (a.at(3) == "res") {
-                resolution = Config::resolution.to<int>();
-            }
-            else if (a.at(3) == "win") {
-                resolution = win.size;
-            }
+            if (res == "res") { resolution = Config::resolution.to<int>(); }
+            else if (res == "win") { resolution = win.size; }
             else {
-                std::vector<str> res_str = split(a.at(3), "x");
+                std::vector<str> res_str = split(res, "x");
                 if (not (res_str.size() == 2))
                     log::error("You need to either provide an smart attachment resolution (win, res...) or a numeric value in the form 1920x1080");
                 resolution = Vec2<>(std::stoi(res_str.at(0)), std::stoi(res_str.at(1)));
@@ -230,36 +222,28 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
         
         //---Subpass---
         //:     s name [a1 a2 a3] [ext1 ext2]
-        if (s.at(0) == 's') {
-            std::vector<str> s1 = split(s, "[");
-            if (s1.size() < 2)
-                log::error("You need to provide at least an attachment list for the subpass, for example 's name [a1 a2]'");
-            if (s1.size() > 3)
-                log::error("There are too many arguments for this subpass");
+        if (line.at(0) == "s") {
+            if (line.size() < 3 or line.size() > 4) log::error("You have not provided all the required parameters for a subpass");
             
             //: Name
-            str name = s1.at(0).substr(2); name = name.substr(0, name.find(" "));
-            if (subpass_list.count(name))
-                log::error("Duplicated subpass name %s", name.c_str());
+            str name = line.at(1);
+            if (subpass_list.count(name)) log::error("Duplicated subpass name %s", name.c_str());
             
             //: Attachments
             std::vector<AttachmentID> subpass_attachments{};
-            std::vector<str> s2 = split(s1.at(1).substr(0, s1.at(1).find("]")));
-            for (auto a : s2) {
-                if (a == "swapchain")
-                    a += std::to_string(swapchain_count);
-                if (not attachment_list.count(a))
-                    log::error("You have used an incorrect attachment name, %s", a.c_str());
+            std::vector<str> list = split(list_contents(line.at(2)));
+            for (auto a : list) {
+                if (a == "swapchain") a += std::to_string(swapchain_count);
+                if (not attachment_list.count(a)) log::error("You have used an incorrect attachment name, %s", a.c_str());
                 subpass_attachments.push_back(attachment_list.at(a));
             }
             
             //: External attachments
             std::vector<AttachmentID> external_attachments{};
-            if (s1.size() == 3) {
-                std::vector<str> s3 = split(s1.at(2).substr(0, s1.at(2).find("]")));
-                for (auto &a : s3) {
-                    if (not attachment_list.count(a))
-                        log::error("You have used an incorrect external attachment name, %s", a.c_str());
+            if (line.size() == 4) {
+                std::vector<str> ext_list = split(list_contents(line.at(3)));
+                for (auto &a : ext_list) {
+                    if (not attachment_list.count(a)) log::error("You have used an incorrect external attachment name, %s", a.c_str());
                     external_attachments.push_back(attachment_list.at(a));
                 }
             }
@@ -271,17 +255,14 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
         //---Render pass--- (only vulkan needs it)
         //:     r [s1 s2 s3]
         #if defined USE_VULKAN
-        if (s.at(0) == 'r') {
-            std::vector<str> r1 = split(s, "[");
-            if (r1.size() != 2)
-                log::error("The description of the renderpass is invalid, it has to be 'r [s1 s2]'");
+        if (line.at(0) == "r") {
+            if (line.size() != 2) log::error("The description of the renderpass is invalid, it has to be 'r [s1 s2]'");
             
             //: Subpasses
             std::vector<SubpassID> renderpass_subpasses{};
-            std::vector<str> r2 = split(r1.at(1).substr(0, r1.at(1).find("]")));
-            for (auto &sp : r2) {
-                if (not subpass_list.count(sp))
-                    log::error("You have used an incorrect subpass name, %s", sp.c_str());
+            std::vector<str> list = split(list_contents(line.at(1)));
+            for (auto &sp : list) {
+                if (not subpass_list.count(sp)) log::error("You have used an incorrect subpass name, %s", sp.c_str());
                 renderpass_subpasses.push_back(subpass_list.at(sp));
             }
             
@@ -292,33 +273,28 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
         
         //---Shaders---
         //:     d/p shader subpass vertices      d - draw shader, p - post shader
-        if (s.at(0) == 'd' or s.at(0) == 'p') {
-            std::vector<str> p = split(s, " ", true); //: p shader subpass vertexdata
-            if (p.size() != 4)
-                log::error("The description of the shader is invalid, it has to be 'd/p shader subpass vertexdata'");
+        if (line.at(0) == "d" or line.at(0) == "p") {
+            if (line.size() != 4) log::error("The description of the shader is invalid, it has to be 'd/p shader subpass vertexdata'");
             
             //: Shader
-            ShaderID shader = p.at(1);
-            API::shaders.at(shader).is_draw = s.at(0) == 'd';
+            ShaderID shader = line.at(1);
+            API::shaders.at(shader).is_draw = line.at(0) == "d";
             
             //: Subpass
-            if (not subpass_list.count(p.at(2)))
-                log::error("You have used an incorrect subpass name, %s", p.at(2).c_str());
-            SubpassID subpass = subpass_list.at(p.at(2));
+            str subpass_name = line.at(2);
+            if (not subpass_list.count(subpass_name)) log::error("You have used an incorrect subpass name, %s", subpass_name.c_str());
+            SubpassID subpass = subpass_list.at(subpass_name);
             
-            //: Register pipeline
+            //: Register shader
             #if defined USE_VULKAN
-                for_<VertexType>([&api, &shader, &subpass, &p](auto i){
+                for_<VertexType>([&api, &shader, &subpass, &line](auto i){
                     using V = std::variant_alternative_t<i.value, VertexType>;
                     
-                    str name = V::type_name;
-                    if (name.rfind("Vertex", 0) != 0)
-                        log::error("All vertex types need to start with 'Vertex', this is %s", name.c_str());
-                    name = name.substr(6);
-                    lower(name);
-                    lower(p.at(3));
+                    str vertex_name = V::type_name;
+                    if (vertex_name.rfind("Vertex", 0) != 0) log::error("All vertex types need to start with 'Vertex', this is %s", vertex_name.c_str());
+                    vertex_name = lower(vertex_name.substr(6));
                     
-                    if (p.at(3) == name)
+                    if (vertex_name == lower(line.at(3)))
                         api.pipelines[shader] = VK::createPipeline<V>(api, shader, subpass);
                 });
             #elif defined USE_OPENGL
