@@ -17,7 +17,9 @@ namespace Fresa
     }
     
     //: Split
-    inline std::vector<str> split(str s, str del = " ", bool recursive = false) {
+    //      - Recursive (deleting all consecutive delimiters, "a b" is the same as "a   b")
+    //      - With lists (conserving [ ... ] in a single entry)
+    inline std::vector<str> split(str s, str del = " ", bool recursive = false, bool lists = false) {
         std::vector<str> ss{};
         int a = 0;
         int b = (int)s.find(del);
@@ -28,7 +30,14 @@ namespace Fresa
                 while (s.size() > a and s.substr(a, del.size()) == del)
                     a++;
             }
-            b = (int)s.find(del, a);
+            if (lists and s.find("[", a) == a) {
+                b = (int)s.find("]", a) + 1;
+                int c = (int)s.find("[", a+1) + 1; c = c == 0 ? (int)s.size() : c;
+                if (b == 0 or b > c) throw std::runtime_error("[ERROR] The list is not closed, check the brackets");
+                if (b == s.size()) b = -1;
+            } else {
+                b = (int)s.find(del, a);
+            }
         }
         ss.push_back(s.substr(a, b - a));
         return ss;

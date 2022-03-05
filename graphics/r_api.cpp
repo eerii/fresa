@@ -177,8 +177,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
     std::ifstream f(API::renderer_description_path);
     std::string s;
     while (std::getline(f, s)) {
-        if (s.size() == 0)
-            continue;
+        if (s.size() == 0) continue;
         
         //---Attachment---
         //:     a name attachment_type resolution
