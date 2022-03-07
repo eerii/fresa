@@ -77,7 +77,7 @@ EntityID Serialization::loadEntity(str file, SceneID scene_id) {
                 for_<Component::ComponentType>([&](auto i){
                     using C = std::variant_alternative_t<i.value, Component::ComponentType>;
                     
-                    if (lower(C::type_name) == lower(current_component)) {
+                    if (lower(str(type_name<C>())) == lower(current_component)) {
                         C* component = scene.getComponent<C>(id);
                         Reflection::forEach(*component, [&](auto &&x, ui8 level, const char* name){
                             if (name == item_name) assignFromString(x, item_value);
@@ -93,7 +93,7 @@ EntityID Serialization::loadEntity(str file, SceneID scene_id) {
             for_<Component::ComponentType>([current_component, id, &scene, &state](auto i){
                 using C = std::variant_alternative_t<i.value, Component::ComponentType>;
                 
-                if (lower(C::type_name) == lower(current_component)) {
+                if (lower(str(type_name<C>())) == lower(current_component)) {
                     scene.addComponent<C>(id);
                     state = LOAD_COMPONENT_BODY;
                 }

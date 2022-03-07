@@ -11,6 +11,7 @@ TODO: System init function
 **added**
 - entity serialization, loading from file
 - log can handle std::vectors
+- new experimental reflection
 
 ---
 

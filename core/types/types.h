@@ -35,23 +35,32 @@ template<typename A> struct is_rect2<Fresa::Rect2<A>> { static constexpr bool va
 
 //: Compile time type name in readable format (https://stackoverflow.com/a/56766138/17575567)
 template <typename T>
-constexpr auto type_name() {
+constexpr auto type_name_n() { //: Include namespaces
     std::string_view name, prefix, suffix;
     #ifdef __clang__
     name = __PRETTY_FUNCTION__;
-    prefix = "auto type_name() [T = ";
+    prefix = "auto type_name_n() [T = ";
     suffix = "]";
     #elif defined(__GNUC__)
     name = __PRETTY_FUNCTION__;
-    prefix = "constexpr auto type_name() [with T = ";
+    prefix = "constexpr auto type_name_n() [with T = ";
     suffix = "]";
     #elif defined(_MSC_VER)
     name = __FUNCSIG__;
-    prefix = "auto __cdecl type_name<";
+    prefix = "auto __cdecl type_name_n<";
     suffix = ">(void)";
     #endif
     name.remove_prefix(prefix.size());
     name.remove_suffix(suffix.size());
+    return name;
+}
+
+template <typename T>
+constexpr auto type_name() { //: Remove namespaces
+    std::string_view name = type_name_n<T>();
+    auto pos = name.find_last_of(':');
+    if (pos != std::string_view::npos)
+        name.remove_prefix(pos+1);
     return name;
 }
 

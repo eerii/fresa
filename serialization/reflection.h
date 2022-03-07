@@ -265,6 +265,54 @@ namespace Fresa
             return "";
         }
     }
+    
+    namespace Reflection::Experimental
+    {
+        //: Type loophole https://github.com/alexpolt/luple/blob/master/type-loophole.h
+        
+        template<typename T, int N>
+        struct tag {
+            friend auto t(tag<T,N>);
+            constexpr friend int ct(tag<T,N>);
+        };
+        
+        template<typename T, typename U, int N, bool B>
+        struct friend_definition {
+            friend auto t(tag<T,N>) { return U{}; }
+            constexpr friend int ct(tag<T,N>) { return 0; }
+        };
+        
+        template<typename T, typename U, int N>
+        struct friend_definition<T, U, N, true> {};
+        
+        template<typename T, int N>
+        struct c_op {
+            template<typename U, int M> static auto ins(...) -> int;
+            template<typename U, int M, int = ct(tag<T,M>{}) > static auto ins(int) -> char;
+
+            template<typename U, int = sizeof(friend_definition<T, U, N, sizeof(ins<U, N>(0)) == sizeof(char)>)>
+            operator U();
+        };
+        
+        template<typename T, int... NN>
+        constexpr int fields_number(...) { return sizeof...(NN)-1; }
+
+        template<typename T, int... NN>
+        constexpr auto fields_number(int) -> decltype(T{ c_op<T,NN>{}... }, 0) {
+            return fields_number<T, NN..., sizeof...(NN)>(0);
+        }
+        
+        template<typename T, typename U>
+        struct type_list;
+
+        template<typename T, int... NN>
+        struct type_list< T, std::integer_sequence<int, NN...> > {
+            using type = std::variant< decltype(t(tag<T, NN>{}))... >;
+        };
+        
+        template<typename T>
+        using as_type_list = typename type_list<T, std::make_integer_sequence<int, fields_number<T>(0)>>::type;
+    }
 }
 
 #endif

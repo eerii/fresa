@@ -290,7 +290,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                 for_<VertexType>([&api, &shader, &subpass, &line](auto i){
                     using V = std::variant_alternative_t<i.value, VertexType>;
                     
-                    str vertex_name = V::type_name;
+                    str vertex_name = str(type_name<V>());
                     if (vertex_name.rfind("Vertex", 0) != 0) log::error("All vertex types need to start with 'Vertex', this is %s", vertex_name.c_str());
                     vertex_name = lower(vertex_name.substr(6));
                     
