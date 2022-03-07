@@ -25,7 +25,7 @@ A tiny game engine made in C++20.
 **Reflection**
 - C++ compile time type reflection implementation
 - Loop through each member of a struct and apply callables
-- _Automatic serialization (save/load) WIP_
+- Automatic serialization (save/load)
 
 **Other**
 - Custom compile time state machine implementation
