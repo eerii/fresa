@@ -17,7 +17,7 @@
 #include <tuple>
 #include <ostream>
 #include <string_view>
-#include <variant>
+#include "variant_helper.h"
 
 //---Reflection---
 //      This macro is the closest thing to type reflection that we currently have in C++. It can be used like:
@@ -42,8 +42,6 @@ static constexpr std::array<char, ::Fresa::Reflection::str_size(#__VA_ARGS__)> m
         if(*_c != ',' && *_c != ' ') \
             chars[_idx] = *_c; \
     return chars;}(); \
-\
-static constexpr const char* type_name = #Type; \
 \
 static constexpr std::array<const char*, ::Fresa::Reflection::n_args(#__VA_ARGS__)> member_names = [](){ \
     std::array<const char*, ::Fresa::Reflection::n_args(#__VA_ARGS__)> out{ }; \
@@ -268,50 +266,83 @@ namespace Fresa
     
     namespace Reflection::Experimental
     {
-        //: Type loophole https://github.com/alexpolt/luple/blob/master/type-loophole.h
+        //: String literals as template parameters
+        template<size_t N>
+        struct StrL {
+            constexpr StrL(const char (&str)[N]) { std::copy_n(str, N, value); }
+            char value[N];
+        };
         
+        //: Member names
+        template<StrL... M>
+        struct Members {
+            static constexpr std::array<const char*, sizeof...(M)> member_names { M.value... };
+        };
+        template<class T> using t_members_ = decltype(std::declval<T>().member_names);
+        template<class T> constexpr bool has_members = is_detected<t_members_, T>;
+        
+        //: Exclude certain functions from the type reflection
+        //:     - Member names struct dependency
+        template<class M> struct is_excluded {
+            static constexpr bool value = type_name_n<M>().find("Reflection::Experimental::Members"sv) != std::string_view::npos;
+        };
+        
+        //: New reflection without macros
+        //      https://github.com/apolukhin/magic_get
+        //      https://github.com/alexpolt/luple/blob/master/type-loophole.h
+        
+        //: Generate friend declarations, t returns the type with auto and ct helps avoiding multiple definitions
         template<typename T, int N>
         struct tag {
             friend auto t(tag<T,N>);
             constexpr friend int ct(tag<T,N>);
         };
         
+        //: Define friend functions, t now returns the type U, while ct returns 0 to avoid the multiple instantiations
         template<typename T, typename U, int N, bool B>
-        struct friend_definition {
-            friend auto t(tag<T,N>) { return U{}; }
+        struct tag_def {
+            friend auto t(tag<T,N>) {
+                return U{};
+            }
             constexpr friend int ct(tag<T,N>) { return 0; }
         };
-        
         template<typename T, typename U, int N>
-        struct friend_definition<T, U, N, true> {};
+        struct tag_def<T, U, N, true> {};
         
+        //: Conversion operator, triggers the instantiation
+        //: U is a parameter used to avoid cached template arguments, which does the detection using the friend functions and SFINAE
+        //: Using sizeof with int and char seems to be a more reliable way of type checking for SFINAE
         template<typename T, int N>
-        struct c_op {
-            template<typename U, int M> static auto ins(...) -> int;
-            template<typename U, int M, int = ct(tag<T,M>{}) > static auto ins(int) -> char;
-
-            template<typename U, int = sizeof(friend_definition<T, U, N, sizeof(ins<U, N>(0)) == sizeof(char)>)>
+        struct conversion {
+            template<typename U, int M>
+            static auto instantiate(...) -> int;
+            
+            template<typename U, int M, int = ct(tag<T,M>{})>
+            static auto instantiate(int) -> char;
+            
+            template<typename U, int = sizeof(tag_def<T, U, N, sizeof(instantiate<U, N>(0)) == sizeof(char)>)>
             operator U();
         };
         
+        //: Detects the data type field number, only works with aggregate types (no constructor, no virtual types, no private members)
+        template<typename T, int... NN, std::enable_if_t<std::is_aggregate_v<T>, bool> = true>
+        constexpr int detect(...) {
+            return sizeof...(NN)-1;
+        }
         template<typename T, int... NN>
-        constexpr int fields_number(...) { return sizeof...(NN)-1; }
-
-        template<typename T, int... NN>
-        constexpr auto fields_number(int) -> decltype(T{ c_op<T,NN>{}... }, 0) {
-            return fields_number<T, NN..., sizeof...(NN)>(0);
+        constexpr auto detect(int) -> decltype(T{ conversion<T,NN>{}... }, 0) {
+            return detect<T, NN..., sizeof...(NN)>(0);
         }
         
+        //: Get a variant type list from the type
         template<typename T, typename U>
         struct type_list;
-
         template<typename T, int... NN>
         struct type_list< T, std::integer_sequence<int, NN...> > {
-            using type = std::variant< decltype(t(tag<T, NN>{}))... >;
+            using type = typename filter_<is_excluded, decltype(t(tag<T, NN>{}))...>::value;
         };
-        
         template<typename T>
-        using as_type_list = typename type_list<T, std::make_integer_sequence<int, fields_number<T>(0)>>::type;
+        using as_type_list = typename type_list<T, std::make_integer_sequence<int, detect<T>(0)>>::type;
     }
 }
 

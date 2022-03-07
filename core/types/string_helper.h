@@ -12,6 +12,9 @@
 //: String
 using str = std::string;
 
+//: String view literals
+using std::literals::string_view_literals::operator""sv;
+
 namespace Fresa
 {
     //: To lowercase

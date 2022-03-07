@@ -5,6 +5,7 @@
 #pragma once
 
 #include <variant>
+#include <tuple>
 
 namespace Fresa
 {
@@ -51,5 +52,26 @@ namespace Fresa
     template <typename... Args0, typename... Args1>
     struct concatenate_<std::variant<Args0...>, std::variant<Args1...>> {
         using type = std::variant<Args0..., Args1...>;
+    };
+    
+    //---Variant from tuple---
+    template <typename... Ts>
+    std::variant<Ts...> variant_from_tuple (std::tuple<Ts...>);
+    
+    //---Filter variant---
+    template <template <typename> class C, typename T>
+    std::enable_if_t<true == C<T>::value, std::tuple<>> filter_t ();
+
+    template <template <typename> class C, typename T>
+    std::enable_if_t<false == C<T>::value, std::tuple<T>> filter_t ();
+    
+    template <template <typename> class C, typename... Args>
+    struct filtered_t {
+        using value = decltype(std::tuple_cat(filter_t<C, Args>()...));
+    };
+    
+    template <template <typename> class C, typename... Args>
+    struct filter_ {
+        using value = decltype(variant_from_tuple(std::declval<typename filtered_t<C, Args...>::value>()));
     };
 }
