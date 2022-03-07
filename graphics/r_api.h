@@ -112,25 +112,28 @@ namespace Fresa::Graphics::API
         log::graphics("Creating attribute descriptions...");
         
         ui32 offset = 0;
-        Reflection::forEach(V{}, [&](auto &&x, ui8 level, const char* name){
-            if (level == 1) {
-                int i = (int)attribute_descriptions.size();
-                attribute_descriptions.resize(i + 1);
-                
-                attribute_descriptions[i].binding = 0;
-                attribute_descriptions[i].location = i;
-                
-                int size = sizeof(x);
-                if (size % 4 != 0 or size < 4 or size > 16)
-                    log::error("Vertex data has an invalid size %d", size);
-                attribute_descriptions[i].format = (VertexFormat)(size / 4);
-                
-                attribute_descriptions[i].offset = offset;
-                
-                log::graphics(" - Attribute %s [%d] - Format : %d - Size : %d - Offset %d", name, i, attribute_descriptions[i].format, size, offset);
-                
-                offset += sizeof(x);
-            }
+        for_<Reflection::as_type_list<V>>([&](auto i){
+            using T = std::variant_alternative_t<i.value, Reflection::as_type_list<V>>;
+            str name = "";
+            if constexpr (Reflection::is_reflectable<V>)
+                name = str(V::member_names.at(i.value));
+            
+            int j = (int)attribute_descriptions.size();
+            attribute_descriptions.resize(j + 1);
+            
+            attribute_descriptions[j].binding = 0;
+            attribute_descriptions[j].location = j;
+            
+            int size = sizeof(T);
+            if (size % 4 != 0 or size < 4 or size > 16)
+                log::error("Vertex data has an invalid size %d", size);
+            attribute_descriptions[j].format = (VertexFormat)(size / 4);
+            
+            attribute_descriptions[j].offset = offset;
+            
+            log::graphics(" - Attribute %s [%d] - Format : %d - Size : %d - Offset %d", name.c_str(), j, attribute_descriptions[j].format, size, offset);
+            
+            offset += size;
         });
         
         log::graphics("");

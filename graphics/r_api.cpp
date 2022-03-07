@@ -287,7 +287,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             
             //: Register shader
             #if defined USE_VULKAN
-                for_<VertexType>([&api, &shader, &subpass, &line](auto i){
+                for_<VertexType>([&](auto i){
                     using V = std::variant_alternative_t<i.value, VertexType>;
                     
                     str vertex_name = str(type_name<V>());

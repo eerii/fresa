@@ -84,7 +84,7 @@ namespace Fresa::Component
 {
     template <typename> struct component_tag {};
     
-    template<typename C, std::enable_if_t<Reflection::is_reflectable<C> && Reflection::is_in_variant<C, ComponentType>::value, bool> = true>
+    template<typename C, std::enable_if_t<Reflection::is_in_variant<C, ComponentType>::value, bool> = true>
     ComponentID getID() {
         static ComponentID id_ = getVariantIndex<C, ComponentType>::value;
         if (id_ >= MAX_COMPONENTS)

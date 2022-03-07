@@ -79,9 +79,27 @@ EntityID Serialization::loadEntity(str file, SceneID scene_id) {
                     
                     if (lower(str(type_name<C>())) == lower(current_component)) {
                         C* component = scene.getComponent<C>(id);
-                        Reflection::forEach(*component, [&](auto &&x, ui8 level, const char* name){
-                            if (name == item_name) assignFromString(x, item_value);
-                        });
+                        if constexpr (not Reflection::is_reflectable<C>) {
+                            log::error("You must register each Component and its elements using Component : Members<'a', 'b', ...>, please check %s", str(type_name<C>()).c_str());
+                        } else {
+                            auto it = std::find(C::member_names.begin(), C::member_names.end(), item_name);
+                            if (it == C::member_names.end())
+                                log::error("The key %s is invalid for the component %s", item_name.c_str(), str(type_name<C>()).c_str());
+                            auto idx = std::distance(C::member_names.begin(), it);
+                            
+                            size_t offset = 0;
+                            for_<Reflection::as_type_list<C>>([&](auto j){
+                                using M = std::variant_alternative_t<j.value, Reflection::as_type_list<C>>;
+                                if (j.value == idx) {
+                                    M* x = (M*)(component + offset);
+                                    assignFromString(*x, item_value);
+                                    log::info("%s (%s):", item_name.c_str(), str(type_name_n<M>()).c_str());
+                                    log::info(*x);
+                                } else {
+                                    offset += sizeof(M);
+                                }
+                            });
+                        }
                     }
                 });
             }

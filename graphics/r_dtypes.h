@@ -5,7 +5,7 @@
 //: You can add additional vertex data definitions creating a file called "vertex_list.h" and including it in your project
 //: An example of such definition is as follows
 //      struct VertexExample {
-//          Serialize(VertexExample, a, b);
+//          Members(VertexExample, a, b)
 //          glm::vec3 a;
 //          glm::vec2 b;
 //      };
@@ -303,35 +303,35 @@ namespace Fresa::Graphics
     };
     
     struct VertexPos2 {
-        Serialize(VertexPos2, pos);
+        Members(VertexPos2, pos);
         glm::vec2 pos;
     };
     
     struct VertexPos2Color {
-        Serialize(VertexPos2Color, pos, color);
+        Members(VertexPos2Color, pos, color);
         glm::vec2 pos;
         glm::vec3 color;
     };
     
     struct VertexPos2UV {
-        Serialize(VertexPos2UV, pos, uv);
+        Members(VertexPos2UV, pos, uv);
         glm::vec2 pos;
         glm::vec2 uv;
     };
     
     struct VertexPos3 {
-        Serialize(VertexPos3, pos);
+        Members(VertexPos3, pos);
         glm::vec3 pos;
     };
     
     struct VertexPos3Color {
-        Serialize(VertexPos3Color, pos, color);
+        Members(VertexPos3Color, pos, color);
         glm::vec3 pos;
         glm::vec3 color;
     };
     
     struct VertexPos3UV {
-        Serialize(VertexPos3UV, pos, uv);
+        Members(VertexPos3UV, pos, uv);
         glm::vec3 pos;
         glm::vec2 uv;
     };
