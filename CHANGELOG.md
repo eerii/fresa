@@ -4,9 +4,17 @@
 
 ---
 
-#### 0.3.7 - NAME - _25 02 2022_
+#### 0.3.8 - say my name, say my name - _00 00 2022_
 
 TODO: System init function
+
+**added**
+- entity serialization, loading from file
+- log can handle std::vectors
+
+---
+
+#### 0.3.7 - housekeeping - _07 03 2022_
 
 **added**
 - include custom vertex types creating a vertex_list.h file

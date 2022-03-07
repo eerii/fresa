@@ -74,16 +74,14 @@ EntityID Serialization::loadEntity(str file, SceneID scene_id) {
                 str item_name = item.at(0).substr(indentation * 2);
                 str item_value = item.at(1).substr(1);
                 
-                for_<Component::ComponentType>([current_component, id, item_name, item_value, &scene](auto i){
+                for_<Component::ComponentType>([&](auto i){
                     using C = std::variant_alternative_t<i.value, Component::ComponentType>;
                     
                     if (lower(C::type_name) == lower(current_component)) {
-                        auto component = scene.getComponent<C>(id);
-                        
-                        for (auto name : C::member_names) {
-                            if (name == item_name)
-                                log::info("name: %s", item_name.c_str());
-                        }
+                        C* component = scene.getComponent<C>(id);
+                        Reflection::forEach(*component, [&](auto &&x, ui8 level, const char* name){
+                            if (name == item_name) assignFromString(x, item_value);
+                        });
                     }
                 });
             }

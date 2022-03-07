@@ -56,9 +56,6 @@ namespace Fresa
         map_chain(MapAX &m_a, MapXB &m_b) : ax(m_a), xb(m_b) {};
     };
     
-    template<typename T> struct is_vector { static constexpr bool value=false; };
-    template<typename A> struct is_vector<std::vector<A>> { static constexpr bool value=true; };
-    
     template<typename T> struct is_mapAB { static constexpr bool value=false; };
     template<typename A, typename B> struct is_mapAB<map_AB_BA<A,B>> { static constexpr bool value=true; };
     template<typename A, typename B> struct is_mapAB<map_AvB_BA<A,B>> { static constexpr bool value=true; };

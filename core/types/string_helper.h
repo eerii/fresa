@@ -4,18 +4,33 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
 #include <algorithm>
+#include <ostream>
+
+//: String
+using str = std::string;
 
 namespace Fresa
 {
-    //: String
-    using str = std::string;
-    
     //: To lowercase
     inline str lower(str s) {
         for (auto &c : s)
             c = std::tolower(c);
         return s;
+    }
+    
+    //: Trim
+    static inline void trim_left(str &s) {
+        s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {return !std::isspace(ch);}));
+    }
+    static inline void trim_right(str &s) {
+        s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {return !std::isspace(ch);}).base(), s.end());
+    }
+    static inline void trim(str &s) {
+        trim_left(s);
+        trim_right(s);
     }
     
     //: Split

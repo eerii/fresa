@@ -222,6 +222,8 @@ namespace Fresa
                 }, val);
             } else if constexpr (is_pointer_like<V>) {
                 os << (val ? (os << (printYAML<L>(os, *val)), "") : "null");
+            } else if constexpr (is_vec2<V>::value or is_rect2<V>::value) {
+                throw std::runtime_error("not implemented");
             } else {
                 os << val;
             }
@@ -254,6 +256,8 @@ namespace Fresa
                 }, val);
             } else if constexpr (is_pointer_like<V>) {
                 os << (val ? (os << (::Fresa::Reflection::printJSON(os, *val)), "") : "null");
+            } else if constexpr (is_vec2<V>::value or is_rect2<V>::value) {
+                throw std::runtime_error("not implemented");
             } else {
                 os << val;
             }
