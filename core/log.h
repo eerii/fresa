@@ -61,13 +61,6 @@ namespace Fresa
         #endif
         }
         
-        template<typename T, std::enable_if_t<Reflection::is_reflectable<T>, bool> = true>
-        void info(T &t) { //: Reflectable object print
-        #if LOG_LEVEL>=3
-            std::cout << "[ INFO ] " << t << std::endl;
-        #endif
-        }
-        
         template<typename T, std::enable_if_t<is_vec2<T>::value, bool> = true>
         void info(T v) { //: Vec2 print
         #if LOG_LEVEL>=3

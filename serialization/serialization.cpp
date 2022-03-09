@@ -71,47 +71,27 @@ EntityID Serialization::loadEntity(str file, SceneID scene_id) {
             } else {
                 std::vector<str> item = split(s, ":");
                 if (item.size() != 2) log::error("Incorrect formatting on %s", s.c_str());
-                str item_name = item.at(0).substr(indentation * 2);
+                str item_name = lower(item.at(0).substr(indentation * 2));
                 str item_value = item.at(1).substr(1);
                 
                 for_<Component::ComponentType>([&](auto i){
                     using C = std::variant_alternative_t<i.value, Component::ComponentType>;
                     
-                    if (lower(str(type_name<C>())) == lower(current_component)) {
+                    if (lower(str(type_name<C>())) == current_component) {
                         C* component = scene.getComponent<C>(id);
-                        if constexpr (not Reflection::is_reflectable<C>) {
-                            log::error("You must register each Component and its elements using Component : Members<'a', 'b', ...>, please check %s", str(type_name<C>()).c_str());
-                        } else {
-                            auto it = std::find(C::member_names.begin(), C::member_names.end(), item_name);
-                            if (it == C::member_names.end())
-                                log::error("The key %s is invalid for the component %s", item_name.c_str(), str(type_name<C>()).c_str());
-                            auto idx = std::distance(C::member_names.begin(), it);
-                            
-                            size_t offset = 0;
-                            for_<Reflection::as_type_list<C>>([&](auto j){
-                                using M = std::variant_alternative_t<j.value, Reflection::as_type_list<C>>;
-                                if (j.value == idx) {
-                                    M* x = (M*)(component + offset);
-                                    assignFromString(*x, item_value);
-                                    log::info("%s (%s):", item_name.c_str(), str(type_name_n<M>()).c_str());
-                                    log::info(*x);
-                                } else {
-                                    offset += sizeof(M);
-                                }
-                            });
-                        }
+                        Reflection::apply(component, item_name, [item_value](auto *c){ assignFromString(*c, item_value); } );
                     }
                 });
             }
         }
         
         if (state == LOAD_COMPONENT_NAME) {
-            current_component = s.substr(0, s.find(":"));
+            current_component = lower(s.substr(0, s.find(":")));
             
-            for_<Component::ComponentType>([current_component, id, &scene, &state](auto i){
+            for_<Component::ComponentType>([&](auto i){
                 using C = std::variant_alternative_t<i.value, Component::ComponentType>;
                 
-                if (lower(str(type_name<C>())) == lower(current_component)) {
+                if (lower(str(type_name<C>())) == current_component) {
                     scene.addComponent<C>(id);
                     state = LOAD_COMPONENT_BODY;
                 }

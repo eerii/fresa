@@ -2,7 +2,7 @@
 //by jose pazos perez
 //licensed under GPLv3 uwu
 
-//the event system is based on https://github.com/TheLartians/Observe
+//the event system was inspired by https://github.com/TheLartians/Observe
 
 #pragma once
 

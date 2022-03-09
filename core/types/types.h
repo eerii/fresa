@@ -56,11 +56,13 @@ constexpr auto type_name_n() { //: Include namespaces
 }
 
 template <typename T>
-constexpr auto type_name() { //: Remove namespaces
+constexpr auto type_name() { //: Remove fresa namespaces, keep std::, glm::, ...
     std::string_view name = type_name_n<T>();
-    auto pos = name.find_last_of(':');
-    if (pos != std::string_view::npos)
-        name.remove_prefix(pos+1);
+    if (name.find("Fresa::") != std::string_view::npos) {
+        auto pos = name.find_last_of(':');
+        if (pos != std::string_view::npos)
+            name.remove_prefix(pos+1);
+    }
     return name;
 }
 

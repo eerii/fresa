@@ -4,7 +4,10 @@
 
 #pragma once
 
-//---Static string generation for compile time state machine tables---
+#include <array>
+#include <string>
+
+//---Static string generation for compile time state machine tables and serialization---
 
 namespace Fresa
 {
@@ -60,7 +63,7 @@ namespace Fresa
     }
 
     //: Static string
-    template <std::size_t N>
+    template <size_t N>
     struct Str {
         constexpr Str(const char (&p_ch)[N]): ch(toArray(p_ch)) {};
         constexpr Str(std::array<const char, N> p_ch): ch(std::move(p_ch)) {};
@@ -90,81 +93,11 @@ namespace Fresa
             return ch.data();
         }
         
+        constexpr std::string_view sv() const {
+            return std::string_view(ch.data());
+        }
+        
         template <std::size_t M>
         friend struct Str;
     };
-}
-
-namespace Testing {
-
-    namespace {
-    
-    [[maybe_unused]] constexpr void testToStdArray()
-    {
-        constexpr int input[] = {1, 2, 3};
-        constexpr auto output = Fresa::toArray(input);
-        constexpr std::array<const int, 3> expected = {1, 2, 3};
-        static_assert(Fresa::areArraysEqual(expected, output));
-    }
-
-    [[maybe_unused]] constexpr void testJoin()
-    {
-        constexpr std::array inputA = {1, 2, 3};
-        constexpr std::array inputB = {4, 5};
-        constexpr std::array expected = {1, 2, 3, 4, 5};
-        static_assert(Fresa::areArraysEqual(expected, Fresa::joinArrays(inputA, inputB)));
-    }
-
-    [[maybe_unused]] constexpr void testResize()
-    {
-        constexpr std::array input = {1, 2, 3};
-        constexpr std::array expectedShorter = {1, 2};
-        constexpr std::array expectedLonger = {1, 2, 3, 0};
-        static_assert(Fresa::areArraysEqual(expectedShorter, Fresa::resizeArray<2>(input)));
-        static_assert(Fresa::areArraysEqual(expectedLonger, Fresa::resizeArray<4>(input)));
-    }
-    
-    [[maybe_unused]] constexpr void testAdding()
-    {
-        constexpr Fresa::Str ls{"abc"};
-        constexpr Fresa::Str rs{"de"};
-        constexpr Fresa::Str expected{"abcde"};
-        static_assert(expected == ls + rs);
-    }
-    
-    [[maybe_unused]] constexpr void testLength()
-    {
-        constexpr Fresa::Str ls{"abc"};
-        constexpr size_t expected{3};
-        static_assert(ls.length() == expected);
-    }
-
-    [[maybe_unused]] constexpr void test0Length()
-    {
-        constexpr Fresa::Str ls{""};
-        constexpr size_t expected{0};
-        static_assert(ls.length() == expected);
-    }
-
-    [[maybe_unused]] constexpr void testChangeLength()
-    {
-        constexpr Fresa::Str shorter{"abc"};
-        constexpr Fresa::Str longer{"abcdef"};
-        constexpr Fresa::Str empty{""};
-
-        constexpr size_t l{5};
-        constexpr Fresa::Str expectedShorter{"abcxx"};
-        constexpr Fresa::Str expectedLonger {"abcde"};
-        constexpr Fresa::Str expectedEmpty  {"zzzzz"};
-
-        constexpr auto res = shorter.changeLength<l>('x');
-
-        static_assert(res.c_str()[3] == expectedShorter.c_str()[3]);
-
-        static_assert(shorter.changeLength<l>('x') == expectedShorter);
-        static_assert(longer.changeLength<l>('y') == expectedLonger);
-        static_assert(empty.changeLength<l>('z') == expectedEmpty);
-    }
-    
-    }
 }
