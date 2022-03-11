@@ -73,7 +73,7 @@ void Gui::win_entities() {
                                     
                                     //: Member value
                                     ImGui::TableSetColumnIndex(1);
-                                    ImGui::Text("%d", x);
+                                    Gui::value(*x);
                                     
                                     ImGui::PopID();
                                 });

@@ -70,7 +70,7 @@ namespace Fresa
         inline str get_name_id(str name) {return name + "##" + std::to_string(widget_id++);}
         
         template<typename T, std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
-        void slider(str name, T& value, float step, T min, T max, str fmt = "", bool log = false) {
+        bool slider(str name, T& value, float step, T min, T max, str fmt = "", bool log = false) {
             ImGuiDataType type = ImGuiDataType_COUNT;
             if (std::is_same_v<T, ui8>) type = ImGuiDataType_U8;
             if (std::is_same_v<T, ui16>) type = ImGuiDataType_U16;
@@ -83,20 +83,18 @@ namespace Fresa
             if (type == ImGuiDataType_COUNT)
                 log::error("Slider type not allowed");
             
-            if (fmt == "") {
-                ImGui::DragScalar(get_name_id(name).c_str(), type, &value, step, &min, &max);
-            } else {
-                if (log == false)
-                    ImGui::DragScalar(get_name_id(name).c_str(), type, &value, step, &min, &max, fmt.c_str());
-                else
-                    ImGui::DragScalar(get_name_id(name).c_str(), type, &value, step, &min, &max, fmt.c_str(), ImGuiSliderFlags_Logarithmic);
-            }
+            if (fmt == "")
+                return ImGui::DragScalar(get_name_id(name).c_str(), type, &value, step, &min, &max);
+            
+            if (log == false)
+                return ImGui::DragScalar(get_name_id(name).c_str(), type, &value, step, &min, &max, fmt.c_str());
+            
+            return ImGui::DragScalar(get_name_id(name).c_str(), type, &value, step, &min, &max, fmt.c_str(), ImGuiSliderFlags_Logarithmic);
         }
         
         template<typename T>
-        void slider(str name, T& value) {
+        bool slider(str name, T& value) {
             Vec2<T> clamp{};
-            
             if (std::is_same_v<T, ui8>) clamp = Vec2<T>(0, 255);
             if (std::is_same_v<T, ui16>) clamp = Vec2<T>(0, 1000);
             if (std::is_same_v<T, ui32>) clamp = Vec2<T>(0, 1000);
@@ -106,7 +104,97 @@ namespace Fresa
             if (std::is_same_v<T, float>) clamp = Vec2<T>(-1000.0f, 1000.0f);
             if (std::is_same_v<T, double>) clamp = Vec2<T>(-1000.0, 1000.0);
             
-            slider(name, value, 1.0f, clamp.x, clamp.y);
+            float step = 0.1f;
+            if (std::is_integral_v<T>)
+                step = 1.0f;
+            
+            return slider(name, value, step, clamp.x, clamp.y);
+        }
+        
+        template<typename T>
+        void value(T &x, std::function<void()> callback = [](){return;}) {
+            //: Strings
+            if constexpr (std::is_same_v<T, str>)
+                ImGui::Text("%s", x.c_str());
+            
+            //: Bool
+            if constexpr (std::is_same_v<T, bool>)
+                if (ImGui::Checkbox(get_name_id("").c_str(), &x)) callback();
+            
+            //: Number
+            if constexpr (std::is_arithmetic_v<T> and not std::is_same_v<T, bool>)
+                if (slider("", x)) callback();
+            
+            //: Vec2
+            if constexpr (is_vec2<T>::value) {
+                float line_height = style->FramePadding.y * 2.0f + ImGui::CalcTextSize("X").y;
+                ImVec2 button_size = { line_height + 3.0f, line_height };
+                
+                //: X
+                if (ImGui::Button("X", button_size)) x.x = decltype(x.x){};
+
+                //: X value
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth((ImGui::GetColumnWidth() - button_size.x) * 0.5f - (2.0f * style->FramePadding.x));
+                if (slider("", x.x)) callback();
+                
+                //: Y
+                ImGui::SameLine();
+                if (ImGui::Button("Y", button_size)) x.y = decltype(x.y){};
+
+                //: Y value
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
+                if (slider("", x.y)) callback();
+            }
+            
+            //: Rect2
+            if constexpr (is_rect2<T>::value) {
+                float line_height = style->FramePadding.y * 2.0f + ImGui::CalcTextSize("X").y;
+                ImVec2 button_size = { line_height + 3.0f, line_height };
+                
+                //: X
+                if (ImGui::Button("X", button_size)) x.x = decltype(x.x){};
+
+                //: X value
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth((ImGui::GetColumnWidth() - button_size.x) * 0.5f - (2.0f * style->FramePadding.x));
+                if (slider("", x.x)) callback();
+                
+                //: Y
+                ImGui::SameLine();
+                if (ImGui::Button("Y", button_size)) x.y = decltype(x.y){};
+
+                //: Y value
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
+                if (slider("", x.y)) callback();
+                
+                //- Line break
+                
+                //: W
+                if (ImGui::Button("W", button_size)) x.w = decltype(x.w){};
+
+                //: W value
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth((ImGui::GetColumnWidth() - button_size.x) * 0.5f - (2.0f * style->FramePadding.x));
+                if (slider("", x.w)) callback();
+                
+                //: H
+                ImGui::SameLine();
+                if (ImGui::Button("H", button_size)) x.h = decltype(x.h){};
+
+                //: H value
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(ImGui::GetColumnWidth());
+                if (slider("", x.h)) callback();
+            }
+            
+            //: std::vector
+            if constexpr (is_vector<T>::value) {
+                for (auto &v : x)
+                    value(v);
+            }
         }
     }
 }
