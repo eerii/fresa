@@ -119,6 +119,7 @@ namespace Fresa::System
         map.insert({ priority, update });
     }
     
+    inline std::multimap<UpdatePriorities, std::function<void()>> init_systems{};
     inline std::multimap<UpdatePriorities, std::function<void()>> physics_update_systems{};
     inline std::multimap<UpdatePriorities, std::function<void()>> render_update_systems{};
     
@@ -126,6 +127,7 @@ namespace Fresa::System
     //      struct SomeSystem : PhysicsUpdate<SomeSystem, PRIORITY_MOVEMENT> {
     //          static void update();
     //      }
+    UPDATE_LIST(SystemInit, init_systems, init)
     UPDATE_LIST(PhysicsUpdate, physics_update_systems, update)
     UPDATE_LIST(RenderUpdate, render_update_systems, render)
 }

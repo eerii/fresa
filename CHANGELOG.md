@@ -4,9 +4,14 @@
 
 ---
 
-#### 0.3.8 - say my name, say my name - _00 00 2022_
+#### 0.3.9 - NAME - _00 00 2022_
 
-TODO: System init function
+**added**
+- .
+
+---
+
+#### 0.3.8 - say my name, say my name - _11 03 2022_
 
 **added**
 - entity serialization, loading from file
@@ -15,6 +20,7 @@ TODO: System init function
 - reflection can apply functions to members by name
 - serialization now uses the reflection api
 - scene serialization with support for entity templates
+- system init function
 
 ---
 

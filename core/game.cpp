@@ -48,6 +48,10 @@ bool Game::init() {
     //: Input
     Input::init();
     
+    //: System init
+    for (auto &[priority, system] : System::init_systems)
+        system();
+    
     return true;
 }
 
