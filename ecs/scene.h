@@ -8,8 +8,6 @@
 #include "cpool.h"
 #include <map>
 
-
-
 namespace Fresa
 {
     //---Scene---
@@ -28,7 +26,6 @@ namespace Fresa
         std::vector<ComponentPool*> component_pools;
         
         //: Scene properties
-        Vec2<> size;
         str name;
         
         //: Methods
@@ -151,5 +148,5 @@ namespace Fresa
     inline std::map<SceneID, Scene> scene_list;
     inline SceneID active_scene = 0;
     
-    SceneID registerScene();
+    SceneID registerScene(str name);
 }

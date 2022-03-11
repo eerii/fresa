@@ -6,6 +6,8 @@
 
 #include "gui.h"
 #include "config.h"
+#include "scene.h"
+#include "r_graphics.h"
 
 using namespace Fresa;
 
@@ -19,15 +21,24 @@ void Gui::win_menu() {
                                        std::to_string(Config::version[2]);
             ImGui::Text("version: %s", version.c_str());
             
-            //: Resolution and scale (todo)
-            //: Scene and select scene (todo)
-            //: Camera and different projections (todo)
+            ImGui::Text("scene: %s", scene_list.at(active_scene).name.c_str());
+            
+            if (Graphics::camera.proj_type & Graphics::PROJECTION_SCALED)
+                ImGui::Text("res: %dx%d (x%d)", Config::resolution.x, Config::resolution.y, Graphics::win.scale);
+            else
+                ImGui::Text("res: %dx%d", Graphics::win.size.x, Graphics::win.size.y);
+            
+            if (Graphics::camera.proj_type & Graphics::PROJECTION_PERSPECTIVE)
+                ImGui::Text("proj: perspective");
+            if (Graphics::camera.proj_type & Graphics::PROJECTION_ORTHOGRAPHIC)
+                ImGui::Text("proj: orthographic");
             
             ImGui::EndMenu();
         }
         
         //---Options---
         if (ImGui::BeginMenu("game")) {
+            Gui::slider("game speed", Config::game_speed, 0.1f, 0.0f, 3.0f);
             
             ImGui::EndMenu();
         }

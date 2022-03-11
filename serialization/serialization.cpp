@@ -114,7 +114,6 @@ EntityID Serialization::loadEntity(str file, SceneID scene_id, str name) {
 
 SceneID Serialization::loadScene(str file) {
     SceneID scene_id = -1;
-    str name = "";
     EntityID current_eid = -1;
     bool add_components = true;
     
@@ -135,8 +134,7 @@ SceneID Serialization::loadScene(str file) {
             auto l = split(s);
             if (l.size() != 2) log::error("You loaded an invalid scene, first line must be 'scene name', name can't contain spaces. %s", s.c_str());
             if (l.at(0) != "scene") log::error("You loaded an invalid scene, please make sure that the file starts with 'scene'");
-            name = l.at(1);
-            scene_id = registerScene();
+            scene_id = registerScene(l.at(1));
             state = LOAD_FRONTMATTER;
             continue;
         }
