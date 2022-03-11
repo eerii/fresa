@@ -50,7 +50,7 @@ namespace Fresa
     double sec(Duration duration);
     
     template <typename Callable, typename... Args>
-    auto callTime(double &call_time, Callable &f, const Args&... a) {
+    auto TIME(double &call_time, Callable &f, const Args&... a) {
         constexpr bool is_void = std::is_same_v<decltype(f(a...)), void> == true;
         #ifdef DEBUG
         Clock::time_point time_before_call = time();

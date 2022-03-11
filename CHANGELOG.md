@@ -7,7 +7,11 @@
 #### 0.3.9 - NAME - _00 00 2022_
 
 **added**
-- .
+- gui menu information
+- performance gui with detailed timings
+
+**changed**
+- renamed callTime to TIME to make it clear it is a debug element
 
 ---
 

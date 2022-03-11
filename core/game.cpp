@@ -50,7 +50,7 @@ bool Game::init() {
     
     //: System init
     for (auto &[priority, system] : System::init_systems)
-        system();
+        system.second();
     
     return true;
 }
@@ -72,11 +72,11 @@ bool Game::update() {
     }
     
     //: Physics update
-    if (not callTime(Performance::physics_frame_time, physicsUpdate))
+    if (not TIME(Performance::physics_frame_time, physicsUpdate))
         return false;
    
     //: Render update
-    callTime(Performance::render_frame_time, Graphics::update);
+    TIME(Performance::render_frame_time, Graphics::update);
     
     //: Advance time
     timeFrame();
@@ -99,7 +99,7 @@ bool Game::physicsUpdate() {
         Time::physics_delta = Config::timestep * 1.0e-3 * Config::game_speed; //: In seconds
         
         //: Events
-        callTime(Performance::physics_event_time, Event::handleSystemEvents);
+        TIME(Performance::physics_event_time, Event::handleSystemEvents);
         if (is_quitting) return false;
         
         //: Input
@@ -109,7 +109,7 @@ bool Game::physicsUpdate() {
         Performance::physics_system_time.clear();
         for (auto &[priority, system] : System::physics_update_systems) {
             Performance::physics_system_time.push_back(0);
-            callTime(Performance::physics_system_time.back(), system);
+            TIME(Performance::physics_system_time.back(), system.second);
         }
         
         Performance::physics_iteration_time = ms(time() - time_before_physics_iteration);

@@ -57,7 +57,7 @@ bool Graphics::update() {
     Performance::render_system_time.clear();
     for (auto &[priority, system] : System::render_update_systems) {
         Performance::render_system_time.push_back(0);
-        callTime(Performance::render_system_time.back(), system);
+        TIME(Performance::render_system_time.back(), system.second);
     }
     
     //: Update camera view

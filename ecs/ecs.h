@@ -37,7 +37,7 @@ template<typename Object, UpdatePriorities priority = PRIORITY_LAST> \
 struct update_name { \
     struct exec_register { \
         exec_register() { \
-            addToMultimap(update_map, priority, Object::update_function); \
+            addToMultimap(update_map, priority, type_name<Object>(), Object::update_function); \
         } \
     }; \
     template<exec_register&> struct ref_it { }; \
@@ -115,13 +115,14 @@ namespace Fresa::System
     };
     
     //: Render and physics update systems
-    inline void addToMultimap(std::multimap<UpdatePriorities, std::function<void()>> &map, UpdatePriorities priority, std::function<void()> update) {
-        map.insert({ priority, update });
+    inline void addToMultimap(std::multimap<UpdatePriorities, std::pair<std::string_view, std::function<void()>>> &map, UpdatePriorities priority,
+                              std::string_view name, std::function<void()> update) {
+        map.insert({ priority, std::pair<std::string_view, std::function<void()>>(name, update) });
     }
     
-    inline std::multimap<UpdatePriorities, std::function<void()>> init_systems{};
-    inline std::multimap<UpdatePriorities, std::function<void()>> physics_update_systems{};
-    inline std::multimap<UpdatePriorities, std::function<void()>> render_update_systems{};
+    inline std::multimap<UpdatePriorities, std::pair<std::string_view, std::function<void()>>> init_systems{};
+    inline std::multimap<UpdatePriorities, std::pair<std::string_view, std::function<void()>>> physics_update_systems{};
+    inline std::multimap<UpdatePriorities, std::pair<std::string_view, std::function<void()>>> render_update_systems{};
     
     //: Register the system when the template is instantiated, and adds it to the corresponding map of systems
     //      struct SomeSystem : PhysicsUpdate<SomeSystem, PRIORITY_MOVEMENT> {
