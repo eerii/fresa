@@ -67,6 +67,7 @@ namespace Fresa
         void removeComponent(EntityID eid, ComponentID cid);
         
         str getName(EntityID eid);
+        Signature getMask(EntityID eid);
     };
 
     //---Scene view---

@@ -42,7 +42,11 @@ void Scene::removeComponent(EntityID eid, ComponentID cid) {
 }
 
 str Scene::getName(EntityID eid) {
-    return entity_names[Entity::getIndex(eid)];
+    return entity_names.at(Entity::getIndex(eid));
+}
+
+Signature Scene::getMask(EntityID eid) {
+    return mask.at(Entity::getIndex(eid));
 }
 
 SceneID Fresa::registerScene(str name) {
