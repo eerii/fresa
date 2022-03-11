@@ -2917,12 +2917,6 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
     if (not ImGui_ImplVulkan_Init(&init_info, API::render_passes.at(1).render_pass))
         log::error("Error initializing ImGui for Vulkan");
     
-    //: Transfer fonts
-    VkCommandBuffer command_buffer = Graphics::VK::beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("transfer"));
-    ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-    Graphics::VK::endSingleUseCommandBuffer(vk.device, command_buffer, vk.cmd.command_pools.at("transfer"), vk.cmd.queues.transfer);
-    ImGui_ImplVulkan_DestroyFontUploadObjects();
-    
     //: Command buffers
     vk.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
@@ -2931,6 +2925,14 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplSDL2_Shutdown();
     });
+}
+
+void VK::Gui::transferFonts(const Vulkan &vk) {
+    //: Transfer fonts
+    VkCommandBuffer command_buffer = Graphics::VK::beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("transfer"));
+    ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+    Graphics::VK::endSingleUseCommandBuffer(vk.device, command_buffer, vk.cmd.command_pools.at("transfer"), vk.cmd.queues.transfer);
+    ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
 void VK::Gui::recordGuiCommandBuffer(const Vulkan &vk, ui32 current) {

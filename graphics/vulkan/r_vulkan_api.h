@@ -324,6 +324,7 @@ namespace Fresa::Graphics::VK
     {
         inline VkDescriptorPool descriptor_pool;
         void init(Vulkan &vk, const WindowData &win);
+        void transferFonts(const Vulkan &vk);
         void recordGuiCommandBuffer(const Vulkan &vk, ui32 current);
     }
     #endif

@@ -80,6 +80,12 @@ ui16 API::getRefreshRate(WindowData &win, bool force) {
     return (ui16)mode.refresh_rate;
 }
 
+float API::getDPI() {
+    float ddpi = 0.0f;
+    SDL_GetDisplayDPI(0, &ddpi, nullptr, nullptr);
+    return ddpi / 96.0f;
+}
+
 UniformBufferObject API::getScaledWindowUBO(const WindowData &win) {
     UniformBufferObject ubo{};
     

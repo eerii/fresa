@@ -6,6 +6,7 @@
 
 #include "gui.h"
 #include "config.h"
+#include "file.h"
 #include "input.h"
 #include "r_graphics.h"
 
@@ -26,6 +27,23 @@ void Gui::init(Graphics::GraphicsAPI &api, const Graphics::WindowData &win) {
     
     //---IO---
     io = &ImGui::GetIO();
+    
+    //: Fonts
+    auto font_path = File::path_optional("misc/font.ttf");
+    
+    if (font_path.has_value()) {
+        float font_scale = Graphics::API::getDPI();
+        io->Fonts->AddFontFromFileTTF(font_path.value().c_str(), 16 * font_scale);
+        io->FontGlobalScale /= font_scale;
+    } else {
+        io->Fonts->AddFontDefault();
+    }
+    
+    io->Fonts->Build();
+    
+    #ifdef USE_VULKAN
+    Graphics::VK::Gui::transferFonts(api);
+    #endif
     
     //: Docking
     //  io->ConfigFlags |= ImGuiConfigFlags_DockingEnable;

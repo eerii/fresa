@@ -55,11 +55,13 @@ namespace Fresa
         //: Functions
         void win_menu();
         void win_performance();
+        void win_entities();
         
         //: Register
         inline void registerWindows() {
             windows.push_back(Window("menu", win_menu, true));
-            windows.push_back(Window("performance", win_performance, true));
+            windows.push_back(Window("entities", win_entities, true));
+            windows.push_back(Window("performance", win_performance));
             windows.push_back(Window("test", [](){ImGui::ShowDemoWindow();}));
         }
         

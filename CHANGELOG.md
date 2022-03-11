@@ -9,6 +9,7 @@
 **added**
 - gui menu information
 - performance gui with detailed timings
+- font support for imgui
 
 **changed**
 - renamed callTime to TIME to make it clear it is a debug element
