@@ -10,7 +10,18 @@
 
 namespace Fresa::Serialization
 {
-    EntityID loadEntity(str file, SceneID scene_id);
+    enum LoadState {
+        LOAD_NAME,
+        LOAD_FRONTMATTER,
+        LOAD_COMPONENT_NAME,
+        LOAD_COMPONENT_BODY,
+        LOAD_SCENE_ENTITY,
+    };
+    
+    int getIndentation(const str &line);
+    void loadComponents(const str &line, LoadState &state, SceneID scene, EntityID eid, int ind, int base_ind = 0, bool add_components = true);
+    EntityID loadEntity(str file, SceneID scene_id, str name = "");
+    SceneID loadScene(str file);
     
     template <typename T>
     void assignFromString(T &x, str s) {

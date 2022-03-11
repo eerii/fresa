@@ -14,6 +14,7 @@ TODO: System init function
 - new experimental reflection
 - reflection can apply functions to members by name
 - serialization now uses the reflection api
+- scene serialization with support for entity templates
 
 ---
 
