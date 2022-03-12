@@ -16,7 +16,7 @@ void Audio::init() {
     requested_spec.channels = 2;
     requested_spec.samples = 4096;
     requested_spec.callback = callback;
-    requested_spec.userdata = malloc(sizeof(Sound));
+    requested_spec.userdata = nullptr;
     
     api.device = SDL_OpenAudioDevice(nullptr, 0, &requested_spec, &api.spec, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
     if (api.device == 0)
@@ -29,17 +29,20 @@ void Audio::init() {
 }
 
 void Audio::callback(void *userdata, ui8 *stream, int len) {
-    Sound* sound = (Sound*) userdata;
-    
     SDL_memset(stream, 0, len);
     
-    if (sound != nullptr) {
-        if (sound->length > 0) {
-            ui32 length = (ui32)len > sound->length ? sound->length : (ui32) len;
+    for (auto id : playlist) {
+        Sound &sound = sounds.at(id);
+        
+        if (sound.remainder > 0) {
+            ui32 length = (ui32)len > sound.remainder ? sound.remainder : (ui32) len;
             
-            SDL_MixAudioFormat(stream, sound->buffer, api.spec.format, length, sound->volume);
-            sound->buffer += length;
-            sound->length -= length;
+            SDL_MixAudioFormat(stream, sound.buffer, api.spec.format, length, sound.volume);
+            sound.buffer += length;
+            sound.remainder -= length;
+        } else {
+            SDL_FreeWAV(sound.loc);
+            stop(id);
         }
     }
 }
@@ -64,14 +67,14 @@ Audio::SoundID Audio::load(str file, ui8 volume) {
     s.volume = volume;
     
     //: Load file
-    File::path(file);
+    file = File::path("audio/" + file);
     str extension = split(file, ".").back();
     
     if (extension == "wav") {
-        if (SDL_LoadWAV(file.c_str(), &api.spec, &s.buffer, &s.length) == NULL)
+        if (SDL_LoadWAV(file.c_str(), &api.spec, &s.loc, &s.length) == NULL)
             log::error("Error loading the audio file %s", file.c_str());
-        
-        //...
+        s.buffer = s.loc;
+        s.remainder = s.length;
     } else if (extension == "ogg") {
         log::error("Audio extension .ogg is not implemented yet");
     } else {
@@ -79,4 +82,15 @@ Audio::SoundID Audio::load(str file, ui8 volume) {
     }
     
     return id;
+}
+
+void Audio::play(SoundID sound) {
+    if (not std::count(playlist.begin(), playlist.end(), sound)) //: Add sound if it is not already playing
+        playlist.push_back(sound);
+}
+
+void Audio::stop(SoundID sound) {
+    auto it = std::find(playlist.begin(), playlist.end(), sound);
+    if (it != playlist.end())
+        playlist.erase(it);
 }

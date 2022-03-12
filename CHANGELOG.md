@@ -4,14 +4,14 @@
 
 ---
 
-#### 0.3.10 - NAME - _00 00 2022_
+#### 0.3.10 - it's your favourite song - _00 00 2022_
 
 **added**
 - preliminary audio support
 
 ---
 
-#### 0.3.9 - captain, full speed ahead - _00 00 2022_
+#### 0.3.9 - bip bop bup - _12 03 2022_
 
 **added**
 - gui menu information

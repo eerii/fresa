@@ -16,11 +16,17 @@ namespace Fresa::Audio
     
     struct Sound {
         ui32 length;
+        ui32 remainder;
+        ui8* loc;
         ui8* buffer;
         ui8 volume;
     };
     using SoundID = ui8;
     inline std::map<SoundID, Sound> sounds{};
+    
+    inline std::vector<SoundID> playlist{};
+    
+    //---
     
     void init();
     
@@ -30,4 +36,7 @@ namespace Fresa::Audio
     void unpause();
     
     SoundID load(str file, ui8 volume);
+    
+    void play(SoundID sound);
+    void stop(SoundID sound);
 }

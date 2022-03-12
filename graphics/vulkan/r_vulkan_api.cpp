@@ -855,8 +855,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
     
     //: Begin render pass
     for (const auto &[r_id, render] : API::render_passes) {
-        if (r_id == API::render_passes.rbegin()->first) //: Skip last render pass, the gui one, TODO: Improve this
-            continue;
+        IF_GUI(if (r_id == API::render_passes.rbegin()->first) continue;) //: Skip gui render pass
         
         VkRenderPassBeginInfo render_pass_info{};
         render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
