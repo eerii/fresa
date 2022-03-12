@@ -4,7 +4,14 @@
 
 ---
 
-#### 0.3.9 - NAME - _00 00 2022_
+#### 0.3.10 - NAME - _00 00 2022_
+
+**added**
+- preliminary audio support
+
+---
+
+#### 0.3.9 - captain, full speed ahead - _00 00 2022_
 
 **added**
 - gui menu information

@@ -32,7 +32,6 @@ void File::init() {
     chdir(path);
     log::debug("Path: %s", path);
 #endif
-    //TODO: Add support for Linux and Windows
 }
 
 str File::path(str p) {

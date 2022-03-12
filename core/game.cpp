@@ -8,6 +8,7 @@
 
 #include "input.h"
 #include "file.h"
+#include "audio.h"
 #include "events.h"
 #include "scene.h"
 #include "f_time.h"
@@ -36,7 +37,7 @@ bool Game::init() {
     SDL_version version;
     SDL_GetVersion(&version);
     log::debug("SDL v%d.%d.%d", version.major, version.minor, version.patch);
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS) != 0) {
         log::error("SDL_Init has failed!!", SDL_GetError());
         return false;
     }
@@ -47,6 +48,9 @@ bool Game::init() {
     
     //: Input
     Input::init();
+    
+    //: Audio
+    Audio::init();
     
     //: System init
     for (auto &[priority, system] : System::init_systems)
