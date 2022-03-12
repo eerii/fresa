@@ -4,10 +4,14 @@
 
 ---
 
-#### 0.3.10 - it's your favourite song - _00 00 2022_
+#### 0.3.10 - it's your favourite song - _12 03 2022_
 
 **added**
 - preliminary audio support
+- obj loading (wip)
+
+**fixed**
+- cmake include mess
 
 ---
 

@@ -336,6 +336,13 @@ namespace Fresa::Graphics
         glm::vec2 uv;
     };
     
+    struct VertexOBJ {
+        Members(VertexOBJ, pos, uv, normal);
+        glm::vec3 pos;
+        glm::vec2 uv;
+        glm::vec3 normal;
+    };
+    
     namespace Vertices {
         inline const std::vector<VertexPos2> rect2 = {
             {{0.f, 0.f}},
