@@ -8,7 +8,10 @@
 
 **added**
 - preliminary audio support
-- obj loading (wip)
+- indexed obj loading
+
+**chaged**
+- variable size index buffer
 
 **fixed**
 - cmake include mess

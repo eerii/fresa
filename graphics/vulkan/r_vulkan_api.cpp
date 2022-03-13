@@ -894,7 +894,10 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                         vkCmdBindVertexBuffers(cmd, 0, 1, &buffer->vertex_buffer.buffer, offsets);
                         
                         //: Index buffer
-                        vkCmdBindIndexBuffer(cmd, buffer->index_buffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+                        VkIndexType index_type = VK_INDEX_TYPE_UINT16;
+                        if (buffer->index_bytes == 4) index_type = VK_INDEX_TYPE_UINT32;
+                        else if (buffer->index_bytes != 2) log::error("Unsupported index byte size %d", buffer->index_bytes);
+                        vkCmdBindIndexBuffer(cmd, buffer->index_buffer.buffer, 0, index_type);
                         
                         for (const auto &[tex, queue_draw] : queue_tex) {
                             for (const auto &[data, model] : queue_draw) {
@@ -1918,38 +1921,6 @@ BufferData VK::createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferU
         log::error("Failed to create a vulkan buffer");
     
     return data;
-}
-
-BufferData VK::createIndexBuffer(const Vulkan &vk, const std::vector<ui16> &indices) {
-    //---Index buffer---
-    //      This buffer contains a list of indices, which allows to draw complex meshes without repeating vertices
-    //      A simple example, while a square only has 4 vertices, 6 vertices are needed for the 2 triangles, and it only gets worse from there
-    //      An index buffer solves this by having a list of which vertices to use, avoiding vertex repetition
-    //      The creating process is very similar to the above vertex buffer, using a staging buffer
-    VkDeviceSize buffer_size = sizeof(ui16) * indices.size();
-    
-    //: Staging buffer
-    BufferData staging_buffer = VK::createBuffer(vk.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-    
-    //: Map indices to staging buffer
-    void* data;
-    vmaMapMemory(vk.allocator, staging_buffer.allocation, &data);
-    memcpy(data, indices.data(), (size_t) buffer_size);
-    vmaUnmapMemory(vk.allocator, staging_buffer.allocation);
-    
-    //: Index buffer
-    BufferData index_buffer = VK::createBuffer(vk.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-    
-    //: Copy from staging to index
-    VK::copyBuffer(vk.device, vk.cmd, staging_buffer.buffer, index_buffer.buffer, buffer_size);
-    
-    //: Delete helpers (staging now, index when the program finishes)
-    vmaDestroyBuffer(vk.allocator, staging_buffer.buffer, staging_buffer.allocation);
-    deletion_queue_program.push_back([vk, index_buffer](){
-        vmaDestroyBuffer(vk.allocator, index_buffer.buffer, index_buffer.allocation);
-    });
-    
-    return index_buffer;
 }
 
 void VK::copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size) {

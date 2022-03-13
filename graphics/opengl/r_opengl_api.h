@@ -37,7 +37,22 @@ namespace Fresa::Graphics::GL
     //Buffers
     //----------------------------------------
     BufferData createBuffer(size_t size = 0, GLenum type = GL_UNIFORM_BUFFER, GLenum usage = GL_STATIC_DRAW);
-    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
+    
+    template <typename I, std::enable_if_t<std::is_integral_v<I>, bool> = true>
+    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<I> &indices) {
+        //---Index buffer---
+        //      We are going to draw the mesh indexed, which means that vertex data is not repeated and we need a list of which vertices to draw
+        BufferData buffer = GL::createBuffer();
+        
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.id_);
+        
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(I), indices.data(), GL_STATIC_DRAW);
+        
+        glCheckError();
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        
+        return buffer;
+    }
     
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     std::pair<BufferData, ui32> createVertexBuffer(const GraphicsAPI &api, const std::vector<V> &vertices) {
@@ -72,8 +87,8 @@ namespace Fresa::Graphics::GL
 
 namespace Fresa::Graphics::API
 {
-    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    DrawBufferID registerDrawBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<ui16> &indices) {
+    template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
+    DrawBufferID registerDrawBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<I> &indices) {
         static DrawBufferID id = 0;
         do id++;
         while (draw_buffer_data.find(id) != draw_buffer_data.end());
@@ -85,6 +100,7 @@ namespace Fresa::Graphics::API
         draw_buffer_data[id].vao = vao_;
         draw_buffer_data[id].index_buffer = GL::createIndexBuffer(api, indices);
         draw_buffer_data[id].index_size = (ui32)indices.size();
+        draw_buffer_data[id].index_bytes = (ui8)sizeof(I);
         
         return id;
     }

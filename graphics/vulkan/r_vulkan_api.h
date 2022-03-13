@@ -238,7 +238,39 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
     BufferData createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory);
     void copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
-    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<ui16> &indices);
+    
+    template <typename I, std::enable_if_t<std::is_integral_v<I>, bool> = true>
+    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<I> &indices) {
+        //---Index buffer---
+        //      This buffer contains a list of indices, which allows to draw complex meshes without repeating vertices
+        //      A simple example, while a square only has 4 vertices, 6 vertices are needed for the 2 triangles, and it only gets worse from there
+        //      An index buffer solves this by having a list of which vertices to use, avoiding vertex repetition
+        //      The creating process is very similar to the above vertex buffer, using a staging buffer
+        VkDeviceSize buffer_size = sizeof(I) * indices.size();
+        
+        //: Staging buffer
+        BufferData staging_buffer = VK::createBuffer(api.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+        
+        //: Map indices to staging buffer
+        void* data;
+        vmaMapMemory(api.allocator, staging_buffer.allocation, &data);
+        memcpy(data, indices.data(), (size_t) buffer_size);
+        vmaUnmapMemory(api.allocator, staging_buffer.allocation);
+        
+        //: Index buffer
+        BufferData index_buffer = VK::createBuffer(api.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+        
+        //: Copy from staging to index
+        VK::copyBuffer(api.device, api.cmd, staging_buffer.buffer, index_buffer.buffer, buffer_size);
+        
+        //: Delete helpers (staging now, index when the program finishes)
+        vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
+        deletion_queue_program.push_back([api, index_buffer](){
+            vmaDestroyBuffer(api.allocator, index_buffer.buffer, index_buffer.allocation);
+        });
+        
+        return index_buffer;
+    }
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     BufferData createVertexBuffer(const GraphicsAPI &api, const std::vector<V> &vertices) {
@@ -347,8 +379,8 @@ namespace Fresa::Graphics {
 }
 
 namespace Fresa::Graphics::API {
-    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    DrawBufferID registerDrawBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<ui16> &indices) {
+    template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
+    DrawBufferID registerDrawBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<I> &indices) {
         static DrawBufferID id = 0;
         do id++;
         while (draw_buffer_data.find(id) != draw_buffer_data.end());
@@ -358,6 +390,7 @@ namespace Fresa::Graphics::API {
         draw_buffer_data[id].vertex_buffer = VK::createVertexBuffer(api, vertices);
         draw_buffer_data[id].index_buffer = VK::createIndexBuffer(api, indices);
         draw_buffer_data[id].index_size = (ui32)indices.size();
+        draw_buffer_data[id].index_bytes = (ui8)sizeof(I);
         
         return id;
     }

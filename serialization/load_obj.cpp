@@ -18,8 +18,6 @@ Serialization::VerticesOBJ Serialization::loadOBJ(str file) {
     std::vector<glm::vec3> normals{};
     std::vector<std::array<int, 3>> indices{};
     
-    static std::vector<ui16> a{};
-    
     //: Load file
     file = File::path("models/" + file + ".obj");
     std::ifstream f(file);
@@ -64,13 +62,13 @@ Serialization::VerticesOBJ Serialization::loadOBJ(str file) {
             auto v = split(s); v.erase(v.begin()); //: f 1/2/3 2/3/1 3/2/1
             for (auto v_ : v) {
                 auto i_ = split(v_, "/");
-                std::array<int, 3> i = {std::stoi(i_.at(0))-1, std::stoi(i_.at(1))-1, std::stoi(i_.at(2))-1};
+                std::array<int, 3> i = {std::stoi(i_.at(0))-1, i_.at(1) == "" ? -1 : std::stoi(i_.at(1))-1, std::stoi(i_.at(2))-1};
                 
                 auto it = std::find(indices.begin(), indices.end(), i);
-                obj.indices.push_back((ui16)std::distance(indices.begin(), it));
+                obj.indices.push_back((decltype(obj.indices)::value_type)std::distance(indices.begin(), it));
                 
                 if (it == indices.end()) {
-                    obj.vertices.push_back(VertexOBJ{positions.at(i.at(0)), uvs.at(i.at(1)), normals.at(i.at(2))});
+                    obj.vertices.push_back(VertexOBJ{positions.at(i.at(0)), i.at(1) == -1 ? glm::vec3(0.0f) : uvs.at(i.at(1)), normals.at(i.at(2))});
                     indices.push_back(i);
                 }
             }

@@ -64,6 +64,7 @@ namespace Fresa::Graphics
         BufferData vertex_buffer;
         BufferData index_buffer;
         ui32 index_size;
+        ui8 index_bytes;
         #ifdef USE_OPENGL
         ui32 vao;
         #endif

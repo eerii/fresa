@@ -509,21 +509,6 @@ ui32 GL::createVertexArray() {
     return vao_id;
 }
 
-BufferData GL::createIndexBuffer(const OpenGL &gl, const std::vector<ui16> &indices) {
-    //---Index buffer---
-    //      We are going to draw the mesh indexed, which means that vertex data is not repeated and we need a list of which vertices to draw
-    BufferData buffer = GL::createBuffer();
-    
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.id_);
-    
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(ui16), indices.data(), GL_STATIC_DRAW);
-    
-    glCheckError();
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    
-    return buffer;
-}
-
 //----------------------------------------
 
 
@@ -656,6 +641,11 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->index_buffer.id_);
                     glCheckError();
                     
+                    //: Index type
+                    GLenum index_type = GL_UNSIGNED_SHORT;
+                    if (buffer->index_bytes == 4) index_type = GL_UNSIGNED_INT;
+                    else if (buffer->index_bytes != 2) log::error("Unsupported index byte size %d", buffer->index_bytes);
+                    
                     for (const auto &[tex, draw_queue] : tex_queue) {
                         //: Bind texture
                         if (tex != &no_texture) {
@@ -679,7 +669,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                             }
                             
                             //: Draw
-                            glDrawElements(GL_TRIANGLES, buffer->index_size, GL_UNSIGNED_SHORT, (void*)0);
+                            glDrawElements(GL_TRIANGLES, buffer->index_size, index_type, (void*)0);
                             glCheckError();
                         }
                     }

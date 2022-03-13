@@ -26,8 +26,8 @@ namespace Fresa::Graphics
     inline Event::Event<Vec2<>> event_window_resize;
     inline Event::Observer observer = event_window_resize.createObserver(onResize);
     
-    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    DrawID getDrawID(const std::vector<V> &vertices, const std::vector<ui16> &indices, ShaderID shader) {
+    template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
+    DrawID getDrawID(const std::vector<V> &vertices, const std::vector<I> &indices, ShaderID shader) {
         DrawBufferID buffer = API::registerDrawBuffer(api, vertices, indices);
         DrawID id = API::registerDrawData(api, buffer, shader);
         API::updateDescriptorSets(api, &API::draw_data.at(id));
