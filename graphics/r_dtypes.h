@@ -430,7 +430,7 @@ namespace Fresa::Graphics
         };
     }
     
-    using FresaVertexType = std::variant<VertexPos2, VertexPos2Color, VertexPos2UV, VertexPos3, VertexPos3Color, VertexPos3UV>;
+    using FresaVertexType = std::variant<VertexPos2, VertexPos2Color, VertexPos2UV, VertexPos3, VertexPos3Color, VertexPos3UV, VertexOBJ>;
     
     #if __has_include("vertex_list.h")
         #include "vertex_list.h"

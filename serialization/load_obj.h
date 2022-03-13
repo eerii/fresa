@@ -8,5 +8,10 @@
 
 namespace Fresa::Serialization
 {
-    std::vector<Graphics::VertexOBJ> loadOBJ(str file);
+    struct VerticesOBJ {
+        std::vector<Graphics::VertexOBJ> vertices;
+        std::vector<ui16> indices;
+    };
+    
+    VerticesOBJ loadOBJ(str file);
 }

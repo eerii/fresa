@@ -1689,13 +1689,13 @@ VkPipelineRasterizationStateCreateInfo VK::preparePipelineCreateInfoRasterizer()
     //      Describes the thickness of lines in term of fragments, it requires enabling the wideLines GPU feature
     rasterizer.lineWidth = 1.0f;
     
-    //: Culling
+    //: Culling (disabled)
     //      We will be culling the back face to save in performance
     //      To calculate the front face, if we are not sending normals, the vertices will be calculated in counter clockwise order
     //      If nothing shows to the screen, one of the most probable causes is the winding order of the vertices to be reversed
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    //log::graphics("Culling: back bit - Winding order: CCW");
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    //rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    log::graphics("Culling: disabled");
     
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;
@@ -1926,12 +1926,10 @@ BufferData VK::createIndexBuffer(const Vulkan &vk, const std::vector<ui16> &indi
     //      A simple example, while a square only has 4 vertices, 6 vertices are needed for the 2 triangles, and it only gets worse from there
     //      An index buffer solves this by having a list of which vertices to use, avoiding vertex repetition
     //      The creating process is very similar to the above vertex buffer, using a staging buffer
-    VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
+    VkDeviceSize buffer_size = sizeof(ui16) * indices.size();
     
     //: Staging buffer
-    BufferData staging_buffer = VK::createBuffer(vk.allocator, buffer_size,
-                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                             VMA_MEMORY_USAGE_CPU_ONLY);
+    BufferData staging_buffer = VK::createBuffer(vk.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
     
     //: Map indices to staging buffer
     void* data;
@@ -1940,9 +1938,7 @@ BufferData VK::createIndexBuffer(const Vulkan &vk, const std::vector<ui16> &indi
     vmaUnmapMemory(vk.allocator, staging_buffer.allocation);
     
     //: Index buffer
-    BufferData index_buffer = VK::createBuffer(vk.allocator, buffer_size,
-                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                           VMA_MEMORY_USAGE_GPU_ONLY);
+    BufferData index_buffer = VK::createBuffer(vk.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     
     //: Copy from staging to index
     VK::copyBuffer(vk.device, vk.cmd, staging_buffer.buffer, index_buffer.buffer, buffer_size);

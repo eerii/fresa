@@ -293,6 +293,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             
             //: Register shader
             #if defined USE_VULKAN
+                bool found_vertex = false;
                 for_<VertexType>([&](auto i){
                     using V = std::variant_alternative_t<i.value, VertexType>;
                     
@@ -300,9 +301,12 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                     if (vertex_name.rfind("Vertex", 0) != 0) log::error("All vertex types need to start with 'Vertex', this is %s", vertex_name.c_str());
                     vertex_name = lower(vertex_name.substr(6));
                     
-                    if (vertex_name == lower(line.at(3)))
+                    if (vertex_name == lower(line.at(3))) {
                         api.pipelines[shader] = VK::createPipeline<V>(api, shader, subpass);
+                        found_vertex = true;
+                    }
                 });
+                if (not found_vertex) log::error("The vertex you provided '%s' is invalid, check the spelling and vertex variant", line.at(3).c_str());
             #elif defined USE_OPENGL
                 GL::createShaderDataGL(shader, subpass);
             #endif
