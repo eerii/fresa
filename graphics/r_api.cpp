@@ -280,7 +280,8 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
         //---Shaders---
         //:     d/p shader subpass vertices      d - draw shader, p - post shader
         if (line.at(0) == "d" or line.at(0) == "p") {
-            if (line.size() != 4) log::error("The description of the shader is invalid, it has to be 'd/p shader subpass vertexdata'");
+            if (line.size() < 4 or line.size() > 5)
+                log::error("The description of the shader is invalid, it has to be 'd/p shader subpass vertexdata (optional)instanced_vertexdata'");
             
             //: Shader
             ShaderID shader = line.at(1);
@@ -302,8 +303,22 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                     vertex_name = lower(vertex_name.substr(6));
                     
                     if (vertex_name == lower(line.at(3))) {
-                        api.pipelines[shader] = VK::createPipeline<V>(api, shader, subpass);
-                        found_vertex = true;
+                        if (line.size() == 4) { //: No instanced rendering
+                            api.pipelines[shader] = VK::createPipeline<V>(api, shader, subpass);
+                            found_vertex = true;
+                        } else { //: Instanced rendering (the for_ inside a for_ may be improved in the future)
+                            for_<VertexType>([&](auto j){
+                                using U = std::variant_alternative_t<j.value, VertexType>;
+                                
+                                str inst_vertex_name = str(type_name<U>());
+                                inst_vertex_name = lower(inst_vertex_name.substr(6));
+                                
+                                if (inst_vertex_name == lower(line.at(4))) {
+                                    api.pipelines[shader] = VK::createPipeline<V, U>(api, shader, subpass);
+                                    found_vertex = true;
+                                }
+                            });
+                        }
                     }
                 });
                 if (not found_vertex) log::error("The vertex you provided '%s' is invalid, check the spelling and vertex variant", line.at(3).c_str());

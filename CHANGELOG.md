@@ -4,7 +4,14 @@
 
 ---
 
-#### 0.3.10 - it's your favourite song - _12 03 2022_
+#### 0.3.11 - instanced rendering - _13 03 2022_
+
+**changed**
+- multiple vertex types in attribute description (to allow instance rendering vertices)
+
+---
+
+#### 0.3.10 - it's your favourite song - _13 03 2022_
 
 **added**
 - preliminary audio support

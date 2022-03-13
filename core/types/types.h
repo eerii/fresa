@@ -66,6 +66,7 @@ constexpr auto type_name() { //: Remove fresa namespaces, keep std::, glm::, ...
     return name;
 }
 
+//: Gui
 #ifndef DISABLE_GUI
 #define IF_GUI(x) x
 #else

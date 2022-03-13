@@ -106,8 +106,8 @@ namespace Fresa::Graphics::API
     }
     
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    std::vector<VertexAttributeDescription> getAttributeDescriptions() {
-        std::vector<VertexAttributeDescription> attribute_descriptions = {};
+    std::vector<VertexAttributeDescription> getAttributeDescriptions_(ui32 binding = 0, ui32 previous_location = 0) {
+        std::vector<VertexAttributeDescription> attribute_descriptions{};
         
         log::graphics("");
         log::graphics("Creating attribute descriptions...");
@@ -119,25 +119,41 @@ namespace Fresa::Graphics::API
             if constexpr (Reflection::is_reflectable<V>)
                 name = str(V::member_names.at(i.value));
             
-            int j = (int)attribute_descriptions.size();
-            attribute_descriptions.resize(j + 1);
+            int l = (int)attribute_descriptions.size();
+            attribute_descriptions.resize(l + 1);
             
-            attribute_descriptions[j].binding = 0;
-            attribute_descriptions[j].location = j;
+            attribute_descriptions[l].binding = binding;
+            attribute_descriptions[l].location = l + previous_location;
             
             int size = sizeof(T);
             if (size % 4 != 0 or size < 4 or size > 16)
                 log::error("Vertex data has an invalid size %d", size);
-            attribute_descriptions[j].format = (VertexFormat)(size / 4);
+            attribute_descriptions[l].format = (VertexFormat)(size / 4);
             
-            attribute_descriptions[j].offset = offset;
+            attribute_descriptions[l].offset = offset;
             
-            log::graphics(" - Attribute %s [%d] - Format : %d - Size : %d - Offset %d", name.c_str(), j, attribute_descriptions[j].format, size, offset);
+            log::graphics(" - Attribute %s [%d:%d] - Format : %d - Size : %d - Offset %d", name.c_str(), attribute_descriptions[l].binding,
+                          attribute_descriptions[l].location, attribute_descriptions[l].format, size, offset);
             
             offset += size;
         });
         
         log::graphics("");
+        return attribute_descriptions;
+    }
+    
+    template <typename... V>
+    std::vector<VertexAttributeDescription> getAttributeDescriptions() {
+        std::vector<VertexAttributeDescription> attribute_descriptions{};
+        ui32 binding = 0;
+        ui32 previous_location = 0;
+        
+        ([&](){
+            auto a = getAttributeDescriptions_<V>(binding++, previous_location);
+            previous_location = (ui32)a.size();
+            attribute_descriptions.insert(attribute_descriptions.end(), a.begin(), a.end());
+        }(), ...);
+        
         return attribute_descriptions;
     }
 }

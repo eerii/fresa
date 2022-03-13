@@ -70,6 +70,14 @@ namespace Fresa::Graphics
         #endif
     };
     
+    struct InstancedDrawBufferData {
+        BufferData vertex_buffer;
+        BufferData instance_buffer;
+        BufferData index_buffer;
+        ui32 index_size;
+        ui8 index_bytes;
+    };
+    
     struct UniformBufferObject {
         glm::mat4 model;
         glm::mat4 view;
@@ -279,11 +287,17 @@ namespace Fresa::Graphics
     //  - Textures
     //  - Uniforms
     //: I know it looks awfully convoluted, but it makes sense 
-    using DrawQueueData = std::pair<const DrawData*, glm::mat4>;
+    using DrawQueueData = std::pair<const DrawData*, glm::mat4>; //TODO: REWORK THIS
     using DrawQueueMapTextures = std::map<const TextureData*, std::vector<DrawQueueData>>;
     using DrawQueueMapBuffers = std::map<const DrawBufferData*, DrawQueueMapTextures>;
     using DrawQueueMap = std::map<ShaderID, DrawQueueMapBuffers>;
 
+    //: For instanced rendering it is a bit different
+    //  - Geometry and per instance data
+    //  - Global uniforms
+    //  (Textures are WIP)
+    //: WORKING ON THIS
+    
     //----------------------------------------
     
     //Vertex

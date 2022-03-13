@@ -81,23 +81,26 @@ namespace Fresa::Graphics::VK
     std::vector<VkPipelineShaderStageCreateInfo> getShaderStageInfo(const ShaderStages &stages);
     void destroyShaderStages(VkDevice device, const ShaderStages &stages);
 
-    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    template <typename... V>
     std::vector<VkVertexInputBindingDescription> getBindingDescriptions() {
         std::vector<VkVertexInputBindingDescription> binding_descriptions;
+        ui32 binding = 0;
         
-        VkVertexInputBindingDescription v;
-        v.binding = 0;
-        v.stride = sizeof(V);
-        v.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-        
-        binding_descriptions.push_back(v);
+        ([&](){
+            VkVertexInputBindingDescription v;
+            v.binding = binding++;
+            v.stride = sizeof(V);
+            v.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+            
+            binding_descriptions.push_back(v);
+        }(), ...);
         
         return binding_descriptions;
     }
 
-    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    template <typename... V>
     std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
-        std::vector<VertexAttributeDescription> attr_v = API::getAttributeDescriptions<V>();
+        std::vector<VertexAttributeDescription> attr_v = API::getAttributeDescriptions<V...>();
         std::vector<VkVertexInputAttributeDescription> attr;
         attr.resize(attr_v.size());
         std::transform(attr_v.begin(), attr_v.end(), attr.begin(), [](const auto &a){
@@ -195,7 +198,7 @@ namespace Fresa::Graphics::VK
     VkPipeline createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader);
     void recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader);
 
-    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    template <typename... V>
     PipelineData createPipeline(const Vulkan &vk, ShaderID shader, SubpassID subpass) {
         PipelineData data;
         
@@ -222,8 +225,8 @@ namespace Fresa::Graphics::VK
         }
         
         //---Binding and attribute descriptors---
-        data.binding_descriptions = VK::getBindingDescriptions<V>();
-        data.attribute_descriptions = VK::getAttributeDescriptions<V>();
+        data.binding_descriptions = VK::getBindingDescriptions<V...>();
+        data.attribute_descriptions = VK::getAttributeDescriptions<V...>();
         
         //---Pipeline---
         data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
