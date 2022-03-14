@@ -133,40 +133,34 @@ TextureID Graphics::getTextureID(str path, Channels ch) {
     return tex_id;
 }
 
-void Graphics::bindTexture(DrawID draw_id, TextureID tex_id) {
-    //---Bind texture---
-    //      Update descriptor sets to reflect the new texture attached to this draw id
-    API::draw_data.at(draw_id).texture_id = tex_id;
-    API::updateDescriptorSets(api, &API::draw_data.at(draw_id));
-}
-
-void Graphics::unbindTexture(DrawID draw_id) {
-    //---Unbind texture---
-    API::draw_data.at(draw_id).texture_id = std::nullopt;
-    API::updateDescriptorSets(api, &API::draw_data.at(draw_id));
-}
-
-void Graphics::draw(const DrawID draw_id, glm::mat4 model) {
+void Graphics::draw(DrawDescription &description, glm::mat4 model) {
     //---Draw---
-    //      Checks if the draw id provided and all the data attached are valid, and adds it to the correct draw queue
-    DrawQueueData queue_data = {&API::draw_data.at(draw_id), model};
-    if (queue_data.first == nullptr)
-        log::error("Tried to draw an object with a null pointer draw data");
+    //      Checks if the description provided and all the data attached are valid, and adds it to the correct draw queue
     
-    const DrawBufferData* buffer = &API::draw_buffer_data.at(queue_data.first->buffer_id);
-    if (buffer == nullptr)
-        log::error("Tried to draw an object with a null pointer draw buffer");
+    if (not API::shaders.count(description.shader))
+        log::error("The ShaderID %s is not valid", description.shader.c_str());
     
-    const TextureData* tex;
-    if (queue_data.first->texture_id.has_value()) {
-        tex = &API::texture_data.at(queue_data.first->texture_id.value());
-        if (tex == nullptr)
-            log::error("Tried to draw an object with an invalid texture id");
-    } else {
-        tex = &no_texture;
+    if (description.texture != no_texture and not API::texture_data.count(description.texture))
+        log::error("The TextureID %d is not valid", description.texture);
+    
+    if (not API::draw_uniform_data.count(description.uniform))
+        log::error("The DrawUniformID %d is not valid", description.uniform);
+    
+    if (description.vertex.index() == 0) { //: Geometry buffer
+        GeometryBufferID vertex = std::get<0>(description.vertex);
+        if (not API::geometry_buffer_data.count(vertex))
+            log::error("The GeometryBufferID %d is not valid", vertex);
+        API::draw_queue[description.shader][vertex][description.texture].push_back(description.uniform);
     }
     
-    API::draw_queue[queue_data.first->shader][buffer][tex].push_back(queue_data);
+    if (description.vertex.index() == 1) { //: Instanced buffer
+        if (not API::geometry_buffer_data.count(std::get<1>(description.vertex)))
+            log::error("The InstancedBufferID %d is not valid", std::get<1>(description.vertex));
+        log::error("Not implemented yet");
+    }
+    
+    description.model = model;
+    API::draw_descriptions.push_back(&description);
 }
 
 void Graphics::updateCameraView(CameraData &cam) {

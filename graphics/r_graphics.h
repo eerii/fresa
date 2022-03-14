@@ -26,19 +26,22 @@ namespace Fresa::Graphics
     inline Event::Event<Vec2<>> event_window_resize;
     inline Event::Observer observer = event_window_resize.createObserver(onResize);
     
-    template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
-    DrawID getDrawID(const std::vector<V> &vertices, const std::vector<I> &indices, ShaderID shader) {
-        DrawBufferID buffer = API::registerDrawBuffer(api, vertices, indices);
-        DrawID id = API::registerDrawData(api, buffer, shader);
-        API::updateDescriptorSets(api, &API::draw_data.at(id));
-        return id;
+    template <typename UBO, typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
+    DrawDescription getDrawDescription(const std::vector<V> &vertices, const std::vector<I> &indices, ShaderID shader, TextureID texture = no_texture) {
+        DrawDescription description{};
+        
+        description.shader = shader;
+        description.texture = texture;
+        description.uniform = API::registerDrawUniforms<UBO>(api, shader);
+        description.vertex.emplace<0>(API::registerGeometryBuffer(api, vertices, indices));
+        
+        API::updateDescriptorSets(api, description);
+        return description;
     }
 
     TextureID getTextureID(str path, Channels ch = TEXTURE_CHANNELS_RGBA);
-    void bindTexture(DrawID draw_id, TextureID texture_id);
-    void unbindTexture(DrawID draw_id);
 
-    void draw(const DrawID draw_id, glm::mat4 model);
+    void draw(DrawDescription &description, glm::mat4 model);
     
     void updateCameraView(CameraData &cam);
     void updateCameraProjection(CameraData &cam);

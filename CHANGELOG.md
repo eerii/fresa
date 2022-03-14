@@ -8,6 +8,7 @@
 
 **changed**
 - multiple vertex types in attribute description (to allow instance rendering vertices)
+- complete rework of the rendering queue and rendering data
 
 ---
 

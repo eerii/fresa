@@ -520,7 +520,7 @@ TextureID API::registerTexture(const OpenGL &gl, Vec2<> size, Channels ch, ui8* 
     //---Create texture---
     static TextureID id = 0;
     do id++;
-    while (texture_data.find(id) != texture_data.end());
+    while (texture_data.find(id) != texture_data.end() or id == no_texture);
     
     texture_data[id] = TextureData{};
     
@@ -568,23 +568,7 @@ TextureID API::registerTexture(const OpenGL &gl, Vec2<> size, Channels ch, ui8* 
 //Draw
 //----------------------------------------
 
-DrawID API::registerDrawData(OpenGL &gl, DrawBufferID buffer, ShaderID shader) {
-    static DrawID id = 0;
-    do id++;
-    while (draw_data.find(id) != draw_data.end());
-    
-    draw_data[id] = DrawData{};
-    
-    draw_data[id].buffer_id = buffer;
-    
-    draw_data[id].uniform_buffers = { GL::createBuffer(sizeof(UniformBufferObject), GL_UNIFORM_BUFFER, GL_STREAM_DRAW) };
-    
-    draw_data[id].shader = shader;
-    
-    return id;
-}
-
-void API::updateDescriptorSets(const OpenGL &gl, const DrawData* draw) { }
+void API::updateDescriptorSets(const OpenGL &gl, const DrawDescription& draw) { }
 
 //----------------------------------------
 
@@ -603,6 +587,16 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
     
+    //: Update uniform buffers
+    UniformBufferObject ubo{};
+    ubo.view = cam.view;
+    ubo.proj = cam.proj;
+    for (const auto description : API::draw_descriptions) {
+        DrawUniformData &uniform = API::draw_uniform_data.at(description->uniform);
+        ubo.model = description->model;
+        API::updateUniformBuffer(gl, uniform.uniform_buffers.at(0), ubo);
+    }
+    
     for (const auto &[s_id, data] : API::subpasses) {
         //: Bind framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, data.framebuffer);
@@ -610,9 +604,11 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
         //: Shaders
         std::vector<ShaderID> shaders = getAtoB<ShaderID>(s_id, API::Map::subpass_shader);
         
-        for (const auto &shader : shaders) {
+        for (const auto &shader_id : shaders) {
+            ShaderData &shader = API::shaders.at(shader_id);
+            
             //: Bind shader
-            glUseProgram(API::shaders.at(shader).pid);
+            glUseProgram(shader.pid);
             glCheckError();
             
             //: Set viewport
@@ -621,55 +617,50 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                 glViewport(0, 0, attachments.begin()->second.size.x, attachments.begin()->second.size.y); // All subpass attachments have the same size
             
             //---Draw shaders---
-            if (API::shaders.at(shader).is_draw) {
-                if (not API::draw_queue.count(shader))
+            if (shader.is_draw) {
+                if (not API::draw_queue.count(shader_id))
                     continue;
                 
-                auto queue_buffer = API::draw_queue.at(shader);
+                //: Regular rendering queue
+                auto queue_buffer = API::draw_queue.at(shader_id);
                 
-                //: View and projection
-                UniformBufferObject ubo{};
-                ubo.view = cam.view;
-                ubo.proj = cam.proj;
-                
-                for (const auto &[buffer, tex_queue] : queue_buffer) {
+                for (const auto &[buffer, queue_tex] : queue_buffer) {
+                    GeometryBufferData &geometry = API::geometry_buffer_data.at(buffer);
+                    
                     //: Bind VAO
-                    glBindVertexArray(buffer->vao);
+                    glBindVertexArray(geometry.vao);
                     
                     //: Bind vertex and index buffers
-                    glBindBuffer(GL_ARRAY_BUFFER, buffer->vertex_buffer.id_);
-                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->index_buffer.id_);
+                    glBindBuffer(GL_ARRAY_BUFFER, geometry.vertex_buffer.id_);
+                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.index_buffer.id_);
                     glCheckError();
                     
                     //: Index type
                     GLenum index_type = GL_UNSIGNED_SHORT;
-                    if (buffer->index_bytes == 4) index_type = GL_UNSIGNED_INT;
-                    else if (buffer->index_bytes != 2) log::error("Unsupported index byte size %d", buffer->index_bytes);
+                    if (geometry.index_bytes == 4) index_type = GL_UNSIGNED_INT;
+                    else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
                     
-                    for (const auto &[tex, draw_queue] : tex_queue) {
+                    for (const auto &[tex_id, queue_uniform] : queue_tex) {
                         //: Bind texture
-                        if (tex != &no_texture) {
-                            if (API::shaders.at(shader).images.size() == 0)
+                        if (tex_id != no_texture) {
+                            TextureData tex = API::texture_data.at(tex_id);
+                            if (shader.images.size() == 0)
                                 log::error("You are drawing a texture with a shader that does not support texture inputs");
-                            glActiveTexture(GL_TEXTURE0 + API::shaders.at(shader).images.begin()->second);
-                            glBindTexture(GL_TEXTURE_2D, (tex == &no_texture) ? 0 : tex->id_);
+                            glActiveTexture(GL_TEXTURE0 + shader.images.begin()->second);
+                            glBindTexture(GL_TEXTURE_2D, (tex_id == no_texture) ? 0 : tex.id_);
                         }
                         
-                        for (const auto &[data, model] : draw_queue) {
-                            //: Uniforms
-                            ubo.model = model;
-                            
-                            //: Update uniforms
-                            API::updateUniformBuffer(gl, data->uniform_buffers[0], ubo);
+                        for (auto uniform_id : queue_uniform) {
+                            DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
                             
                             //: Upload uniforms
-                            for (auto &[name, index] : API::shaders[shader].uniforms) {
-                                if (name == "UniformBufferObject")
-                                    glBindBufferBase(GL_UNIFORM_BUFFER, index, data->uniform_buffers[0].id_);
+                            for (auto &[name, index] : shader.uniforms) {
+                                if (name == "UniformBufferObject") //TODO: CHANGE
+                                    glBindBufferBase(GL_UNIFORM_BUFFER, index, uniform.uniform_buffers.at(0).id_);
                             }
                             
                             //: Draw
-                            glDrawElements(GL_TRIANGLES, buffer->index_size, index_type, (void*)0);
+                            glDrawElements(GL_TRIANGLES, geometry.index_size, index_type, (void*)0);
                             glCheckError();
                         }
                     }
@@ -685,7 +676,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                 glBindBuffer(GL_ARRAY_BUFFER, gl.window_vertex_buffer.first.id_);
                 
                 //: Temporary - Scaled window UBO
-                if (shader == "window")
+                if (shader_id == "window")
                     glBindBufferBase(GL_UNIFORM_BUFFER, 0, gl.scaled_window_uniform.id_);
                 
                 //: Get textures from attachments
@@ -701,9 +692,9 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                 //: Binds images to the shader
                 //      You need to provide the list of image attachments in the same order as the shader
                 int i = 0;
-                if (API::shaders.at(shader).images.size() != textures.size())
-                    log::error("Mismatched attachment size between the shader and the attachments, review renderer_description. Make sure they are in the same order. Shader images: %d, Renderer description images: %d", API::shaders.at(shader).images.size(), textures.size());
-                for (auto &[name, binding] : API::shaders.at(shader).images) {
+                if (shader.images.size() != textures.size())
+                    log::error("Mismatched attachment size between the shader and the attachments, review renderer_description. Make sure they are in the same order. Shader images: %d, Renderer description images: %d", shader.images.size(), textures.size());
+                for (auto &[name, binding] : shader.images) {
                     glActiveTexture(GL_TEXTURE0 + binding);
                     glBindTexture(GL_TEXTURE_2D, textures.at(i++));
                 }

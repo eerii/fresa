@@ -58,9 +58,8 @@ namespace Fresa::Graphics
         #endif
     };
 
-    using DrawBufferID = ui32;
-
-    struct DrawBufferData {
+    using GeometryBufferID = ui32;
+    struct GeometryBufferData {
         BufferData vertex_buffer;
         BufferData index_buffer;
         ui32 index_size;
@@ -70,7 +69,8 @@ namespace Fresa::Graphics
         #endif
     };
     
-    struct InstancedDrawBufferData {
+    using InstancedBufferID = ui32;
+    struct InstancedBufferData {
         BufferData vertex_buffer;
         BufferData instance_buffer;
         BufferData index_buffer;
@@ -123,7 +123,8 @@ namespace Fresa::Graphics
     //Texture
     //----------------------------------------
     using TextureID = ui32;
-
+    inline TextureID no_texture = 0;
+    
     enum Channels {
         TEXTURE_CHANNELS_G = 1,
         TEXTURE_CHANNELS_GA = 2,
@@ -143,8 +144,6 @@ namespace Fresa::Graphics
         ui32 id_;
         #endif
     };
-
-    inline const TextureData no_texture{};
     //----------------------------------------
 
     //Attachments
@@ -270,33 +269,53 @@ namespace Fresa::Graphics
 
     //Draw
     //----------------------------------------
-    using DrawID = ui32;
-
-    struct DrawData {
-        DrawBufferID buffer_id;
-        std::optional<TextureID> texture_id;
-        ShaderID shader;
+    using DrawUniformID = ui32;
+    struct DrawUniformData {
         std::vector<BufferData> uniform_buffers;
         #ifdef USE_VULKAN
         std::vector<VkDescriptorSet> descriptor_sets;
+        ui16 size;
+        bool recreate = false;
         #endif
     };
     
+    struct DrawDescription {
+        ShaderID shader;
+        TextureID texture;
+        DrawUniformID uniform;
+        std::variant<GeometryBufferID, InstancedBufferID> vertex;
+        glm::mat4 model;
+    };
+    
     //: This is a hierarchical map for rendering
-    //  - Geometry data (vao, vertex buffer and index buffer)
-    //  - Textures
-    //  - Uniforms
-    //: I know it looks awfully convoluted, but it makes sense 
-    using DrawQueueData = std::pair<const DrawData*, glm::mat4>; //TODO: REWORK THIS
-    using DrawQueueMapTextures = std::map<const TextureData*, std::vector<DrawQueueData>>;
-    using DrawQueueMapBuffers = std::map<const DrawBufferData*, DrawQueueMapTextures>;
-    using DrawQueueMap = std::map<ShaderID, DrawQueueMapBuffers>;
-
-    //: For instanced rendering it is a bit different
-    //  - Geometry and per instance data
-    //  - Global uniforms
-    //  (Textures are WIP)
-    //: WORKING ON THIS
+    //  - Regular rendering
+    //      1: Vertex buffer (geometry)                 GeometryBufferData
+    //      2: Texture                                  TextureData
+    //      3: Uniforms (global + per instance)         DrawUniformData
+    //  - Instanced rendedring
+    //      1: Global uniforms                          DrawUniformData
+    //      2: Vertex buffer (geometry + per instance)  InstancedBufferData
+    //      .: Textures not supported yet
+    
+    using DrawQueueUniform = std::vector<DrawUniformID>;
+    using DrawQueueTexture = std::map<TextureID, DrawQueueUniform>;
+    using DrawQueueGeometry = std::map<GeometryBufferID, DrawQueueTexture>;
+    using DrawQueue = std::map<ShaderID, DrawQueueGeometry>;
+    
+    using DrawIQueueVertex = std::vector<InstancedBufferID>;
+    using DrawIQueue = std::map<DrawUniformID, DrawIQueueVertex>;
+    
+    // What do i need for drawing?
+    // - Uniform buffers
+    //      - On regular rendering these include *per instance* and global attributes (model, view...), inside a descriptor set
+    //      - On instanced rendering these only include *global* attibutes
+    // - Vertex buffers
+    //      - On regular rendering these contain geometry, color, uvs... model properties, these also have an index buffer for optimizations
+    //      - On instanced rendering, we have two vertex buffers: the regular one and another one with the per instance attributes
+    //        The per instance vertex uses VK_VERTEX_INPUT_RATE_INSTANCE
+    // - Textures
+    //      - On regular rendering there are either binded (OpenGL) or in a descriptor set along with the uniform buffers (Vulkan)
+    //      - Not working with them yet for instancing
     
     //----------------------------------------
     

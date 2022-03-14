@@ -88,9 +88,13 @@ namespace Fresa::Graphics::VK
         
         ([&](){
             VkVertexInputBindingDescription v;
+            
+            if (binding == 0) v.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; //: Regular vertex buffer
+            else if (binding == 1) v.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE; //: Per instance vertex buffer
+            else log::error("Currently only two vertex buffers are supported, per vertex and per instance");
+            
             v.binding = binding++;
             v.stride = sizeof(V);
-            v.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
             
             binding_descriptions.push_back(v);
         }(), ...);
@@ -174,7 +178,7 @@ namespace Fresa::Graphics::VK
     
     //Uniforms
     //----------------------------------------
-    std::vector<BufferData> createUniformBuffers(VmaAllocator allocator, ui32 swapchain_size);
+    std::vector<BufferData> createUniformBuffers(VmaAllocator allocator, ui32 swapchain_size, ui32 buffer_size);
     std::vector<std::vector<BufferData>> createPostUniformBuffers(const Vulkan &vk, const std::vector<VkDescriptorSetLayoutBinding> &bindings);
     //----------------------------------------
 
@@ -382,18 +386,37 @@ namespace Fresa::Graphics {
 }
 
 namespace Fresa::Graphics::API {
-    template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
-    DrawBufferID registerDrawBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<I> &indices) {
-        static DrawBufferID id = 0;
+    template <typename UBO>
+    DrawUniformID registerDrawUniforms(GraphicsAPI &api, ShaderID shader) {
+        static DrawUniformID id = 0;
         do id++;
-        while (draw_buffer_data.find(id) != draw_buffer_data.end());
+        while (draw_uniform_data.find(id) != draw_uniform_data.end());
         
-        draw_buffer_data[id] = DrawBufferData{};
+        draw_uniform_data[id] = DrawUniformData{};
+        DrawUniformData &data = draw_uniform_data.at(id);
         
-        draw_buffer_data[id].vertex_buffer = VK::createVertexBuffer(api, vertices);
-        draw_buffer_data[id].index_buffer = VK::createIndexBuffer(api, indices);
-        draw_buffer_data[id].index_size = (ui32)indices.size();
-        draw_buffer_data[id].index_bytes = (ui8)sizeof(I);
+        data.descriptor_sets = VK::allocateDescriptorSets(api.device, api.pipelines.at(shader).descriptor_layout,
+                                                          api.pipelines.at(shader).descriptor_pool_sizes,
+                                                          api.pipelines.at(shader).descriptor_pools, api.swapchain.size);
+        data.uniform_buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, sizeof(UBO));
+        data.size = (ui16)sizeof(UBO);
+        
+        return id;
+    }
+    
+    template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
+    GeometryBufferID registerGeometryBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<I> &indices) {
+        static GeometryBufferID id = 0;
+        do id++;
+        while (geometry_buffer_data.find(id) != geometry_buffer_data.end());
+        
+        geometry_buffer_data[id] = GeometryBufferData{};
+        GeometryBufferData &data = geometry_buffer_data.at(id);
+        
+        data.vertex_buffer = VK::createVertexBuffer(api, vertices);
+        data.index_buffer = VK::createIndexBuffer(api, indices);
+        data.index_size = (ui32)indices.size();
+        data.index_bytes = (ui8)sizeof(I);
         
         return id;
     }

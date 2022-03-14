@@ -39,13 +39,16 @@ namespace Fresa::Graphics::API
     void configureAPI();
     GraphicsAPI createAPI(WindowData &win);
 
-    //---Textures---
+    //---Drawing---
     TextureID registerTexture(const GraphicsAPI &api, Vec2<> size, Channels ch, ui8* pixels);
-    DrawID registerDrawData(GraphicsAPI &api, DrawBufferID buffer, ShaderID shader);
-    inline std::map<DrawBufferID, DrawBufferData> draw_buffer_data{};
+    
+    inline std::map<GeometryBufferID, GeometryBufferData> geometry_buffer_data{};
+    inline std::map<InstancedBufferID, InstancedBufferData> instanced_buffer_data{};
     inline std::map<TextureID, TextureData> texture_data{};
-    inline std::map<DrawID, DrawData> draw_data{};
-    inline DrawQueueMap draw_queue{};
+    inline std::map<DrawUniformID, DrawUniformData> draw_uniform_data{};
+    
+    inline std::vector<const DrawDescription*> draw_descriptions{};
+    inline DrawQueue draw_queue{};
     
     //---Render passes and attachments---
     void processRendererDescription(GraphicsAPI &api, const WindowData &win);
@@ -80,7 +83,7 @@ namespace Fresa::Graphics::API
     ShaderData createShaderData(str name);
     ShaderCompiler getShaderCompiler(const std::vector<char> &code);
     
-    void updateDescriptorSets(const GraphicsAPI &api, const DrawData* draw);
+    void updateDescriptorSets(const GraphicsAPI &api, const DrawDescription& draw);
 
     //---Other---
     void resize(GraphicsAPI &api, WindowData &win);
@@ -91,8 +94,8 @@ namespace Fresa::Graphics::API
     void clean(GraphicsAPI &api);
 
     //---Templates---
-    template<typename T>
-    void updateUniformBuffer(GraphicsAPI &api, BufferData buffer, const T& ubo) {
+    template <typename UBO>
+    void updateUniformBuffer(GraphicsAPI &api, BufferData buffer, const UBO& ubo) {
         #if defined USE_VULKAN
         void* data;
         vmaMapMemory(api.allocator, buffer.allocation, &data);
@@ -100,7 +103,7 @@ namespace Fresa::Graphics::API
         vmaUnmapMemory(api.allocator, buffer.allocation);
         #elif defined USE_OPENGL
         glBindBuffer(GL_UNIFORM_BUFFER, buffer.id_);
-        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(T), &ubo);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(UBO), &ubo);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
         #endif
     }
