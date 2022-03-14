@@ -148,12 +148,10 @@ void Graphics::draw(DrawDescription &description, glm::mat4 model) {
     
     //: Instanced buffer
     if (API::shaders.at(description.shader).is_instanced) {
-        #ifdef USE_VULKAN
         InstancedBufferID vertex = std::get<1>(description.vertex);
         if (not API::geometry_buffer_data.count(vertex))
             log::error("The InstancedBufferID %d is not valid", vertex);
         API::draw_queue_instanced[description.shader][description.uniform].push_back(vertex);
-        #endif
     }
     //: Geometry buffer
     else {

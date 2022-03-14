@@ -4,11 +4,12 @@
 
 ---
 
-#### 0.3.11 - instanced rendering - _13 03 2022_
+#### 0.3.11 - instanced rendering - _14 03 2022_
 
 **changed**
 - multiple vertex types in attribute description (to allow instance rendering vertices)
 - complete rework of the rendering queue and rendering data
+- instanced rendering working!
 
 ---
 

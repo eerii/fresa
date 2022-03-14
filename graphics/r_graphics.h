@@ -54,12 +54,7 @@ namespace Fresa::Graphics
         description.shader = shader;
         description.texture = texture;
         description.uniform = API::registerDrawUniforms<UBO>(api, shader);
-        
-        #if defined USE_VULKAN
         description.vertex.emplace<1>(API::registerInstancedBuffer(api, vertices, instanced_data, indices));
-        #elif defined USE_OPENGL
-        log::warn("Instanced rendering not implemented yet for OpenGL");
-        #endif
         
         API::updateDescriptorSets(api, description);
         return description;

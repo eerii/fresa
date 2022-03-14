@@ -55,21 +55,26 @@ namespace Fresa::Graphics::GL
     }
     
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    std::pair<BufferData, ui32> createVertexBuffer(const GraphicsAPI &api, const std::vector<V> &vertices) {
+    std::pair<BufferData, ui32> createVertexBuffer(const GraphicsAPI &api, const std::vector<V> &vertices,
+                                                   std::vector<VertexAttributeDescription> attributes = {},
+                                                   ui32 vao_ = -1) {
         //---Vertex buffer---
         //      It holds the vertices for the vertex shader to read
         //      It needs to be tied to the vertex array object (vao)
-        ui32 vao = GL::createVertexArray();
+        ui32 vao = (vao_ == -1) ? GL::createVertexArray() : vao_;
         glBindVertexArray(vao);
         
         BufferData buffer = GL::createBuffer();
         glBindBuffer(GL_ARRAY_BUFFER, buffer.id_);
         
-        static std::vector<VertexAttributeDescription> attributes = API::getAttributeDescriptions<V>();
+        if (attributes.size() == 0)
+            attributes = API::getAttributeDescriptions<V>();
         
         for (const auto &attr : attributes) {
             ui32 size = (ui32)attr.format; //Assuming float
             glVertexAttribPointer(attr.location, size, GL_FLOAT, GL_FALSE, sizeof(V), reinterpret_cast<void*>(attr.offset));
+            if (attr.binding == 1) //: Instancing buffer, update each instance, not each vertex
+                glVertexAttribDivisor(attr.location, 1);
             glEnableVertexAttribArray(attr.location);
         }
         
@@ -113,9 +118,39 @@ namespace Fresa::Graphics::API
         auto [vb, vao] = GL::createVertexBuffer(api, vertices);
         data.vertex_buffer = vb;
         data.vao = vao;
+        
         data.index_buffer = GL::createIndexBuffer(api, indices);
         data.index_size = (ui32)indices.size();
         data.index_bytes = (ui8)sizeof(I);
+        
+        return id;
+    }
+    
+    template <typename V, typename U, typename I,
+              std::enable_if_t<Reflection::is_reflectable<V> && Reflection::is_reflectable<U> && std::is_integral_v<I>, bool> = true>
+    InstancedBufferID registerInstancedBuffer(const GraphicsAPI &api, const std::vector<V> &vertices,
+                                              const std::vector<U> &instanced_data, const std::vector<I> &indices) {
+        static InstancedBufferID id = 0;
+        do id++;
+        while (instanced_buffer_data.find(id) != instanced_buffer_data.end());
+        
+        instanced_buffer_data[id] = InstancedBufferData{};
+        InstancedBufferData &data = instanced_buffer_data.at(id);
+        
+        auto [vb, vao] = GL::createVertexBuffer(api, vertices);
+        data.vertex_buffer = vb;
+        data.vao = vao;
+        
+        data.index_buffer = GL::createIndexBuffer(api, indices);
+        data.index_size = (ui32)indices.size();
+        data.index_bytes = (ui8)sizeof(I);
+        
+        //: Get only the instanced attributes with updated positions
+        auto attributes = API::getAttributeDescriptions<V, U>();
+        attributes.erase(attributes.begin(), attributes.begin() + API::getAttributeDescriptions<V>().size());
+        auto [inst_vb, _] = GL::createVertexBuffer(api, instanced_data, attributes, vao);
+        data.instance_buffer = inst_vb;
+        data.instance_count = (ui32)instanced_data.size();
         
         return id;
     }

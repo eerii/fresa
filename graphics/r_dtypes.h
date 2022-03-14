@@ -79,6 +79,10 @@ namespace Fresa::Graphics
         
         BufferData instance_buffer;
         ui32 instance_count;
+        
+        #ifdef USE_OPENGL
+        ui32 vao;
+        #endif
     };
     
     struct UniformBufferObject {

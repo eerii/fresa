@@ -13,6 +13,7 @@ A tiny game engine made in C++20.
 
 **Graphics** 
 - Custom renderer with Vulkan, OpenGL and WebGL support
+- Instanced rendering
 - Multiple shader subpasses
 - Automatic GLSL shader compilation for each API and reflection using SPIRV-Cross
 - High level API that allows complete customization of the cross platform renderer
@@ -21,6 +22,7 @@ A tiny game engine made in C++20.
 - Data oriented Entity Component System
 - Scene management
 - Custom component controllers for specialized behaviour
+- Entity editor GUI
 
 **Reflection**
 - C++ compile time type reflection implementation
@@ -34,7 +36,6 @@ A tiny game engine made in C++20.
 - Collision checking
 - Time managment and timers
 - Event handling
-- Editor GUI
 
 ## building :hammer:
 

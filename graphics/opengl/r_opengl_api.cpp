@@ -618,50 +618,83 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
             
             //---Draw shaders---
             if (shader.is_draw) {
-                if (not API::draw_queue.count(shader_id))
+                if (not API::draw_queue.count(shader_id) and not API::draw_queue_instanced.count(shader_id))
                     continue;
                 
-                //: Regular rendering queue
-                auto queue_buffer = API::draw_queue.at(shader_id);
-                
-                for (const auto &[buffer, queue_tex] : queue_buffer) {
-                    GeometryBufferData &geometry = API::geometry_buffer_data.at(buffer);
-                    
-                    //: Bind VAO
-                    glBindVertexArray(geometry.vao);
-                    
-                    //: Bind vertex and index buffers
-                    glBindBuffer(GL_ARRAY_BUFFER, geometry.vertex_buffer.id_);
-                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.index_buffer.id_);
-                    glCheckError();
-                    
-                    //: Index type
-                    GLenum index_type = GL_UNSIGNED_SHORT;
-                    if (geometry.index_bytes == 4) index_type = GL_UNSIGNED_INT;
-                    else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
-                    
-                    for (const auto &[tex_id, queue_uniform] : queue_tex) {
-                        //: Bind texture
-                        if (tex_id != no_texture) {
-                            TextureData tex = API::texture_data.at(tex_id);
-                            if (shader.images.size() == 0)
-                                log::error("You are drawing a texture with a shader that does not support texture inputs");
-                            glActiveTexture(GL_TEXTURE0 + shader.images.begin()->second);
-                            glBindTexture(GL_TEXTURE_2D, (tex_id == no_texture) ? 0 : tex.id_);
+                //---Instanced rendering queue---
+                if (API::shaders.at(shader_id).is_instanced) {
+                    auto queue_uniform = API::draw_queue_instanced.at(shader_id);
+                    for (const auto &[uniform_id, queue_vertex] : queue_uniform) {
+                        DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
+                        
+                        //: Upload uniforms
+                        for (auto &[name, index] : shader.uniforms) {
+                            if (name == "UniformBufferObject") //TODO: CHANGE
+                                glBindBufferBase(GL_UNIFORM_BUFFER, index, uniform.uniform_buffers.at(0).id_);
                         }
                         
-                        for (auto uniform_id : queue_uniform) {
-                            DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
+                        for (auto vertex_id : queue_vertex) {
+                            InstancedBufferData &vertex = API::instanced_buffer_data.at(vertex_id);
                             
-                            //: Upload uniforms
-                            for (auto &[name, index] : shader.uniforms) {
-                                if (name == "UniformBufferObject") //TODO: CHANGE
-                                    glBindBufferBase(GL_UNIFORM_BUFFER, index, uniform.uniform_buffers.at(0).id_);
-                            }
+                            //: Bind VAO
+                            glBindVertexArray(vertex.vao);
+                            glBindBuffer(GL_ARRAY_BUFFER, vertex.vertex_buffer.id_);
+                            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex.index_buffer.id_);
+                            glCheckError();
+                            
+                            //: Index type
+                            GLenum index_type = GL_UNSIGNED_SHORT;
+                            if (vertex.index_bytes == 4) index_type = GL_UNSIGNED_INT;
+                            else if (vertex.index_bytes != 2) log::error("Unsupported index byte size %d", vertex.index_bytes);
                             
                             //: Draw
-                            glDrawElements(GL_TRIANGLES, geometry.index_size, index_type, (void*)0);
+                            glDrawElementsInstanced(GL_TRIANGLES, vertex.index_size, index_type, (void*)0, vertex.instance_count);
                             glCheckError();
+                        }
+                    }
+                }
+                //---Regular rendering queue---
+                else {
+                    auto queue_buffer = API::draw_queue.at(shader_id);
+                    for (const auto &[buffer, queue_tex] : queue_buffer) {
+                        GeometryBufferData &geometry = API::geometry_buffer_data.at(buffer);
+                        
+                        //: Bind VAO
+                        glBindVertexArray(geometry.vao);
+                        
+                        //: Bind vertex and index buffers
+                        glBindBuffer(GL_ARRAY_BUFFER, geometry.vertex_buffer.id_);
+                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.index_buffer.id_);
+                        glCheckError();
+                        
+                        //: Index type
+                        GLenum index_type = GL_UNSIGNED_SHORT;
+                        if (geometry.index_bytes == 4) index_type = GL_UNSIGNED_INT;
+                        else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
+                        
+                        for (const auto &[tex_id, queue_uniform] : queue_tex) {
+                            //: Bind texture
+                            if (tex_id != no_texture) {
+                                TextureData tex = API::texture_data.at(tex_id);
+                                if (shader.images.size() == 0)
+                                    log::error("You are drawing a texture with a shader that does not support texture inputs");
+                                glActiveTexture(GL_TEXTURE0 + shader.images.begin()->second);
+                                glBindTexture(GL_TEXTURE_2D, (tex_id == no_texture) ? 0 : tex.id_);
+                            }
+                            
+                            for (auto uniform_id : queue_uniform) {
+                                DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
+                                
+                                //: Upload uniforms
+                                for (auto &[name, index] : shader.uniforms) {
+                                    if (name == "UniformBufferObject") //TODO: CHANGE
+                                        glBindBufferBase(GL_UNIFORM_BUFFER, index, uniform.uniform_buffers.at(0).id_);
+                                }
+                                
+                                //: Draw
+                                glDrawElements(GL_TRIANGLES, geometry.index_size, index_type, (void*)0);
+                                glCheckError();
+                            }
                         }
                     }
                 }
@@ -716,6 +749,8 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
     
     //---Clear drawing queue---
     API::draw_queue.clear();
+    API::draw_queue_instanced.clear();
+    API::draw_descriptions.clear();
     
     //---Gui---
     IF_GUI(ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData()));
