@@ -72,10 +72,13 @@ namespace Fresa::Graphics
     using InstancedBufferID = ui32;
     struct InstancedBufferData {
         BufferData vertex_buffer;
-        BufferData instance_buffer;
+        
         BufferData index_buffer;
         ui32 index_size;
         ui8 index_bytes;
+        
+        BufferData instance_buffer;
+        ui32 instance_count;
     };
     
     struct UniformBufferObject {
@@ -256,6 +259,7 @@ namespace Fresa::Graphics
         ShaderLocations locations;
         ShaderCode code;
         bool is_draw;
+        bool is_instanced;
         #if defined USE_VULKAN
         ShaderStages stages;
         #elif defined USE_OPENGL
@@ -303,7 +307,8 @@ namespace Fresa::Graphics
     using DrawQueue = std::map<ShaderID, DrawQueueGeometry>;
     
     using DrawIQueueVertex = std::vector<InstancedBufferID>;
-    using DrawIQueue = std::map<DrawUniformID, DrawIQueueVertex>;
+    using DrawIQueueUniform = std::map<DrawUniformID, DrawIQueueVertex>;
+    using DrawIQueue = std::map<ShaderID, DrawIQueueUniform>;
     
     // What do i need for drawing?
     // - Uniform buffers

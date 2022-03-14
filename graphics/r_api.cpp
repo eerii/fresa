@@ -306,6 +306,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                         if (line.size() == 4) { //: No instanced rendering
                             api.pipelines[shader] = VK::createPipeline<V>(api, shader, subpass);
                             found_vertex = true;
+                            API::shaders.at(shader).is_instanced = false;
                         } else { //: Instanced rendering (the for_ inside a for_ may be improved in the future)
                             for_<VertexType>([&](auto j){
                                 using U = std::variant_alternative_t<j.value, VertexType>;
@@ -316,6 +317,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                                 if (inst_vertex_name == lower(line.at(4))) {
                                     api.pipelines[shader] = VK::createPipeline<V, U>(api, shader, subpass);
                                     found_vertex = true;
+                                    API::shaders.at(shader).is_instanced = true;
                                 }
                             });
                         }
@@ -324,6 +326,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                 if (not found_vertex) log::error("The vertex you provided '%s' is invalid, check the spelling and vertex variant", line.at(3).c_str());
             #elif defined USE_OPENGL
                 GL::createShaderDataGL(shader, subpass);
+                API::shaders.at(shader).is_instanced = line.size() == 5;
             #endif
         }
     }

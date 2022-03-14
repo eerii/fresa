@@ -30,10 +30,36 @@ namespace Fresa::Graphics
     DrawDescription getDrawDescription(const std::vector<V> &vertices, const std::vector<I> &indices, ShaderID shader, TextureID texture = no_texture) {
         DrawDescription description{};
         
+        if (API::shaders.at(shader).is_instanced)
+            log::error("You are getting a draw description for an instanced shader using the function for regular rendering, use getDrawDescriptionI()");
+        
         description.shader = shader;
         description.texture = texture;
         description.uniform = API::registerDrawUniforms<UBO>(api, shader);
         description.vertex.emplace<0>(API::registerGeometryBuffer(api, vertices, indices));
+        
+        API::updateDescriptorSets(api, description);
+        return description;
+    }
+    
+    template <typename UBO, typename V, typename U, typename I,
+              std::enable_if_t<Reflection::is_reflectable<V> && Reflection::is_reflectable<U> && std::is_integral_v<I>, bool> = true>
+    DrawDescription getDrawDescriptionI(const std::vector<V> &vertices, const std::vector<U> &instanced_data,
+                                        const std::vector<I> &indices, ShaderID shader, TextureID texture = no_texture) {
+        DrawDescription description{};
+        
+        if (not API::shaders.at(shader).is_instanced)
+            log::error("You are getting a draw description for a regular shader using the function for instanced rendering, use getDrawDescription()");
+        
+        description.shader = shader;
+        description.texture = texture;
+        description.uniform = API::registerDrawUniforms<UBO>(api, shader);
+        
+        #if defined USE_VULKAN
+        description.vertex.emplace<1>(API::registerInstancedBuffer(api, vertices, instanced_data, indices));
+        #elif defined USE_OPENGL
+        log::warn("Instanced rendering not implemented yet for OpenGL");
+        #endif
         
         API::updateDescriptorSets(api, description);
         return description;

@@ -146,20 +146,24 @@ void Graphics::draw(DrawDescription &description, glm::mat4 model) {
     if (not API::draw_uniform_data.count(description.uniform))
         log::error("The DrawUniformID %d is not valid", description.uniform);
     
-    if (description.vertex.index() == 0) { //: Geometry buffer
+    //: Instanced buffer
+    if (API::shaders.at(description.shader).is_instanced) {
+        #ifdef USE_VULKAN
+        InstancedBufferID vertex = std::get<1>(description.vertex);
+        if (not API::geometry_buffer_data.count(vertex))
+            log::error("The InstancedBufferID %d is not valid", vertex);
+        API::draw_queue_instanced[description.shader][description.uniform].push_back(vertex);
+        #endif
+    }
+    //: Geometry buffer
+    else {
         GeometryBufferID vertex = std::get<0>(description.vertex);
         if (not API::geometry_buffer_data.count(vertex))
             log::error("The GeometryBufferID %d is not valid", vertex);
         API::draw_queue[description.shader][vertex][description.texture].push_back(description.uniform);
     }
     
-    if (description.vertex.index() == 1) { //: Instanced buffer
-        if (not API::geometry_buffer_data.count(std::get<1>(description.vertex)))
-            log::error("The InstancedBufferID %d is not valid", std::get<1>(description.vertex));
-        log::error("Not implemented yet");
-    }
-    
-    description.model = model;
+    description.model = model; //TODO: CHANGE THIS and the way the uniforms are updated
     API::draw_descriptions.push_back(&description);
 }
 

@@ -49,6 +49,7 @@ namespace Fresa::Graphics::API
     
     inline std::vector<const DrawDescription*> draw_descriptions{};
     inline DrawQueue draw_queue{};
+    inline DrawIQueue draw_queue_instanced{};
     
     //---Render passes and attachments---
     void processRendererDescription(GraphicsAPI &api, const WindowData &win);

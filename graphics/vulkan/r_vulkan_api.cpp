@@ -877,40 +877,68 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
             for (const auto &shader : shaders) {
                 //---Draw shaders---
                 if (API::shaders.at(shader).is_draw) {
-                    if (not API::draw_queue.count(shader))
+                    if (not API::draw_queue.count(shader) and not API::draw_queue_instanced.count(shader))
                         continue;
-                    
-                    //: Regular rendering queue
-                    auto queue_buffer = API::draw_queue.at(shader);
-                    
-                    //: TODO: INSTANCED RENDERING QUEUE
                     
                     //: Bind pipeline
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
                     
-                    for (const auto &[buffer, queue_tex] : queue_buffer) {
-                        GeometryBufferData &geometry = API::geometry_buffer_data.at(buffer);
-                        
-                        //: Vertex buffer
-                        VkDeviceSize offsets[]{ 0 };
-                        vkCmdBindVertexBuffers(cmd, 0, 1, &geometry.vertex_buffer.buffer, offsets);
-                        
-                        //: Index buffer
-                        VkIndexType index_type = VK_INDEX_TYPE_UINT16;
-                        if (geometry.index_bytes == 4) index_type = VK_INDEX_TYPE_UINT32;
-                        else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
-                        vkCmdBindIndexBuffer(cmd, geometry.index_buffer.buffer, 0, index_type);
-                        
-                        for (const auto &[tex, queue_uniform] : queue_tex) {
-                            for (auto uniform : queue_uniform) {
-                                DrawUniformData &data = API::draw_uniform_data.at(uniform);
+                    //---Instanced rendering queue---
+                    if (API::shaders.at(shader).is_instanced) {
+                        auto queue_uniform = API::draw_queue_instanced.at(shader);
+                        for (const auto &[uniform_id, queue_vertex] : queue_uniform) {
+                            DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
+                            //: Descriptor set
+                            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
+                                                    &uniform.descriptor_sets.at(current), 0, nullptr);
+                            
+                            for (auto vertex_id : queue_vertex) {
+                                InstancedBufferData &vertex = API::instanced_buffer_data.at(vertex_id);
                                 
-                                //: Descriptor set
-                                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
-                                                        &data.descriptor_sets.at(current), 0, nullptr);
+                                VkDeviceSize offsets[]{ 0 };
+                                //: Vertex buffer geometry
+                                vkCmdBindVertexBuffers(cmd, 0, 1, &vertex.vertex_buffer.buffer, offsets);
+                                //: Vertex buffer per instance
+                                vkCmdBindVertexBuffers(cmd, 1, 1, &vertex.instance_buffer.buffer, offsets);
+                                
+                                //: Index buffer
+                                VkIndexType index_type = VK_INDEX_TYPE_UINT16;
+                                if (vertex.index_bytes == 4) index_type = VK_INDEX_TYPE_UINT32;
+                                else if (vertex.index_bytes != 2) log::error("Unsupported index byte size %d", vertex.index_bytes);
+                                vkCmdBindIndexBuffer(cmd, vertex.index_buffer.buffer, 0, index_type);
+                                
+                                //: Draw instanced
+                                vkCmdDrawIndexed(cmd, vertex.index_size, vertex.instance_count, 0, 0, 0);
+                            }
+                        }
+                    }
+                    //---Regular rendering queue---
+                    else {
+                        auto queue_buffer = API::draw_queue.at(shader);
+                        for (const auto &[buffer, queue_tex] : queue_buffer) {
+                            GeometryBufferData &geometry = API::geometry_buffer_data.at(buffer);
+                            
+                            //: Vertex buffer
+                            VkDeviceSize offsets[]{ 0 };
+                            vkCmdBindVertexBuffers(cmd, 0, 1, &geometry.vertex_buffer.buffer, offsets);
+                            
+                            //: Index buffer
+                            VkIndexType index_type = VK_INDEX_TYPE_UINT16;
+                            if (geometry.index_bytes == 4) index_type = VK_INDEX_TYPE_UINT32;
+                            else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
+                            vkCmdBindIndexBuffer(cmd, geometry.index_buffer.buffer, 0, index_type);
+                            
+                            for (const auto &[tex, queue_uniform] : queue_tex) {
+                                for (auto uniform : queue_uniform) {
+                                    DrawUniformData &data = API::draw_uniform_data.at(uniform);
+                                    
+                                    //: Descriptor set
+                                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
+                                                            &data.descriptor_sets.at(current), 0, nullptr);
 
-                                //: Draw vertices (Optimize this in the future for a single mesh with instantiation)
-                                vkCmdDrawIndexed(cmd, geometry.index_size, 1, 0, 0, 0);
+                                    //: Draw vertices
+                                    vkCmdDrawIndexed(cmd, geometry.index_size, 1, 0, 0, 0);
+                                }
                             }
                         }
                     }
@@ -2710,6 +2738,7 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     
     //: Clear draw queue
     API::draw_queue.clear();
+    API::draw_queue_instanced.clear();
     API::draw_descriptions.clear();
 }
 
