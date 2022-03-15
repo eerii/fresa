@@ -35,6 +35,11 @@ namespace {
     
     std::vector<std::array<double, 300>> render_systems_points{};
     std::vector<std::array<double, 3>> render_systems_averages{};
+    
+    #ifdef USE_VULKAN
+    std::vector<std::array<double, 300>> render_draw_shader_points{};
+    std::vector<std::array<double, 3>> render_draw_shader_averages{};
+    #endif
 }
 
 double average(std::array<double, 300> &points, int current, int frames) {
@@ -52,6 +57,10 @@ void updateAverages(std::array<double, 300> &points, std::array<double, 3> &aver
     };
 }
 
+double timeFromTimestamp(ui64 t1, ui64 t2) {
+    return ((double)(t2 - t1) / (double)Performance::timestamp_period) * 1.0e-6; //: Time in ms
+}
+
 void Gui::win_performance() {
     static int current = 0;
     static TimerID timer = setTimer(100);
@@ -63,6 +72,8 @@ void Gui::win_performance() {
         physics_systems_averages.resize(System::physics_update_systems.size());
         render_systems_points.resize(System::render_update_systems.size());
         render_systems_averages.resize(System::render_update_systems.size());
+        render_draw_shader_points.resize(Graphics::API::shaders.size());
+        render_draw_shader_averages.resize(Graphics::API::shaders.size());
         init = true;
     }
     
@@ -71,12 +82,35 @@ void Gui::win_performance() {
     physics_iteration_points[current] = Performance::physics_iteration_time;
     physics_event_points[current] = Performance::physics_event_time;
     render_frame_points[current] = Performance::render_frame_time;
-    render_draw_points[current] = Performance::render_draw_time;
     
     for (int i = 0; i < Performance::physics_system_time.size(); i++)
         physics_systems_points.at(i)[current] = Performance::physics_system_time.at(i);
     for (int i = 0; i < Performance::render_system_time.size(); i++)
         render_systems_points.at(i)[current] = Performance::render_system_time.at(i);
+    
+    #if defined USE_OPENGL
+    render_draw_points[current] = Performance::render_draw_time;
+    #elif defined USE_VULKAN
+    if (Performance::timestamps.size() == 0) {
+        log::warn("GPU Timestamps are not initilized...");
+    } else if (Performance::timestamp_period > 0) {
+        ui32 time_points = (ui32)Graphics::API::shaders.size() + 1;
+        ui32 swapchain_size = (ui32)Performance::timestamps.size() / (time_points * 2);
+        
+        render_draw_points[current] = 0;
+        for (int i = 0; i < swapchain_size; i++)
+            render_draw_points[current] += timeFromTimestamp(Performance::timestamps.at(i * time_points * 2),
+                                                             Performance::timestamps.at(i * time_points * 2 + 1));
+        render_draw_points[current] /= swapchain_size;
+        
+        for (int j = 0; j < Graphics::API::shaders.size(); j++) {
+            render_draw_shader_points.at(j)[current] = 0;
+            for (int i = 0; i < swapchain_size; i++)
+                render_draw_shader_points.at(j)[current] += timeFromTimestamp(Performance::timestamps.at((i * time_points + j) * 2),
+                                                                              Performance::timestamps.at((i * time_points + j) * 2 + 1));
+        }
+    }
+    #endif
     
     current = (current + 1) % 300;
     t = time();
@@ -95,6 +129,11 @@ void Gui::win_performance() {
             updateAverages(physics_systems_points.at(i), physics_systems_averages.at(i), current);
         for (int i = 0; i < render_systems_points.size(); i++)
             updateAverages(render_systems_points.at(i), render_systems_averages.at(i), current);
+        
+        #ifdef USE_VULKAN
+        for (int i = 0; i < render_draw_shader_points.size(); i++)
+            updateAverages(render_draw_shader_points.at(i), render_draw_shader_averages.at(i), current);
+        #endif
     }
     
     ImGui::Begin("performance");
@@ -119,7 +158,7 @@ void Gui::win_performance() {
     if (ImGui::CollapsingHeader("physic systems")) {
         int i = 0;
         for (auto &[priority, system] : System::physics_update_systems) {
-            ImGui::Text("p %s: %6.3f   %6.3f   %6.3f", str(system.first).c_str(),
+            ImGui::Text("%s: %6.3f   %6.3f   %6.3f", str(system.first).c_str(),
                         physics_systems_averages.at(i).at(0), physics_systems_averages.at(i).at(1), physics_systems_averages.at(i).at(2)); i++;
         }
     }
@@ -127,10 +166,20 @@ void Gui::win_performance() {
     if (ImGui::CollapsingHeader("render systems")) {
         int i = 0;
         for (auto &[priority, system] : System::render_update_systems) {
-            ImGui::Text("r %s: %6.3f   %6.3f   %6.3f", str(system.first).c_str(),
+            ImGui::Text("%s: %6.3f   %6.3f   %6.3f", str(system.first).c_str(),
                         render_systems_averages.at(i).at(0), render_systems_averages.at(i).at(1), render_systems_averages.at(i).at(2)); i++;
         }
     }
+    
+    #ifdef USE_VULKAN
+    if (ImGui::CollapsingHeader("gpu timers")) {
+        int i = 0;
+        for (auto &[shader, data] : Graphics::API::shaders) {
+            ImGui::Text("%s: %6.3f   %6.3f   %6.3f", shader.c_str(),
+                        render_draw_shader_averages.at(i).at(0), render_draw_shader_averages.at(i).at(1), render_draw_shader_averages.at(i).at(2)); i++;
+        }
+    }
+    #endif
     
     ImGui::End();
 }

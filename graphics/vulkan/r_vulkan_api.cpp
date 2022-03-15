@@ -2750,14 +2750,6 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     //: Get the current image
     vk.cmd.current_buffer = VK::startRender(vk.device, vk.swapchain, vk.sync, [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
-    #ifdef DEBUG
-    if (Performance::timestamp_period > 0 and vk.cmd.current_buffer <= vk.swapchain.size) {
-        ui32 queries = ((ui32)API::shaders.size() + 1) * 2;
-        std::vector<ui64> timestamps = VK::getQueryResults(vk.device, vk.query_timestamp, vk.cmd.current_buffer * queries, queries);
-        log::info(timestamps);
-    }
-    #endif
-    
     //: Update draw uniform buffers
     UniformBufferObject ubo{};
     ubo.view = cam.view;
@@ -2779,6 +2771,18 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
         ubo.model = description->model;
         API::updateUniformBuffer(vk, uniform.uniform_buffers.at(vk.cmd.current_buffer), ubo);
     }
+    
+    //: Get timestamps
+    #ifdef DEBUG
+    ui32 queries = ((ui32)API::shaders.size() + 1) * 2;
+    static int i = 0;
+    if (Performance::timestamps.size() != queries)
+        Performance::timestamps.resize(vk.swapchain.size * queries);
+    if (Performance::timestamp_period > 0 and vk.cmd.current_buffer <= vk.swapchain.size and i++ > 30) {
+        std::vector<ui64> timestamps = VK::getQueryResults(vk.device, vk.query_timestamp, vk.cmd.current_buffer * queries, queries);
+        std::copy(timestamps.begin(), timestamps.end(), Performance::timestamps.begin() + vk.cmd.current_buffer * queries);
+    }
+    #endif
     
     //: Record command buffers
     VK::recordRenderCommandBuffer(vk, vk.cmd.current_buffer);

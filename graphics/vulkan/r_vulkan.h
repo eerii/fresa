@@ -164,8 +164,10 @@ namespace Fresa::Graphics
         BufferData window_vertex_buffer;
         
         //: Debug
+        #ifdef DEBUG
         VkQueryPool query_timestamp;
         VkQueryPool query_statistics;
+        #endif
         VkDebugReportCallbackEXT debug_callback;
     };
 }

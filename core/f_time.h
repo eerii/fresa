@@ -100,6 +100,8 @@ namespace Fresa
         //: In Vulkan, a value that represents the number of nanoseconds it takes for a timestamp query to be incremented by 1
         //: Additionally, if timestamps are not supported in the current graphics queue it will be set back to 0
         inline float timestamp_period = 0.0f;
+        
+        inline std::vector<ui64> timestamps{};
         #endif
     }
 }
