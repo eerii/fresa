@@ -10,6 +10,7 @@
 - instanced rendering!
 - gpu timestamp gui (not working on moltenvk)
 - loop audio
+- callback and event timers
 
 **changed**
 - multiple vertex types in attribute description (to allow instance rendering vertices)

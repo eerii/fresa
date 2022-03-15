@@ -71,3 +71,15 @@ double Fresa::sec(Duration duration) {
     //---Duration in seconds---
     return duration.count() * 1.0e-9;
 }
+
+void Time::updateCallbackTimers() {
+    std::vector<TimerID> to_erase{};
+    for (auto &[timer, callback] : callback_timers) {
+        if (checkTimer(timer)) {
+            callback();
+            to_erase.push_back(timer);
+        }
+    }
+    for (auto &timer : to_erase) //: In order to avoid problems with the previous for
+        callback_timers.erase(timer);
+}

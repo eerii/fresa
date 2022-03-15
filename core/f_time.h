@@ -5,6 +5,7 @@
 #pragma once
 
 #include "types.h"
+#include "events.h"
 #include <chrono>
 
 namespace Fresa
@@ -36,6 +37,10 @@ namespace Fresa
         
         //---Timer list---
         inline std::map<TimerID, Timer> timers{};
+        
+        //---Callback timers---
+        inline std::map<TimerID, std::function<void()>> callback_timers{};
+        void updateCallbackTimers();
     }
 
     Clock::time_point time();
@@ -68,6 +73,16 @@ namespace Fresa
         else
             return f(a...);
         #endif
+    }
+    
+    inline void callbackTimer(ui32 ms, std::function<void()> callback) {
+        TimerID t = setTimer(ms);
+        Time::callback_timers[t] = callback;
+    }
+    
+    template <typename... Args>
+    void eventTimer(ui32 ms, Event::Event<Args...> &e, const Args&... a) {
+        callbackTimer(ms, [&](){ e.publish(a...); });
     }
     
     namespace Performance {

@@ -146,6 +146,9 @@ void Game::timeFrame() {
     //: Prevent too many physics updates to pile up (10 seconds)
     if (Time::accumulator > 1.0e10)
         Time::accumulator = 0.0;
+    
+    //: Update callback timers
+    Time::updateCallbackTimers();
 }
 
 void Game::stop() {
