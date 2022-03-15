@@ -20,8 +20,9 @@ namespace Fresa::Audio
         ui8* loc;
         ui8* buffer;
         ui8 volume;
+        bool loop;
     };
-    using SoundID = ui8;
+    using SoundID = ui16;
     inline std::map<SoundID, Sound> sounds{};
     
     inline std::vector<SoundID> playlist{};
@@ -35,7 +36,8 @@ namespace Fresa::Audio
     void pause();
     void unpause();
     
-    SoundID load(str file, ui8 volume);
+    SoundID load(str file, ui8 volume, bool loop);
+    void unload(SoundID sound);
     
     void play(SoundID sound);
     void stop(SoundID sound);

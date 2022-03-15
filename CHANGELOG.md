@@ -4,10 +4,12 @@
 
 ---
 
-#### 0.3.11 - instanced rendering - _14 03 2022_
+#### 0.3.11 - instanced rendering - _15 03 2022_
 
 **added**
 - instanced rendering!
+- gpu timestamp gui (not working on moltenvk)
+- loop audio
 
 **changed**
 - multiple vertex types in attribute description (to allow instance rendering vertices)

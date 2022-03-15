@@ -40,8 +40,10 @@ void Audio::callback(void *userdata, ui8 *stream, int len) {
             SDL_MixAudioFormat(stream, sound.buffer, api.spec.format, length, sound.volume);
             sound.buffer += length;
             sound.remainder -= length;
+        } else if (sound.loop) {
+            sound.buffer = sound.loc;
+            sound.remainder = sound.length;
         } else {
-            SDL_FreeWAV(sound.loc);
             stop(id);
         }
     }
@@ -55,7 +57,7 @@ void Audio::unpause() {
     SDL_PauseAudioDevice(api.device, 0);
 }
 
-Audio::SoundID Audio::load(str file, ui8 volume) {
+Audio::SoundID Audio::load(str file, ui8 volume, bool loop) {
     static SoundID id = 0;
     while (Audio::sounds.find(id) != Audio::sounds.end())
         id++;
@@ -65,6 +67,7 @@ Audio::SoundID Audio::load(str file, ui8 volume) {
     Sound& s = Audio::sounds.at(id);
     
     s.volume = volume;
+    s.loop = loop;
     
     //: Load file
     file = File::path("audio/" + file);
@@ -82,6 +85,11 @@ Audio::SoundID Audio::load(str file, ui8 volume) {
     }
     
     return id;
+}
+
+void Audio::unload(SoundID sound) {
+    SDL_FreeWAV(Audio::sounds.at(sound).loc);
+    Audio::sounds.erase(sound);
 }
 
 void Audio::play(SoundID sound) {
