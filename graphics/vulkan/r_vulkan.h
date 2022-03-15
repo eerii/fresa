@@ -71,8 +71,6 @@ namespace Fresa::Graphics
         VkQueueIndices queue_indices;
         VkQueueData queues;
         
-        VkQueryPool query_pool;
-        
         ui32 current_buffer;
     };
 
@@ -166,6 +164,8 @@ namespace Fresa::Graphics
         BufferData window_vertex_buffer;
         
         //: Debug
+        VkQueryPool query_timestamp;
+        VkQueryPool query_statistics;
         VkDebugReportCallbackEXT debug_callback;
     };
 }

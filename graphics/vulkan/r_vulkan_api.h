@@ -69,7 +69,10 @@ namespace Fresa::Graphics::VK
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
     void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
     
-    VkQueryPool createQueryPool(VkDevice device, ui32 swapchain_size);
+    #ifdef DEBUG
+    VkQueryPool createQueryPool(VkDevice device, ui32 swapchain_size, VkQueryType type);
+    std::vector<ui64> getQueryResults(VkDevice device, VkQueryPool query, ui32 offset, ui32 count);
+    #endif
     //----------------------------------------
 
 

@@ -82,7 +82,6 @@ Vulkan API::createAPI(WindowData &win) {
         {"transfer", {vk.cmd.queue_indices.transfer.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
     });
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
-    vk.cmd.query_pool = VK::createQueryPool(vk.device, vk.swapchain.size);
     
     //---Sync objects---
     vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
@@ -95,6 +94,13 @@ Vulkan API::createAPI(WindowData &win) {
     
     //---Window vertex buffer---
     vk.window_vertex_buffer = VK::createVertexBuffer(vk, Vertices::window);
+    
+    //---Query pools---
+    #ifdef DEBUG
+    vk.query_timestamp = VK::createQueryPool(vk.device, vk.swapchain.size, VK_QUERY_TYPE_TIMESTAMP);
+    if (vk.physical_device_features.pipelineStatisticsQuery == VK_TRUE)
+        vk.query_statistics = VK::createQueryPool(vk.device, vk.swapchain.size, VK_QUERY_TYPE_PIPELINE_STATISTICS);
+    #endif
     
     return vk;
 }
@@ -400,7 +406,6 @@ VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeat
     //      Needs to be passed to almost every Vulkan function
     VkDevice device;
     
-    
     //---Create the selected queues---
     std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
     
@@ -428,11 +433,9 @@ VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeat
         i++;
     }
     
-    
     //---Device required features---
     //      Enable some features here, try to keep it as small as possible
     //: (optional) Anisotropy - physical_device_features.samplerAnisotropy = VK_TRUE;
-    
     
     //---Create device---
     VkDeviceCreateInfo device_create_info{};
@@ -748,6 +751,13 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         for (auto &[id, draw] : API::draw_uniform_data) {
             draw.recreate = true;
         }
+        
+        //: Query pools
+        #ifdef DEBUG
+        vk.query_timestamp = VK::createQueryPool(vk.device, vk.swapchain.size, VK_QUERY_TYPE_TIMESTAMP);
+        if (vk.physical_device_features.pipelineStatisticsQuery == VK_TRUE)
+            vk.query_statistics = VK::createQueryPool(vk.device, vk.swapchain.size, VK_QUERY_TYPE_PIPELINE_STATISTICS);
+        #endif
     }
 }
 
@@ -832,12 +842,14 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
     if (vkBeginCommandBuffer(cmd, &begin_info) != VK_SUCCESS)
         log::error("Failed to begin recording on a vulkan command buffer");
     
-    //: Reset query and timestamp before render pass
+    //: Reset timestamps and time before all passes
     #ifdef DEBUG
+    ui32 queries = (((ui32)API::shaders.size() + 1) * 2);
     if (Performance::timestamp_period > 0) {
-        vkCmdResetQueryPool(cmd, vk.cmd.query_pool, current * 2, 2);
-        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, vk.cmd.query_pool, current * 2);
+        vkCmdResetQueryPool(cmd, vk.query_timestamp, current * queries, queries);
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, vk.query_timestamp, current * queries);
     }
+    int query_index = 0;
     #endif
     
     //: Clear values
@@ -875,6 +887,12 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
             std::vector<ShaderID> shaders = getAtoB<ShaderID>(s_id, API::Map::subpass_shader);
             
             for (const auto &shader : shaders) {
+                //: Timestamp before shader
+                #ifdef DEBUG
+                if (Performance::timestamp_period > 0)
+                    vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, vk.query_timestamp, current * queries + 2 * ++query_index);
+                #endif
+                
                 //---Draw shaders---
                 if (API::shaders.at(shader).is_draw) {
                     if (not API::draw_queue.count(shader) and not API::draw_queue_instanced.count(shader))
@@ -960,6 +978,12 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                     //: Draw
                     vkCmdDraw(cmd, 6, 1, 0, 0);
                 }
+                
+                //: Timestamp after shader
+                #ifdef DEBUG
+                if (Performance::timestamp_period > 0)
+                    vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, vk.query_timestamp, current * queries + 2 * query_index + 1);
+                #endif
             }
         }
         
@@ -967,11 +991,10 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
         vkCmdEndRenderPass(cmd);
     }
     
-    //: Timestamp after render pass
+    //: Timestamp after all passes
     #ifdef DEBUG
-    if (Performance::timestamp_period > 0) {
-        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, vk.cmd.query_pool, current * 2 + 1);
-    }
+    if (Performance::timestamp_period > 0)
+        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, vk.query_timestamp, current * queries + 1);
     #endif
     
     //: End command buffer
@@ -1021,25 +1044,54 @@ void VK::endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buff
     vkFreeCommandBuffers(device, pool, 1, &command_buffer);
 }
 
-VkQueryPool VK::createQueryPool(VkDevice device, ui32 swapchain_size) {
+#ifdef DEBUG
+
+VkQueryPool VK::createQueryPool(VkDevice device, ui32 swapchain_size, VkQueryType type) {
     //---Query pool---
     //      This will allocate queries that we can perform, for example, to measure the execution time for a command buffer
     VkQueryPool query_pool;
     
     VkQueryPoolCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+    create_info.queryType = type;
     create_info.flags = 0;
-
-    create_info.queryType = VK_QUERY_TYPE_TIMESTAMP;
-    create_info.queryCount = swapchain_size * 2; //: One query before the command and one after to calculate the time
+    
+    //: Timestamp
+    if (type == VK_QUERY_TYPE_TIMESTAMP) {
+        create_info.queryCount = swapchain_size * (((ui32)API::shaders.size() + 1) * 2);
+        //: One query before and after each draw call for each shader, and one for the entire gpu
+    }
+    
+    //: Pipeline statistics
+    if (type == VK_QUERY_TYPE_PIPELINE_STATISTICS) {
+        create_info.pipelineStatistics =
+            VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT |
+            VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT |
+            VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT |
+            VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT |
+            VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT |
+            VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |
+            VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;
+        create_info.queryCount = swapchain_size * 6;
+    }
 
     if (vkCreateQueryPool(device, &create_info, nullptr, &query_pool) != VK_SUCCESS)
         log::error("Failed to create a query pool");
     
-    deletion_queue_program.push_back([query_pool, device](){ vkDestroyQueryPool(device, query_pool, nullptr); });
+    deletion_queue_size_change.push_back([query_pool, device](){ vkDestroyQueryPool(device, query_pool, nullptr); });
     
     return query_pool;
 }
+
+std::vector<ui64> VK::getQueryResults(VkDevice device, VkQueryPool query, ui32 offset, ui32 count) {
+    std::vector<ui64> results(count);
+    
+    vkGetQueryPoolResults(device, query, offset, count, count * sizeof(ui64), results.data(), sizeof(ui64), VK_QUERY_RESULT_64_BIT);
+    
+    return results;
+}
+
+#endif
 
 //----------------------------------------
 
@@ -2698,13 +2750,12 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     //: Get the current image
     vk.cmd.current_buffer = VK::startRender(vk.device, vk.swapchain, vk.sync, [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
-    //: Timestamp queries
     #ifdef DEBUG
-    /*ui64 queries[4];
-    vkGetQueryPoolResults(vk.device, vk.cmd.query_pool, current * 2, 2, 2 * 2 * sizeof(ui64), queries, 2 * sizeof(ui64), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
-    if (queries[1] > 0 and queries[3] > 0) //: Available
-        Performance::render_draw_time = ((double)(queries[2] - queries[0]) / (double)Performance::timestamp_period) * 1.0e-6; //: Time in ms
-    std::cout << queries[0] << " " << queries[2] << " : " << Performance::render_draw_time << " - Available " << queries[1] << " " << queries[3] << std::endl;*/
+    if (Performance::timestamp_period > 0 and vk.cmd.current_buffer <= vk.swapchain.size) {
+        ui32 queries = ((ui32)API::shaders.size() + 1) * 2;
+        std::vector<ui64> timestamps = VK::getQueryResults(vk.device, vk.query_timestamp, vk.cmd.current_buffer * queries, queries);
+        log::info(timestamps);
+    }
     #endif
     
     //: Update draw uniform buffers

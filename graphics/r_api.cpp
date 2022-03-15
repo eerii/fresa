@@ -172,15 +172,14 @@ ShaderCompiler API::getShaderCompiler(const std::vector<char> &code) {
 void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
     if (API::renderer_description_path.size() == 0)
         log::error("You need to set API::renderer_description_path with the location of your renderer description file");
-    
-    if (not fs::exists(fs::path{API::renderer_description_path}))
-        log::error("Error creating the rederer description. Please make sure that you have created an appropiate file at '%s'. The renderer description is a list of the attachments, subpasses, renderpasses and pipelines/shaders in your rendering application. It needs to be filled accordingly. There is an example of a valid file in https://github.com/josekoalas/aguacate", API::renderer_description_path.c_str());
-    
+
     std::map<str, AttachmentID> attachment_list{};
     std::map<str, SubpassID> subpass_list{};
     int swapchain_count = 0; //: Support for multiple swapchain attachments
     
-    std::ifstream f(API::renderer_description_path);
+    str path = File::path(API::renderer_description_path);
+    std::ifstream f(path);
+    
     std::string s;
     while (std::getline(f, s)) {
         if (s.size() == 0) continue;
