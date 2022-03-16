@@ -132,6 +132,32 @@ TextureID Graphics::getTextureID(str path, Channels ch) {
     return tex_id;
 }
 
+IndirectDrawID Graphics::getIndirectDrawID(DrawDescription &description) {
+    #if defined USE_VULKAN
+    if (not API::shaders.count(description.shader))
+        log::error("The ShaderID %s is not valid", description.shader.c_str());
+
+    if (description.texture != no_texture and not API::texture_data.count(description.texture))
+        log::error("The TextureID %d is not valid", description.texture);
+
+    if (not API::draw_uniform_data.count(description.uniform))
+        log::error("The DrawUniformID %d is not valid", description.uniform);
+
+    if (not API::shaders.at(description.shader).is_instanced)
+        log::error("Draw indirect is only available for instanced drawing");
+
+    InstancedBufferID vertex = std::get<1>(description.vertex);
+    if (not API::instanced_buffer_data.count(vertex))
+        log::error("The InstancedBufferID %d is not valid", vertex);
+
+    IndirectDrawID id = VK::registerIndirectDrawCommandBuffer(api, vertex);
+    return id;
+    #elif defined USE_OPENGL
+    log::warn("Draw indirect is not supported for OpenGL, use a regular draw call");
+    return 0;
+    #endif
+}
+
 void Graphics::draw(DrawDescription &description, glm::mat4 model) {
     //---Draw---
     //      Checks if the description provided and all the data attached are valid, and adds it to the correct draw queue
@@ -148,7 +174,7 @@ void Graphics::draw(DrawDescription &description, glm::mat4 model) {
     //: Instanced buffer
     if (API::shaders.at(description.shader).is_instanced) {
         InstancedBufferID vertex = std::get<1>(description.vertex);
-        if (not API::geometry_buffer_data.count(vertex))
+        if (not API::instanced_buffer_data.count(vertex))
             log::error("The InstancedBufferID %d is not valid", vertex);
         API::draw_queue_instanced[description.shader][description.uniform].push_back(vertex);
     }
@@ -162,6 +188,38 @@ void Graphics::draw(DrawDescription &description, glm::mat4 model) {
     
     description.model = model; //TODO: CHANGE THIS and the way the uniforms are updated
     API::draw_descriptions.push_back(&description);
+}
+
+void Graphics::draw_indirect(DrawDescription &description, IndirectDrawID indirect_id, glm::mat4 model) {
+    //---Draw indirect---
+    
+    #if defined USE_VULKAN
+    if (not API::shaders.count(description.shader))
+        log::error("The ShaderID %s is not valid", description.shader.c_str());
+    
+    if (description.texture != no_texture and not API::texture_data.count(description.texture))
+        log::error("The TextureID %d is not valid", description.texture);
+    
+    if (not API::draw_uniform_data.count(description.uniform))
+        log::error("The DrawUniformID %d is not valid", description.uniform);
+    
+    if (not API::shaders.at(description.shader).is_instanced)
+        log::error("Draw indirect is only available for instanced drawing");
+    
+    InstancedBufferID vertex = std::get<1>(description.vertex);
+    if (not API::instanced_buffer_data.count(vertex))
+        log::error("The InstancedBufferID %d is not valid", vertex);
+    
+    if (not api.indirect_buffer_data.count(indirect_id))
+        log::error("The IndirectDrawID %d is not valid", indirect_id);
+    
+    api.draw_queue_indirect[description.shader][description.uniform][vertex] = indirect_id;
+    
+    description.model = model;
+    API::draw_descriptions.push_back(&description);
+    #elif defined USE_OPENGL
+    log::warn("Draw indirect is not supported for OpenGL, do a regular draw");
+    #endif
 }
 
 void Graphics::updateCameraView(CameraData &cam) {

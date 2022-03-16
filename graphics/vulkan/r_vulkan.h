@@ -48,8 +48,6 @@ namespace Fresa::Graphics
         VkPipeline pipeline;
     };
 
-    //: Helper structs
-    //----------------------------------------
     struct VkQueueIndices {
         std::optional<ui32> graphics;
         std::optional<ui32> present;
@@ -127,8 +125,7 @@ namespace Fresa::Graphics
         VkDescriptorImageInfo info;
         VkWriteDescriptorSet write;
     };
-    //----------------------------------------
-
+    
     struct Vulkan {
         //: Instance
         VkInstance instance;
@@ -153,6 +150,8 @@ namespace Fresa::Graphics
         //: Commands
         CommandData cmd;
         SyncData sync;
+        IndirectIQueue draw_queue_indirect;
+        std::map<IndirectDrawID, IndirectDrawData> indirect_buffer_data;
         
         //: Pipelines
         std::map<ShaderID, PipelineData> pipelines;

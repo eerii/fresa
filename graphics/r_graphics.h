@@ -61,8 +61,10 @@ namespace Fresa::Graphics
     }
 
     TextureID getTextureID(str path, Channels ch = TEXTURE_CHANNELS_RGBA);
+    IndirectDrawID getIndirectDrawID(DrawDescription &description);
 
     void draw(DrawDescription &description, glm::mat4 model);
+    void draw_indirect(DrawDescription &description, IndirectDrawID indirect_id, glm::mat4 model);
     
     void updateCameraView(CameraData &cam);
     void updateCameraProjection(CameraData &cam);

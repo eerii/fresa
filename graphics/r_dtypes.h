@@ -287,6 +287,14 @@ namespace Fresa::Graphics
         #endif
     };
     
+    using IndirectDrawID = ui32;
+    #ifdef USE_VULKAN
+    struct IndirectDrawData {
+        BufferData cmd_buffer;
+        ui32 count;
+    };
+    #endif
+    
     struct DrawDescription {
         ShaderID shader;
         TextureID texture;
@@ -304,6 +312,7 @@ namespace Fresa::Graphics
     //      1: Global uniforms                          DrawUniformData
     //      2: Vertex buffer (geometry + per instance)  InstancedBufferData
     //      .: Textures not supported yet
+    //: Indirect rendering is the same as instanced, but it uses a command buffer
     
     using DrawQueueUniform = std::vector<DrawUniformID>;
     using DrawQueueTexture = std::map<TextureID, DrawQueueUniform>;
@@ -313,6 +322,12 @@ namespace Fresa::Graphics
     using DrawIQueueVertex = std::vector<InstancedBufferID>;
     using DrawIQueueUniform = std::map<DrawUniformID, DrawIQueueVertex>;
     using DrawIQueue = std::map<ShaderID, DrawIQueueUniform>;
+    
+    #ifdef USE_VULKAN
+    using IndirectIQueueVertex = std::map<InstancedBufferID, IndirectDrawID>;
+    using IndirectIQueueUniform = std::map<DrawUniformID, IndirectIQueueVertex>;
+    using IndirectIQueue = std::map<ShaderID, IndirectIQueueUniform>;
+    #endif
     
     // What do i need for drawing?
     // - Uniform buffers

@@ -12,7 +12,7 @@ namespace Fresa::Audio
         SDL_AudioSpec spec;
         SDL_AudioDeviceID device;
     };
-    inline AudioAPI api;
+    inline AudioAPI audio_api;
     
     struct Sound {
         ui32 length;

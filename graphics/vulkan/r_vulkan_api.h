@@ -65,6 +65,7 @@ namespace Fresa::Graphics::VK
 
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const CommandData &cmd);
     void recordRenderCommandBuffer(const Vulkan &vk, ui32 current);
+    IndirectDrawID registerIndirectDrawCommandBuffer(Vulkan &vk, InstancedBufferID buffer);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
     void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
@@ -249,37 +250,39 @@ namespace Fresa::Graphics::VK
     BufferData createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory);
     void copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
     
-    template <typename I, std::enable_if_t<std::is_integral_v<I>, bool> = true>
-    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<I> &indices) {
-        //---Index buffer---
-        //      This buffer contains a list of indices, which allows to draw complex meshes without repeating vertices
-        //      A simple example, while a square only has 4 vertices, 6 vertices are needed for the 2 triangles, and it only gets worse from there
-        //      An index buffer solves this by having a list of which vertices to use, avoiding vertex repetition
-        //      The creating process is very similar to the above vertex buffer, using a staging buffer
-        VkDeviceSize buffer_size = sizeof(I) * indices.size();
+    template <typename V>
+    BufferData createGPUBuffer(const GraphicsAPI &api, const std::vector<V> &v, VkBufferUsageFlags usage) {
+        
+        VkDeviceSize buffer_size = sizeof(V) * v.size();
         
         //: Staging buffer
-        BufferData staging_buffer = VK::createBuffer(api.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+        //      We want to make the vertex buffer accessible to the GPU in the most efficient way, so we use a staging buffer
+        //      This is created in CPU only memory, in which we can easily map the vertex data
+        BufferData staging_buffer = VK::createBuffer(api.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  VMA_MEMORY_USAGE_CPU_ONLY);
         
-        //: Map indices to staging buffer
+        //: Map data to staging buffer
         void* data;
         vmaMapMemory(api.allocator, staging_buffer.allocation, &data);
-        memcpy(data, indices.data(), (size_t) buffer_size);
+        memcpy(data, v.data(), (size_t) buffer_size);
         vmaUnmapMemory(api.allocator, staging_buffer.allocation);
         
-        //: Index buffer
-        BufferData index_buffer = VK::createBuffer(api.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+        //: Buffer
+        //      The most efficient memory for GPU access is VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, or its rough equivalent, VMA_MEMORY_USAGE_GPU_ONLY
+        //      This memory type can't be access from the CPU
+        BufferData buffer = VK::createBuffer(api.allocator, buffer_size, usage, VMA_MEMORY_USAGE_GPU_ONLY);
         
-        //: Copy from staging to index
-        VK::copyBuffer(api.device, api.cmd, staging_buffer.buffer, index_buffer.buffer, buffer_size);
+        //: Copy from staging to buffer
+        //      Since we can't access the buffer memory from the CPU, we will use vkCmdCopyBuffer(), which will execute on a queue
+        //      and move data between the staging and vertex buffer
+        VK::copyBuffer(api.device, api.cmd, staging_buffer.buffer, buffer.buffer, buffer_size);
         
-        //: Delete helpers (staging now, index when the program finishes)
+        //: Delete helpers (staging now, buffer when the program finishes)
         vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
-        deletion_queue_program.push_back([api, index_buffer](){
-            vmaDestroyBuffer(api.allocator, index_buffer.buffer, index_buffer.allocation);
+        deletion_queue_program.push_back([api, buffer](){
+            vmaDestroyBuffer(api.allocator, buffer.buffer, buffer.allocation);
         });
         
-        return index_buffer;
+        return buffer;
     }
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
@@ -288,41 +291,20 @@ namespace Fresa::Graphics::VK
         //      Buffer that holds the vertex information for the shaders to use.
         //      It has a struct per vertex of the mesh, which can contain properties like position, color, uv, normals...
         //      The properties are described automatically using reflection in an attribute description in the pipeline
-        VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
-        
-        //: Staging buffer
-        //      We want to make the vertex buffer accessible to the GPU in the most efficient way, so we use a staging buffer
-        //      This is created in CPU only memory, in which we can easily map the vertex data
-        BufferData staging_buffer = VK::createBuffer(api.allocator, buffer_size,
-                                                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                     VMA_MEMORY_USAGE_CPU_ONLY);
-        
-        //: Map vertices to staging buffer
-        void* data;
-        vmaMapMemory(api.allocator, staging_buffer.allocation, &data);
-        memcpy(data, vertices.data(), (size_t) buffer_size);
-        vmaUnmapMemory(api.allocator, staging_buffer.allocation);
-        
-        //: Vertex buffer
-        //      The most efficient memory for GPU access is VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, or its rough equivalent, VMA_MEMORY_USAGE_GPU_ONLY
-        //      This memory type can't be access from the CPU
-        BufferData vertex_buffer = VK::createBuffer(api.allocator, buffer_size,
-                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                    VMA_MEMORY_USAGE_GPU_ONLY);
-        
-        //: Copy from staging to vertex
-        //      Since we can't access the vertex buffer memory from the CPU, we will use vkCmdCopyBuffer(), which will execute on a queue
-        //      and move data between the staging and vertex buffer
-        VK::copyBuffer(api.device, api.cmd, staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
-        
-        //: Delete helpers (staging now, vertex when the program finishes)
-        vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
-        deletion_queue_program.push_back([api, vertex_buffer](){
-            vmaDestroyBuffer(api.allocator, vertex_buffer.buffer, vertex_buffer.allocation); 
-        });
-        
-        return vertex_buffer;
+        return createGPUBuffer(api, vertices, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     }
+    
+    template <typename I, std::enable_if_t<std::is_integral_v<I>, bool> = true>
+    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<I> &indices) {
+        //---Index buffer---
+        //      This buffer contains a list of indices, which allows to draw complex meshes without repeating vertices
+        //      A simple example, while a square only has 4 vertices, 6 vertices are needed for the 2 triangles, and it only gets worse from there
+        //      An index buffer solves this by having a list of which vertices to use, avoiding vertex repetition
+        //      The creating process is very similar to the above vertex buffer, using a staging buffer
+        return createGPUBuffer(api, indices, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    }
+    
+    
     //----------------------------------------
 
 

@@ -7,7 +7,7 @@
 #### 0.3.12 - NAME - _00 00 2022_
 
 **added**
-- .
+- vulkan indirect drawing (very basic)
 
 ---
 

@@ -18,11 +18,11 @@ void Audio::init() {
     requested_spec.callback = callback;
     requested_spec.userdata = nullptr;
     
-    api.device = SDL_OpenAudioDevice(nullptr, 0, &requested_spec, &api.spec, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
-    if (api.device == 0)
+    audio_api.device = SDL_OpenAudioDevice(nullptr, 0, &requested_spec, &audio_api.spec, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+    if (audio_api.device == 0)
         log::error("Failed to open audio device, %s", SDL_GetError());
     
-    if (api.spec.format != requested_spec.format)
+    if (audio_api.spec.format != requested_spec.format)
         log::warn("The audio format was not the requested one");
     
     unpause();
@@ -37,7 +37,7 @@ void Audio::callback(void *userdata, ui8 *stream, int len) {
         if (sound.remainder > 0) {
             ui32 length = (ui32)len > sound.remainder ? sound.remainder : (ui32) len;
             
-            SDL_MixAudioFormat(stream, sound.buffer, api.spec.format, length, sound.volume);
+            SDL_MixAudioFormat(stream, sound.buffer, audio_api.spec.format, length, sound.volume);
             sound.buffer += length;
             sound.remainder -= length;
         } else if (sound.loop) {
@@ -50,11 +50,11 @@ void Audio::callback(void *userdata, ui8 *stream, int len) {
 }
 
 void Audio::pause() {
-    SDL_PauseAudioDevice(api.device, 1);
+    SDL_PauseAudioDevice(audio_api.device, 1);
 }
 
 void Audio::unpause() {
-    SDL_PauseAudioDevice(api.device, 0);
+    SDL_PauseAudioDevice(audio_api.device, 0);
 }
 
 Audio::SoundID Audio::load(str file, ui8 volume, bool loop) {
@@ -74,7 +74,7 @@ Audio::SoundID Audio::load(str file, ui8 volume, bool loop) {
     str extension = split(file, ".").back();
     
     if (extension == "wav") {
-        if (SDL_LoadWAV(file.c_str(), &api.spec, &s.loc, &s.length) == NULL)
+        if (SDL_LoadWAV(file.c_str(), &audio_api.spec, &s.loc, &s.length) == NULL)
             log::error("Error loading the audio file %s", file.c_str());
         s.buffer = s.loc;
         s.remainder = s.length;

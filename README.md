@@ -17,6 +17,7 @@ A tiny game engine made in C++20.
 - Multiple shader subpasses
 - Automatic GLSL shader compilation for each API and reflection using SPIRV-Cross
 - High level API that allows complete customization of the cross platform renderer
+- Indirect drawing (Vulkan only)
 
 **ECS**
 - Data oriented Entity Component System
