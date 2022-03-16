@@ -57,9 +57,11 @@ void updateAverages(std::array<double, 300> &points, std::array<double, 3> &aver
     };
 }
 
+#ifdef USE_VULKAN
 double timeFromTimestamp(ui64 t1, ui64 t2) {
     return ((double)(t2 - t1) / (double)Performance::timestamp_period) * 1.0e-6; //: Time in ms
 }
+#endif
 
 void Gui::win_performance() {
     static int current = 0;
@@ -72,8 +74,10 @@ void Gui::win_performance() {
         physics_systems_averages.resize(System::physics_update_systems.size());
         render_systems_points.resize(System::render_update_systems.size());
         render_systems_averages.resize(System::render_update_systems.size());
+        #ifdef USE_VULKAN
         render_draw_shader_points.resize(Graphics::API::shaders.size());
         render_draw_shader_averages.resize(Graphics::API::shaders.size());
+        #endif
         init = true;
     }
     

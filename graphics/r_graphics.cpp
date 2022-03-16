@@ -35,7 +35,6 @@ bool Graphics::init() {
     
     //: Create renderer api
     API::createShaderList();
-    API::renderer_description_path = "render/renderer_description";
     api = API::createAPI(win);
 
     //: Set projection

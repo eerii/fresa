@@ -170,14 +170,14 @@ ShaderCompiler API::getShaderCompiler(const std::vector<char> &code) {
 }
 
 void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
-    if (API::renderer_description_path.size() == 0)
-        log::error("You need to set API::renderer_description_path with the location of your renderer description file");
+    if (Config::renderer_description_path.size() == 0)
+        log::error("You need to set Config::renderer_description_path with the location of your renderer description file");
 
     std::map<str, AttachmentID> attachment_list{};
     std::map<str, SubpassID> subpass_list{};
     int swapchain_count = 0; //: Support for multiple swapchain attachments
     
-    str path = File::path(API::renderer_description_path);
+    str path = File::path(Config::renderer_description_path);
     std::ifstream f(path);
     
     std::string s;

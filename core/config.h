@@ -15,5 +15,7 @@ namespace Fresa {
         
         static const float timestep;
         static float game_speed;
+        
+        static str renderer_description_path;
     };
 }
