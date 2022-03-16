@@ -624,7 +624,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                 //---Instanced rendering queue---
                 if (API::shaders.at(shader_id).is_instanced) {
                     auto queue_uniform = API::draw_queue_instanced.at(shader_id);
-                    for (const auto &[uniform_id, queue_vertex] : queue_uniform) {
+                    for (const auto &[uniform_id, queue_geometry] : queue_uniform) {
                         DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
                         
                         //: Upload uniforms
@@ -633,23 +633,29 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                                 glBindBufferBase(GL_UNIFORM_BUFFER, index, uniform.uniform_buffers.at(0).id_);
                         }
                         
-                        for (auto vertex_id : queue_vertex) {
-                            InstancedBufferData &vertex = API::instanced_buffer_data.at(vertex_id);
+                        for (const auto &[geometry_id, queue_instance] : queue_geometry) {
+                            GeometryBufferData &geometry = API::geometry_buffer_data.at(geometry_id);
                             
                             //: Bind VAO
-                            glBindVertexArray(vertex.vao);
-                            glBindBuffer(GL_ARRAY_BUFFER, vertex.vertex_buffer.id_);
-                            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertex.index_buffer.id_);
+                            glBindVertexArray(geometry.vao);
+                            glBindBuffer(GL_ARRAY_BUFFER, geometry.vertex_buffer.id_);
+                            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.index_buffer.id_);
                             glCheckError();
                             
                             //: Index type
                             GLenum index_type = GL_UNSIGNED_SHORT;
-                            if (vertex.index_bytes == 4) index_type = GL_UNSIGNED_INT;
-                            else if (vertex.index_bytes != 2) log::error("Unsupported index byte size %d", vertex.index_bytes);
+                            if (geometry.index_bytes == 4) index_type = GL_UNSIGNED_INT;
+                            else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
                             
-                            //: Draw
-                            glDrawElementsInstanced(GL_TRIANGLES, vertex.index_size, index_type, (void*)0, vertex.instance_count);
-                            glCheckError();
+                            for (const auto &instance_id : queue_instance) {
+                                InstancedBufferData &instance = API::instanced_buffer_data.at(instance_id);
+                                
+                                glBindBuffer(GL_ARRAY_BUFFER, instance.instance_buffer.id_);
+                                
+                                //: Draw
+                                glDrawElementsInstanced(GL_TRIANGLES, geometry.index_size, index_type, (void*)0, instance.instance_count);
+                                glCheckError();
+                            }
                         }
                     }
                 }

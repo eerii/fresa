@@ -406,22 +406,14 @@ namespace Fresa::Graphics::API {
         return id;
     }
     
-    template <typename V, typename U, typename I,
-              std::enable_if_t<Reflection::is_reflectable<V> && Reflection::is_reflectable<U> && std::is_integral_v<I>, bool> = true>
-    InstancedBufferID registerInstancedBuffer(const GraphicsAPI &api, const std::vector<V> &vertices,
-                                              const std::vector<U> &instanced_data, const std::vector<I> &indices) {
+    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
+    InstancedBufferID registerInstancedBuffer(const GraphicsAPI &api, const std::vector<V> &instanced_data) {
         static InstancedBufferID id = 0;
         do id++;
-        while (instanced_buffer_data.find(id) != instanced_buffer_data.end());
+        while (instanced_buffer_data.find(id) != instanced_buffer_data.end() or id == no_instance);
         
         instanced_buffer_data[id] = InstancedBufferData{};
         InstancedBufferData &data = instanced_buffer_data.at(id);
-        
-        data.vertex_buffer = VK::createVertexBuffer(api, vertices);
-        
-        data.index_buffer = VK::createIndexBuffer(api, indices);
-        data.index_size = (ui32)indices.size();
-        data.index_bytes = (ui8)sizeof(I);
         
         data.instance_buffer = VK::createVertexBuffer(api, instanced_data);
         data.instance_count = (ui32)instanced_data.size();

@@ -40,6 +40,8 @@ void Gui::win_menu() {
         if (ImGui::BeginMenu("game")) {
             Gui::slider("game speed", Config::game_speed, 0.1f, 0.0f, 3.0f);
             
+            ImGui::Checkbox("draw indirect", &Config::draw_indirect);
+            
             ImGui::EndMenu();
         }
         

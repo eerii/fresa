@@ -150,7 +150,6 @@ namespace Fresa::Graphics
         //: Commands
         CommandData cmd;
         SyncData sync;
-        IndirectIQueue draw_queue_indirect;
         std::map<IndirectDrawID, IndirectDrawData> indirect_buffer_data;
         
         //: Pipelines

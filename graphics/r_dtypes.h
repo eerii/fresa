@@ -70,19 +70,10 @@ namespace Fresa::Graphics
     };
     
     using InstancedBufferID = ui32;
+    inline InstancedBufferID no_instance = 0;
     struct InstancedBufferData {
-        BufferData vertex_buffer;
-        
-        BufferData index_buffer;
-        ui32 index_size;
-        ui8 index_bytes;
-        
         BufferData instance_buffer;
         ui32 instance_count;
-        
-        #ifdef USE_OPENGL
-        ui32 vao;
-        #endif
     };
     
     struct UniformBufferObject {
@@ -299,7 +290,8 @@ namespace Fresa::Graphics
         ShaderID shader;
         TextureID texture;
         DrawUniformID uniform;
-        std::variant<GeometryBufferID, InstancedBufferID> vertex;
+        GeometryBufferID geometry;
+        InstancedBufferID instance = no_instance;
         glm::mat4 model;
     };
     
@@ -310,7 +302,8 @@ namespace Fresa::Graphics
     //      3: Uniforms (global + per instance)         DrawUniformData
     //  - Instanced rendedring
     //      1: Global uniforms                          DrawUniformData
-    //      2: Vertex buffer (geometry + per instance)  InstancedBufferData
+    //      2: Vertex buffer (geometry)                 GeometryBufferData
+    //      3: Per instance buffer                      InstancedBufferID
     //      .: Textures not supported yet
     //: Indirect rendering is the same as instanced, but it uses a command buffer
     
@@ -319,15 +312,10 @@ namespace Fresa::Graphics
     using DrawQueueGeometry = std::map<GeometryBufferID, DrawQueueTexture>;
     using DrawQueue = std::map<ShaderID, DrawQueueGeometry>;
     
-    using DrawIQueueVertex = std::vector<InstancedBufferID>;
-    using DrawIQueueUniform = std::map<DrawUniformID, DrawIQueueVertex>;
+    using DrawIQueueInstance = std::vector<InstancedBufferID>;
+    using DrawIQueueGeometry = std::map<GeometryBufferID, DrawIQueueInstance>;
+    using DrawIQueueUniform = std::map<DrawUniformID, DrawIQueueGeometry>;
     using DrawIQueue = std::map<ShaderID, DrawIQueueUniform>;
-    
-    #ifdef USE_VULKAN
-    using IndirectIQueueVertex = std::map<InstancedBufferID, IndirectDrawID>;
-    using IndirectIQueueUniform = std::map<DrawUniformID, IndirectIQueueVertex>;
-    using IndirectIQueue = std::map<ShaderID, IndirectIQueueUniform>;
-    #endif
     
     // What do i need for drawing?
     // - Uniform buffers

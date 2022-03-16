@@ -9,6 +9,9 @@
 **added**
 - vulkan indirect drawing (very basic)
 
+**changed**
+- improved the instanced queue
+
 ---
 
 #### 0.3.11 - instanced rendering - _15 03 2022_

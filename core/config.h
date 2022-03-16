@@ -17,5 +17,6 @@ namespace Fresa {
         static float game_speed;
         
         static str renderer_description_path;
+        static bool draw_indirect;
     };
 }
