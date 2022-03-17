@@ -279,13 +279,13 @@ namespace Fresa::Graphics
         #endif
     };
     
-    using IndirectDrawID = ui32;
-    #ifdef USE_VULKAN
-    struct IndirectDrawData {
-        BufferData cmd_buffer;
-        ui32 count;
+    using IndirectBufferID = ui16;
+    inline IndirectBufferID no_indirect_buffer = 0;
+    struct IndirectCommandBuffer {
+        BufferData buffer;
+        ui32 current_offset;
+        std::vector<ui32> free_positions;
     };
-    #endif
     
     struct DrawDescription {
         ShaderID shader;
@@ -293,7 +293,8 @@ namespace Fresa::Graphics
         DrawUniformID uniform;
         GeometryBufferID geometry;
         InstancedBufferID instance = no_instance;
-        glm::mat4 model;
+        IndirectBufferID indirect_buffer = no_indirect_buffer;
+        ui32 indirect_offset = 0;
     };
     
     //: This is a hierarchical map for rendering
@@ -308,12 +309,12 @@ namespace Fresa::Graphics
     //      .: Textures not supported yet
     //: Indirect rendering is the same as instanced, but it uses a command buffer
     
-    using DrawQueueUniform = std::vector<DrawUniformID>;
+    using DrawQueueUniform = std::map<DrawUniformID, DrawDescription*>;
     using DrawQueueTexture = std::map<TextureID, DrawQueueUniform>;
     using DrawQueueGeometry = std::map<GeometryBufferID, DrawQueueTexture>;
     using DrawQueue = std::map<ShaderID, DrawQueueGeometry>;
     
-    using DrawIQueueInstance = std::vector<InstancedBufferID>;
+    using DrawIQueueInstance = std::map<InstancedBufferID, DrawDescription*>;
     using DrawIQueueGeometry = std::map<GeometryBufferID, DrawIQueueInstance>;
     using DrawIQueueUniform = std::map<DrawUniformID, DrawIQueueGeometry>;
     using DrawIQueue = std::map<ShaderID, DrawIQueueUniform>;

@@ -10,6 +10,8 @@
 #include "bidirectional_map.h"
 #include <set>
 
+#define MAX_INDIRECT_COMMANDS 64
+
 namespace Fresa::Graphics
 {
 #if defined USE_VULKAN
@@ -47,6 +49,13 @@ namespace Fresa::Graphics::API
     
     inline DrawQueue draw_queue{};
     inline DrawIQueue draw_queue_instanced{};
+    inline std::vector<DrawDescription*> draw_descriptions{};
+    
+    //---Indirect Drawing---
+    IndirectBufferID registerIndirectCommandBuffer(const GraphicsAPI &api);
+    void addIndirectDrawCommand(const GraphicsAPI &api, DrawDescription &description);
+    void removeIndirectDrawCommand(const GraphicsAPI &api, DrawDescription &description);
+    inline std::map<IndirectBufferID, IndirectCommandBuffer> draw_indirect_buffers{};
     
     //---Render passes and attachments---
     void processRendererDescription(GraphicsAPI &api, const WindowData &win);

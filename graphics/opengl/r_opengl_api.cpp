@@ -569,6 +569,7 @@ TextureID API::registerTexture(const OpenGL &gl, Vec2<> size, Channels ch, ui8* 
 //----------------------------------------
 
 void API::updateDescriptorSets(const OpenGL &gl, const DrawDescription& draw) { }
+void API::addIndirectDrawCommand(const GraphicsAPI &api, DrawDescription &description) { }
 
 //----------------------------------------
 
@@ -637,7 +638,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                             if (geometry.index_bytes == 4) index_type = GL_UNSIGNED_INT;
                             else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
                             
-                            for (const auto &instance_id : queue_instance) {
+                            for (const auto &[instance_id, description] : queue_instance) {
                                 InstancedBufferData &instance = API::instanced_buffer_data.at(instance_id);
                                 
                                 glBindBuffer(GL_ARRAY_BUFFER, instance.instance_buffer.id_);
@@ -678,7 +679,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                                 glBindTexture(GL_TEXTURE_2D, (tex_id == no_texture) ? 0 : tex.id_);
                             }
                             
-                            for (auto uniform_id : queue_uniform) {
+                            for (auto [uniform_id, description] : queue_uniform) {
                                 DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
                                 
                                 //: Upload uniforms
@@ -746,6 +747,7 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
     //---Clear drawing queue---
     API::draw_queue.clear();
     API::draw_queue_instanced.clear();
+    API::draw_descriptions.clear();
     
     //---Gui---
     IF_GUI(ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData()));

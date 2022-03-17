@@ -4,10 +4,10 @@
 
 ---
 
-#### 0.3.12 - NAME - _00 00 2022_
+#### 0.3.12 - indirect drawing - _17 03 2022_
 
 **added**
-- vulkan indirect drawing (very basic)
+- vulkan indirect drawing
 - improved uniform binding and global uniforms
 
 **changed**

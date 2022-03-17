@@ -67,7 +67,6 @@ namespace Fresa::Graphics::VK
 
     std::vector<VkCommandBuffer> allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const CommandData &cmd);
     void recordRenderCommandBuffer(const Vulkan &vk, ui32 current);
-    IndirectDrawID registerIndirectDrawCommandBuffer(Vulkan &vk, InstancedBufferID buffer);
 
     VkCommandBuffer beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool);
     void endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buffer, VkCommandPool pool, VkQueue queue);
@@ -250,7 +249,7 @@ namespace Fresa::Graphics::VK
     //Buffers
     //----------------------------------------
     BufferData createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory);
-    void copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size);
+    void copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size, VkDeviceSize offset = 0);
     
     template <typename V>
     BufferData createGPUBuffer(const GraphicsAPI &api, const std::vector<V> &v, VkBufferUsageFlags usage) {
@@ -304,6 +303,21 @@ namespace Fresa::Graphics::VK
         //      An index buffer solves this by having a list of which vertices to use, avoiding vertex repetition
         //      The creating process is very similar to the above vertex buffer, using a staging buffer
         return createGPUBuffer(api, indices, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    }
+    
+    template <typename V>
+    void updateGPUBuffer(const GraphicsAPI &api, const BufferData &buffer, const std::vector<V> &v, size_t offset = 0) {
+        VkDeviceSize buffer_size = sizeof(V) * v.size();
+        BufferData staging_buffer = VK::createBuffer(api.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  VMA_MEMORY_USAGE_CPU_ONLY);
+        
+        void* data;
+        vmaMapMemory(api.allocator, staging_buffer.allocation, &data);
+        memcpy(data, v.data(), (size_t) buffer_size);
+        vmaUnmapMemory(api.allocator, staging_buffer.allocation);
+        
+        VK::copyBuffer(api.device, api.cmd, staging_buffer.buffer, buffer.buffer, buffer_size, VkDeviceSize(offset * sizeof(V)));
+        
+        vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
     }
     
     

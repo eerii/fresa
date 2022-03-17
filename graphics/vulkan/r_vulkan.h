@@ -150,7 +150,6 @@ namespace Fresa::Graphics
         //: Commands
         CommandData cmd;
         SyncData sync;
-        std::map<IndirectDrawID, IndirectDrawData> indirect_buffer_data;
         
         //: Pipelines
         std::map<ShaderID, PipelineData> pipelines;

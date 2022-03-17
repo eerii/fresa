@@ -30,7 +30,7 @@ bool Graphics::init() {
     
     //: Create window
     str version = std::to_string(Config::version[0]) + "." + std::to_string(Config::version[1]) + "." + std::to_string(Config::version[2]);
-    str name = Config::name + " - Version " + version;
+    str name = Config::name + " - version " + version;
     win = API::createWindow(Config::window_size, name);
     
     //: Create renderer api
@@ -115,14 +115,19 @@ void Graphics::draw_(DrawDescription &description) {
     if (API::shaders.at(description.shader).is_instanced) {
         if (description.instance == no_instance or not API::instanced_buffer_data.count(description.instance))
             log::error("The InstancedBufferID %d is not valid", description.instance);
-        API::draw_queue_instanced[description.shader][description.uniform][description.geometry].push_back(description.instance);
+        API::draw_queue_instanced[description.shader][description.uniform][description.geometry][description.instance] = &description;
     }
     //: Geometry buffer
     else {
         if (description.instance != no_instance)
             log::error("The InstancedBufferID %d is not valid", description.instance);
-        API::draw_queue[description.shader][description.geometry][description.texture].push_back(description.uniform);
+        API::draw_queue[description.shader][description.geometry][description.texture][description.uniform] = &description;
     }
+    
+    if(Config::draw_indirect and description.indirect_buffer == no_indirect_buffer)
+        API::addIndirectDrawCommand(api, description);
+    
+    API::draw_descriptions.push_back(&description);
 }
 
 TextureID Graphics::getTextureID(str path, Channels ch) {

@@ -924,7 +924,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                                 else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
                                 vkCmdBindIndexBuffer(cmd, geometry.index_buffer.buffer, 0, index_type);
                                 
-                                for (const auto &instance_id : queue_instance) {
+                                for (const auto &[instance_id, description] : queue_instance) {
                                     InstancedBufferData &instance = API::instanced_buffer_data.at(instance_id);
                                     
                                     //: Vertex buffer per instance
@@ -932,14 +932,11 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                                     
                                     //: Draw indirect
                                     if (Config::draw_indirect) {
-                                        /*auto &ind = vk.indirect_buffer_data.at(indirect_id);
-                                        if (vk.physical_device_features.multiDrawIndirect) {
-                                            vkCmdDrawIndexedIndirect(cmd, ind.cmd_buffer.buffer, 0, ind.count, sizeof(VkDrawIndexedIndirectCommand));
-                                        } else {
-                                            for (auto i = 0; i < ind.count; i++)
-                                                vkCmdDrawIndexedIndirect(cmd, ind.cmd_buffer.buffer, i * sizeof(VkDrawIndexedIndirectCommand),
-                                                                         1, sizeof(VkDrawIndexedIndirectCommand));
-                                        }*/
+                                        vkCmdDrawIndexedIndirect(cmd, API::draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
+                                                                 description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
+                                                                 1, sizeof(VkDrawIndexedIndirectCommand));
+                                        // - See how multi draw indirect could be implemented, probably you have to squash all the vertex buffers
+                                        //   and make use of the vertex offset in the indirect command
                                     }
                                     //: Draw direct
                                     else {
@@ -966,15 +963,23 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                             vkCmdBindIndexBuffer(cmd, geometry.index_buffer.buffer, 0, index_type);
                             
                             for (const auto &[tex, queue_uniform] : queue_tex) {
-                                for (auto uniform : queue_uniform) {
-                                    DrawUniformData &data = API::draw_uniform_data.at(uniform);
+                                for (auto &[uniform_id, description] : queue_uniform) {
+                                    DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
                                     
                                     //: Descriptor set
                                     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
-                                                            &data.descriptor_sets.at(current), 0, nullptr);
+                                                            &uniform.descriptor_sets.at(current), 0, nullptr);
 
                                     //: Draw vertices
-                                    vkCmdDrawIndexed(cmd, geometry.index_size, 1, 0, 0, 0);
+                                    if (Config::draw_indirect) {
+                                        vkCmdDrawIndexedIndirect(cmd, API::draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
+                                                                 description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
+                                                                 1, sizeof(VkDrawIndexedIndirectCommand));
+                                    }
+                                    //: Draw direct
+                                    else {
+                                        vkCmdDrawIndexed(cmd, geometry.index_size, 1, 0, 0, 0);
+                                    }
                                 }
                             }
                         }
@@ -1021,30 +1026,58 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
         log::error("Failed to end recording on a vulkan command buffer");
 }
 
-IndirectDrawID VK::registerIndirectDrawCommandBuffer(Vulkan &vk, InstancedBufferID buffer) {
-    /*static IndirectDrawID id = 0;
-    while (vk.indirect_buffer_data.find(id) != vk.indirect_buffer_data.end())
-        id++;
+IndirectBufferID API::registerIndirectCommandBuffer(const Vulkan &vk) {
+    static IndirectBufferID id = 0;
+    do id++;
+    while (API::draw_indirect_buffers.find(id) != API::draw_indirect_buffers.end() or id == no_indirect_buffer);
     
-    std::vector<VkDrawIndexedIndirectCommand> commands;
+    API::draw_indirect_buffers[id] = IndirectCommandBuffer{};
+    IndirectCommandBuffer &icmd = API::draw_indirect_buffers[id];
     
-    InstancedBufferData &vertex = API::instanced_buffer_data.at(buffer);
+    VkDeviceSize s = MAX_INDIRECT_COMMANDS * sizeof(VkDrawIndexedIndirectCommand);
+    icmd.buffer = VK::createBuffer(vk.allocator, s, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     
-    VkDrawIndexedIndirectCommand cmd{};
-    cmd.instanceCount = vertex.instance_count;
-    cmd.firstInstance = 0; //vertex.instance_count * i++;
-    cmd.firstIndex = 0;
-    cmd.indexCount = vertex.index_size;
+    icmd.current_offset = 0;
+    icmd.free_positions = {};
     
-    commands.push_back(cmd);
+    VK::deletion_queue_program.push_back([vk, icmd](){
+        vmaDestroyBuffer(api.allocator, icmd.buffer.buffer, icmd.buffer.allocation);
+    });
     
-    vk.indirect_buffer_data[id] = IndirectDrawData{
-        VK::createGPUBuffer(vk, commands, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT),
-        (ui32)commands.size()
-    };
+    return id;
+}
+
+void API::addIndirectDrawCommand(const Vulkan &vk, DrawDescription &description) {
+    GeometryBufferData &geometry = API::geometry_buffer_data.at(description.geometry);
+    bool is_instanced = API::instanced_buffer_data.count(description.instance);
     
-    return id;*/
-    return 0;
+    //: Draw indirect command
+    std::vector<VkDrawIndexedIndirectCommand> cmd(1);
+    cmd.at(0).instanceCount = is_instanced ? API::instanced_buffer_data.at(description.instance).instance_count : 1;
+    cmd.at(0).firstInstance = 0; //instance.instance_count * i++;
+    cmd.at(0).firstIndex = 0;
+    cmd.at(0).indexCount = geometry.index_size;
+    
+    //: Find available offset
+    for (auto &[id, icmd] : API::draw_indirect_buffers) {
+        if (icmd.free_positions.size() > 0) {
+            description.indirect_buffer = id;
+            description.indirect_offset = icmd.free_positions.at(0);
+            icmd.free_positions.erase(icmd.free_positions.begin());
+            break;
+        }
+        if (icmd.current_offset + 1 == MAX_INDIRECT_COMMANDS)
+            continue;
+        description.indirect_buffer = id;
+        description.indirect_offset = icmd.current_offset++;
+    }
+    if (description.indirect_buffer == no_indirect_buffer) {
+        description.indirect_buffer = registerIndirectCommandBuffer(vk);
+        description.indirect_offset = API::draw_indirect_buffers.at(description.indirect_buffer).current_offset++;
+    }
+    
+    //: Update command buffer
+    VK::updateGPUBuffer(vk, API::draw_indirect_buffers.at(description.indirect_buffer).buffer, cmd, description.indirect_offset);
 }
 
 VkCommandBuffer VK::beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool) {
@@ -2052,7 +2085,7 @@ BufferData VK::createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferU
     return data;
 }
 
-void VK::copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+void VK::copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size, VkDeviceSize offset) {
     //---Copy buffer---
     //      Simple function that creates a command buffer to copy the memory from one buffer to another
     //      Very helpful when using staging buffers to move information from CPU to GPU only memory (can be done in reverse)
@@ -2060,7 +2093,7 @@ void VK::copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuf
     
     VkBufferCopy copy_region{};
     copy_region.srcOffset = 0;
-    copy_region.dstOffset = 0;
+    copy_region.dstOffset = offset;
     copy_region.size = size;
     vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
     
@@ -2792,6 +2825,8 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
 //----------------------------------------
 
 void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
+    static std::vector<DrawDescription*> previous_draw_descriptions{};
+    
     //: Get the current image
     vk.cmd.current_buffer = VK::startRender(vk.device, vk.swapchain, vk.sync, [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
@@ -2806,6 +2841,16 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     }
     #endif
     
+    //: Remove indirect buffers that are no longer in use
+    if (Config::draw_indirect) {
+        if (previous_draw_descriptions != API::draw_descriptions) {
+            for (auto description : previous_draw_descriptions) {
+                if (std::find(API::draw_descriptions.begin(), API::draw_descriptions.end(), description) == API::draw_descriptions.end())
+                    API::removeIndirectDrawCommand(vk, *description);
+            }
+        }
+    }
+    
     //: Update uniform buffers
     //      Keep an eye on how performant is this, another solution might be necessary
     for (auto &f : VK::update_buffer_queue) f(vk.cmd.current_buffer);
@@ -2819,8 +2864,10 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     VK::renderFrame(vk, win);
     
     //: Clear draw queue
+    previous_draw_descriptions = API::draw_descriptions;
     API::draw_queue.clear();
     API::draw_queue_instanced.clear();
+    API::draw_descriptions.clear();
 }
 
 void API::present(Vulkan &vk, WindowData &win) {

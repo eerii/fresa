@@ -13,11 +13,11 @@
 //: SDL Window Flags
 #if defined USE_VULKAN
     #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN
-    #define RENDERER_NAME "Vulkan"
+    #define RENDERER_NAME "vulkan"
     #include "r_vulkan_api.h"
 #elif defined USE_OPENGL
     #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
-    #define RENDERER_NAME "OpenGL"
+    #define RENDERER_NAME "opengl"
     #include "r_opengl_api.h"
 #endif
 
@@ -167,6 +167,13 @@ ShaderCompiler API::getShaderCompiler(const std::vector<char> &code) {
     }
     
     return spirv_cross::CompilerGLSL(std::move(spirv));
+}
+
+void API::removeIndirectDrawCommand(const GraphicsAPI &api, DrawDescription &description) {
+    if (API::draw_indirect_buffers.count(description.indirect_buffer))
+        API::draw_indirect_buffers.at(description.indirect_buffer).free_positions.push_back(description.indirect_offset);
+    description.indirect_buffer = no_indirect_buffer;
+    description.indirect_offset = 0;
 }
 
 void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
