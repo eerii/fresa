@@ -95,6 +95,36 @@ void Graphics::onResize(Vec2<> size) {
     API::resize(api, win);
 }
 
+void Graphics::draw_(DrawDescription &description) {
+    //---Draw---
+    //      Checks if the description provided and all the data attached are valid, and adds it to the correct draw queue
+    
+    if (not API::shaders.count(description.shader))
+        log::error("The ShaderID %s is not valid", description.shader.c_str());
+    
+    if (description.texture != no_texture and not API::texture_data.count(description.texture))
+        log::error("The TextureID %d is not valid", description.texture);
+    
+    if (not API::draw_uniform_data.count(description.uniform))
+        log::error("The DrawUniformID %d is not valid", description.uniform);
+    
+    if (not API::geometry_buffer_data.count(description.geometry))
+        log::error("The GeometryBufferID %d is not valid", description.geometry);
+    
+    //: Instanced buffer
+    if (API::shaders.at(description.shader).is_instanced) {
+        if (description.instance == no_instance or not API::instanced_buffer_data.count(description.instance))
+            log::error("The InstancedBufferID %d is not valid", description.instance);
+        API::draw_queue_instanced[description.shader][description.uniform][description.geometry].push_back(description.instance);
+    }
+    //: Geometry buffer
+    else {
+        if (description.instance != no_instance)
+            log::error("The InstancedBufferID %d is not valid", description.instance);
+        API::draw_queue[description.shader][description.geometry][description.texture].push_back(description.uniform);
+    }
+}
+
 TextureID Graphics::getTextureID(str path, Channels ch) {
     //---Create TextureID---
     
@@ -130,39 +160,6 @@ TextureID Graphics::getTextureID(str path, Channels ch) {
     stbi_image_free(pixels);
     
     return tex_id;
-}
-
-void Graphics::draw(DrawDescription &description, glm::mat4 model) {
-    //---Draw---
-    //      Checks if the description provided and all the data attached are valid, and adds it to the correct draw queue
-    
-    if (not API::shaders.count(description.shader))
-        log::error("The ShaderID %s is not valid", description.shader.c_str());
-    
-    if (description.texture != no_texture and not API::texture_data.count(description.texture))
-        log::error("The TextureID %d is not valid", description.texture);
-    
-    if (not API::draw_uniform_data.count(description.uniform))
-        log::error("The DrawUniformID %d is not valid", description.uniform);
-    
-    if (not API::geometry_buffer_data.count(description.geometry))
-        log::error("The GeometryBufferID %d is not valid", description.geometry);
-    
-    //: Instanced buffer
-    if (API::shaders.at(description.shader).is_instanced) {
-        if (description.instance == no_instance or not API::instanced_buffer_data.count(description.instance))
-            log::error("The InstancedBufferID %d is not valid", description.instance);
-        API::draw_queue_instanced[description.shader][description.uniform][description.geometry].push_back(description.instance);
-    }
-    //: Geometry buffer
-    else {
-        if (description.instance != no_instance)
-            log::error("The InstancedBufferID %d is not valid", description.instance);
-        API::draw_queue[description.shader][description.geometry][description.texture].push_back(description.uniform);
-    }
-    
-    description.model = model; //TODO: CHANGE THIS and the way the uniforms are updated
-    API::draw_descriptions.push_back(&description);
 }
 
 void Graphics::updateCameraView(CameraData &cam) {

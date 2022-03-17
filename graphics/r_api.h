@@ -18,11 +18,9 @@ namespace Fresa::Graphics
     using GraphicsAPI = OpenGL;
 #endif
     
-    //TODO: Refactor the graphics API, use a BaseAPI and derived Vulkan and OpenGL classes.
-    //      Also in API functions do not pass the &api, create an inline global member, research multithread
-    /*struct BaseAPI {
-        
-    };*/
+    inline WindowData win;
+    inline CameraData camera;
+    inline GraphicsAPI api;
 }
 
 //---API---
@@ -47,7 +45,6 @@ namespace Fresa::Graphics::API
     inline std::map<TextureID, TextureData> texture_data{};
     inline std::map<DrawUniformID, DrawUniformData> draw_uniform_data{};
     
-    inline std::vector<const DrawDescription*> draw_descriptions{};
     inline DrawQueue draw_queue{};
     inline DrawIQueue draw_queue_instanced{};
     
@@ -93,21 +90,7 @@ namespace Fresa::Graphics::API
 
     void clean(GraphicsAPI &api);
 
-    //---Templates---
-    template <typename UBO>
-    void updateUniformBuffer(GraphicsAPI &api, BufferData buffer, const UBO& ubo) {
-        #if defined USE_VULKAN
-        void* data;
-        vmaMapMemory(api.allocator, buffer.allocation, &data);
-        memcpy(data, &ubo, sizeof(ubo));
-        vmaUnmapMemory(api.allocator, buffer.allocation);
-        #elif defined USE_OPENGL
-        glBindBuffer(GL_UNIFORM_BUFFER, buffer.id_);
-        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(UBO), &ubo);
-        glBindBuffer(GL_UNIFORM_BUFFER, 0);
-        #endif
-    }
-    
+    //---Attributes---
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     std::vector<VertexAttributeDescription> getAttributeDescriptions_(ui32 binding = 0, ui32 previous_location = 0) {
         std::vector<VertexAttributeDescription> attribute_descriptions{};

@@ -2795,39 +2795,21 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     //: Get the current image
     vk.cmd.current_buffer = VK::startRender(vk.device, vk.swapchain, vk.sync, [&vk, &win](){ VK::recreateSwapchain(vk, win); });
     
-    //: Update draw uniform buffers
-    UniformBufferObject ubo{};
-    ubo.view = cam.view;
-    ubo.proj = cam.proj;
-    for (const auto description : API::draw_descriptions) {
-        DrawUniformData &uniform = API::draw_uniform_data.at(description->uniform);
-        
-        if (uniform.recreate) { //: If the swapchain becomes outdated, recreate first
-            uniform.descriptor_sets = VK::allocateDescriptorSets(vk.device, vk.pipelines.at(description->shader).descriptor_layout,
-                                                                 vk.pipelines.at(description->shader).descriptor_pool_sizes,
-                                                                 vk.pipelines.at(description->shader).descriptor_pools, vk.swapchain.size);
-            uniform.uniform_buffers = VK::createUniformBuffers(vk.allocator, vk.swapchain.size, (ui32)uniform.size);
-            uniform.recreate = false;
-            
-            API::updateDescriptorSets(vk, *description);
-        }
-        
-        //: Update the buffer
-        ubo.model = description->model;
-        API::updateUniformBuffer(vk, uniform.uniform_buffers.at(vk.cmd.current_buffer), ubo);
-    }
-    
     //: Get timestamps
     #ifdef DEBUG
     ui32 queries = ((ui32)API::shaders.size() + 1) * 2;
-    static int i = 0;
     if (Performance::timestamps.size() != queries)
         Performance::timestamps.resize(vk.swapchain.size * queries);
-    if (Performance::timestamp_period > 0 and vk.cmd.current_buffer <= vk.swapchain.size and i++ > 30) {
+    if (Performance::timestamp_period > 0 and vk.cmd.current_buffer <= vk.swapchain.size) {
         std::vector<ui64> timestamps = VK::getQueryResults(vk.device, vk.query_timestamp, vk.cmd.current_buffer * queries, queries);
         std::copy(timestamps.begin(), timestamps.end(), Performance::timestamps.begin() + vk.cmd.current_buffer * queries);
     }
     #endif
+    
+    //: Update uniform buffers
+    //      Keep an eye on how performant is this, another solution might be necessary
+    for (auto &f : VK::update_buffer_queue) f(vk.cmd.current_buffer);
+    VK::update_buffer_queue.clear();
     
     //: Record command buffers
     VK::recordRenderCommandBuffer(vk, vk.cmd.current_buffer);
@@ -2839,7 +2821,6 @@ void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
     //: Clear draw queue
     API::draw_queue.clear();
     API::draw_queue_instanced.clear();
-    API::draw_descriptions.clear();
 }
 
 void API::present(Vulkan &vk, WindowData &win) {

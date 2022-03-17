@@ -587,16 +587,6 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
     
-    //: Update uniform buffers
-    UniformBufferObject ubo{};
-    ubo.view = cam.view;
-    ubo.proj = cam.proj;
-    for (const auto description : API::draw_descriptions) {
-        DrawUniformData &uniform = API::draw_uniform_data.at(description->uniform);
-        ubo.model = description->model;
-        API::updateUniformBuffer(gl, uniform.uniform_buffers.at(0), ubo);
-    }
-    
     for (const auto &[s_id, data] : API::subpasses) {
         //: Bind framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, data.framebuffer);
@@ -756,7 +746,6 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
     //---Clear drawing queue---
     API::draw_queue.clear();
     API::draw_queue_instanced.clear();
-    API::draw_descriptions.clear();
     
     //---Gui---
     IF_GUI(ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData()));

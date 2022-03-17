@@ -12,12 +12,14 @@
 
 namespace Fresa::Graphics::VK
 {
-    //Deletion queues
+    //Queues
     //----------------------------------------
     inline std::vector<std::function<void()>> deletion_queue_program;
     inline std::vector<std::function<void()>> deletion_queue_size_change;
     inline std::vector<std::function<void()>> deletion_queue_swapchain;
     inline std::vector<std::function<void()>> deletion_queue_frame;
+    
+    inline std::vector<std::function<void(ui32)>> update_buffer_queue;
     //----------------------------------------
 
     //Device
@@ -387,6 +389,34 @@ namespace Fresa::Graphics::API {
         data.size = (ui16)sizeof(UBO);
         
         return id;
+    }
+    
+    template <typename UBO>
+    void updateUniformBuffer(GraphicsAPI &api, BufferData buffer, const UBO& ubo) {
+        void* data;
+        vmaMapMemory(api.allocator, buffer.allocation, &data);
+        memcpy(data, &ubo, sizeof(ubo));
+        vmaUnmapMemory(api.allocator, buffer.allocation);
+    }
+    
+    template <typename UBO>
+    void updateDrawUniformBuffer(GraphicsAPI &api, DrawDescription &description, const UBO& ubo) {
+        DrawUniformData &uniform = API::draw_uniform_data.at(description.uniform);
+        
+        //: If the swapchain becomes outdated, recreate first
+        if (uniform.recreate) {
+            uniform.descriptor_sets = VK::allocateDescriptorSets(api.device, api.pipelines.at(description.shader).descriptor_layout,
+                                                                 api.pipelines.at(description.shader).descriptor_pool_sizes,
+                                                                 api.pipelines.at(description.shader).descriptor_pools, api.swapchain.size);
+            uniform.uniform_buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, (ui32)uniform.size);
+            uniform.recreate = false;
+            
+            API::updateDescriptorSets(api, description);
+        }
+        
+        //: Update the buffer
+        VK::update_buffer_queue.push_back([uniform, ubo](ui32 current){
+            API::updateUniformBuffer(::Fresa::Graphics::api, uniform.uniform_buffers.at(current), ubo); });
     }
     
     template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>

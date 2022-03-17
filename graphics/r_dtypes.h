@@ -77,6 +77,7 @@ namespace Fresa::Graphics
     };
     
     struct UniformBufferObject {
+        Members(UniformBufferObject, model, view, proj)
         glm::mat4 model;
         glm::mat4 view;
         glm::mat4 proj;

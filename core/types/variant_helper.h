@@ -22,6 +22,9 @@ namespace Fresa
     template <typename... Ts>
     std::variant<Ts...> variant_from_tuple (std::tuple<Ts...>);
     
+    template <typename... Ts>
+    std::tuple<Ts...> tuple_from_variant (std::variant<Ts...>);
+    
     //---Filter variant---
     template <template <typename> class C, typename T>
     std::enable_if_t<true == C<T>::value, std::tuple<>> filter_t ();

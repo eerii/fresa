@@ -106,6 +106,19 @@ namespace Fresa::Graphics::API
         return id;
     }
     
+    template <typename UBO>
+    void updateUniformBuffer(GraphicsAPI &api, BufferData buffer, const UBO& ubo) {
+        glBindBuffer(GL_UNIFORM_BUFFER, buffer.id_);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(UBO), &ubo);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    }
+    
+    template <typename UBO>
+    void updateDrawUniformBuffer(GraphicsAPI &api, DrawDescription &description, const UBO& ubo) {
+        DrawUniformData &uniform = API::draw_uniform_data.at(description.uniform);
+        API::updateUniformBuffer(api, uniform.uniform_buffers.at(0), ubo);
+    }
+    
     template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
     GeometryBufferID registerGeometryBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<I> &indices) {
         static GeometryBufferID id = 0;

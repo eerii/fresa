@@ -169,8 +169,14 @@ namespace Fresa
         
         //: Offsets for each member
         template<typename T, size_t index>
-        constexpr size_t get_offset() {
+        constexpr size_t get_offset_c() {
             constexpr size_t s = std::accumulate(as_size_list<T>.begin(), as_size_list<T>.begin() + index, 0);
+            return s;
+        }
+        
+        template<typename T>
+        size_t get_offset(size_t index) {
+            size_t s = std::accumulate(as_size_list<T>.begin(), as_size_list<T>.begin() + index, 0);
             return s;
         }
         
@@ -194,7 +200,7 @@ namespace Fresa
         //: Get member pointer (constexpr, by index or by name)
         template<size_t I, typename T, std::enable_if_t<is_reflectable<T>, bool> = true>
         constexpr auto get_member_i(T* t) {
-            constexpr size_t offset = get_offset<T, I>();
+            constexpr size_t offset = get_offset_c<T, I>();
             using M = std::variant_alternative_t<I, as_type_list<T>>;
             return (M*)(t + offset);
         }

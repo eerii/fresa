@@ -8,6 +8,7 @@
 
 **added**
 - vulkan indirect drawing (very basic)
+- improved uniform binding and global uniforms
 
 **changed**
 - improved the instanced queue
