@@ -568,7 +568,7 @@ TextureID API::registerTexture(const OpenGL &gl, Vec2<> size, Channels ch, ui8* 
 //Draw
 //----------------------------------------
 
-void API::updateDescriptorSets(const OpenGL &gl, const DrawDescription& draw) { }
+void API::updateDrawDescriptorSets(const OpenGL &gl, const DrawDescription& draw) { }
 void API::addIndirectDrawCommand(const GraphicsAPI &api, DrawDescription &description) { }
 
 //----------------------------------------

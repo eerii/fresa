@@ -9,6 +9,8 @@
 #include "r_dtypes.h"
 #include <SDL2/SDL_vulkan.h>
 
+#define MAX_WRITE_DESCRIPTORS 32
+
 namespace Fresa::Graphics
 {
     struct SwapchainData {
@@ -124,6 +126,12 @@ namespace Fresa::Graphics
     struct WriteDescriptorImage {
         VkDescriptorImageInfo info;
         VkWriteDescriptorSet write;
+    };
+    
+    struct WriteDescriptors {
+        std::array<VkDescriptorBufferInfo, MAX_WRITE_DESCRIPTORS> buffer;
+        std::array<VkDescriptorImageInfo, MAX_WRITE_DESCRIPTORS> image;
+        std::array<VkWriteDescriptorSet, MAX_WRITE_DESCRIPTORS> write;
     };
     
     struct Vulkan {

@@ -170,13 +170,63 @@ namespace Fresa::Graphics::VK
     std::vector<VkDescriptorSet> allocateDescriptorSets(VkDevice device, VkDescriptorSetLayout layout,
                                                         const std::vector<VkDescriptorPoolSize> &sizes,
                                                         std::vector<VkDescriptorPool> &pools, ui32 swapchain_size);
-
+    
     void updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets,
                               const std::vector<VkDescriptorSetLayoutBinding> &layout_bindings,
-                              std::map<ui32, const std::vector<BufferData>*> uniform_buffers = {},
-                              std::map<ui32, VkImageView> image_views = {},
-                              std::map<ui32, VkImageView> input_attachments = {});
+                              std::vector<VkBuffer> uniform_buffers = {}, std::vector<VkBuffer> storage_buffers = {},
+                              std::vector<VkImageView> image_views = {}, std::vector<VkImageView> input_attachments = {});
     void updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, ShaderID shader);
+    
+    template <VkDescriptorType type, typename T>
+    void prepareWriteDescriptor(const Vulkan &vk, WriteDescriptors &descriptors, const std::vector<VkDescriptorSet> &descriptor_sets,
+                                const std::vector<VkDescriptorSetLayoutBinding> &layout_bindings, ui32 &count,
+                                std::vector<T> data, bool multiple = false, std::vector<ui32> bindings = {}) {
+        constexpr bool is_buffer = type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER or type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        constexpr bool is_image = type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER or type == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+        
+        for (int i = 0; i < descriptor_sets.size(); i++) {
+            int index = -1;
+            for (const auto &binding : layout_bindings) {
+                if (binding.descriptorType != type)
+                    continue;
+                
+                if (bindings.size() == 0) {
+                    index++;
+                } else {
+                    auto it = std::find(bindings.begin(), bindings.end(), binding.binding);
+                    if (it == bindings.end())
+                        continue;
+                    index = (int)std::distance(bindings.begin(), it);
+                }
+                ui32 data_index = index + (multiple ? i * ((ui32)descriptor_sets.size() - 1) : 0);
+                
+                if constexpr (is_buffer) {
+                    descriptors.buffer[count].buffer = data.at(data_index);
+                    descriptors.buffer[count].offset = 0;
+                    descriptors.buffer[count].range = VK_WHOLE_SIZE;
+                }
+                
+                if constexpr (is_image) {
+                    descriptors.image[count].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    descriptors.image[count].imageView = data.at(data_index);
+                    descriptors.image[count].sampler = type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ? vk.sampler : VK_NULL_HANDLE;
+                }
+                
+                descriptors.write[count].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptors.write[count].dstSet = descriptor_sets.at(i);
+                descriptors.write[count].dstBinding = binding.binding;
+                descriptors.write[count].dstArrayElement = 0;
+                descriptors.write[count].descriptorType = type;
+                descriptors.write[count].descriptorCount = 1;
+                descriptors.write[count].pBufferInfo = is_buffer ? &descriptors.buffer[count] : nullptr;
+                descriptors.write[count].pImageInfo = is_image ? &descriptors.image[count] : nullptr;
+                descriptors.write[count].pTexelBufferView = nullptr;
+                
+                count++;
+            }
+        }
+    }
+    
     //----------------------------------------
     
     
@@ -447,7 +497,7 @@ namespace Fresa::Graphics::API {
             uniform.uniform_buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, (ui32)uniform.size);
             uniform.recreate = false;
             
-            API::updateDescriptorSets(api, description);
+            API::updateDrawDescriptorSets(api, description);
         }
         
         //: Update the buffer

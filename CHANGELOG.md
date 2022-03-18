@@ -13,6 +13,7 @@
 
 **changed**
 - improved the instanced queue
+- improved uniform set updating with support for more attributes
 
 ---
 

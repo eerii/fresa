@@ -35,7 +35,7 @@ namespace Fresa::Graphics
         description.uniform = API::registerDrawUniforms<UBO>(api, shader);
         description.geometry = API::registerGeometryBuffer(api, vertices, indices);
         
-        API::updateDescriptorSets(api, description);
+        API::updateDrawDescriptorSets(api, description);
         return description;
     }
     

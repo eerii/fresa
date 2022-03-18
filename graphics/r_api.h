@@ -90,7 +90,7 @@ namespace Fresa::Graphics::API
     ShaderData createShaderData(str name);
     ShaderCompiler getShaderCompiler(const std::vector<char> &code);
     
-    void updateDescriptorSets(const GraphicsAPI &api, const DrawDescription& draw);
+    void updateDrawDescriptorSets(const GraphicsAPI &api, const DrawDescription& draw);
 
     //---Other---
     void resize(GraphicsAPI &api, WindowData &win);
