@@ -25,7 +25,7 @@
 #include <filesystem>
 #include <fstream>
 
-#define MAX_POOL_SETS 1024
+#define MAX_POOL_SETS 64
 #define PREFER_MAILBOX_DISPLAY_MODE
 
 using namespace Fresa;
@@ -91,6 +91,10 @@ Vulkan API::createAPI(WindowData &win) {
     
     //---Render passes---
     API::processRendererDescription(vk, win);
+    
+    //---Compute pipelines---
+    for (auto &[shader, data] : API::compute_shaders)
+        vk.compute_pipelines[shader] = VK::createComputePipeline(vk, shader);
     
     //---Window vertex buffer---
     vk.window_vertex_buffer = VK::createVertexBuffer(vk, Vertices::window);
@@ -2041,6 +2045,32 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     return pipeline;
 }
 
+VkPipeline VK::createComputePipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader) {
+    VkPipeline pipeline;
+    VkComputePipelineCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    
+    //: Shader stage
+    if (not API::compute_shaders.at(shader).stages.compute.has_value())
+        log::error("You are using an invalid compute shader");
+    create_info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    create_info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    create_info.stage.module = API::compute_shaders.at(shader).stages.compute.value();
+    create_info.stage.pName = "main";
+    
+    //: Layout
+    create_info.layout = data.pipeline_layout;
+    
+    //---Create pipeline---
+    if (vkCreateComputePipelines(vk.device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline) != VK_SUCCESS)
+        log::error("Error while creating a vulkan compute pipeline");
+    
+    deletion_queue_swapchain.push_back([pipeline, vk](){ vkDestroyPipeline(vk.device, pipeline, nullptr); });
+    log::graphics("Created a vulkan compute pipeline");
+    
+    return pipeline;
+}
+
 void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader) {
     //: Descriptor set
     data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::shaders.at(shader).code, vk.swapchain.size);
@@ -2176,6 +2206,28 @@ std::vector<VkDescriptorSetLayoutBinding> VK::createDescriptorSetLayoutBindings(
         }
     }
     
+    //---Compute shader---
+    if (code.compute.has_value()) {
+        ShaderCompiler compiler = API::getShaderCompiler(code.compute.value());
+        ShaderResources resources = compiler.get_shader_resources();
+        
+        //: Uniform buffers
+        for (const auto &res : resources.uniform_buffers) {
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Uniform (%s) - Binding : %d - Stage : Compute", res.name.c_str(), binding);
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
+        }
+        
+        //: Storage buffers
+        for (const auto &res : resources.storage_buffers) {
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Buffer (%s) - Binding : %d - Stage : Compute", res.name.c_str(), binding);
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, binding));
+        }
+    }
+    
     return layout_binding;
 }
     
@@ -2200,33 +2252,13 @@ std::vector<VkDescriptorPoolSize> VK::createDescriptorPoolSizes(const std::vecto
     //      This specifies how many resources of each type we need, and will be later used when creating a descriptor pool
     //      We use the number of items of that type, times the number of images in the swapchain
     std::vector<VkDescriptorPoolSize> sizes;
+    std::map<VkDescriptorType, ui32> counts;
     
-    ui32 uniform_count = 0;
-    ui32 image_sampler_count = 0;
-    ui32 subpass_input_count = 0;
+    for (auto &binding : bindings)
+        counts[binding.descriptorType]++;
     
-    for (auto &binding : bindings) {
-        switch (binding.descriptorType) {
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                uniform_count++;
-                break;
-            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-                image_sampler_count++;
-                break;
-            case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-                subpass_input_count++;
-                break;
-            default:
-                break;
-        }
-    }
-    
-    if (uniform_count > 0)
-        sizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniform_count * MAX_POOL_SETS});
-    if (image_sampler_count > 0)
-        sizes.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, image_sampler_count * MAX_POOL_SETS});
-    if (subpass_input_count > 0)
-        sizes.push_back({VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, subpass_input_count * MAX_POOL_SETS});
+    for (auto &[descriptor_type, count] : counts)
+        sizes.push_back({descriptor_type, count * MAX_POOL_SETS});
     
     return sizes;
 }

@@ -82,7 +82,6 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
     VkShaderModule createShaderModule(VkDevice device, const std::vector<char> &code);
     ShaderStages createShaderStages(VkDevice device, const ShaderCode &code);
-
     std::vector<VkPipelineShaderStageCreateInfo> getShaderStageInfo(const ShaderStages &stages);
     void destroyShaderStages(VkDevice device, const ShaderStages &stages);
 
@@ -213,7 +212,7 @@ namespace Fresa::Graphics::VK
         
         //---Subpass---
         API::Map::subpass_shader.add(subpass, shader);
-        log::graphics("Pipeline %s, subpass %d", shader.c_str(), subpass);
+        log::graphics("Pipeline %s", shader.c_str(), subpass);
         log::graphics("---");
         
         //---Shader data---
@@ -243,6 +242,29 @@ namespace Fresa::Graphics::VK
         
         return data;
     }
+    
+    VkPipeline createComputePipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader);
+    
+    inline PipelineData createComputePipeline(const Vulkan &vk, ShaderID shader) {
+        PipelineData data;
+        
+        //---Shader data---
+        API::compute_shaders.at(shader).stages = VK::createShaderStages(vk.device, API::compute_shaders.at(shader).code);
+        
+        //---Descriptors---
+        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::compute_shaders.at(shader).code, 1);
+        data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
+        data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
+        data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
+        data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes, data.descriptor_pools, 1);
+        
+        //---Pipeline---
+        data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
+        data.pipeline = VK::createComputePipelineObject(vk, data, shader);
+        
+        return data;
+    }
+    
     //----------------------------------------
 
 

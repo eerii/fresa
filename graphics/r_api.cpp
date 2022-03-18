@@ -101,12 +101,17 @@ UniformBufferObject API::getScaledWindowUBO(const WindowData &win) {
 void API::createShaderList() {
     //---Shader list---
     //      Fills API::shaders with a list of ShaderID (the names of the shaders) and the processed ShaderData
-    auto shader_path = File::path("render/");
+    auto shader_path = File::path("shaders/");
     for (auto &f : fs::recursive_directory_iterator(shader_path)) {
         if (f.path().extension() == ".vert" or f.path().extension() == ".frag") {
             str name = f.path().stem().string();
             if (not API::shaders.count(name))
                 API::shaders[name] = API::createShaderData(name);
+        }
+        if (f.path().extension() == ".comp") {
+            str name = f.path().stem().string();
+            if (not API::compute_shaders.count(name))
+                API::compute_shaders[name] = API::createShaderData(name);
         }
     }
 }
@@ -136,10 +141,10 @@ ShaderData API::createShaderData(str name) {
     //      First it saves the locations and then it reads the SPIRV code
     ShaderData data;
     
-    data.locations.vert = File::path_optional("render/" + name + "/" + name + ".vert.spv");
-    data.locations.frag = File::path_optional("render/" + name + "/" + name + ".frag.spv");
-    data.locations.compute = File::path_optional("render/" + name + "/" + name + ".compute.spv");
-    data.locations.geometry = File::path_optional("render/" + name + "/" + name + ".geometry.spv");
+    data.locations.vert = File::path_optional("shaders/" + name + "/" + name + ".vert.spv");
+    data.locations.frag = File::path_optional("shaders/" + name + "/" + name + ".frag.spv");
+    data.locations.compute = File::path_optional("shaders/" + name + "/" + name + ".comp.spv");
+    data.locations.geometry = File::path_optional("shaders/" + name + "/" + name + ".geom.spv");
     
     if (data.locations.vert.has_value())
         data.code.vert = readSPIRV(data.locations.vert.value());

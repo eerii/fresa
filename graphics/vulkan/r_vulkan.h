@@ -153,6 +153,7 @@ namespace Fresa::Graphics
         
         //: Pipelines
         std::map<ShaderID, PipelineData> pipelines;
+        std::map<ShaderID, PipelineData> compute_pipelines;
         
         //: Image sampler
         VkSampler sampler;

@@ -9,6 +9,7 @@
 **added**
 - vulkan indirect drawing
 - improved uniform binding and global uniforms
+- initial support for compute shaders in vulkan
 
 **changed**
 - improved the instanced queue

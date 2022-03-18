@@ -82,6 +82,7 @@ namespace Fresa::Graphics::API
 
     //---Shaders---
     inline std::map<ShaderID, ShaderData> shaders;
+    inline std::map<ShaderID, ShaderData> compute_shaders;
     void createShaderList();
 
     std::vector<char> readSPIRV(std::string filename);
