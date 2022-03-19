@@ -727,7 +727,7 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     API::recreateAttachments(vk);
     for (const auto &[shader, data] : vk.pipelines) {
         if (not API::shaders.at(shader).is_draw)
-            VK::updatePostDescriptorSets(vk, data, shader);
+            VK::updatePipelineDescriptorSets(vk, data, shader);
     }
     
     //: Render passes and framebuffers
@@ -2080,7 +2080,7 @@ void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader)
     data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
     
     if (not API::shaders.at(shader).is_draw)
-        VK::updatePostDescriptorSets(vk, data, shader);
+        VK::updatePipelineDescriptorSets(vk, data, shader);
 
     //: Pipeline
     data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
@@ -2128,6 +2128,76 @@ void VK::copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuf
     vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
     
     endSingleUseCommandBuffer(device, command_buffer, cmd.command_pools.at("transfer"), cmd.queues.transfer);
+}
+
+std::vector<BufferData> VK::createUniformBuffers(VmaAllocator allocator, ui32 buffer_count, ui32 buffer_size, bool uniform) {
+    std::vector<BufferData> buffers{};
+    
+    VkBufferUsageFlags usage = uniform ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    VmaMemoryUsage memory = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    
+    for (int i = 0; i < buffer_count; i++)
+        buffers.push_back(createBuffer(allocator, (VkDeviceSize)buffer_size, usage, memory));
+    
+    deletion_queue_program.push_back([allocator, buffers](){
+        for (auto &buffer : buffers)
+            vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
+    });
+    
+    return buffers;
+}
+
+void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID shader, ui32 buffer_count) {
+    ShaderCode* shader_code = nullptr;
+    if (API::shaders.count(shader))
+        shader_code = &API::shaders.at(shader).code;
+    else if (API::compute_shaders.count(shader))
+        shader_code = &API::compute_shaders.at(shader).code;
+    else
+        log::error("Shader not valid: %s", shader.c_str());
+    
+    //: These maps are so they are added to the pipeline in binding order
+    std::map<ui32, std::vector<BufferData>> uniforms;
+    std::map<ui32, std::vector<BufferData>> storage;
+    
+    auto get_buffers = [&](const std::vector<char> &code) {
+        ShaderCompiler compiler = API::getShaderCompiler(code);
+        ShaderResources resources = compiler.get_shader_resources();
+        
+        //: Uniform buffers
+        for (const auto &res : resources.uniform_buffers) {
+            const spirv_cross::SPIRType &type = compiler.get_type(res.base_type_id);
+            ui32 size = (ui32)compiler.get_declared_struct_size(type);
+            if (size == 0)
+                log::error("Runtime arrays not supported yet");
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            uniforms[binding] = createUniformBuffers(vk.allocator, buffer_count, size, true);
+        }
+        
+        //: Storage buffers
+        for (const auto &res : resources.storage_buffers) {
+            const spirv_cross::SPIRType &type = compiler.get_type(res.base_type_id);
+            ui32 size = (ui32)compiler.get_declared_struct_size(type);
+            if (size == 0) {
+                size = (ui32)compiler.get_declared_struct_size_runtime_array(type, 64);
+                log::warn("Using default runtime array size of 64 for compute shader buffer, change this in the future");
+            }
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            storage[binding] = createUniformBuffers(vk.allocator, buffer_count, size, false);
+        }
+    };
+    
+    if (shader_code->vert.has_value())
+        get_buffers(shader_code->vert.value());
+    if (shader_code->frag.has_value())
+        get_buffers(shader_code->frag.value());
+    if (shader_code->compute.has_value())
+        get_buffers(shader_code->compute.value());
+    
+    for (auto &[binding, uniform] : uniforms)
+        data.uniform_buffers.push_back(uniform);
+    for (auto &[binding, buffer] : storage)
+        data.storage_buffers.push_back(buffer);
 }
 
 //----------------------------------------
@@ -2378,75 +2448,33 @@ void API::updateDrawDescriptorSets(const Vulkan &vk, const DrawDescription& draw
                              uniform_buffers, {}, image_views, {});
 }
 
-void VK::updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, ShaderID shader) {
-    ui32 i_uniform = 0; ui32 i_input = 0; ui32 i_image = 0;
-    std::vector<VkBuffer> uniform_buffers{};
-    std::vector<VkImageView> input_attachments{};
+void VK::updatePipelineDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, ShaderID shader) {
+    std::vector<VkBuffer> uniforms{};
+    for (auto &a : pipeline.uniform_buffers)
+        for (auto &b : a)
+            uniforms.push_back(b.buffer);
+    
+    std::vector<VkBuffer> buffers{};
+    for (auto &a : pipeline.storage_buffers)
+        for (auto &b : a)
+            buffers.push_back(b.buffer);
+    
     std::vector<VkImageView> image_views{};
+    std::vector<VkImageView> input_views{};
     
-    auto subpass = getBtoA_v(shader, API::Map::subpass_shader, API::subpasses);
-    std::vector<VkImageView> input_views;
-    for (auto &[id, type] : subpass.second.attachment_descriptions)
-        if (type == ATTACHMENT_INPUT)
-            input_views.push_back(API::attachments.at(id).image_view);
-    
-    for (const auto &binding : pipeline.descriptor_layout_bindings) {
-        //: Uniform buffers
-        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-            for (const BufferData &buffer : pipeline.uniform_buffers.at(i_uniform++))
-                uniform_buffers.push_back(buffer.buffer);
+    //: Only for render shaders, not compute
+    if (API::shaders.count(shader)) {
+        auto subpass = getBtoA_v(shader, API::Map::subpass_shader, API::subpasses);
         
-        //: Input attachments
-        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
-            input_attachments.push_back(input_views.at(i_input++));
+        for (auto &a : subpass.second.external_attachments)
+            image_views.push_back(API::attachments.at(a).image_view);
         
-        //: Image views
-        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-            auto &attachment = subpass.second.external_attachments.at(i_image++);
-            image_views.push_back(API::attachments.at(attachment).image_view);
-        }
+        for (auto &[id, type] : subpass.second.attachment_descriptions)
+            if (type == ATTACHMENT_INPUT)
+                input_views.push_back(API::attachments.at(id).image_view);
     }
     
-    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniform_buffers, {}, image_views, input_attachments);
-}
-
-//----------------------------------------
-
-
-
-//Uniforms
-//----------------------------------------
-
-std::vector<BufferData> VK::createUniformBuffers(VmaAllocator allocator, ui32 swapchain_size, ui32 buffer_size) {
-    //---Uniform buffers---
-    //      Appart from per vertex data, we might want to pass "constants" to a shader program
-    //      An example of this could be projection, view and model matrices that can be used as a camera
-    //      We do this using uniform buffers, that we need to create descriptor sets for, and the pass them to the shader
-    //      The creation process is identical to other buffers, but we want them to have memory accessible to both the CPU and GPU
-    //      This way we can update them every frame with new information
-    //      We need to have one buffer per swapchain image so we can work on multiple images at a time
-    //      Another possibility for passing data to shaders are push constant, which we will implement in the future
-    std::vector<BufferData> uniform_buffers;
-    
-    VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    VmaMemoryUsage memory_flags = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    for (int i = 0; i < swapchain_size; i++)
-        uniform_buffers.push_back(createBuffer(allocator, (VkDeviceSize)buffer_size, usage_flags, memory_flags));
-    
-    deletion_queue_program.push_back([allocator, uniform_buffers](){
-        for (const auto &buffer : uniform_buffers)
-            vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
-    });
-    //log::graphics("Created vulkan uniform buffers");
-    return uniform_buffers;
-}
-
-std::vector<std::vector<BufferData>> VK::createPostUniformBuffers(const Vulkan &vk, const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
-    std::vector<std::vector<BufferData>> uniforms{};
-    for (auto &binding : bindings)
-        if (binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-            uniforms.push_back(createUniformBuffers(vk.allocator, vk.swapchain.size, sizeof(UniformBufferObject)));
-    return uniforms;
+    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniforms, buffers, image_views, input_views);
 }
 
 //----------------------------------------

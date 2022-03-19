@@ -175,7 +175,7 @@ namespace Fresa::Graphics::VK
                               const std::vector<VkDescriptorSetLayoutBinding> &layout_bindings,
                               std::vector<VkBuffer> uniform_buffers = {}, std::vector<VkBuffer> storage_buffers = {},
                               std::vector<VkImageView> image_views = {}, std::vector<VkImageView> input_attachments = {});
-    void updatePostDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, ShaderID shader);
+    void updatePipelineDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, ShaderID shader);
     
     template <VkDescriptorType type, typename T>
     void prepareWriteDescriptor(const Vulkan &vk, WriteDescriptors &descriptors, const std::vector<VkDescriptorSet> &descriptor_sets,
@@ -230,94 +230,6 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
     
     
-    //Uniforms
-    //----------------------------------------
-    std::vector<BufferData> createUniformBuffers(VmaAllocator allocator, ui32 swapchain_size, ui32 buffer_size);
-    std::vector<std::vector<BufferData>> createPostUniformBuffers(const Vulkan &vk, const std::vector<VkDescriptorSetLayoutBinding> &bindings);
-    //----------------------------------------
-
-
-    //Pipeline
-    //----------------------------------------
-    VkPipelineHelperData preparePipelineCreateInfo(const std::vector<VkVertexInputBindingDescription> binding_description, const std::vector<VkVertexInputAttributeDescription> attribute_description, VkExtent2D extent);
-    VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
-        const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes);
-    VkPipelineInputAssemblyStateCreateInfo preparePipelineCreateInfoInputAssembly();
-    VkViewport preparePipelineCreateInfoViewport(VkExtent2D extent);
-    VkRect2D preparePipelineCreateInfoScissor(VkExtent2D extent);
-    VkPipelineViewportStateCreateInfo preparePipelineCreateInfoViewportState(const VkViewport &viewport, const VkRect2D &scissor);
-    VkPipelineRasterizationStateCreateInfo preparePipelineCreateInfoRasterizer();
-    VkPipelineMultisampleStateCreateInfo preparePipelineCreateInfoMultisampling();
-    VkPipelineDepthStencilStateCreateInfo preparePipelineCreateInfoDepthStencil();
-    VkPipelineColorBlendAttachmentState preparePipelineCreateInfoColorBlendAttachment();
-    VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
-    
-    VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
-    VkPipeline createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader);
-    void recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader);
-
-    template <typename... V>
-    PipelineData createPipeline(const Vulkan &vk, ShaderID shader, SubpassID subpass) {
-        PipelineData data;
-        
-        //---Subpass---
-        API::Map::subpass_shader.add(subpass, shader);
-        log::graphics("Pipeline %s", shader.c_str(), subpass);
-        log::graphics("---");
-        
-        //---Shader data---
-        API::shaders.at(shader).stages = VK::createShaderStages(vk.device, API::shaders.at(shader).code);
-        
-        //---Descriptor pool---
-        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::shaders.at(shader).code, vk.swapchain.size);
-        data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
-        data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
-        data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
-        
-        //---Descriptor sets---
-        if (not API::shaders.at(shader).is_draw) {
-            data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
-                                                              data.descriptor_pools, vk.swapchain.size);
-            data.uniform_buffers = VK::createPostUniformBuffers(vk, data.descriptor_layout_bindings);
-            VK::updatePostDescriptorSets(vk, data, shader);
-        }
-        
-        //---Binding and attribute descriptors---
-        data.binding_descriptions = VK::getBindingDescriptions<V...>();
-        data.attribute_descriptions = VK::getAttributeDescriptions<V...>();
-        
-        //---Pipeline---
-        data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-        data.pipeline = VK::createGraphicsPipelineObject(vk, data, shader);
-        
-        return data;
-    }
-    
-    VkPipeline createComputePipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader);
-    
-    inline PipelineData createComputePipeline(const Vulkan &vk, ShaderID shader) {
-        PipelineData data;
-        
-        //---Shader data---
-        API::compute_shaders.at(shader).stages = VK::createShaderStages(vk.device, API::compute_shaders.at(shader).code);
-        
-        //---Descriptors---
-        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::compute_shaders.at(shader).code, 1);
-        data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
-        data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
-        data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
-        data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes, data.descriptor_pools, 1);
-        
-        //---Pipeline---
-        data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-        data.pipeline = VK::createComputePipelineObject(vk, data, shader);
-        
-        return data;
-    }
-    
-    //----------------------------------------
-
-
     //Buffers
     //----------------------------------------
     BufferData createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory);
@@ -391,7 +303,97 @@ namespace Fresa::Graphics::VK
         
         vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
     }
+    //----------------------------------------
     
+    
+    //Uniforms
+    //----------------------------------------
+    std::vector<BufferData> createUniformBuffers(VmaAllocator allocator, ui32 buffer_count, ui32 buffer_size, bool uniform);
+    void createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID shader, ui32 buffer_count);
+    //----------------------------------------
+
+
+    //Pipeline
+    //----------------------------------------
+    VkPipelineHelperData preparePipelineCreateInfo(const std::vector<VkVertexInputBindingDescription> binding_description, const std::vector<VkVertexInputAttributeDescription> attribute_description, VkExtent2D extent);
+    VkPipelineVertexInputStateCreateInfo preparePipelineCreateInfoVertexInput(
+        const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes);
+    VkPipelineInputAssemblyStateCreateInfo preparePipelineCreateInfoInputAssembly();
+    VkViewport preparePipelineCreateInfoViewport(VkExtent2D extent);
+    VkRect2D preparePipelineCreateInfoScissor(VkExtent2D extent);
+    VkPipelineViewportStateCreateInfo preparePipelineCreateInfoViewportState(const VkViewport &viewport, const VkRect2D &scissor);
+    VkPipelineRasterizationStateCreateInfo preparePipelineCreateInfoRasterizer();
+    VkPipelineMultisampleStateCreateInfo preparePipelineCreateInfoMultisampling();
+    VkPipelineDepthStencilStateCreateInfo preparePipelineCreateInfoDepthStencil();
+    VkPipelineColorBlendAttachmentState preparePipelineCreateInfoColorBlendAttachment();
+    VkPipelineColorBlendStateCreateInfo preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment);
+    
+    VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
+    VkPipeline createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader);
+    void recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader);
+
+    template <typename... V>
+    PipelineData createPipeline(const Vulkan &vk, ShaderID shader, SubpassID subpass) {
+        PipelineData data;
+        
+        //---Subpass---
+        API::Map::subpass_shader.add(subpass, shader);
+        log::graphics("Pipeline %s", shader.c_str(), subpass);
+        log::graphics("---");
+        
+        //---Shader data---
+        API::shaders.at(shader).stages = VK::createShaderStages(vk.device, API::shaders.at(shader).code);
+        
+        //---Descriptor pool---
+        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::shaders.at(shader).code, vk.swapchain.size);
+        data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
+        data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
+        data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
+        
+        //---Descriptor sets---
+        if (not API::shaders.at(shader).is_draw) {
+            data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
+                                                              data.descriptor_pools, vk.swapchain.size);
+            VK::createPipelineBuffers(vk, data, shader, vk.swapchain.size);
+            VK::updatePipelineDescriptorSets(vk, data, shader);
+        }
+        
+        //---Binding and attribute descriptors---
+        data.binding_descriptions = VK::getBindingDescriptions<V...>();
+        data.attribute_descriptions = VK::getAttributeDescriptions<V...>();
+        
+        //---Pipeline---
+        data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
+        data.pipeline = VK::createGraphicsPipelineObject(vk, data, shader);
+        
+        return data;
+    }
+    
+    VkPipeline createComputePipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader);
+    
+    inline PipelineData createComputePipeline(const Vulkan &vk, ShaderID shader) {
+        PipelineData data;
+        
+        //---Shader data---
+        API::compute_shaders.at(shader).stages = VK::createShaderStages(vk.device, API::compute_shaders.at(shader).code);
+        
+        //---Descriptor pool---
+        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::compute_shaders.at(shader).code, 1);
+        data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
+        data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
+        data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
+        
+        //---Descriptor sets---
+        data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes, data.descriptor_pools, 1);
+        VK::createPipelineBuffers(vk, data, shader, 1);
+        VK::updatePipelineDescriptorSets(vk, data, shader);
+        
+        //---Pipeline---
+        data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
+        data.pipeline = VK::createComputePipelineObject(vk, data, shader);
+        
+        return data;
+    }
     
     //----------------------------------------
 
@@ -471,7 +473,7 @@ namespace Fresa::Graphics::API {
         data.descriptor_sets = VK::allocateDescriptorSets(api.device, api.pipelines.at(shader).descriptor_layout,
                                                           api.pipelines.at(shader).descriptor_pool_sizes,
                                                           api.pipelines.at(shader).descriptor_pools, api.swapchain.size);
-        data.uniform_buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, sizeof(UBO));
+        data.uniform_buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, sizeof(UBO), true);
         data.size = (ui16)sizeof(UBO);
         
         return id;
@@ -494,7 +496,7 @@ namespace Fresa::Graphics::API {
             uniform.descriptor_sets = VK::allocateDescriptorSets(api.device, api.pipelines.at(description.shader).descriptor_layout,
                                                                  api.pipelines.at(description.shader).descriptor_pool_sizes,
                                                                  api.pipelines.at(description.shader).descriptor_pools, api.swapchain.size);
-            uniform.uniform_buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, (ui32)uniform.size);
+            uniform.uniform_buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, (ui32)uniform.size, true);
             uniform.recreate = false;
             
             API::updateDrawDescriptorSets(api, description);
