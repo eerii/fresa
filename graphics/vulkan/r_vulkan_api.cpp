@@ -80,6 +80,7 @@ Vulkan API::createAPI(WindowData &win) {
     {   {"draw",     {vk.cmd.queue_indices.present.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}},
         {"temp",     {vk.cmd.queue_indices.graphics.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
         {"transfer", {vk.cmd.queue_indices.transfer.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
+        {"compute",  {vk.cmd.queue_indices.compute.value(), VkCommandPoolCreateFlagBits(0)}},
     });
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
@@ -719,10 +720,6 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     //---Swapchain---
     vk.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
     
-    //: Command buffer allocation
-    vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
-    IF_GUI(vk.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd));
-    
     //: Attachments
     API::recreateAttachments(vk);
     for (const auto &[shader, data] : vk.pipelines) {
@@ -743,6 +740,10 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
         for (auto it = deletion_queue_size_change.rbegin(); it != deletion_queue_size_change.rend(); ++it)
             (*it)();
         deletion_queue_size_change.clear();
+        
+        //: Command buffer allocation
+        vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
+        IF_GUI(vk.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd));
         
         //: Sync
         vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
@@ -810,8 +811,7 @@ std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui3
     //      Here we create the command buffers we will use for drawing, and allocate them inside a command pool ("draw")
     //      We are creating one buffer per swapchain image
     
-    std::vector<VkCommandBuffer> command_buffers;
-    command_buffers.resize(swapchain_size);
+    std::vector<VkCommandBuffer> command_buffers(swapchain_size);
     
     VkCommandBufferAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -824,7 +824,7 @@ std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui3
     
     log::graphics("Allocated the vulkan draw command buffers");
     
-    deletion_queue_swapchain.push_back([cmd, command_buffers, device](){
+    deletion_queue_size_change.push_back([cmd, command_buffers, device](){
         vkFreeCommandBuffers(device, cmd.command_pools.at("draw"), (ui32)command_buffers.size(), command_buffers.data());
     });
     return command_buffers;
@@ -2087,6 +2087,27 @@ void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader)
     data.pipeline = VK::createGraphicsPipelineObject(vk, data, shader);
 }
 
+std::array<ui32, 3> VK::getComputeGroupSize(const Vulkan &vk, ShaderID shader) {
+    //: Get the local_size_xyz from the reflected shader
+    //      I would guess that get_work_group_size_specialization_constants returned the values as is, however, it seems that the id
+    //      that spirv cross uses for "specialization constants" always returns 0 with this, so instead I opted to go straight
+    //      into the raw reflected data. It looks like dark magic with a hundred sub arrays but it gets the job done
+    
+    std::array<ui32, 3> sizes;
+    
+    ShaderCode &code = API::compute_shaders.at(shader).code;
+    
+    ShaderCompiler compiler = API::getShaderCompiler(code.compute.value());
+    
+    std::vector<spirv_cross::SpecializationConstant> a(3);
+    ui32 constant = compiler.get_work_group_size_specialization_constants(a[0], a[1], a[2]);
+    auto &c = compiler.get_constant(constant);
+    
+    sizes = { c.m.c[0].r[0].u32, c.m.c[0].r[1].u32, c.m.c[0].r[2].u32 };
+    
+    return sizes;
+}
+
 //----------------------------------------
 
 
@@ -2232,71 +2253,56 @@ std::vector<VkDescriptorSetLayoutBinding> VK::createDescriptorSetLayoutBindings(
     log::graphics("");
     log::graphics("Creating descriptor set layout...");
     
-    //---Vertex shader---
-    if (code.vert.has_value()) {
-        ShaderCompiler compiler = API::getShaderCompiler(code.vert.value());
+    auto get_bindings = [&](const std::vector<char> &code, VkShaderStageFlagBits stage, str stage_name) {
+        ShaderCompiler compiler = API::getShaderCompiler(code);
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
         for (const auto &res : resources.uniform_buffers) {
             ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: Vertex", res.name.c_str(), binding);
+            log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: %s", res.name.c_str(), binding, stage_name.c_str());
             layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
-        }
-    }
-    
-    //---Fragment shader---
-    if (code.frag.has_value()) {
-        ShaderCompiler compiler = API::getShaderCompiler(code.frag.value());
-        ShaderResources resources = compiler.get_shader_resources();
-        
-        //: Uniform buffers
-        for (const auto &res : resources.uniform_buffers) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: Fragment", res.name.c_str(), binding);
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
-        }
-        
-        //: Combined image samplers
-        for (const auto &res : resources.sampled_images) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Image (%s) - Binding : %d - Stage : Fragment", res.name.c_str(), binding);
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding));
-        }
-        
-        //: Subpass input
-        for (const auto &res : resources.subpass_inputs) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Subpass (%s) - Binding : %d - Stage : Fragment", res.name.c_str(), binding);
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, binding));
-        }
-    }
-    
-    //---Compute shader---
-    if (code.compute.has_value()) {
-        ShaderCompiler compiler = API::getShaderCompiler(code.compute.value());
-        ShaderResources resources = compiler.get_shader_resources();
-        
-        //: Uniform buffers
-        for (const auto &res : resources.uniform_buffers) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Uniform (%s) - Binding : %d - Stage : Compute", res.name.c_str(), binding);
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
+                prepareDescriptorSetLayoutBinding(stage, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
         }
         
         //: Storage buffers
         for (const auto &res : resources.storage_buffers) {
             ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Buffer (%s) - Binding : %d - Stage : Compute", res.name.c_str(), binding);
+            log::graphics(" - Buffer (%s) - Binding : %d - Stage : %s", res.name.c_str(), binding, stage_name.c_str());
             layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, binding));
+                prepareDescriptorSetLayoutBinding(stage, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, binding));
         }
-    }
+        
+        //: Combined image samplers
+        for (const auto &res : resources.sampled_images) {
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Image (%s) - Binding : %d - Stage : %s", res.name.c_str(), binding, stage_name.c_str());
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(stage, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding));
+        }
+        
+        //: Subpass input
+        for (const auto &res : resources.subpass_inputs) {
+            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            log::graphics(" - Subpass (%s) - Binding : %d - Stage : %s", res.name.c_str(), binding, stage_name.c_str());
+            layout_binding.push_back(
+                prepareDescriptorSetLayoutBinding(stage, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, binding));
+        }
+    };
+    
+    //---Vertex shader---
+    if (code.vert.has_value())
+        get_bindings(code.vert.value(), VK_SHADER_STAGE_VERTEX_BIT, "Vertex");
+    
+    //---Fragment shader---
+    if (code.frag.has_value())
+        get_bindings(code.frag.value(), VK_SHADER_STAGE_FRAGMENT_BIT, "Fragment");
+    
+    //---Compute shader---
+    if (code.compute.has_value())
+        get_bindings(code.compute.value(), VK_SHADER_STAGE_COMPUTE_BIT, "Compute");
+    
+    std::sort(layout_binding.begin(), layout_binding.end(), [](auto &a, auto &b){  return a.binding < b.binding; });
     
     return layout_binding;
 }

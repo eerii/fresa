@@ -331,6 +331,8 @@ namespace Fresa::Graphics::VK
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
     VkPipeline createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader);
     void recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader);
+    
+    std::array<ui32, 3> getComputeGroupSize(const Vulkan &vk, ShaderID shader);
 
     template <typename... V>
     PipelineData createPipeline(const Vulkan &vk, ShaderID shader, SubpassID subpass) {
@@ -385,8 +387,11 @@ namespace Fresa::Graphics::VK
         
         //---Descriptor sets---
         data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes, data.descriptor_pools, 1);
-        VK::createPipelineBuffers(vk, data, shader, 1);
-        VK::updatePipelineDescriptorSets(vk, data, shader);
+        //VK::createPipelineBuffers(vk, data, shader, 1);
+        //VK::updatePipelineDescriptorSets(vk, data, shader); //TODO: Probably do this later when the storage buffer array size is known
+        
+        //---Workgroup sizes---
+        data.group_size = VK::getComputeGroupSize(vk, shader);
         
         //---Pipeline---
         data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
@@ -533,7 +538,7 @@ namespace Fresa::Graphics::API {
         instanced_buffer_data[id] = InstancedBufferData{};
         InstancedBufferData &data = instanced_buffer_data.at(id);
         
-        data.instance_buffer = VK::createVertexBuffer(api, instanced_data);
+        data.instance_buffer = VK::createGPUBuffer(api, instanced_data, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         data.instance_count = (ui32)instanced_data.size();
         
         return id;

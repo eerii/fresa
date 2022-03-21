@@ -10,6 +10,8 @@
 - vulkan indirect drawing
 - improved uniform binding and global uniforms
 - initial support for compute shaders in vulkan
+- storage buffer support
+- automatic reflection for storage and uniform buffers using spirv-cross
 
 **changed**
 - improved the instanced queue

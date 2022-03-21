@@ -49,6 +49,8 @@ namespace Fresa::Graphics
         
         VkPipelineLayout pipeline_layout;
         VkPipeline pipeline;
+        
+        std::array<ui32, 3> group_size;
     };
 
     struct VkQueueIndices {
