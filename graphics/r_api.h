@@ -91,7 +91,7 @@ namespace Fresa::Graphics::API
     ShaderCompiler getShaderCompiler(const std::vector<char> &code);
     
     void updateDrawDescriptorSets(const GraphicsAPI &api, const DrawDescription& draw);
-
+    
     //---Other---
     void resize(GraphicsAPI &api, WindowData &win);
 

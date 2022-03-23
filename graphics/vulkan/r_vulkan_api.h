@@ -303,6 +303,8 @@ namespace Fresa::Graphics::VK
         
         vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
     }
+    
+    void updateBufferFromCompute(const GraphicsAPI &api, const BufferData &buffer, ui32 buffer_size, ShaderID shader);
     //----------------------------------------
     
     
@@ -542,6 +544,17 @@ namespace Fresa::Graphics::API {
         data.instance_count = (ui32)instanced_data.size();
         
         return id;
+    }
+    
+    template <typename V>
+    void updateBufferFromCompute(const GraphicsAPI &api, const BufferData &buffer, ui32 buffer_size,
+                                 ShaderID shader, std::function<std::vector<V>()> fallback) {
+        static_assert(sizeof(V) % sizeof(glm::vec4) == 0, "The buffer should be aligned to a vec4 (4 floats) for the compute shader padding to match");
+        #ifdef HAS_COMPUTE
+            VK::updateBufferFromCompute(api, buffer, buffer_size, shader);
+        #else
+            static_assert(false, "The Vulkan renderer should have compute capabilities, check if you are setting the correct macro");
+        #endif
     }
 }
 

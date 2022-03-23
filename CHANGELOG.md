@@ -4,7 +4,14 @@
 
 ---
 
-#### 0.3.12 - indirect drawing - _17 03 2022_
+#### 0.3.13 - TITLE - _00 00 2022_
+
+**added**
+- .
+
+---
+
+#### 0.3.12 - indirect drawing - _23 03 2022_
 
 **added**
 - vulkan indirect drawing
@@ -12,6 +19,7 @@
 - initial support for compute shaders in vulkan
 - storage buffer support
 - automatic reflection for storage and uniform buffers using spirv-cross
+- compute shader support!
 
 **changed**
 - improved the instanced queue

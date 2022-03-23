@@ -157,6 +157,20 @@ namespace Fresa::Graphics::API
         
         return id;
     }
+    
+    template <typename V>
+    void updateBufferFromCompute(const GraphicsAPI &api, const BufferData &buffer, ui32 buffer_size,
+                                 ShaderID shader, std::function<std::vector<V>()> fallback) {
+        static_assert(sizeof(V) % sizeof(glm::vec4) == 0, "The buffer should be aligned to a vec4 (4 floats) for the compute shader padding to match");
+        #ifdef HAS_COMPUTE
+            static_assert(false, "The OpenGL renderer should not have compute capabilities right now, check if you are setting the correct macro");
+        #else
+            const std::vector<V> data = fallback();
+            glBindBuffer(GL_ARRAY_BUFFER, buffer.id_);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, buffer_size * sizeof(V), data.data());
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        #endif
+    }
 }
 
 #endif

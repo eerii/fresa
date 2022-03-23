@@ -2221,6 +2221,28 @@ void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID sh
         data.storage_buffers.push_back(buffer);
 }
 
+void VK::updateBufferFromCompute(const Vulkan &vk, const BufferData &buffer, ui32 buffer_size, ShaderID shader) {
+    //: Update pipeline descriptor sets to add the buffer. For now this only works with a single buffer. TODO: ADD UNIFORM SUPPORT AND MORE
+    VK::updateDescriptorSets(vk, vk.compute_pipelines.at(shader).descriptor_sets, vk.compute_pipelines.at(shader).descriptor_layout_bindings,
+                             {}, {buffer.buffer}, {}, {});
+    
+    //: Begin one time command buffer
+    VkCommandBuffer cmd = VK::beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("compute"));
+    
+    //: Bind pipeline and descriptors
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, vk.compute_pipelines.at(shader).pipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, vk.compute_pipelines.at(shader).pipeline_layout, 0, 1,
+                            &vk.compute_pipelines.at(shader).descriptor_sets.at(0), 0, nullptr);
+    
+    //: Calculate group count and dispatch compute calls
+    ui32 group_size = api.compute_pipelines.at(shader).group_size[0];
+    ui32 group_count = (buffer_size / group_size) + 1;
+    vkCmdDispatch(cmd, group_count, 1, 1);
+    
+    //: End and submit command buffer
+    VK::endSingleUseCommandBuffer(vk.device, cmd, vk.cmd.command_pools.at("compute"), vk.cmd.queues.compute);
+}
+
 //----------------------------------------
 
 
