@@ -181,6 +181,9 @@ namespace Fresa::Graphics::VK
     void prepareWriteDescriptor(const Vulkan &vk, WriteDescriptors &descriptors, const std::vector<VkDescriptorSet> &descriptor_sets,
                                 const std::vector<VkDescriptorSetLayoutBinding> &layout_bindings, ui32 &count,
                                 std::vector<T> data, bool multiple = false, std::vector<ui32> bindings = {}) {
+        if (data.size() == 0)
+            return;
+        
         constexpr bool is_buffer = type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER or type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         constexpr bool is_image = type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER or type == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
         
@@ -389,8 +392,8 @@ namespace Fresa::Graphics::VK
         
         //---Descriptor sets---
         data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes, data.descriptor_pools, 1);
-        //VK::createPipelineBuffers(vk, data, shader, 1);
-        //VK::updatePipelineDescriptorSets(vk, data, shader); //TODO: Probably do this later when the storage buffer array size is known
+        VK::createPipelineBuffers(vk, data, shader, 1);
+        VK::updatePipelineDescriptorSets(vk, data, shader);
         
         //---Workgroup sizes---
         data.group_size = VK::getComputeGroupSize(vk, shader);
@@ -512,6 +515,14 @@ namespace Fresa::Graphics::API {
         //: Update the buffer
         VK::update_buffer_queue.push_back([uniform, ubo](ui32 current){
             API::updateUniformBuffer(::Fresa::Graphics::api, uniform.uniform_buffers.at(current), ubo); });
+    }
+    
+    template <typename... UBO>
+    void updateComputeUniformBuffers(GraphicsAPI &api, ShaderID shader, const UBO& ...ubo) {
+        int i = 0;
+        ([&](){
+            API::updateUniformBuffer(api, api.compute_pipelines.at(shader).uniform_buffers.at(i++).at(0), ubo);
+        }(), ...);
     }
     
     template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>

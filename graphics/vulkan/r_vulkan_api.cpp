@@ -2194,18 +2194,6 @@ void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID sh
             ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
             uniforms[binding] = createUniformBuffers(vk.allocator, buffer_count, size, true);
         }
-        
-        //: Storage buffers
-        for (const auto &res : resources.storage_buffers) {
-            const spirv_cross::SPIRType &type = compiler.get_type(res.base_type_id);
-            ui32 size = (ui32)compiler.get_declared_struct_size(type);
-            if (size == 0) {
-                size = (ui32)compiler.get_declared_struct_size_runtime_array(type, 64);
-                log::warn("Using default runtime array size of 64 for compute shader buffer, change this in the future");
-            }
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            storage[binding] = createUniformBuffers(vk.allocator, buffer_count, size, false);
-        }
     };
     
     if (shader_code->vert.has_value())
@@ -2217,26 +2205,27 @@ void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID sh
     
     for (auto &[binding, uniform] : uniforms)
         data.uniform_buffers.push_back(uniform);
-    for (auto &[binding, buffer] : storage)
-        data.storage_buffers.push_back(buffer);
 }
 
 void VK::updateBufferFromCompute(const Vulkan &vk, const BufferData &buffer, ui32 buffer_size, ShaderID shader) {
-    //: Update pipeline descriptor sets to add the buffer. For now this only works with a single buffer. TODO: ADD UNIFORM SUPPORT AND MORE
-    VK::updateDescriptorSets(vk, vk.compute_pipelines.at(shader).descriptor_sets, vk.compute_pipelines.at(shader).descriptor_layout_bindings,
-                             {}, {buffer.buffer}, {}, {});
+    const PipelineData &pipeline = vk.compute_pipelines.at(shader);
+    
+    //: Update pipeline descriptor sets to add the buffer and pipeline uniforms. For now this only works with a single buffer.
+    std::vector<VkBuffer> uniforms{};
+    for (auto &a : pipeline.uniform_buffers)
+        for (auto &b : a)
+            uniforms.push_back(b.buffer);
+    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniforms, {buffer.buffer}, {}, {});
     
     //: Begin one time command buffer
     VkCommandBuffer cmd = VK::beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("compute"));
     
     //: Bind pipeline and descriptors
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, vk.compute_pipelines.at(shader).pipeline);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, vk.compute_pipelines.at(shader).pipeline_layout, 0, 1,
-                            &vk.compute_pipelines.at(shader).descriptor_sets.at(0), 0, nullptr);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets.at(0), 0, nullptr);
     
     //: Calculate group count and dispatch compute calls
-    ui32 group_size = api.compute_pipelines.at(shader).group_size[0];
-    ui32 group_count = (buffer_size / group_size) + 1;
+    ui32 group_count = (buffer_size / pipeline.group_size[0]) + 1;
     vkCmdDispatch(cmd, group_count, 1, 1);
     
     //: End and submit command buffer
@@ -2482,11 +2471,6 @@ void VK::updatePipelineDescriptorSets(const Vulkan &vk, const PipelineData &pipe
         for (auto &b : a)
             uniforms.push_back(b.buffer);
     
-    std::vector<VkBuffer> buffers{};
-    for (auto &a : pipeline.storage_buffers)
-        for (auto &b : a)
-            buffers.push_back(b.buffer);
-    
     std::vector<VkImageView> image_views{};
     std::vector<VkImageView> input_views{};
     
@@ -2502,7 +2486,7 @@ void VK::updatePipelineDescriptorSets(const Vulkan &vk, const PipelineData &pipe
                 input_views.push_back(API::attachments.at(id).image_view);
     }
     
-    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniforms, buffers, image_views, input_views);
+    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniforms, {}, image_views, input_views);
 }
 
 //----------------------------------------

@@ -119,6 +119,9 @@ namespace Fresa::Graphics::API
         API::updateUniformBuffer(api, uniform.uniform_buffers.at(0), ubo);
     }
     
+    template <typename... UBO>
+    void updateComputeUniformBuffers(GraphicsAPI &api, ShaderID shader, const UBO& ...ubo) { }
+    
     template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
     GeometryBufferID registerGeometryBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<I> &indices) {
         static GeometryBufferID id = 0;

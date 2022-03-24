@@ -46,7 +46,6 @@ namespace Fresa::Graphics
         std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
         
         std::vector<std::vector<BufferData>> uniform_buffers;
-        std::vector<std::vector<BufferData>> storage_buffers;
         
         VkPipelineLayout pipeline_layout;
         VkPipeline pipeline;
