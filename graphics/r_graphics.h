@@ -105,6 +105,5 @@ namespace Fresa::Graphics
 
     void draw(DrawDescription &description, glm::mat4 model);
     
-    void updateCameraView(CameraData &cam);
     void updateCameraProjection(CameraData &cam);
 }

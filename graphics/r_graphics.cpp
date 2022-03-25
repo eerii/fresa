@@ -59,9 +59,6 @@ bool Graphics::update() {
         TIME(Performance::render_system_time.back(), system.second);
     }
     
-    //: Update camera view
-    updateCameraView(camera);
-    
     //: Render
     API::render(api, win, camera);
     
@@ -165,11 +162,6 @@ TextureID Graphics::getTextureID(str path, Channels ch) {
     stbi_image_free(pixels);
     
     return tex_id;
-}
-
-void Graphics::updateCameraView(CameraData &cam) {
-    //: Example of view matrix
-    cam.view = glm::translate(glm::mat4(1.0f), glm::vec3(-camera.pos.x, -camera.pos.y, -camera.pos.z));
 }
 
 void Graphics::updateCameraProjection(CameraData &cam) {

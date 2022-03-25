@@ -31,29 +31,31 @@ void Event::handleSystemEvents() {
         #endif
         
         switch (event.type) {
-            case SDL_QUIT:
+            case SDL_QUIT: {
                 event_quit.publish();
-            case SDL_KEYDOWN:
+            } case SDL_KEYDOWN: {
                 if (event.key.repeat == 0)
                     CHECK_GUI_USING_KEYBOARD Input::event_key_down.publish((Input::Key)event.key.keysym.sym);
                 break;
-            case SDL_KEYUP:
+            } case SDL_KEYUP: {
                 if (event.key.repeat == 0)
                     CHECK_GUI_USING_KEYBOARD Input::event_key_up.publish((Input::Key)event.key.keysym.sym);
                 break;
-            case SDL_MOUSEMOTION:
-                CHECK_GUI_USING_MOUSE Input::event_mouse_move.publish(Vec2<float>(event.motion.x, event.motion.y));
+            } case SDL_MOUSEMOTION: {
+                Vec2<> pos{};
+                SDL_GetGlobalMouseState(&pos.x, &pos.y);
+                CHECK_GUI_USING_MOUSE Input::event_mouse_move.publish(pos);
                 break;
-            case SDL_MOUSEBUTTONDOWN:
+            } case SDL_MOUSEBUTTONDOWN: {
                 CHECK_GUI_USING_MOUSE Input::event_mouse_down.publish((Input::MouseButton)event.button.button);
                 break;
-            case SDL_MOUSEBUTTONUP:
+            } case SDL_MOUSEBUTTONUP: {
                 CHECK_GUI_USING_MOUSE Input::event_mouse_up.publish((Input::MouseButton)event.button.button);
                 break;
-            case SDL_MOUSEWHEEL:
+            } case SDL_MOUSEWHEEL: {
                 CHECK_GUI_USING_MOUSE Input::event_mouse_wheel.publish(event.wheel.y);
                 break;
-            case SDL_WINDOWEVENT:
+            } case SDL_WINDOWEVENT: {
                 if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
                     event_paused.publish(true);
                 if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
@@ -61,10 +63,11 @@ void Event::handleSystemEvents() {
                 if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
                     Graphics::event_window_resize.publish(Vec2<>(event.window.data1, event.window.data2));
                 break;
-            case SDL_USEREVENT:
+            } case SDL_USEREVENT: {
                 bool* done = reinterpret_cast<bool*>(event.user.data1);
                 *done = true;
                 break;
+            }
         }
     }
 }

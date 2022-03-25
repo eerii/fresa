@@ -107,6 +107,7 @@ namespace Fresa::Graphics
     
     struct CameraData {
         glm::vec3 pos;
+        glm::vec3 direction;
         glm::mat4 view;
         glm::mat4 proj;
         Projection proj_type;

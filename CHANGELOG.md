@@ -7,7 +7,10 @@
 #### 0.3.13 - TITLE - _00 00 2022_
 
 **added**
-- .
+- propper 3d camera controller
+
+**fixed**
+- mouse input was not working
 
 ---
 

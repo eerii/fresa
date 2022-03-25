@@ -44,14 +44,14 @@ namespace Fresa
         };
         
         //: Events
-        inline Event::Event<Vec2<float>> event_mouse_move;
+        inline Event::Event<Vec2<>> event_mouse_move;
         inline Event::Event<int> event_mouse_wheel;
         inline Event::Event<MouseButton> event_mouse_down;
         inline Event::Event<MouseButton> event_mouse_up;
         
         //: State
         struct MouseState {
-            Vec2<float> position;
+            Vec2<int> position;
             int wheel;
             
             std::set<MouseButton> pressed;
@@ -80,19 +80,19 @@ namespace Fresa
             });
             
             //: Mouse events
-            event_mouse_move.callback([](const Vec2<float> &pos){
-                mouse.position = pos;
+            event_mouse_move.callback([](const Vec2<> &pos){
+                mouse_next.position = pos;
             });
             event_mouse_wheel.callback([](const int &wh){
-                mouse.wheel = wh;
+                mouse_next.wheel = wh;
             });
             event_mouse_down.callback([](const MouseButton &button){
-                mouse.pressed.insert(button);
-                mouse.down.insert(button);
+                mouse_next.pressed.insert(button);
+                mouse_next.down.insert(button);
             });
             event_mouse_up.callback([](const MouseButton &button){
-                mouse.released.insert(button);
-                mouse.down.erase(button);
+                mouse_next.released.insert(button);
+                mouse_next.down.erase(button);
             });
         }
         
