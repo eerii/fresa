@@ -28,8 +28,9 @@ void Gui::win_menu() {
         
         //---Options---
         if (ImGui::BeginMenu("game")) {
-            Gui::slider("game speed", Config::game_speed, 0.1f, 0.0f, 3.0f);
+            slider("game speed", Config::game_speed, 0.1f, 0.0f, 3.0f);
             
+            if (slider<ui8>("multisampling", Config::multisampling, 1.0f, 0, 6)) Graphics::API::resize(Graphics::api, Graphics::win);
             ImGui::Checkbox("draw indirect", &Config::draw_indirect);
             
             ImGui::EndMenu();

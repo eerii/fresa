@@ -29,9 +29,11 @@ namespace Fresa::Graphics::VK
     VkSurfaceKHR createSurface(VkInstance instance, const WindowData &win);
 
     ui16 ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
-    VkPhysicalDevice selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDeviceFeatures &features);
+    VkPhysicalDevice selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface,
+                                          VkPhysicalDeviceFeatures &features, VkPhysicalDeviceProperties &properties);
     VkFormat chooseSupportedFormat(VkPhysicalDevice physical_device, const std::vector<VkFormat> &candidates,
                                    VkImageTiling tiling, VkFormatFeatureFlags features);
+    VkSampleCountFlagBits getMaxMSAASamples(VkPhysicalDeviceProperties &properties);
 
     VkDevice createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeatures physical_device_features,
                           const VkQueueIndices &queue_indices);
@@ -139,7 +141,8 @@ namespace Fresa::Graphics::VK
 
     //Attachments
     //----------------------------------------
-    VkAttachmentDescription createAttachmentDescription(const AttachmentData &attachment);
+    VkSampleCountFlagBits getAttachmentSamples(const Vulkan &vk, const AttachmentData &attachment);
+    VkAttachmentDescription createAttachmentDescription(const AttachmentData &attachment, VkSampleCountFlagBits samples);
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
     std::vector<VkFramebuffer> createFramebuffers(VkDevice device, RenderPassID render_pass, VkExtent2D extent, const SwapchainData &swapchain);
     //----------------------------------------
@@ -412,8 +415,9 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
     TextureData createTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
                               VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<> size, VkFormat format, Channels ch);
-    std::pair<VkImage, VmaAllocation> createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory,
-                                                  Vec2<> size, VkFormat format, VkImageLayout layout, VkImageUsageFlags usage);
+    std::pair<VkImage, VmaAllocation> createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory, Vec2<> size,
+                                                  VkSampleCountFlagBits samples, ui32 mip_levels, VkFormat format,
+                                                  VkImageLayout layout, VkImageUsageFlags usage);
     void transitionImageLayout(VkDevice device, const CommandData &cmd, TextureData &tex, VkImageLayout new_layout);
     void copyBufferToImage(VkDevice device, const CommandData &cmd, BufferData &buffer, TextureData &tex);
 

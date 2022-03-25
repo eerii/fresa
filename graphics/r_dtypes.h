@@ -157,6 +157,7 @@ namespace Fresa::Graphics
         ATTACHMENT_SWAPCHAIN = 1 << 3,
         ATTACHMENT_WINDOW = 1 << 4,
         ATTACHMENT_EXTERNAL = 1 << 5,
+        ATTACHMENT_MSAA = 1 << 6,
         ATTACHMENT_COLOR_INPUT = ATTACHMENT_COLOR | ATTACHMENT_INPUT,
         ATTACHMENT_DEPTH_INPUT = ATTACHMENT_DEPTH | ATTACHMENT_INPUT,
         ATTACHMENT_COLOR_SWAPCHAIN = ATTACHMENT_COLOR | ATTACHMENT_SWAPCHAIN | ATTACHMENT_WINDOW,
@@ -169,6 +170,7 @@ namespace Fresa::Graphics
         {"input", ATTACHMENT_INPUT},
         {"swapchain", ATTACHMENT_COLOR_SWAPCHAIN},
         {"external", ATTACHMENT_EXTERNAL},
+        {"msaa", ATTACHMENT_MSAA},
     };
     
     struct AttachmentData {
