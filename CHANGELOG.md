@@ -8,6 +8,7 @@
 
 **added**
 - propper 3d camera controller
+- camera gui
 
 **fixed**
 - mouse input was not working

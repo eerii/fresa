@@ -148,6 +148,8 @@ namespace Fresa::Graphics
         //: Physical device
         VkPhysicalDevice physical_device;
         VkPhysicalDeviceFeatures physical_device_features;
+        VkPhysicalDeviceProperties physical_device_properties;
+        VkSampleCountFlagBits msaa_samples;
         
         //: Logical device
         VkDevice device;

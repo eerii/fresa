@@ -62,7 +62,8 @@ Vulkan API::createAPI(WindowData &win) {
     vk.surface = VK::createSurface(vk.instance, win);
     
     //---Physical device---
-    vk.physical_device = VK::selectPhysicalDevice(vk.instance, vk.surface, vk.physical_device_features);
+    vk.physical_device = VK::selectPhysicalDevice(vk.instance, vk.surface, vk.physical_device_features, vk.physical_device_properties);
+    vk.msaa_samples = VK::getMaxMSAASamples(vk.physical_device_properties);
     
     //---Queues and logical device---
     vk.cmd.queue_indices = VK::getQueueFamilies(vk.surface, vk.physical_device);
@@ -265,7 +266,8 @@ ui16 VK::ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physical_devi
     return score;
 }
 
-VkPhysicalDevice VK::selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDeviceFeatures &features) {
+VkPhysicalDevice VK::selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface,
+                                          VkPhysicalDeviceFeatures &features, VkPhysicalDeviceProperties &properties) {
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
     
     //---Show requested device extensions---
@@ -297,28 +299,30 @@ VkPhysicalDevice VK::selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surf
     if (chosen->second > 0)
         physical_device = chosen->first;
     
+    if (physical_device == VK_NULL_HANDLE)
+        log::error("No GPU passed the vulkan physical device requirements.");
+    
+    //: Get physical device features
+    vkGetPhysicalDeviceFeatures(physical_device, &features);
+    
+    //: Get physical device properties
+    vkGetPhysicalDeviceProperties(physical_device, &properties);
+    
+    //: Get the timestamp period (For time performance metrics)
+    #ifdef DEBUG
+    if (properties.limits.timestampComputeAndGraphics) Performance::timestamp_period = properties.limits.timestampPeriod;
+    else log::warn("Timestamps not supported");
+    #endif
     
     //---Show the result of the process---
     for (VkPhysicalDevice device : devices) {
         VkPhysicalDeviceProperties device_properties;
         vkGetPhysicalDeviceProperties(device, &device_properties);
         log::graphics(((device == physical_device) ? " > %s" : " - %s"), device_properties.deviceName);
-        
-        if (device == physical_device) {
-            //: Get the timestamp period (For time performance metrics)
-            #ifdef DEBUG
-            if (device_properties.limits.timestampComputeAndGraphics) Performance::timestamp_period = device_properties.limits.timestampPeriod;
-            else log::warn("Timestamps not supported");
-            #endif
-        }
     }
     log::graphics("");
     
-    if (physical_device == VK_NULL_HANDLE)
-        log::error("No GPU passed the vulkan physical device requirements.");
     
-    //: Get physical device features
-    vkGetPhysicalDeviceFeatures(physical_device, &features);
     
     return physical_device;
 }
@@ -343,6 +347,18 @@ VkFormat VK::chooseSupportedFormat(VkPhysicalDevice physical_device, const std::
     
     log::error("Failed to find a suitable supported format");
     return candidates[0];
+}
+
+VkSampleCountFlagBits VK::getMaxMSAASamples(VkPhysicalDeviceProperties &properties) {
+    VkSampleCountFlags counts = properties.limits.framebufferColorSampleCounts & properties.limits.framebufferDepthSampleCounts;
+    
+    if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+    if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+    if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+    if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+    if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+    if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+    return VK_SAMPLE_COUNT_1_BIT;
 }
 
 VkQueueIndices VK::getQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
@@ -1182,11 +1198,30 @@ std::vector<ui64> VK::getQueryResults(VkDevice device, VkQueryPool query, ui32 o
 //Attachments
 //----------------------------------------
 
-VkAttachmentDescription VK::createAttachmentDescription(const AttachmentData &attachment) {
+VkSampleCountFlagBits VK::getAttachmentSamples(const Vulkan &vk, const AttachmentData &attachment) {
+    VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+    
+    if (attachment.type & ATTACHMENT_MSAA) {
+        if (Config::multisampling == 1) samples = VK_SAMPLE_COUNT_2_BIT;
+        if (Config::multisampling == 2) samples = VK_SAMPLE_COUNT_4_BIT;
+        if (Config::multisampling == 3) samples = VK_SAMPLE_COUNT_8_BIT;
+        if (Config::multisampling == 4) samples = VK_SAMPLE_COUNT_16_BIT;
+        if (Config::multisampling == 5) samples = VK_SAMPLE_COUNT_32_BIT;
+        if (Config::multisampling == 6) samples = VK_SAMPLE_COUNT_64_BIT;
+        
+        if (samples > vk.msaa_samples) {
+            log::warn("Using an unsupported number of MSSA samples, reducing to the max");
+            samples = vk.msaa_samples;
+        }
+    }
+    return samples;
+}
+
+VkAttachmentDescription VK::createAttachmentDescription(const AttachmentData &attachment, VkSampleCountFlagBits samples) {
     VkAttachmentDescription description{};
     
     description.format = attachment.format;
-    description.samples = VK_SAMPLE_COUNT_1_BIT;
+    description.samples = samples;
     description.loadOp = attachment.load_op;
     description.storeOp = attachment.store_op;
     description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -1246,9 +1281,11 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
             attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
     }
     
+    VkSampleCountFlagBits samples = VK::getAttachmentSamples(vk, attachment);
+    
     //: Image and image view
     if (not (type & ATTACHMENT_SWAPCHAIN)) {
-        auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, size,
+        auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, samples, 1,
                                         attachment.format, attachment.initial_layout, attachment.usage);
         attachment.image = i_;
         attachment.allocation = a_;
@@ -1258,7 +1295,7 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
     }
     
     //: Description
-    attachment.description = VK::createAttachmentDescription(attachment);
+    attachment.description = VK::createAttachmentDescription(attachment, samples);
     
     return id;
 }
@@ -1268,13 +1305,18 @@ void API::recreateAttachments(const Vulkan &vk) {
         if (attachment.type & ATTACHMENT_WINDOW) {
             attachment.size = to_vec(vk.swapchain.extent);
         }
+        
+        VkSampleCountFlagBits samples = VK::getAttachmentSamples(vk, attachment);
+        
         if (not (attachment.type & ATTACHMENT_SWAPCHAIN)) {
-            auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, attachment.size,
+            auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, attachment.size, samples, 1,
                                             attachment.format, attachment.initial_layout, attachment.usage);
             attachment.image = i_;
             attachment.allocation = a_;
             
             attachment.image_view = VK::createImageView(vk.device, attachment.image, attachment.aspect, attachment.format);
+            
+            attachment.description = VK::createAttachmentDescription(attachment, samples);
             
             AttachmentData &attachment_ref = attachments.at(idx);
             VK::deletion_queue_swapchain.push_back([vk, attachment_ref](){ vkDestroyImageView(vk.device, attachment_ref.image_view, nullptr); });
@@ -2018,6 +2060,14 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     //: Pipeline info
     VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(data.binding_descriptions, data.attribute_descriptions,
                                                                           renderpass.second.attachment_extent);
+    
+    //: Multisampling TODO: IMPROVE, ADD BLIT
+    auto attachments = getAtoB_v(subpass.first, API::Map::subpass_attachment, API::attachments);
+    std::vector<VkSampleCountFlagBits> samples(attachments.size());
+    std::transform(attachments.begin(), attachments.end(), samples.begin(), [&](auto &a){ return VK::getAttachmentSamples(vk, a.second); });
+    pipeline_create_info.multisampling.rasterizationSamples = *std::min_element(samples.begin(), samples.end());
+    
+    //: Create info
     create_info.pVertexInputState = &pipeline_create_info.vertex_input;
     create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
     create_info.pViewportState = &pipeline_create_info.viewport_state;
@@ -2561,8 +2611,7 @@ TextureData VK::createTexture(VkDevice device, VmaAllocator allocator, VkPhysica
     data.layout = VK_IMAGE_LAYOUT_UNDEFINED;
     
     //: Image
-    auto [i_, a_] = VK::createImage(device, allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, data.format,
-                                    data.layout, usage);
+    auto [i_, a_] = VK::createImage(device, allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, VK_SAMPLE_COUNT_1_BIT, 1, data.format, data.layout, usage);
     data.image = i_;
     data.allocation = a_;
     
@@ -2573,8 +2622,9 @@ TextureData VK::createTexture(VkDevice device, VmaAllocator allocator, VkPhysica
     return data;
 }
 
-std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory,
-                                                  Vec2<> size, VkFormat format, VkImageLayout layout, VkImageUsageFlags usage) {
+std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory, Vec2<> size,
+                                                  VkSampleCountFlagBits samples, ui32 mip_levels, VkFormat format,
+                                                  VkImageLayout layout, VkImageUsageFlags usage) {
     VkImage image;
     VmaAllocation allocation;
     
@@ -2584,7 +2634,7 @@ std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator 
     create_info.extent.width = (ui32)size.x;
     create_info.extent.height = (ui32)size.y;
     create_info.extent.depth = 1;
-    create_info.mipLevels = 1;
+    create_info.mipLevels = mip_levels;
     create_info.arrayLayers = 1;
     
     create_info.tiling = VK_IMAGE_TILING_OPTIMAL; //This way the image can't be access directly, but it is better for performance
@@ -2593,7 +2643,7 @@ std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator 
     create_info.usage = usage;
     create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
-    create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    create_info.samples = samples;
     create_info.flags = 0;
     
     VmaAllocationCreateInfo allocate_info{};

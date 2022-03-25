@@ -18,5 +18,6 @@ namespace Fresa {
         
         static str renderer_description_path;
         static bool draw_indirect;
+        static ui8 multisampling;
     };
 }
