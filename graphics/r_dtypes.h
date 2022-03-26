@@ -168,7 +168,8 @@ namespace Fresa::Graphics
         {"color", ATTACHMENT_COLOR},
         {"depth", ATTACHMENT_DEPTH},
         {"input", ATTACHMENT_INPUT},
-        {"swapchain", ATTACHMENT_COLOR_SWAPCHAIN},
+        {"swapchain", ATTACHMENT_SWAPCHAIN},
+        {"window", ATTACHMENT_WINDOW},
         {"external", ATTACHMENT_EXTERNAL},
         {"msaa", ATTACHMENT_MSAA},
     };

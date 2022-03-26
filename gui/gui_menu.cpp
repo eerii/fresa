@@ -28,10 +28,37 @@ void Gui::win_menu() {
         
         //---Options---
         if (ImGui::BeginMenu("game")) {
+            ImGui::SetNextItemWidth(100.0f);
             slider("game speed", Config::game_speed, 0.1f, 0.0f, 3.0f);
             
+            ImGui::SetNextItemWidth(100.0f);
             if (slider<ui8>("multisampling", Config::multisampling, 1.0f, 0, 6)) Graphics::API::resize(Graphics::api, Graphics::win);
+            
             ImGui::Checkbox("draw indirect", &Config::draw_indirect);
+            
+            //: Attachments
+            if (ImGui::BeginMenu("attachments"))
+            {
+                if (ImGui::MenuItem("s - swapchain"))
+                    Graphics::API::render_attachment = -1;
+                if (ImGui::MenuItem("w - wireframe"))
+                    Graphics::API::render_attachment = -2;
+                
+                for (auto &[id, attachment] : Graphics::API::attachments) {
+                    if (attachment.type & Graphics::ATTACHMENT_SWAPCHAIN)
+                        continue;
+                    
+                    str name = std::to_string(id) + " - ";
+                    for (auto &[s, type] : Graphics::attachment_type_names)
+                        if (attachment.type & type)
+                            name += s + " ";
+                    
+                    if (ImGui::MenuItem(name.c_str()))
+                        Graphics::API::render_attachment = (int)id;
+                }
+                
+                ImGui::EndMenu();
+            }
             
             ImGui::EndMenu();
         }

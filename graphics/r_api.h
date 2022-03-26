@@ -69,6 +69,7 @@ namespace Fresa::Graphics::API
     AttachmentID registerAttachment(const GraphicsAPI &api, AttachmentType type, Vec2<> size);
     void recreateAttachments(const GraphicsAPI &api);
     inline std::map<AttachmentID, AttachmentData> attachments{};
+    inline int render_attachment = -1; // -1: swapchain, -2: wireframe, 0...n: attachment
     
     //---Mappings---
     namespace Map {

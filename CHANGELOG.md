@@ -9,6 +9,10 @@
 **added**
 - propper 3d camera controller
 - camera gui
+- debug attachments
+
+**changed**
+- rendering api fixes in vulkan
 
 **fixed**
 - mouse input was not working

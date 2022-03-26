@@ -23,7 +23,7 @@ namespace Fresa::Graphics::GL
 
     //Shaders
     //----------------------------------------
-    ShaderData createShaderDataGL(ShaderID shader, SubpassID subpass);
+    ShaderData createShaderDataGL(ShaderID shader);
     ui8 compileShader(const char* source, ui32 shader_type);
     ui8 compileProgram(str vert_source = "", str frag_source = "");
     void validateShaderData(ui32 vao_id);

@@ -174,6 +174,9 @@ namespace Fresa::Graphics
         //: Window vertex buffer
         BufferData window_vertex_buffer;
         
+        //: GUI
+        IF_GUI(RenderPassID gui_render_pass;)
+        
         //: Debug
         #ifdef DEBUG
         VkQueryPool query_timestamp;

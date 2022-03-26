@@ -456,7 +456,11 @@ VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeat
     
     //---Device required features---
     //      Enable some features here, try to keep it as small as possible
-    //: (optional) Anisotropy - physical_device_features.samplerAnisotropy = VK_TRUE;
+    VkPhysicalDeviceFeatures enabled_features{};
+    if (physical_device_features.fillModeNonSolid) //: Wireframe mode
+        enabled_features.fillModeNonSolid = VK_TRUE;
+    if (physical_device_features.wideLines) //: Lines with width different than 1.0f
+        enabled_features.wideLines = VK_TRUE;
     
     //---Create device---
     VkDeviceCreateInfo device_create_info{};
@@ -467,7 +471,7 @@ VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeat
     device_create_info.pQueueCreateInfos = queue_create_infos.data();
     device_create_info.enabledExtensionCount = (int)required_device_extensions.size();
     device_create_info.ppEnabledExtensionNames = required_device_extensions.data();
-    device_create_info.pEnabledFeatures = &physical_device_features;
+    device_create_info.pEnabledFeatures = &enabled_features;
     
     device_create_info.enabledLayerCount = (int)validation_layers.size();
     device_create_info.ppEnabledLayerNames = validation_layers.data();
@@ -687,12 +691,10 @@ SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_dev
     if (vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain.swapchain)!= VK_SUCCESS)
         log::error("Error creating a vulkan swapchain");
     
-    
     //---Swapchain images---
     vkGetSwapchainImagesKHR(device, swapchain.swapchain, &swapchain.size, nullptr);
     swapchain.images.resize(swapchain.size);
     vkGetSwapchainImagesKHR(device, swapchain.swapchain, &swapchain.size, swapchain.images.data());
-    
     
     //---Swapchain image views---
     swapchain.image_views.resize(swapchain.size);
@@ -872,19 +874,25 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
     int query_index = 0;
     #endif
     
-    //: Clear values
-    std::vector<VkClearValue> clear_values{API::attachments.size() + 1};
-    for (auto &[idx, a] : API::attachments) {
-        if (a.type & ATTACHMENT_COLOR)
-            clear_values[idx].color = {0.f, 0.f, 0.f, 1.0f};
-        if (a.type & ATTACHMENT_DEPTH)
-            clear_values[idx].depthStencil = {1.0f, 0};
-    }
     
-    //: Begin render pass
     for (const auto &[r_id, render] : API::render_passes) {
-        IF_GUI(if (r_id == API::render_passes.rbegin()->first) continue;) //: Skip gui render pass
+        IF_GUI(if (r_id == vk.gui_render_pass) continue;) //: Skip gui render pass
         
+        auto subpasses = getAtoB<SubpassID>(r_id, API::Map::renderpass_subpass);
+        auto attachments = getAtoB_v(r_id, API::Map::renderpass_attachment, API::attachments);
+        
+        //: Clear values
+        std::vector<VkClearValue> clear_values;
+        for (auto &[idx, a] : attachments) {
+            VkClearValue clear;
+            if (a.type & ATTACHMENT_COLOR)
+                clear.color = {0.f, 0.f, 0.f, 1.0f};
+            if (a.type & ATTACHMENT_DEPTH)
+                clear.depthStencil = {1.0f, 0};
+            clear_values.push_back(clear);
+        }
+        
+        //: Begin render pass
         VkRenderPassBeginInfo render_pass_info{};
         render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         render_pass_info.renderPass = render.render_pass;
@@ -896,8 +904,6 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
         
         vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
         
-        auto subpasses = getAtoB<SubpassID>(r_id, API::Map::renderpass_subpass);
-        
         for (const auto &s_id : subpasses) {
             //: Next subpass
             if (s_id != subpasses.at(0))
@@ -907,8 +913,8 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
             std::vector<ShaderID> shaders = getAtoB<ShaderID>(s_id, API::Map::subpass_shader);
             
             for (const auto &shader : shaders) {
-                //: Timestamp before shader
                 #ifdef DEBUG
+                //: Timestamp before shader
                 if (Performance::timestamp_period > 0)
                     vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, vk.query_timestamp, current * queries + 2 * ++query_index);
                 #endif
@@ -1008,6 +1014,16 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                 
                 //---Post shaders---
                 else {
+                    //: Debug attachments
+                    #ifdef DEBUG
+                    if (shader.rfind("debug", 0) == 0) {
+                        if (API::render_attachment < 0)
+                            continue;
+                        if (shader.find("_" + std::to_string(API::render_attachment)) == str::npos)
+                            continue;
+                    }
+                    #endif
+                    
                     //: Pipeline
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
                     
@@ -1035,8 +1051,8 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
         vkCmdEndRenderPass(cmd);
     }
     
-    //: Timestamp after all passes
     #ifdef DEBUG
+    //: Timestamp after all passes
     if (Performance::timestamp_period > 0)
         vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, vk.query_timestamp, current * queries + 1);
     #endif
@@ -1277,8 +1293,7 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
     if (type & ATTACHMENT_SWAPCHAIN) {
         attachment.final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
-        if (API::render_passes.size() > 0)
-            attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
+        attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
     }
     
     VkSampleCountFlagBits samples = VK::getAttachmentSamples(vk, attachment);
@@ -1456,8 +1471,9 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
     std::map<SubpassID, std::vector<VkAttachmentReference>> relative_color_attachments{};
     std::map<SubpassID, VkAttachmentReference> relative_depth_attachment{};
     std::map<SubpassID, std::vector<VkAttachmentReference>> relative_input_attachments{};
-    //---Input attachment list for dependencies---
+    //---Lists for dependencies---
     std::map<SubpassID, std::vector<AttachmentID>> input_attachments{};
+    std::vector<SubpassID> swapchain_attachments{};
     
     //---Subpass descriptions---
     render.attachment_extent = VkExtent2D{0, 0};
@@ -1534,9 +1550,14 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
         }
         //: Swapchain (Ensure that swapchain images are transitioned before they are written to)
         if (has_swapchain_attachment) {
+            ui32 src = VK_SUBPASS_EXTERNAL;
+            if (swapchain_attachments.size() > 0)
+                src = swapchain_attachments.back();
+            swapchain_attachments.push_back(relative_subpass);
+            
             VkSubpassDependency dependency;
             
-            dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependency.srcSubpass = src;
             dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             dependency.srcAccessMask = 0;
             
@@ -1547,7 +1568,7 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
             dependency.dependencyFlags = 0;
             
             render_pass_helper.dependencies.push_back(dependency);
-            log::graphics("Subpass dependency between VK_SUBPASS_EXTERNAL and %d", dependency.dstSubpass);
+            log::graphics("Subpass dependency swapchain between %s and %d", (src == VK_SUBPASS_EXTERNAL ? "VK_SUBPASS_EXTERNAL" : std::to_string(src)).c_str(), dependency.dstSubpass);
         }
     }
     
@@ -2584,9 +2605,9 @@ TextureID API::registerTexture(const Vulkan &vk, Vec2<> size, Channels ch, ui8* 
     vmaUnmapMemory(vk.allocator, staging_buffer.allocation);
     
     //: Copy from staging buffer to image and transition to read only layout
-    VK::transitionImageLayout(vk.device, vk.cmd, texture_data[id], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VK::transitionImageLayoutCmd(vk.device, vk.cmd, texture_data[id], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     VK::copyBufferToImage(vk.device, vk.cmd, staging_buffer, texture_data[id]);
-    VK::transitionImageLayout(vk.device, vk.cmd, texture_data[id], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    VK::transitionImageLayoutCmd(vk.device, vk.cmd, texture_data[id], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     
     //: Delete staging buffer
     vmaDestroyBuffer(vk.allocator, staging_buffer.buffer, staging_buffer.allocation);
@@ -2659,24 +2680,23 @@ std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator 
     return std::pair<VkImage, VmaAllocation>{image, allocation};
 }
 
-void VK::transitionImageLayout(VkDevice device, const CommandData &cmd, TextureData &tex, VkImageLayout new_layout) {
-    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd.command_pools.at("temp"));
-
+void VK::transitionImageLayout(VkDevice device, VkCommandBuffer cmd, VkImage image, VkFormat format,
+                               VkImageLayout old_layout, VkImageLayout new_layout) {
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.image = tex.image;
+    barrier.image = image;
     
-    barrier.oldLayout = tex.layout;
+    barrier.oldLayout = old_layout;
     barrier.newLayout = new_layout;
     
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     
-    barrier.subresourceRange.aspectMask = [&tex, new_layout]() -> VkImageAspectFlagBits {
+    barrier.subresourceRange.aspectMask = [&]() -> VkImageAspectFlagBits {
         if (new_layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
             return VK_IMAGE_ASPECT_COLOR_BIT;
         
-        if (hasDepthStencilComponent(tex.format))
+        if (hasDepthStencilComponent(format))
             return (VkImageAspectFlagBits)(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
         
         return VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -2689,22 +2709,31 @@ void VK::transitionImageLayout(VkDevice device, const CommandData &cmd, TextureD
     VkPipelineStageFlags src_stage;
     VkPipelineStageFlags dst_stage;
     
-    barrier.srcAccessMask = [&tex, &src_stage](){
-        switch (tex.layout) {
+    barrier.srcAccessMask = [&](){
+        switch (old_layout) {
             case VK_IMAGE_LAYOUT_UNDEFINED:
                 src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
                 return (VkAccessFlagBits)0;
             case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
                 src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
                 return VK_ACCESS_TRANSFER_WRITE_BIT;
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                src_stage = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+                return VK_ACCESS_SHADER_READ_BIT;
+            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+                src_stage = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+                return VK_ACCESS_SHADER_READ_BIT;
             default:
                 log::warn("Not a valid src access mask in image layout transition");
                 return (VkAccessFlagBits)0;
         }
     }();
     
-    barrier.dstAccessMask = [new_layout, &dst_stage](){
+    barrier.dstAccessMask = [&](){
         switch (new_layout) {
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+                dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                return VK_ACCESS_TRANSFER_READ_BIT;
             case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
                 dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
                 return VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -2720,7 +2749,13 @@ void VK::transitionImageLayout(VkDevice device, const CommandData &cmd, TextureD
         }
     }();
     
-    vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    vkCmdPipelineBarrier(cmd, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+}
+
+void VK::transitionImageLayoutCmd(VkDevice device, const CommandData &cmd, TextureData &tex, VkImageLayout new_layout) {
+    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd.command_pools.at("temp"));
+
+    VK::transitionImageLayout(device, command_buffer, tex.image, tex.format, tex.layout, new_layout);
     
     endSingleUseCommandBuffer(device, command_buffer, cmd.command_pools.at("temp"), cmd.queues.graphics);
     
@@ -2976,10 +3011,13 @@ void API::resize(Vulkan &vk, WindowData &win) {
     VK::recreateSwapchain(vk, win);
     
     //: Update scaled projection
-    if (shaders.count("window"))
-        for (auto &uniforms : vk.pipelines.at("window").uniform_buffers)
-            for (auto &u : uniforms)
-                API::updateUniformBuffer(vk, u, win.scaled_ubo);
+    for (auto &[shader, pipeline] : vk.pipelines) {
+        if (shader.rfind("window", 0) == 0 or shader.rfind("debug", 0) == 0) {
+            for (auto &uniforms : vk.pipelines.at(shader).uniform_buffers)
+                for (auto &u : uniforms)
+                    API::updateUniformBuffer(vk, u, win.scaled_ubo);
+        }
+    }
 }
 
 //----------------------------------------
@@ -3081,7 +3119,7 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
     //: Render pass
     AttachmentID attachment_swapchain_gui = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
     SubpassID subpass_gui = API::registerSubpass({attachment_swapchain_gui});
-    API::registerRenderPass(vk, {subpass_gui});
+    vk.gui_render_pass = API::registerRenderPass(vk, {subpass_gui});
     
     //: Init Vulkan implementation
     ImGui_ImplVulkan_InitInfo init_info = {};
@@ -3094,7 +3132,7 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
     init_info.MinImageCount = vk.swapchain.min_image_count;
     init_info.ImageCount = vk.swapchain.size;
     init_info.Allocator = nullptr;
-    if (not ImGui_ImplVulkan_Init(&init_info, API::render_passes.at(1).render_pass))
+    if (not ImGui_ImplVulkan_Init(&init_info, API::render_passes.at(vk.gui_render_pass).render_pass))
         log::error("Error initializing ImGui for Vulkan");
     
     //: Command buffers
@@ -3133,10 +3171,10 @@ void VK::Gui::recordGuiCommandBuffer(const Vulkan &vk, ui32 current) {
     //: Begin render pass
     VkRenderPassBeginInfo render_pass_info{};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = API::render_passes.at(1).render_pass;
-    render_pass_info.framebuffer = API::render_passes.at(1).framebuffers.at(current);
+    render_pass_info.renderPass = API::render_passes.at(vk.gui_render_pass).render_pass;
+    render_pass_info.framebuffer = API::render_passes.at(vk.gui_render_pass).framebuffers.at(current);
     render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = API::render_passes.at(1).attachment_extent;
+    render_pass_info.renderArea.extent = API::render_passes.at(vk.gui_render_pass).attachment_extent;
     render_pass_info.clearValueCount = (ui32)clear_values.size();
     render_pass_info.pClearValues = clear_values.data();
     
