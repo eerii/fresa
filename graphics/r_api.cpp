@@ -219,14 +219,20 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                     log::error("You provided an invalid attachment type, check the name list for all the options, index %d", i);
                 type = (AttachmentType)(type | attachment_type_names.at(type_str.at(i)));
             }
-            attachment_list[name] = type;
+            #ifdef DEBUG
+                type = (AttachmentType)(type | ATTACHMENT_EXTERNAL);
+            #endif
             
             //: Resolution
             str res = line.at(3);
             Vec2<> resolution{};
-            if (res == "res") { resolution = Config::resolution.to<int>(); }
-            else if (res == "win") { resolution = win.size; }
-            else {
+            if (res == "res") {
+                resolution = Config::resolution.to<int>();
+            }
+            else if (res == "win") {
+                resolution = win.size;
+                type = (AttachmentType)(type | ATTACHMENT_WINDOW);
+            } else {
                 std::vector<str> res_str = split(res, "x");
                 if (not (res_str.size() == 2))
                     log::error("You need to either provide an smart attachment resolution (win, res...) or a numeric value in the form 1920x1080");
@@ -336,9 +342,38 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                 });
                 if (not found_vertex) log::error("The vertex you provided '%s' is invalid, check the spelling and vertex variant", line.at(3).c_str());
             #elif defined USE_OPENGL
-                GL::createShaderDataGL(shader, subpass);
+                API::Map::subpass_shader.add(subpass, shader);
+                API::shaders.at(shader).subpass = subpass;
                 API::shaders.at(shader).is_instanced = line.size() == 5;
             #endif
         }
     }
+    
+    //---Debug pipelines---
+    #ifdef DEBUG
+        #if defined USE_VULKAN
+            AttachmentID swapchain = [&](){
+                for (auto &[name, attachment] : attachment_list)
+                    if (API::attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
+                        return attachment;
+                return (AttachmentID)-1;
+            }();
+            
+            for (auto &[name, attachment] : attachment_list) {
+                if (API::attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
+                    continue;
+                
+                str debug_shader = "debug_attachment_" + std::to_string(attachment);
+                str shader_code = API::attachments.at(attachment).type & ATTACHMENT_DEPTH ? "window_depth" : "window";
+                API::shaders[debug_shader] = API::createShaderData(shader_code);
+                
+                SubpassID subpass = API::registerSubpass({swapchain}, {attachment});
+                API::registerRenderPass(api, {subpass});
+                
+                api.pipelines[debug_shader] = VK::createPipeline<VertexPos2>(api, debug_shader, subpass);
+            }
+        #elif defined USE_OPENGL
+            
+        #endif
+    #endif
 }

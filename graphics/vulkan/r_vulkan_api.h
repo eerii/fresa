@@ -418,7 +418,8 @@ namespace Fresa::Graphics::VK
     std::pair<VkImage, VmaAllocation> createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory, Vec2<> size,
                                                   VkSampleCountFlagBits samples, ui32 mip_levels, VkFormat format,
                                                   VkImageLayout layout, VkImageUsageFlags usage);
-    void transitionImageLayout(VkDevice device, const CommandData &cmd, TextureData &tex, VkImageLayout new_layout);
+    void transitionImageLayout(VkDevice device, VkCommandBuffer cmd, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+    void transitionImageLayoutCmd(VkDevice device, const CommandData &cmd, TextureData &tex, VkImageLayout new_layout);
     void copyBufferToImage(VkDevice device, const CommandData &cmd, BufferData &buffer, TextureData &tex);
 
     VkImageView createImageView(VkDevice device, VkImage image, VkImageAspectFlags aspect_flags, VkFormat format);

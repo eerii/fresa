@@ -41,6 +41,9 @@ OpenGL API::createAPI(WindowData &win) {
     
     gl.context = GL::createContext(win);
     
+    for (auto &[id, s] : API::shaders)
+        GL::createShaderDataGL(id);
+    
     API::processRendererDescription(gl, win);
     
     ui32 temp_vao = GL::createVertexArray(); //Needed for shader validation
@@ -101,13 +104,12 @@ SDL_GLContext GL::createContext(const WindowData &win) {
     return context;
 }
 
-ShaderData GL::createShaderDataGL(ShaderID shader, SubpassID subpass) {
+ShaderData GL::createShaderDataGL(ShaderID shader) {
     //---Prepare shaders---
     //      In this step we are loading the shader "name" and creating all the important elements it needs
     //      This includes reading the shader SPIR-V code, performing reflection on it and converting it to compatible GLSL
     //      The final code is then used to create a GL program which contains the shader information and we can use for rendering
     ShaderData &data = API::shaders.at(shader);
-    API::Map::subpass_shader.add(subpass, shader);
     
     //: Options
     spirv_cross::CompilerGLSL::Options options;
@@ -193,9 +195,6 @@ ShaderData GL::createShaderDataGL(ShaderID shader, SubpassID subpass) {
         log::graphics(" - Sampler %s : Location %d, Binding %d", n.c_str(), tex_location, bind);
     }
     glCheckError();
-    
-    //: Set framebuffer (equivalent to subpass in vulkan)
-    data.subpass = subpass;
     
     deletion_queue.push_back([pid](){glDeleteProgram(pid);});
     return data;
