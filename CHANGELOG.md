@@ -10,6 +10,7 @@
 - propper 3d camera controller
 - camera gui
 - debug attachments
+- multisampling (vulkan)
 
 **changed**
 - rendering api fixes in vulkan

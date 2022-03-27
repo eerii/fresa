@@ -63,7 +63,6 @@ Vulkan API::createAPI(WindowData &win) {
     
     //---Physical device---
     vk.physical_device = VK::selectPhysicalDevice(vk.instance, vk.surface, vk.physical_device_features, vk.physical_device_properties);
-    vk.msaa_samples = VK::getMaxMSAASamples(vk.physical_device_properties);
     
     //---Queues and logical device---
     vk.cmd.queue_indices = VK::getQueueFamilies(vk.surface, vk.physical_device);
@@ -890,6 +889,8 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
             if (a.type & ATTACHMENT_DEPTH)
                 clear.depthStencil = {1.0f, 0};
             clear_values.push_back(clear);
+            if (a.type & ATTACHMENT_MSAA)
+                clear_values.push_back(clear);
         }
         
         //: Begin render pass
@@ -1218,16 +1219,31 @@ VkSampleCountFlagBits VK::getAttachmentSamples(const Vulkan &vk, const Attachmen
     VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
     
     if (attachment.type & ATTACHMENT_MSAA) {
-        if (Config::multisampling == 1) samples = VK_SAMPLE_COUNT_2_BIT;
-        if (Config::multisampling == 2) samples = VK_SAMPLE_COUNT_4_BIT;
-        if (Config::multisampling == 3) samples = VK_SAMPLE_COUNT_8_BIT;
-        if (Config::multisampling == 4) samples = VK_SAMPLE_COUNT_16_BIT;
-        if (Config::multisampling == 5) samples = VK_SAMPLE_COUNT_32_BIT;
-        if (Config::multisampling == 6) samples = VK_SAMPLE_COUNT_64_BIT;
+        auto get_samples = [](ui8 s){
+            if (s == 1) return VK_SAMPLE_COUNT_2_BIT;
+            if (s == 2) return VK_SAMPLE_COUNT_4_BIT;
+            if (s == 3) return VK_SAMPLE_COUNT_8_BIT;
+            if (s == 4) return VK_SAMPLE_COUNT_16_BIT;
+            if (s == 5) return VK_SAMPLE_COUNT_32_BIT;
+            if (s == 6) return VK_SAMPLE_COUNT_64_BIT;
+            return VK_SAMPLE_COUNT_1_BIT;
+        };
         
-        if (samples > vk.msaa_samples) {
-            log::warn("Using an unsupported number of MSSA samples, reducing to the max");
-            samples = vk.msaa_samples;
+        samples = get_samples(Config::multisampling);
+            
+        auto available_counts = vk.physical_device_properties.limits.framebufferColorSampleCounts &
+                                vk.physical_device_properties.limits.framebufferDepthSampleCounts;
+        
+        if (not (available_counts & samples)) {
+            for (ui8 i = Config::multisampling - 1; i >= 0; i--) {
+                VkSampleCountFlagBits fallback_samples = get_samples(i);
+                if (available_counts & fallback_samples) {
+                    samples = fallback_samples;
+                    Config::multisampling = i;
+                    log::warn("Using an unsupported number of MSSA samples, reducing to the nearest value, %d", i);
+                    break;
+                }
+            }
         }
     }
     return samples;
@@ -1295,6 +1311,12 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
         attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
         attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
     }
+    
+    if (VK::hasMultisampling(id)) //: Multisampling
+        attachment.final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    
+    if (VK::hasMultisampling(id - 1)) //: Resolve
+        attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
     
     VkSampleCountFlagBits samples = VK::getAttachmentSamples(vk, attachment);
     
@@ -1376,10 +1398,9 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, RenderPassID 
     for (int i = 0; i < swapchain.size; i++) {
         std::vector<VkImageView> fb_attachments{};
         for (auto &[id, data] : attachments) {
-            if (data.type & ATTACHMENT_SWAPCHAIN)
-                fb_attachments.push_back(swapchain.image_views[i]);
-            else
-                fb_attachments.push_back(data.image_view);
+            fb_attachments.push_back(data.type & ATTACHMENT_SWAPCHAIN ? swapchain.image_views[i] : data.image_view);
+            if (hasMultisampling(id, false))
+                fb_attachments.push_back(API::attachments.at(id + 1).image_view);
         }
         framebuffers[i] = VK::createFramebuffer(device, render.render_pass, fb_attachments, extent);
     }
@@ -1391,6 +1412,19 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, RenderPassID 
     log::graphics("Created vulkan framebuffers");
     return framebuffers;
 }
+
+bool VK::hasMultisampling(AttachmentID a, bool check_samples) {
+    if (not API::attachments.count(a))
+        return false;
+    AttachmentData &data = API::attachments.at(a);
+    bool msaa = data.type & ATTACHMENT_MSAA and
+                data.type & ATTACHMENT_COLOR;
+    if (check_samples)
+        msaa = msaa and data.description.samples != VK_SAMPLE_COUNT_1_BIT;
+    if (msaa and API::attachments.size() > 1 and (not API::attachments.count(a + 1) or API::attachments.at(a + 1).type & ATTACHMENT_MSAA))
+        log::error("Improper formatting on MSAA resolve attachment");
+    return msaa;
+};
 
 //----------------------------------------
 
@@ -1465,12 +1499,17 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
     for (auto &[a_id, data] : attachments) {
         relative_att_map[a_id] = j++;
         render_pass_helper.attachments.push_back(data.description);
+        if (hasMultisampling(a_id, false)) {
+            relative_att_map[a_id + 1] = j++;
+            render_pass_helper.attachments.push_back(API::attachments.at(a_id + 1).description);
+        }
     }
     
     //---Relative thematic attachment lists---
     std::map<SubpassID, std::vector<VkAttachmentReference>> relative_color_attachments{};
     std::map<SubpassID, VkAttachmentReference> relative_depth_attachment{};
     std::map<SubpassID, std::vector<VkAttachmentReference>> relative_input_attachments{};
+    std::map<SubpassID, std::vector<VkAttachmentReference>> relative_resolve_attachments{};
     //---Lists for dependencies---
     std::map<SubpassID, std::vector<AttachmentID>> input_attachments{};
     std::vector<SubpassID> swapchain_attachments{};
@@ -1507,13 +1546,19 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
                 relative_depth_attachment[s_id] = VkAttachmentReference{relative_att_map.at(a_id), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
             }
             if (a_type == ATTACHMENT_INPUT) {
-                relative_input_attachments[s_id].push_back(VkAttachmentReference{relative_att_map.at(a_id), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
-                input_attachments[s_id].push_back(a_id);
+                AttachmentID id = (hasMultisampling(a_id)) ? a_id + 1 : a_id;
+                relative_input_attachments[s_id].push_back(VkAttachmentReference{relative_att_map.at(id), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+                input_attachments[s_id].push_back(id);
+            } else if (hasMultisampling(a_id)) {
+                VkAttachmentReference reference{};
+                reference.attachment = relative_att_map.at(a_id + 1);
+                reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                relative_resolve_attachments[s_id].push_back(reference);
             }
         }
         
         //: Description fields
-        if (relative_color_attachments.size() > 0) {
+        if (relative_color_attachments.count(s_id)) {
             description.colorAttachmentCount = (ui32)relative_color_attachments.at(s_id).size();
             description.pColorAttachments = relative_color_attachments.at(s_id).data();
         }
@@ -1522,9 +1567,13 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
             description.pDepthStencilAttachment = &relative_depth_attachment.at(s_id);
         }
         
-        if (relative_input_attachments.size() > 0) {
+        if (relative_input_attachments.count(s_id)) {
             description.inputAttachmentCount = (ui32)relative_input_attachments.at(s_id).size();
             description.pInputAttachments = relative_input_attachments.at(s_id).data();
+        }
+        
+        if (relative_resolve_attachments.count(s_id)) {
+            description.pResolveAttachments = relative_resolve_attachments.at(s_id).data();
         }
         
         //---Dependencies---
@@ -1533,7 +1582,7 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
             for (const auto &a_id : input_attachments.at(s_id)) {
                 VkSubpassDependency dependency;
                 
-                dependency.srcSubpass = data.previous_subpass_dependencies.at(a_id);
+                dependency.srcSubpass = data.previous_subpass_dependencies.at(hasMultisampling(a_id - 1) ? a_id - 1 : a_id);
                 dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
                 dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
                 
@@ -2550,11 +2599,11 @@ void VK::updatePipelineDescriptorSets(const Vulkan &vk, const PipelineData &pipe
         auto subpass = getBtoA_v(shader, API::Map::subpass_shader, API::subpasses);
         
         for (auto &a : subpass.second.external_attachments)
-            image_views.push_back(API::attachments.at(a).image_view);
-        
-        for (auto &[id, type] : subpass.second.attachment_descriptions)
+            image_views.push_back(API::attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
+            
+        for (auto &[a, type] : subpass.second.attachment_descriptions)
             if (type == ATTACHMENT_INPUT)
-                input_views.push_back(API::attachments.at(id).image_view);
+                input_views.push_back(API::attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
     }
     
     VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniforms, {}, image_views, input_views);

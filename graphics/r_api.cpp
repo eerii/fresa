@@ -241,6 +241,10 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             
             //: Register attachment
             attachment_list[name] = API::registerAttachment(api, type, resolution);
+            
+            //: Multisampling resolve
+            if (type & ATTACHMENT_MSAA)
+                attachment_list["resolve_" + name] = API::registerAttachment(api, AttachmentType(type & ~ATTACHMENT_MSAA), resolution);
         }
         
         //---Subpass---
