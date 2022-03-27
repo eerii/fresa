@@ -145,6 +145,7 @@ namespace Fresa::Graphics::VK
     VkAttachmentDescription createAttachmentDescription(const AttachmentData &attachment, VkSampleCountFlagBits samples);
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
     std::vector<VkFramebuffer> createFramebuffers(VkDevice device, RenderPassID render_pass, VkExtent2D extent, const SwapchainData &swapchain);
+    bool hasMultisampling(AttachmentID a, bool check_samples = true);
     //----------------------------------------
 
 
