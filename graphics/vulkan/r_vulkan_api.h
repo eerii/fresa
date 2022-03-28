@@ -112,8 +112,8 @@ namespace Fresa::Graphics::VK
     std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
         std::vector<VertexAttributeDescription> attr_v = API::getAttributeDescriptions<V...>();
         std::vector<VkVertexInputAttributeDescription> attr;
-        attr.resize(attr_v.size());
-        std::transform(attr_v.begin(), attr_v.end(), attr.begin(), [](const auto &a){
+        
+        for (auto &a : attr_v) {
             VkVertexInputAttributeDescription v;
             v.binding = a.binding;
             v.location = a.location;
@@ -130,11 +130,10 @@ namespace Fresa::Graphics::VK
                 default:
                     v.format = VK_FORMAT_R32_SFLOAT; break;
             }
-            return v;
-        });
+            attr.push_back(v);
+        }
+        
         return attr;
-        //Expand to allow multiple vertex descriptions, use it so the user can pass multiple
-        //template arguments and they will be created for each of them
     }
     //----------------------------------------
 
@@ -145,7 +144,6 @@ namespace Fresa::Graphics::VK
     VkAttachmentDescription createAttachmentDescription(const AttachmentData &attachment, VkSampleCountFlagBits samples);
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
     std::vector<VkFramebuffer> createFramebuffers(VkDevice device, RenderPassID render_pass, VkExtent2D extent, const SwapchainData &swapchain);
-    bool hasMultisampling(AttachmentID a, bool check_samples = true);
     //----------------------------------------
 
 
@@ -190,6 +188,7 @@ namespace Fresa::Graphics::VK
         
         constexpr bool is_buffer = type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER or type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         constexpr bool is_image = type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER or type == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+        ui32 buffer_size = multiple ? vk.swapchain.size : 1;
         
         for (int i = 0; i < descriptor_sets.size(); i++) {
             int index = -1;
@@ -205,7 +204,7 @@ namespace Fresa::Graphics::VK
                         continue;
                     index = (int)std::distance(bindings.begin(), it);
                 }
-                ui32 data_index = index + (multiple ? i * ((ui32)descriptor_sets.size() - 1) : 0);
+                ui32 data_index = index * buffer_size + (multiple ? i : 0);
                 
                 if constexpr (is_buffer) {
                     descriptors.buffer[count].buffer = data.at(data_index);
@@ -477,7 +476,7 @@ namespace Fresa::Graphics {
 }
 
 namespace Fresa::Graphics::API {
-    template <typename UBO>
+    template <typename... UBO>
     DrawUniformID registerDrawUniforms(GraphicsAPI &api, ShaderID shader) {
         static DrawUniformID id = 0;
         do id++;
@@ -489,8 +488,12 @@ namespace Fresa::Graphics::API {
         data.descriptor_sets = VK::allocateDescriptorSets(api.device, api.pipelines.at(shader).descriptor_layout,
                                                           api.pipelines.at(shader).descriptor_pool_sizes,
                                                           api.pipelines.at(shader).descriptor_pools, api.swapchain.size);
-        data.uniform_buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, sizeof(UBO), true);
-        data.size = (ui16)sizeof(UBO);
+        
+        ([&](){
+            auto buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, sizeof(UBO), true);
+            data.uniform_buffers.insert(data.uniform_buffers.end(), buffers.begin(), buffers.end());
+            data.size.push_back((ui16)sizeof(UBO));
+        }(), ...);
         
         return id;
     }
@@ -503,8 +506,8 @@ namespace Fresa::Graphics::API {
         vmaUnmapMemory(api.allocator, buffer.allocation);
     }
     
-    template <typename UBO>
-    void updateDrawUniformBuffer(GraphicsAPI &api, DrawDescription &description, const UBO& ubo) {
+    template <typename... UBO>
+    void updateDrawUniformBuffer(GraphicsAPI &api, DrawDescription &description, const UBO& ...ubo) {
         DrawUniformData &uniform = API::draw_uniform_data.at(description.uniform);
         
         //: If the swapchain becomes outdated, recreate first
@@ -512,15 +515,25 @@ namespace Fresa::Graphics::API {
             uniform.descriptor_sets = VK::allocateDescriptorSets(api.device, api.pipelines.at(description.shader).descriptor_layout,
                                                                  api.pipelines.at(description.shader).descriptor_pool_sizes,
                                                                  api.pipelines.at(description.shader).descriptor_pools, api.swapchain.size);
-            uniform.uniform_buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, (ui32)uniform.size, true);
+            uniform.uniform_buffers.clear();
+            for (auto &s : uniform.size) {
+                auto buffers = VK::createUniformBuffers(api.allocator, api.swapchain.size, (ui32)s, true);
+                uniform.uniform_buffers.insert(uniform.uniform_buffers.end(), buffers.begin(), buffers.end());
+            }
             uniform.recreate = false;
             
             API::updateDrawDescriptorSets(api, description);
         }
         
         //: Update the buffer
-        VK::update_buffer_queue.push_back([uniform, ubo](ui32 current){
-            API::updateUniformBuffer(::Fresa::Graphics::api, uniform.uniform_buffers.at(current), ubo); });
+        VK::update_buffer_queue.push_back([uniform, ubo...](ui32 current){
+            int i = 0;
+            ([&](){
+                API::updateUniformBuffer(::Fresa::Graphics::api, uniform.uniform_buffers.at(current + ::Fresa::Graphics::api.swapchain.size * i++), ubo);
+            }(), ...);
+        });
+        
+        
     }
     
     template <typename... UBO>

@@ -595,6 +595,17 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
         std::vector<ShaderID> shaders = getAtoB<ShaderID>(s_id, API::Map::subpass_shader);
         
         for (const auto &shader_id : shaders) {
+            #ifdef DEBUG
+            if (shader_id.rfind("debug", 0) == 0) {
+                if (API::render_attachment < 0)
+                    continue;
+                if (shader_id.find("_" + std::to_string(API::render_attachment)) == str::npos)
+                    continue;
+                glClearColor(0.f, 0.f, 0.f, 1.0f);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            }
+            #endif
+            
             ShaderData &shader = API::shaders.at(shader_id);
             
             //: Bind shader
@@ -618,10 +629,8 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                         DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
                         
                         //: Upload uniforms
-                        for (auto &[name, index] : shader.uniforms) {
-                            if (name == "UniformBufferObject") //TODO: CHANGE
-                                glBindBufferBase(GL_UNIFORM_BUFFER, index, uniform.uniform_buffers.at(0).id_);
-                        }
+                        for (auto &[name, binding] : shader.uniforms)
+                            glBindBufferBase(GL_UNIFORM_BUFFER, binding, uniform.uniform_buffers.at(binding).id_);
                         
                         for (const auto &[geometry_id, queue_instance] : queue_geometry) {
                             GeometryBufferData &geometry = API::geometry_buffer_data.at(geometry_id);
@@ -682,10 +691,8 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
                                 DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
                                 
                                 //: Upload uniforms
-                                for (auto &[name, index] : shader.uniforms) {
-                                    if (name == "UniformBufferObject") //TODO: CHANGE
-                                        glBindBufferBase(GL_UNIFORM_BUFFER, index, uniform.uniform_buffers.at(0).id_);
-                                }
+                                for (auto &[name, binding] : shader.uniforms)
+                                    glBindBufferBase(GL_UNIFORM_BUFFER, binding, uniform.uniform_buffers.at(binding).id_);
                                 
                                 //: Draw
                                 glDrawElements(GL_TRIANGLES, geometry.index_size, index_type, (void*)0);
@@ -698,6 +705,21 @@ void API::render(OpenGL &gl, WindowData &win, CameraData &cam) {
             
             //---Post shaders---
             else {
+                #ifdef DEBUG
+                if (shader_id.rfind("debug", 0) == 0) {
+                    if (API::render_attachment < 0)
+                        continue;
+                    if (shader_id.find("_" + std::to_string(API::render_attachment)) == str::npos)
+                        continue;
+                    if (API::attachments.at(API::render_attachment).type & ATTACHMENT_DEPTH and
+                        API::attachments.at(API::render_attachment).type & ATTACHMENT_MSAA) {
+                        bool msaa_shader = shader_id.find("_msaa") != str::npos;
+                        if (msaa_shader) //TODO: ADD SAMPLE CHECK
+                            continue;
+                    }
+                }
+                #endif
+                
                 //: Bind VAO
                 glBindVertexArray(gl.window_vertex_buffer.second);
                 

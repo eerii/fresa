@@ -11,6 +11,7 @@
 - camera gui
 - debug attachments
 - multisampling (vulkan)
+- multiple buffer support
 
 **changed**
 - rendering api fixes in vulkan

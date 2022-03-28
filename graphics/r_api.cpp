@@ -181,6 +181,20 @@ void API::removeIndirectDrawCommand(const GraphicsAPI &api, DrawDescription &des
     description.indirect_offset = 0;
 }
 
+bool API::hasMultisampling(AttachmentID a, bool check_samples) {
+    if (not API::attachments.count(a))
+        return false;
+    AttachmentData &data = API::attachments.at(a);
+    bool msaa = data.type & ATTACHMENT_MSAA and data.type & ATTACHMENT_COLOR;
+    #ifdef USE_VULKAN
+    if (check_samples)
+        msaa = msaa and data.description.samples != VK_SAMPLE_COUNT_1_BIT;
+    #endif
+    if (msaa and API::attachments.size() > a + 1 and (not API::attachments.count(a + 1) or API::attachments.at(a + 1).type & ATTACHMENT_MSAA))
+        log::error("Improper formatting on MSAA resolve attachment");
+    return msaa;
+};
+
 void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
     if (Config::renderer_description_path.size() == 0)
         log::error("You need to set Config::renderer_description_path with the location of your renderer description file");
@@ -243,8 +257,8 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             attachment_list[name] = API::registerAttachment(api, type, resolution);
             
             //: Multisampling resolve
-            if (type & ATTACHMENT_MSAA)
-                attachment_list["resolve_" + name] = API::registerAttachment(api, AttachmentType(type & ~ATTACHMENT_MSAA), resolution);
+            if (type & ATTACHMENT_MSAA and type & ATTACHMENT_COLOR)
+                attachment_list[name + "_resolve"] = API::registerAttachment(api, AttachmentType(type & ~ATTACHMENT_MSAA), resolution);
         }
         
         //---Subpass---
@@ -300,13 +314,14 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
         
         //---Shaders---
         //:     d/p shader subpass vertices      d - draw shader, p - post shader
-        if (line.at(0) == "d" or line.at(0) == "p") {
+        if (line.at(0) == "d" or line.at(0) == "p" or line.at(0) == "sd") {
             if (line.size() < 4 or line.size() > 5)
-                log::error("The description of the shader is invalid, it has to be 'd/p shader subpass vertexdata (optional)instanced_vertexdata'");
+                log::error("The description of the shader is invalid, it has to be 'd/p/sd shader subpass vertexdata (optional)instanced_vertexdata'");
             
             //: Shader
             ShaderID shader = line.at(1);
             API::shaders.at(shader).is_draw = line.at(0) == "d";
+            API::shaders.at(shader).is_shadow = line.at(0) == "sd";
             
             //: Subpass
             str subpass_name = line.at(2);
@@ -355,29 +370,47 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
     
     //---Debug pipelines---
     #ifdef DEBUG
-        #if defined USE_VULKAN
-            AttachmentID swapchain = [&](){
-                for (auto &[name, attachment] : attachment_list)
-                    if (API::attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
-                        return attachment;
-                return (AttachmentID)-1;
-            }();
-            
-            for (auto &[name, attachment] : attachment_list) {
+        AttachmentID swapchain = [&](){
+            for (auto &[name, attachment] : attachment_list)
                 if (API::attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
-                    continue;
-                
-                str debug_shader = "debug_attachment_" + std::to_string(attachment);
-                str shader_code = API::attachments.at(attachment).type & ATTACHMENT_DEPTH ? "window_depth" : "window";
-                API::shaders[debug_shader] = API::createShaderData(shader_code);
-                
-                SubpassID subpass = API::registerSubpass({swapchain}, {attachment});
-                API::registerRenderPass(api, {subpass});
-                
-                api.pipelines[debug_shader] = VK::createPipeline<VertexPos2>(api, debug_shader, subpass);
-            }
-        #elif defined USE_OPENGL
+                    return attachment;
+            return (AttachmentID)-1;
+        }();
+        
+        for (auto &[name, attachment] : attachment_list) {
+            if (API::attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
+                continue;
             
-        #endif
+            str debug_shader = "debug_attachment_" + std::to_string(attachment);
+            str shader_code = API::attachments.at(attachment).type & ATTACHMENT_DEPTH ? "window_depth" : "window";
+            API::shaders[debug_shader] = API::createShaderData(shader_code);
+            
+            SubpassID subpass = API::registerSubpass({swapchain}, {attachment});
+            API::registerRenderPass(api, {subpass});
+            
+            #if defined USE_VULKAN
+                api.pipelines[debug_shader] = VK::createPipeline<VertexPos2>(api, debug_shader, subpass);
+            #elif defined USE_OPENGL
+                GL::createShaderDataGL(debug_shader);
+                API::Map::subpass_shader.add(subpass, debug_shader);
+                API::shaders.at(debug_shader).subpass = subpass;
+            #endif
+            
+            //TODO: Make this better
+            if (API::attachments.at(attachment).type & ATTACHMENT_DEPTH and API::attachments.at(attachment).type & ATTACHMENT_MSAA) {
+                API::shaders[debug_shader + "_msaa"] = API::createShaderData("window_depth_msaa");
+                
+                SubpassID subpass_msaa = API::registerSubpass({swapchain}, {attachment});
+                API::registerRenderPass(api, {subpass_msaa});
+                
+                #if defined USE_VULKAN
+                    api.pipelines[debug_shader + "_msaa"] = VK::createPipeline<VertexPos2>(api, debug_shader + "_msaa", subpass_msaa);
+                #elif defined USE_OPENGL
+                    GL::createShaderDataGL(debug_shader + "_msaa");
+                    API::Map::subpass_shader.add(subpass_msaa, debug_shader + "_msaa");
+                    API::shaders.at(debug_shader + "_msaa").subpass = subpass_msaa;
+                #endif
+            }
+        }
     #endif
 }

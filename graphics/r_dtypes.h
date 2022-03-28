@@ -260,6 +260,7 @@ namespace Fresa::Graphics
         ShaderCode code;
         bool is_draw;
         bool is_instanced;
+        bool is_shadow;
         #if defined USE_VULKAN
         ShaderStages stages;
         #elif defined USE_OPENGL
@@ -278,7 +279,7 @@ namespace Fresa::Graphics
         std::vector<BufferData> uniform_buffers;
         #ifdef USE_VULKAN
         std::vector<VkDescriptorSet> descriptor_sets;
-        ui16 size;
+        std::vector<ui16> size;
         bool recreate = false;
         #endif
     };

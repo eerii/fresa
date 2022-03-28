@@ -47,6 +47,10 @@ void Gui::win_menu() {
                 for (auto &[id, attachment] : Graphics::API::attachments) {
                     if (attachment.type & Graphics::ATTACHMENT_SWAPCHAIN)
                         continue;
+                    if (Config::multisampling > 0 and Graphics::API::hasMultisampling(id, false))
+                        continue;
+                    if (Config::multisampling == 0 and Graphics::API::hasMultisampling(id-1, false))
+                        continue;
                     
                     str name = std::to_string(id) + " - ";
                     for (auto &[s, type] : Graphics::attachment_type_names)

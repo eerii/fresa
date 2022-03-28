@@ -69,7 +69,7 @@ namespace Fresa
         //---Simple map (A -> B)---
         if constexpr (is_mapAB<Map>::value) {
             if (not map.a_to_b.count(a)) { //: There is no A key
-                log::warn("Accessing bidirectional map with an invalid A key");
+                log::error("Accessing bidirectional map with an invalid A key");
                 if constexpr (std::is_same_v<Map, map_AB_BA<A,B>>) { return B{}; } //: The map returns a single B (A -> B)
                 else { return std::vector<B>{}; } //: The map returns a list of B (A -> vB)
             }
@@ -101,7 +101,7 @@ namespace Fresa
         //---Simple map (B -> A)---
         if constexpr (is_mapAB<Map>::value) {
             if (not map.b_to_a.count(b)) { //: There is no B key
-                log::warn("Accessing bidirectional map with an invalid B key");
+                log::error("Accessing bidirectional map with an invalid B key");
                 if constexpr (not std::is_same_v<Map, map_AvB_BvA<A,B>>) { return A{}; } //: The map returns a single A (B -> A)
                 else { return std::vector<A>{}; } //: The map returns a list of A (B -> vA)
             }

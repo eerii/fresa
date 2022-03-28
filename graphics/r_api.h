@@ -70,6 +70,7 @@ namespace Fresa::Graphics::API
     void recreateAttachments(const GraphicsAPI &api);
     inline std::map<AttachmentID, AttachmentData> attachments{};
     inline int render_attachment = -1; // -1: swapchain, -2: wireframe, 0...n: attachment
+    bool hasMultisampling(AttachmentID attachment, bool check_samples = true);
     
     //---Mappings---
     namespace Map {
@@ -84,6 +85,7 @@ namespace Fresa::Graphics::API
     //---Shaders---
     inline std::map<ShaderID, ShaderData> shaders;
     inline std::map<ShaderID, ShaderData> compute_shaders;
+    inline ShaderID shadowmap_shader;
     void createShaderList();
 
     std::vector<char> readSPIRV(std::string filename);

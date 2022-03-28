@@ -92,7 +92,7 @@ namespace Fresa::Graphics::GL
 
 namespace Fresa::Graphics::API
 {
-    template <typename UBO>
+    template <typename... UBO>
     DrawUniformID registerDrawUniforms(GraphicsAPI &api, ShaderID shader) {
         static DrawUniformID id = 0;
         do id++;
@@ -101,7 +101,9 @@ namespace Fresa::Graphics::API
         draw_uniform_data[id] = DrawUniformData{};
         DrawUniformData &data = draw_uniform_data.at(id);
         
-        data.uniform_buffers = { GL::createBuffer(sizeof(UBO), GL_UNIFORM_BUFFER, GL_STREAM_DRAW) };
+        ([&](){
+            data.uniform_buffers.push_back(GL::createBuffer(sizeof(UBO), GL_UNIFORM_BUFFER, GL_STREAM_DRAW));
+        }(), ...);
         
         return id;
     }
@@ -113,10 +115,13 @@ namespace Fresa::Graphics::API
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
     }
     
-    template <typename UBO>
-    void updateDrawUniformBuffer(GraphicsAPI &api, DrawDescription &description, const UBO& ubo) {
+    template <typename... UBO>
+    void updateDrawUniformBuffer(GraphicsAPI &api, DrawDescription &description, const UBO& ...ubo) {
         DrawUniformData &uniform = API::draw_uniform_data.at(description.uniform);
-        API::updateUniformBuffer(api, uniform.uniform_buffers.at(0), ubo);
+        int i = 0;
+        ([&](){
+            API::updateUniformBuffer(api, uniform.uniform_buffers.at(i++), ubo);
+        }(), ...);
     }
     
     template <typename... UBO>
