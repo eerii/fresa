@@ -23,8 +23,7 @@
 #include <ostream>
 #include <string_view>
 #include <numeric>
-#include "variant_helper.h"
-#include "static_str.h"
+#include "string_helper.h"
 
 //---Reflection---
 namespace Fresa
@@ -62,20 +61,10 @@ namespace Fresa
         template<class T> using t_tuple = std::tuple_element_t<0, T>;
         template<class T> constexpr bool is_tuple = is_detected<t_tuple, T>;
     
-        template<class T> using t_print = decltype(std::declval<std::ostream>() << std::declval<T>());
-    
         template<class T> using t_optional = decltype(std::declval<T>().has_value());
         template<class T> using t_element = typename T::element_type;
         template<class T> using t_mapped = typename T::mapped_type;
         template<class T> constexpr bool is_pointer_like = std::is_pointer_v<T> || is_detected<t_element, T> || is_detected<t_optional, T>;
-    
-        template<class T> using t_smaller = decltype(std::declval<T>() < std::declval<T>());
-        template<class T> using t_equal = decltype(std::declval<T>() == std::declval<T>());
-        template<class T> using t_nequal = decltype(std::declval<T>() != std::declval<T>());
-        
-        template <class T, class U> struct is_in_variant;
-        template <class T, class... Ts>
-        struct is_in_variant<T, std::variant<Ts...>> : std::bool_constant<(std::is_same_v<T, Ts> || ...)> { };
         
         //---Helpers---
         constexpr size_t n_args(char const* c, size_t nargs = 1) {

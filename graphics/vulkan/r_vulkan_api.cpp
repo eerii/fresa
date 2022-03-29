@@ -47,67 +47,63 @@ namespace {
 //Initialization
 //----------------------------------------
 
-void API::configureAPI() {
+void Graphics::configureAPI() {
     
 }
 
-Vulkan API::createAPI(WindowData &win) {
-    Vulkan vk;
-    
+void Graphics::createAPI() {
     //---Instance---
-    vk.instance = VK::createInstance(win);
-    vk.debug_callback = VK::createDebug(vk.instance);
+    api.instance = VK::createInstance(win);
+    api.debug_callback = VK::createDebug(api.instance);
     
     //---Surface---
-    vk.surface = VK::createSurface(vk.instance, win);
+    api.surface = VK::createSurface(api.instance, win);
     
     //---Physical device---
-    vk.physical_device = VK::selectPhysicalDevice(vk.instance, vk.surface, vk.physical_device_features, vk.physical_device_properties);
+    api.physical_device = VK::selectPhysicalDevice(api.instance, api.surface, api.physical_device_features, api.physical_device_properties);
     
     //---Queues and logical device---
-    vk.cmd.queue_indices = VK::getQueueFamilies(vk.surface, vk.physical_device);
-    vk.device = VK::createDevice(vk.physical_device, vk.physical_device_features, vk.cmd.queue_indices);
-    vk.cmd.queues = VK::getQueues(vk.device, vk.cmd.queue_indices);
+    api.cmd.queue_indices = VK::getQueueFamilies(api.surface, api.physical_device);
+    api.device = VK::createDevice(api.physical_device, api.physical_device_features, api.cmd.queue_indices);
+    api.cmd.queues = VK::getQueues(api.device, api.cmd.queue_indices);
     
     //---Allocator---
-    vk.allocator = VK::createMemoryAllocator(vk.device, vk.physical_device, vk.instance);
+    api.allocator = VK::createMemoryAllocator(api.device, api.physical_device, api.instance);
     
     //---Swapchain---
-    vk.swapchain = VK::createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
+    api.swapchain = VK::createSwapchain(api.device, api.physical_device, api.surface, api.cmd.queue_indices, win);
     
     //---Command pools---
-    vk.cmd.command_pools = VK::createCommandPools(vk.device, vk.cmd.queue_indices,
-    {   {"draw",     {vk.cmd.queue_indices.present.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}},
-        {"temp",     {vk.cmd.queue_indices.graphics.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
-        {"transfer", {vk.cmd.queue_indices.transfer.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
-        {"compute",  {vk.cmd.queue_indices.compute.value(), VkCommandPoolCreateFlagBits(0)}},
+    api.cmd.command_pools = VK::createCommandPools(api.device, api.cmd.queue_indices,
+    {   {"draw",     {api.cmd.queue_indices.present.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}},
+        {"temp",     {api.cmd.queue_indices.graphics.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
+        {"transfer", {api.cmd.queue_indices.transfer.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
+        {"compute",  {api.cmd.queue_indices.compute.value(), VkCommandPoolCreateFlagBits(0)}},
     });
-    vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
+    api.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(api.device, api.swapchain.size, api.cmd);
     
     //---Sync objects---
-    vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
+    api.sync = VK::createSyncObjects(api.device, api.swapchain.size);
     
     //---Image sampler---
-    vk.sampler = VK::createSampler(vk.device);
+    api.sampler = VK::createSampler(api.device);
     
     //---Render passes---
-    API::processRendererDescription(vk, win);
+    processRendererDescription();
     
     //---Compute pipelines---
-    for (auto &[shader, data] : API::compute_shaders)
-        vk.compute_pipelines[shader] = VK::createComputePipeline(vk, shader);
+    for (auto &[shader, data] : api.compute_shaders)
+        api.compute_pipelines[shader] = VK::createComputePipeline(api, shader);
     
     //---Window vertex buffer---
-    vk.window_vertex_buffer = VK::createVertexBuffer(vk, Vertices::window);
+    api.window_vertex_buffer = VK::createVertexBuffer(Vertices::window);
     
     //---Query pools---
     #ifdef DEBUG
-    vk.query_timestamp = VK::createQueryPool(vk.device, vk.swapchain.size, VK_QUERY_TYPE_TIMESTAMP);
-    if (vk.physical_device_features.pipelineStatisticsQuery == VK_TRUE)
-        vk.query_statistics = VK::createQueryPool(vk.device, vk.swapchain.size, VK_QUERY_TYPE_PIPELINE_STATISTICS);
+    api.query_timestamp = VK::createQueryPool(api.device, api.swapchain.size, VK_QUERY_TYPE_TIMESTAMP);
+    if (api.physical_device_features.pipelineStatisticsQuery == VK_TRUE)
+        api.query_statistics = VK::createQueryPool(api.device, api.swapchain.size, VK_QUERY_TYPE_PIPELINE_STATISTICS);
     #endif
-    
-    return vk;
 }
 
 //----------------------------------------
@@ -711,7 +707,7 @@ SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_dev
     return swapchain;
 }
 
-void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
+void VK::recreateSwapchain() {
     //---Recreate swapchain---
     //      When the swapchain is no longer actual, for example on window resize, we need to recreate it
     //      This begins by waiting for draw operations to finish, and then cleaning the resources that depend on the swapchain
@@ -724,10 +720,10 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     log::graphics("");
     
     //: Save previous size to avoid recreating non necessary things
-    ui32 previous_size = vk.swapchain.size;
+    ui32 previous_size = api.swapchain.size;
     
     //: Wait for draw operations to finish
-    vkDeviceWaitIdle(vk.device);
+    vkDeviceWaitIdle(api.device);
     
     //: Clean previous swapchain
     for (auto it = deletion_queue_swapchain.rbegin(); it != deletion_queue_swapchain.rend(); ++it)
@@ -735,50 +731,50 @@ void VK::recreateSwapchain(Vulkan &vk, const WindowData &win) {
     deletion_queue_swapchain.clear();
     
     //---Swapchain---
-    vk.swapchain = createSwapchain(vk.device, vk.physical_device, vk.surface, vk.cmd.queue_indices, win);
+    api.swapchain = createSwapchain(api.device, api.physical_device, api.surface, api.cmd.queue_indices, win);
     
     //: Attachments
-    API::recreateAttachments(vk);
-    for (const auto &[shader, data] : vk.pipelines) {
-        if (not API::shaders.at(shader).is_draw)
-            VK::updatePipelineDescriptorSets(vk, data, shader);
+    recreateAttachments();
+    for (const auto &[shader, data] : api.pipelines) {
+        if (not api.shaders.at(shader).is_draw)
+            VK::updatePipelineDescriptorSets(api, data, shader);
     }
     
     //: Render passes and framebuffers
-    VK::recreateRenderPasses(vk);
+    VK::recreateRenderPasses(api);
     
     //: Pipeline
-    for (auto &[shader, data] : vk.pipelines)
-        data.pipeline = VK::createGraphicsPipelineObject(vk, data, shader);
+    for (auto &[shader, data] : api.pipelines)
+        data.pipeline = VK::createGraphicsPipelineObject(api, data, shader);
     
     //---Objects that depend on the swapchain size---
-    if (previous_size != vk.swapchain.size) {
+    if (previous_size != api.swapchain.size) {
         //: Clean
         for (auto it = deletion_queue_size_change.rbegin(); it != deletion_queue_size_change.rend(); ++it)
             (*it)();
         deletion_queue_size_change.clear();
         
         //: Command buffer allocation
-        vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
-        IF_GUI(vk.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd));
+        api.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(api.device, api.swapchain.size, api.cmd);
+        IF_GUI(api.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers(api.device, api.swapchain.size, api.cmd));
         
         //: Sync
-        vk.sync = VK::createSyncObjects(vk.device, vk.swapchain.size);
+        api.sync = VK::createSyncObjects(api.device, api.swapchain.size);
         
         //: Recreate pipelines
-        for (auto &[shader, data] : vk.pipelines)
-            recreatePipeline(vk, data, shader);
+        for (auto &[shader, data] : api.pipelines)
+            recreatePipeline(api, data, shader);
         
         //: Update draw data
-        for (auto &[id, draw] : API::draw_uniform_data) {
+        for (auto &[id, draw] : api.draw_uniform_data) {
             draw.recreate = true;
         }
         
         //: Query pools
         #ifdef DEBUG
-        vk.query_timestamp = VK::createQueryPool(vk.device, vk.swapchain.size, VK_QUERY_TYPE_TIMESTAMP);
-        if (vk.physical_device_features.pipelineStatisticsQuery == VK_TRUE)
-            vk.query_statistics = VK::createQueryPool(vk.device, vk.swapchain.size, VK_QUERY_TYPE_PIPELINE_STATISTICS);
+        api.query_timestamp = VK::createQueryPool(api.device, api.swapchain.size, VK_QUERY_TYPE_TIMESTAMP);
+        if (api.physical_device_features.pipelineStatisticsQuery == VK_TRUE)
+            api.query_statistics = VK::createQueryPool(api.device, api.swapchain.size, VK_QUERY_TYPE_PIPELINE_STATISTICS);
         #endif
     }
 }
@@ -865,7 +861,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
     
     //: Reset timestamps and time before all passes
     #ifdef DEBUG
-    ui32 queries = (((ui32)API::shaders.size() + 1) * 2);
+    ui32 queries = (((ui32)api.shaders.size() + 1) * 2);
     if (Performance::timestamp_period > 0) {
         vkCmdResetQueryPool(cmd, vk.query_timestamp, current * queries, queries);
         vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, vk.query_timestamp, current * queries);
@@ -873,11 +869,11 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
     int query_index = 0;
     #endif
     
-    for (const auto &[r_id, render] : API::render_passes) {
+    for (const auto &[r_id, render] : api.render_passes) {
         IF_GUI(if (r_id == vk.gui_render_pass) continue;) //: Skip gui render pass
         
-        auto subpasses = getAtoB<SubpassID>(r_id, API::Map::renderpass_subpass);
-        auto attachments = getAtoB_v(r_id, API::Map::renderpass_attachment, API::attachments);
+        auto subpasses = getAtoB<SubpassID>(r_id, Map::renderpass_subpass);
+        auto attachments = getAtoB_v(r_id, Map::renderpass_attachment, api.attachments);
         
         //: Clear values
         std::vector<VkClearValue> clear_values;
@@ -910,7 +906,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                 vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
             
             //: Get all shaders associated with this subpass
-            std::vector<ShaderID> shaders = getAtoB<ShaderID>(s_id, API::Map::subpass_shader);
+            std::vector<ShaderID> shaders = getAtoB<ShaderID>(s_id, Map::subpass_shader);
             
             for (const auto &shader : shaders) {
                 #ifdef DEBUG
@@ -920,25 +916,25 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                 #endif
                 
                 //---Draw shaders---
-                if (API::shaders.at(shader).is_draw) {
-                    if (not API::draw_queue.count(shader) and not API::draw_queue_instanced.count(shader))
+                if (api.shaders.at(shader).is_draw) {
+                    if (not api.draw_queue.count(shader) and not api.draw_queue_instanced.count(shader))
                         continue;
                     
                     //: Bind pipeline
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
                     
                     //---Instanced rendering queue---
-                    if (API::shaders.at(shader).is_instanced) {
+                    if (api.shaders.at(shader).is_instanced) {
                         //: Direct rendering
-                        auto queue_uniform = API::draw_queue_instanced.at(shader);
+                        auto queue_uniform = api.draw_queue_instanced.at(shader);
                         for (const auto &[uniform_id, queue_geometry] : queue_uniform) {
-                            DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
+                            DrawUniformData &uniform = api.draw_uniform_data.at(uniform_id);
                             //: Descriptor set
                             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
                                                     &uniform.descriptor_sets.at(current), 0, nullptr);
                             
                             for (const auto &[geometry_id, queue_instance] : queue_geometry) {
-                                GeometryBufferData &geometry = API::geometry_buffer_data.at(geometry_id);
+                                GeometryBufferData &geometry = api.geometry_buffer_data.at(geometry_id);
                                 
                                 VkDeviceSize offsets[]{ 0 };
                                 //: Vertex buffer geometry
@@ -951,14 +947,14 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                                 vkCmdBindIndexBuffer(cmd, geometry.index_buffer.buffer, 0, index_type);
                                 
                                 for (const auto &[instance_id, description] : queue_instance) {
-                                    InstancedBufferData &instance = API::instanced_buffer_data.at(instance_id);
+                                    InstancedBufferData &instance = api.instanced_buffer_data.at(instance_id);
                                     
                                     //: Vertex buffer per instance
                                     vkCmdBindVertexBuffers(cmd, 1, 1, &instance.instance_buffer.buffer, offsets);
                                     
                                     //: Draw indirect
                                     if (Config::draw_indirect) {
-                                        vkCmdDrawIndexedIndirect(cmd, API::draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
+                                        vkCmdDrawIndexedIndirect(cmd, api.draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
                                                                  description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
                                                                  1, sizeof(VkDrawIndexedIndirectCommand));
                                         // - See how multi draw indirect could be implemented, probably you have to squash all the vertex buffers
@@ -974,9 +970,9 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                     }
                     //---Regular rendering queue---
                     else {
-                        auto queue_buffer = API::draw_queue.at(shader);
+                        auto queue_buffer = api.draw_queue.at(shader);
                         for (const auto &[buffer, queue_tex] : queue_buffer) {
-                            GeometryBufferData &geometry = API::geometry_buffer_data.at(buffer);
+                            GeometryBufferData &geometry = api.geometry_buffer_data.at(buffer);
                             
                             //: Vertex buffer
                             VkDeviceSize offsets[]{ 0 };
@@ -990,7 +986,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                             
                             for (const auto &[tex, queue_uniform] : queue_tex) {
                                 for (auto &[uniform_id, description] : queue_uniform) {
-                                    DrawUniformData &uniform = API::draw_uniform_data.at(uniform_id);
+                                    DrawUniformData &uniform = api.draw_uniform_data.at(uniform_id);
                                     
                                     //: Descriptor set
                                     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
@@ -998,7 +994,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
 
                                     //: Draw vertices
                                     if (Config::draw_indirect) {
-                                        vkCmdDrawIndexedIndirect(cmd, API::draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
+                                        vkCmdDrawIndexedIndirect(cmd, api.draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
                                                                  description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
                                                                  1, sizeof(VkDrawIndexedIndirectCommand));
                                     }
@@ -1013,13 +1009,13 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                 }
                 
                 //---Shadowmap shaders--- (Renders all draw calls into the shadowmap)
-                else if (API::shaders.at(shader).is_shadow) {
+                else if (api.shaders.at(shader).is_shadow) {
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
                     
-                    for (const auto &[draw_shader_id, draw_shader] : API::shaders) {
+                    for (const auto &[draw_shader_id, draw_shader] : api.shaders) {
                         if (not draw_shader.is_draw)
                             continue;
-                        if (not API::draw_queue.count(draw_shader_id) and not API::draw_queue_instanced.count(draw_shader_id))
+                        if (not api.draw_queue.count(draw_shader_id) and not api.draw_queue_instanced.count(draw_shader_id))
                             continue;
                         
                         if (draw_shader.is_instanced) {
@@ -1036,16 +1032,16 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                     //: Debug attachments
                     #ifdef DEBUG
                     if (shader.rfind("debug", 0) == 0) {
-                        if (API::render_attachment < 0)
+                        if (api.render_attachment < 0)
                             continue;
-                        if (shader.find("_" + std::to_string(API::render_attachment)) == str::npos)
+                        if (shader.find("_" + std::to_string(api.render_attachment)) == str::npos)
                             continue;
-                        if (API::attachments.at(API::render_attachment).type & ATTACHMENT_DEPTH and
-                            API::attachments.at(API::render_attachment).type & ATTACHMENT_MSAA) {
+                        if (api.attachments.at(api.render_attachment).type & ATTACHMENT_DEPTH and
+                            api.attachments.at(api.render_attachment).type & ATTACHMENT_MSAA) {
                             bool msaa_shader = shader.find("_msaa") != str::npos;
-                            if (msaa_shader and API::attachments.at(API::render_attachment).description.samples == VK_SAMPLE_COUNT_1_BIT)
+                            if (msaa_shader and api.attachments.at(api.render_attachment).description.samples == VK_SAMPLE_COUNT_1_BIT)
                                 continue;
-                            if (not msaa_shader and API::attachments.at(API::render_attachment).description.samples != VK_SAMPLE_COUNT_1_BIT)
+                            if (not msaa_shader and api.attachments.at(api.render_attachment).description.samples != VK_SAMPLE_COUNT_1_BIT)
                                 continue;
                         }
                     }
@@ -1089,40 +1085,40 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
         log::error("Failed to end recording on a vulkan command buffer");
 }
 
-IndirectBufferID API::registerIndirectCommandBuffer(const Vulkan &vk) {
+IndirectBufferID Graphics::registerIndirectCommandBuffer() {
     static IndirectBufferID id = 0;
     do id++;
-    while (API::draw_indirect_buffers.find(id) != API::draw_indirect_buffers.end() or id == no_indirect_buffer);
+    while (api.draw_indirect_buffers.find(id) != api.draw_indirect_buffers.end() or id == no_indirect_buffer);
     
-    API::draw_indirect_buffers[id] = IndirectCommandBuffer{};
-    IndirectCommandBuffer &icmd = API::draw_indirect_buffers[id];
+    api.draw_indirect_buffers[id] = IndirectCommandBuffer{};
+    IndirectCommandBuffer &icmd = api.draw_indirect_buffers[id];
     
     VkDeviceSize s = MAX_INDIRECT_COMMANDS * sizeof(VkDrawIndexedIndirectCommand);
-    icmd.buffer = VK::createBuffer(vk.allocator, s, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    icmd.buffer = VK::createBuffer(api.allocator, s, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     
     icmd.current_offset = 0;
     icmd.free_positions = {};
     
-    VK::deletion_queue_program.push_back([vk, icmd](){
+    VK::deletion_queue_program.push_back([icmd](){
         vmaDestroyBuffer(api.allocator, icmd.buffer.buffer, icmd.buffer.allocation);
     });
     
     return id;
 }
 
-void API::addIndirectDrawCommand(const Vulkan &vk, DrawDescription &description) {
-    GeometryBufferData &geometry = API::geometry_buffer_data.at(description.geometry);
-    bool is_instanced = API::instanced_buffer_data.count(description.instance);
+void Graphics::addIndirectDrawCommand(DrawDescription &description) {
+    GeometryBufferData &geometry = api.geometry_buffer_data.at(description.geometry);
+    bool is_instanced = api.instanced_buffer_data.count(description.instance);
     
     //: Draw indirect command
     std::vector<VkDrawIndexedIndirectCommand> cmd(1);
-    cmd.at(0).instanceCount = is_instanced ? API::instanced_buffer_data.at(description.instance).instance_count : 1;
+    cmd.at(0).instanceCount = is_instanced ? api.instanced_buffer_data.at(description.instance).instance_count : 1;
     cmd.at(0).firstInstance = 0; //instance.instance_count * i++;
     cmd.at(0).firstIndex = 0;
     cmd.at(0).indexCount = geometry.index_size;
     
     //: Find available offset
-    for (auto &[id, icmd] : API::draw_indirect_buffers) {
+    for (auto &[id, icmd] : api.draw_indirect_buffers) {
         if (icmd.free_positions.size() > 0) {
             description.indirect_buffer = id;
             description.indirect_offset = icmd.free_positions.at(0);
@@ -1135,12 +1131,12 @@ void API::addIndirectDrawCommand(const Vulkan &vk, DrawDescription &description)
         description.indirect_offset = icmd.current_offset++;
     }
     if (description.indirect_buffer == no_indirect_buffer) {
-        description.indirect_buffer = registerIndirectCommandBuffer(vk);
-        description.indirect_offset = API::draw_indirect_buffers.at(description.indirect_buffer).current_offset++;
+        description.indirect_buffer = registerIndirectCommandBuffer();
+        description.indirect_offset = api.draw_indirect_buffers.at(description.indirect_buffer).current_offset++;
     }
     
     //: Update command buffer
-    VK::updateGPUBuffer(vk, API::draw_indirect_buffers.at(description.indirect_buffer).buffer, cmd, description.indirect_offset);
+    VK::updateGPUBuffer(api.draw_indirect_buffers.at(description.indirect_buffer).buffer, cmd, description.indirect_offset);
 }
 
 VkCommandBuffer VK::beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool) {
@@ -1199,7 +1195,7 @@ VkQueryPool VK::createQueryPool(VkDevice device, ui32 swapchain_size, VkQueryTyp
     
     //: Timestamp
     if (type == VK_QUERY_TYPE_TIMESTAMP) {
-        create_info.queryCount = swapchain_size * (((ui32)API::shaders.size() + 1) * 2);
+        create_info.queryCount = swapchain_size * (((ui32)api.shaders.size() + 1) * 2);
         //: One query before and after each draw call for each shader, and one for the entire gpu
     }
     
@@ -1290,13 +1286,13 @@ VkAttachmentDescription VK::createAttachmentDescription(const AttachmentData &at
     return description;
 }
 
-AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2<> size) {
+AttachmentID Graphics::registerAttachment(AttachmentType type, Vec2<> size) {
     static AttachmentID id = 0;
-    while (API::attachments.find(id) != API::attachments.end())
+    while (api.attachments.find(id) != api.attachments.end())
         id++;
     
-    API::attachments[id] = AttachmentData{};
-    AttachmentData &attachment = API::attachments.at(id);
+    api.attachments[id] = AttachmentData{};
+    AttachmentData &attachment = api.attachments.at(id);
     
     attachment.type = type;
     attachment.size = size;
@@ -1309,14 +1305,14 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
     if (type & ATTACHMENT_COLOR) {
         attachment.usage = VkImageUsageFlagBits(attachment.usage | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
         attachment.aspect = VkImageAspectFlagBits(attachment.aspect | VK_IMAGE_ASPECT_COLOR_BIT);
-        attachment.format = vk.swapchain.format;
+        attachment.format = api.swapchain.format;
         attachment.final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     }
     
     if (type & ATTACHMENT_DEPTH) {
         attachment.usage = VkImageUsageFlagBits(attachment.usage | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
         attachment.aspect = VkImageAspectFlagBits(attachment.aspect | VK_IMAGE_ASPECT_DEPTH_BIT);
-        attachment.format = VK::getDepthFormat(vk.physical_device);
+        attachment.format = VK::getDepthFormat(api.physical_device);
         attachment.final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     }
     
@@ -1338,27 +1334,27 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
         attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
     }
     
-    if (API::hasMultisampling(id)) { //: Multisampling
+    if (hasMultisampling(id)) { //: Multisampling
         if (type & ATTACHMENT_COLOR)
             attachment.final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         if (type & ATTACHMENT_DEPTH)
             attachment.final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     }
     
-    if (API::hasMultisampling(id - 1)) //: Resolve
+    if (hasMultisampling(id - 1)) //: Resolve
         attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
     
-    VkSampleCountFlagBits samples = VK::getAttachmentSamples(vk, attachment);
+    VkSampleCountFlagBits samples = VK::getAttachmentSamples(api, attachment);
     
     //: Image and image view
     if (not (type & ATTACHMENT_SWAPCHAIN)) {
-        auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, samples, 1,
+        auto [i_, a_] = VK::createImage(api.device, api.allocator, VMA_MEMORY_USAGE_GPU_ONLY, size, samples, 1,
                                         attachment.format, attachment.initial_layout, attachment.usage);
         attachment.image = i_;
         attachment.allocation = a_;
         
-        attachment.image_view = VK::createImageView(vk.device, attachment.image, attachment.aspect, attachment.format);
-        VK::deletion_queue_swapchain.push_back([vk, attachment](){ vkDestroyImageView(vk.device, attachment.image_view, nullptr); });
+        attachment.image_view = VK::createImageView(api.device, attachment.image, attachment.aspect, attachment.format);
+        VK::deletion_queue_swapchain.push_back([attachment](){ vkDestroyImageView(api.device, attachment.image_view, nullptr); });
     }
     
     //: Description
@@ -1367,26 +1363,26 @@ AttachmentID API::registerAttachment(const Vulkan &vk, AttachmentType type, Vec2
     return id;
 }
 
-void API::recreateAttachments(const Vulkan &vk) {
-    for (auto &[idx, attachment] : attachments) {
+void Graphics::recreateAttachments() {
+    for (auto &[idx, attachment] : api.attachments) {
         if (attachment.type & ATTACHMENT_WINDOW) {
-            attachment.size = to_vec(vk.swapchain.extent);
+            attachment.size = to_vec(api.swapchain.extent);
         }
         
-        VkSampleCountFlagBits samples = VK::getAttachmentSamples(vk, attachment);
+        VkSampleCountFlagBits samples = VK::getAttachmentSamples(api, attachment);
         
         if (not (attachment.type & ATTACHMENT_SWAPCHAIN)) {
-            auto [i_, a_] = VK::createImage(vk.device, vk.allocator, VMA_MEMORY_USAGE_GPU_ONLY, attachment.size, samples, 1,
+            auto [i_, a_] = VK::createImage(api.device, api.allocator, VMA_MEMORY_USAGE_GPU_ONLY, attachment.size, samples, 1,
                                             attachment.format, attachment.initial_layout, attachment.usage);
             attachment.image = i_;
             attachment.allocation = a_;
             
-            attachment.image_view = VK::createImageView(vk.device, attachment.image, attachment.aspect, attachment.format);
+            attachment.image_view = VK::createImageView(api.device, attachment.image, attachment.aspect, attachment.format);
             
             attachment.description = VK::createAttachmentDescription(attachment, samples);
             
-            AttachmentData &attachment_ref = attachments.at(idx);
-            VK::deletion_queue_swapchain.push_back([vk, attachment_ref](){ vkDestroyImageView(vk.device, attachment_ref.image_view, nullptr); });
+            AttachmentData &attachment_ref = api.attachments.at(idx);
+            VK::deletion_queue_swapchain.push_back([attachment_ref](){ vkDestroyImageView(api.device, attachment_ref.image_view, nullptr); });
         }
     }
 }
@@ -1422,15 +1418,15 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, RenderPassID 
     std::vector<VkFramebuffer> framebuffers;
     framebuffers.resize(swapchain.size);
     
-    auto attachments = getAtoB_v(r_id, API::Map::renderpass_attachment, API::attachments);
-    RenderPassData &render = API::render_passes.at(r_id);
+    auto attachments = getAtoB_v(r_id, Map::renderpass_attachment, api.attachments);
+    RenderPassData &render = api.render_passes.at(r_id);
     
     for (int i = 0; i < swapchain.size; i++) {
         std::vector<VkImageView> fb_attachments{};
         for (auto &[id, data] : attachments) {
             fb_attachments.push_back(data.type & ATTACHMENT_SWAPCHAIN ? swapchain.image_views[i] : data.image_view);
-            if (API::hasMultisampling(id, false))
-                fb_attachments.push_back(API::attachments.at(id + 1).image_view);
+            if (hasMultisampling(id, false))
+                fb_attachments.push_back(api.attachments.at(id + 1).image_view);
         }
         framebuffers[i] = VK::createFramebuffer(device, render.render_pass, fb_attachments, extent);
     }
@@ -1450,31 +1446,32 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, RenderPassID 
 //Render Pass
 //----------------------------------------
 
-SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list) {
+SubpassID Graphics::registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list) {
     static SubpassID id = 0;
-    while (subpasses.find(id) != subpasses.end())
+    while (api.subpasses.find(id) != api.subpasses.end())
         id++;
     
     log::graphics("Registering subpass %d:", id);
-    subpasses[id] = SubpassData{};
+    api.subpasses[id] = SubpassData{};
+    SubpassData &subpass = api.subpasses[id];
     
-    subpasses[id].external_attachments = external_attachment_list;
+    subpass.external_attachments = external_attachment_list;
     
     for (auto &a_id : attachment_list)
-        API::Map::subpass_attachment.add(id, a_id);
+        Map::subpass_attachment.add(id, a_id);
     
     for (auto &a_id : attachment_list) {
-        const AttachmentData &data = API::attachments.at(a_id);
+        const AttachmentData &data = api.attachments.at(a_id);
         bool first_in_chain = true;
         
         if (data.type & ATTACHMENT_INPUT) {
             //: Check if it is in one of the previous subpasses
             for (int i = id - 1; i >= 0; i--) {
-                auto previous_attachments = getAtoB<AttachmentID>(i, API::Map::subpass_attachment);
+                auto previous_attachments = getAtoB<AttachmentID>(i, Map::subpass_attachment);
                 if (std::count(previous_attachments.begin(), previous_attachments.end(), a_id)) {
                     first_in_chain = false;
-                    subpasses[id].attachment_descriptions[a_id] = ATTACHMENT_INPUT;
-                    subpasses[id].previous_subpass_dependencies[a_id] = i;
+                    subpass.attachment_descriptions[a_id] = ATTACHMENT_INPUT;
+                    subpass.previous_subpass_dependencies[a_id] = i;
                     log::graphics(" - Input attachment: %d (Depends on subpass %d)", a_id, i);
                     break;
                 }
@@ -1483,11 +1480,11 @@ SubpassID API::registerSubpass(std::vector<AttachmentID> attachment_list, std::v
         
         if (first_in_chain) { //: First subpass that uses this attachment
             if (data.type & ATTACHMENT_COLOR) {
-                subpasses[id].attachment_descriptions[a_id] = ATTACHMENT_COLOR;
+                subpass.attachment_descriptions[a_id] = ATTACHMENT_COLOR;
                 log::graphics(" - Color attachment: %d", a_id);
             }
             if (data.type & ATTACHMENT_DEPTH) {
-                subpasses[id].attachment_descriptions[a_id] = ATTACHMENT_DEPTH;
+                subpass.attachment_descriptions[a_id] = ATTACHMENT_DEPTH;
                 log::graphics(" - Depth attachment: %d", a_id);
             }
         }
@@ -1505,20 +1502,20 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
     VkRenderPassHelperData render_pass_helper{};
     
     //---Subpass list---
-    auto subpasses = getAtoB_v(r_id, API::Map::renderpass_subpass, API::subpasses);
+    auto subpasses = getAtoB_v(r_id, Map::renderpass_subpass, api.subpasses);
     std::map<SubpassID, ui8> relative_subpasses{}; ui8 i = 0;
     for (auto &[s_id, data] : subpasses)
         relative_subpasses[s_id] = i++;
     
     //---Attachment list---
-    auto attachments = getAtoB_v(r_id, API::Map::renderpass_attachment, API::attachments);
+    auto attachments = getAtoB_v(r_id, Map::renderpass_attachment, api.attachments);
     std::map<AttachmentID, ui32> relative_att_map{}; ui32 j = 0;
     for (auto &[a_id, data] : attachments) {
         relative_att_map[a_id] = j++;
         render_pass_helper.attachments.push_back(data.description);
-        if (API::hasMultisampling(a_id, false)) {
+        if (hasMultisampling(a_id, false)) {
             relative_att_map[a_id + 1] = j++;
-            render_pass_helper.attachments.push_back(API::attachments.at(a_id + 1).description);
+            render_pass_helper.attachments.push_back(api.attachments.at(a_id + 1).description);
         }
     }
     
@@ -1544,7 +1541,7 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
         //: Attachments
         int depth_count = 0; bool has_swapchain_attachment = false;
         for (auto &[a_id, a_type] : data.attachment_descriptions) {
-            auto &a_data = API::attachments.at(a_id);
+            auto &a_data = api.attachments.at(a_id);
             
             VkExtent2D attachment_extent = to_extent(a_data.size);
             if (render.attachment_extent.width == 0 or render.attachment_extent.height == 0)
@@ -1563,11 +1560,11 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
                 relative_depth_attachment[s_id] = VkAttachmentReference{relative_att_map.at(a_id), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
             }
             if (a_type == ATTACHMENT_INPUT) {
-                AttachmentID id = (API::hasMultisampling(a_id)) ? a_id + 1 : a_id;
+                AttachmentID id = (hasMultisampling(a_id)) ? a_id + 1 : a_id;
                 relative_input_attachments[s_id].push_back(VkAttachmentReference{relative_att_map.at(id), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
                 input_attachments[s_id].push_back(id);
             }
-            else if (API::hasMultisampling(a_id) and a_type == ATTACHMENT_COLOR) {
+            else if (hasMultisampling(a_id) and a_type == ATTACHMENT_COLOR) {
                 VkAttachmentReference reference{};
                 reference.attachment = relative_att_map.at(a_id + 1);
                 reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1600,7 +1597,7 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
             for (const auto &a_id : input_attachments.at(s_id)) {
                 VkSubpassDependency dependency;
                 
-                dependency.srcSubpass = relative_subpasses.at(data.previous_subpass_dependencies.at(API::hasMultisampling(a_id - 1) ? a_id - 1 : a_id));
+                dependency.srcSubpass = relative_subpasses.at(data.previous_subpass_dependencies.at(hasMultisampling(a_id - 1) ? a_id - 1 : a_id));
                 dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
                 dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
                 
@@ -1662,28 +1659,28 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
     return render;
 }
 
-RenderPassID API::registerRenderPass(const Vulkan &vk, std::vector<SubpassID> subpasses) {
+RenderPassID Graphics::registerRenderPass(std::vector<SubpassID> subpasses) {
     static RenderPassID id = 0;
-    while (API::render_passes.find(id) != API::render_passes.end())
+    while (api.render_passes.find(id) != api.render_passes.end())
         id++;
     
     log::graphics("Registering render pass %d:", id);
     str s_list = std::accumulate(subpasses.begin(), subpasses.end(), str{""}, [](str s, SubpassID subpass){ return s + " " + std::to_string(subpass); });
     log::graphics("It contains subpasses %s", s_list.c_str());
     for (auto &s : subpasses)
-        API::Map::renderpass_subpass.add(id, s);
+        Map::renderpass_subpass.add(id, s);
     
     //---Create render pass---
-    API::render_passes[id] = VK::createRenderPass(vk, id);
+    api.render_passes[id] = VK::createRenderPass(api, id);
     
     //---Create framebuffers---
-    API::render_passes[id].framebuffers = VK::createFramebuffers(vk.device, id, API::render_passes[id].attachment_extent, vk.swapchain);
+    api.render_passes[id].framebuffers = VK::createFramebuffers(api.device, id, api.render_passes[id].attachment_extent, api.swapchain);
     
     return id;
 }
 
 void VK::recreateRenderPasses(Vulkan &vk) {
-    for (auto &[id, render] : API::render_passes) {
+    for (auto &[id, render] : api.render_passes) {
         render = VK::createRenderPass(vk, id);
         render.framebuffers = VK::createFramebuffers(vk.device, id, render.attachment_extent, vk.swapchain);
     }
@@ -2128,9 +2125,9 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     
     //: Render pass
-    auto renderpass = getBtoA_v(shader, API::Map::renderpass_shader, API::render_passes);
-    auto subpass_list = getAtoB<SubpassID>(renderpass.first, API::Map::renderpass_subpass);
-    auto subpass = getBtoA_v(shader, API::Map::subpass_shader, API::subpasses);
+    auto renderpass = getBtoA_v(shader, Map::renderpass_shader, api.render_passes);
+    auto subpass_list = getAtoB<SubpassID>(renderpass.first, Map::renderpass_subpass);
+    auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
     
     auto it = std::find(subpass_list.begin(), subpass_list.end(), subpass.first);
     if (it == subpass_list.end())
@@ -2141,7 +2138,7 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     create_info.subpass = relative_subpass;
     
     //: Shader stages
-    std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(API::shaders.at(shader).stages);
+    std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(api.shaders.at(shader).stages);
     create_info.stageCount = (int)stage_info.size();
     create_info.pStages = stage_info.data();
     
@@ -2150,7 +2147,7 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
                                                                           renderpass.second.attachment_extent);
     
     //: Multisampling
-    auto attachments = getAtoB_v(subpass.first, API::Map::subpass_attachment, API::attachments);
+    auto attachments = getAtoB_v(subpass.first, Map::subpass_attachment, api.attachments);
     std::vector<VkSampleCountFlagBits> samples(attachments.size());
     std::transform(attachments.begin(), attachments.end(), samples.begin(), [&](auto &a){ return VK::getAttachmentSamples(vk, a.second); });
     pipeline_create_info.multisampling.rasterizationSamples = *std::min_element(samples.begin(), samples.end());
@@ -2189,11 +2186,11 @@ VkPipeline VK::createComputePipelineObject(const Vulkan &vk, const PipelineData 
     create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     
     //: Shader stage
-    if (not API::compute_shaders.at(shader).stages.compute.has_value())
+    if (not api.compute_shaders.at(shader).stages.compute.has_value())
         log::error("You are using an invalid compute shader");
     create_info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     create_info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    create_info.stage.module = API::compute_shaders.at(shader).stages.compute.value();
+    create_info.stage.module = api.compute_shaders.at(shader).stages.compute.value();
     create_info.stage.pName = "main";
     
     //: Layout
@@ -2211,13 +2208,13 @@ VkPipeline VK::createComputePipelineObject(const Vulkan &vk, const PipelineData 
 
 void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader) {
     //: Descriptor set
-    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::shaders.at(shader).code, vk.swapchain.size);
+    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, api.shaders.at(shader).code, vk.swapchain.size);
     data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
     data.descriptor_pools.clear();
     data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
     data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
     
-    if (not API::shaders.at(shader).is_draw)
+    if (not api.shaders.at(shader).is_draw)
         VK::updatePipelineDescriptorSets(vk, data, shader);
 
     //: Pipeline
@@ -2233,9 +2230,9 @@ std::array<ui32, 3> VK::getComputeGroupSize(const Vulkan &vk, ShaderID shader) {
     
     std::array<ui32, 3> sizes;
     
-    ShaderCode &code = API::compute_shaders.at(shader).code;
+    ShaderCode &code = api.compute_shaders.at(shader).code;
     
-    ShaderCompiler compiler = API::getShaderCompiler(code.compute.value());
+    ShaderCompiler compiler = getShaderCompiler(code.compute.value());
     
     std::vector<spirv_cross::SpecializationConstant> a(3);
     ui32 constant = compiler.get_work_group_size_specialization_constants(a[0], a[1], a[2]);
@@ -2308,10 +2305,10 @@ std::vector<BufferData> VK::createUniformBuffers(VmaAllocator allocator, ui32 bu
 
 void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID shader, ui32 buffer_count) {
     ShaderCode* shader_code = nullptr;
-    if (API::shaders.count(shader))
-        shader_code = &API::shaders.at(shader).code;
-    else if (API::compute_shaders.count(shader))
-        shader_code = &API::compute_shaders.at(shader).code;
+    if (api.shaders.count(shader))
+        shader_code = &api.shaders.at(shader).code;
+    else if (api.compute_shaders.count(shader))
+        shader_code = &api.compute_shaders.at(shader).code;
     else
         log::error("Shader not valid: %s", shader.c_str());
     
@@ -2320,7 +2317,7 @@ void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID sh
     std::map<ui32, std::vector<BufferData>> storage;
     
     auto get_buffers = [&](const std::vector<char> &code) {
-        ShaderCompiler compiler = API::getShaderCompiler(code);
+        ShaderCompiler compiler = getShaderCompiler(code);
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -2345,18 +2342,18 @@ void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID sh
         data.uniform_buffers.push_back(uniform);
 }
 
-void VK::updateBufferFromCompute(const Vulkan &vk, const BufferData &buffer, ui32 buffer_size, ShaderID shader) {
-    const PipelineData &pipeline = vk.compute_pipelines.at(shader);
+void VK::updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size, ShaderID shader) {
+    const PipelineData &pipeline = api.compute_pipelines.at(shader);
     
     //: Update pipeline descriptor sets to add the buffer and pipeline uniforms. For now this only works with a single buffer.
     std::vector<VkBuffer> uniforms{};
     for (auto &a : pipeline.uniform_buffers)
         for (auto &b : a)
             uniforms.push_back(b.buffer);
-    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniforms, {buffer.buffer}, {}, {});
+    VK::updateDescriptorSets(api, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniforms, {buffer.buffer}, {}, {});
     
     //: Begin one time command buffer
-    VkCommandBuffer cmd = VK::beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("compute"));
+    VkCommandBuffer cmd = VK::beginSingleUseCommandBuffer(api.device, api.cmd.command_pools.at("compute"));
     
     //: Bind pipeline and descriptors
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
@@ -2367,7 +2364,7 @@ void VK::updateBufferFromCompute(const Vulkan &vk, const BufferData &buffer, ui3
     vkCmdDispatch(cmd, group_count, 1, 1);
     
     //: End and submit command buffer
-    VK::endSingleUseCommandBuffer(vk.device, cmd, vk.cmd.command_pools.at("compute"), vk.cmd.queues.compute);
+    VK::endSingleUseCommandBuffer(api.device, cmd, api.cmd.command_pools.at("compute"), api.cmd.queues.compute);
 }
 
 //----------------------------------------
@@ -2403,7 +2400,7 @@ std::vector<VkDescriptorSetLayoutBinding> VK::createDescriptorSetLayoutBindings(
     log::graphics("Creating descriptor set layout...");
     
     auto get_bindings = [&](const std::vector<char> &code, VkShaderStageFlagBits stage, str stage_name) {
-        ShaderCompiler compiler = API::getShaderCompiler(code);
+        ShaderCompiler compiler = getShaderCompiler(code);
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -2591,18 +2588,18 @@ void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSe
     vkUpdateDescriptorSets(vk.device, count, descriptors.write.data(), 0, nullptr);
 }
 
-void API::updateDrawDescriptorSets(const Vulkan &vk, const DrawDescription& draw) {
+void Graphics::updateDrawDescriptorSets(const DrawDescription& draw) {
     //: Uniforms
     std::vector<VkBuffer> uniform_buffers{};
-    std::transform(draw_uniform_data.at(draw.uniform).uniform_buffers.begin(), draw_uniform_data.at(draw.uniform).uniform_buffers.end(),
+    std::transform(api.draw_uniform_data.at(draw.uniform).uniform_buffers.begin(), api.draw_uniform_data.at(draw.uniform).uniform_buffers.end(),
                    std::back_inserter(uniform_buffers), [](BufferData &x){ return x.buffer; });
     
     //: Images
     std::vector<VkImageView> image_views{};
-    if (draw.texture != no_texture) image_views.push_back(texture_data.at(draw.texture).image_view);
+    if (draw.texture != no_texture) image_views.push_back(api.texture_data.at(draw.texture).image_view);
     
     //: Update
-    VK::updateDescriptorSets(vk, draw_uniform_data.at(draw.uniform).descriptor_sets, vk.pipelines.at(draw.shader).descriptor_layout_bindings,
+    VK::updateDescriptorSets(api, api.draw_uniform_data.at(draw.uniform).descriptor_sets, api.pipelines.at(draw.shader).descriptor_layout_bindings,
                              uniform_buffers, {}, image_views, {});
 }
 
@@ -2616,15 +2613,15 @@ void VK::updatePipelineDescriptorSets(const Vulkan &vk, const PipelineData &pipe
     std::vector<VkImageView> input_views{};
     
     //: Only for render shaders, not compute
-    if (API::shaders.count(shader)) {
-        auto subpass = getBtoA_v(shader, API::Map::subpass_shader, API::subpasses);
+    if (api.shaders.count(shader)) {
+        auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
         
         for (auto &a : subpass.second.external_attachments)
-            image_views.push_back(API::attachments.at(API::hasMultisampling(a) ? a + 1 : a).image_view);
+            image_views.push_back(api.attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
             
         for (auto &[a, type] : subpass.second.attachment_descriptions)
             if (type == ATTACHMENT_INPUT)
-                input_views.push_back(API::attachments.at(API::hasMultisampling(a) ? a + 1 : a).image_view);
+                input_views.push_back(api.attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
     }
     
     VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniforms, {}, image_views, input_views);
@@ -2637,11 +2634,11 @@ void VK::updatePipelineDescriptorSets(const Vulkan &vk, const PipelineData &pipe
 //Images
 //----------------------------------------
 
-TextureID API::registerTexture(const Vulkan &vk, Vec2<> size, Channels ch, ui8* pixels) {
+TextureID Graphics::registerTexture(Vec2<> size, Channels ch, ui8* pixels) {
     //---Create texture---
     static TextureID id = 0;
     do id++;
-    while (texture_data.find(id) != texture_data.end() and id == no_texture);
+    while (api.texture_data.find(id) != api.texture_data.end() and id == no_texture);
     
     //: Format
     VkFormat format = [ch](){
@@ -2658,29 +2655,29 @@ TextureID API::registerTexture(const Vulkan &vk, Vec2<> size, Channels ch, ui8* 
     }();
     
     //: Texture
-    texture_data[id] = VK::createTexture(vk.device, vk.allocator, vk.physical_device,
+    api.texture_data[id] = VK::createTexture(api.device, api.allocator, api.physical_device,
                                          VkImageUsageFlagBits(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
                                          VK_IMAGE_ASPECT_COLOR_BIT, size, format, ch);
     
     //: Staging buffer
     VkDeviceSize buffer_size = size.x * size.y * (int)ch * sizeof(ui8);
-    BufferData staging_buffer = VK::createBuffer(vk.allocator, buffer_size,
+    BufferData staging_buffer = VK::createBuffer(api.allocator, buffer_size,
                                                  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                  VMA_MEMORY_USAGE_CPU_ONLY);
     
     //: Map pixels to staging buffer
     void* data;
-    vmaMapMemory(vk.allocator, staging_buffer.allocation, &data);
+    vmaMapMemory(api.allocator, staging_buffer.allocation, &data);
     memcpy(data, pixels, (size_t) buffer_size);
-    vmaUnmapMemory(vk.allocator, staging_buffer.allocation);
+    vmaUnmapMemory(api.allocator, staging_buffer.allocation);
     
     //: Copy from staging buffer to image and transition to read only layout
-    VK::transitionImageLayoutCmd(vk.device, vk.cmd, texture_data[id], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    VK::copyBufferToImage(vk.device, vk.cmd, staging_buffer, texture_data[id]);
-    VK::transitionImageLayoutCmd(vk.device, vk.cmd, texture_data[id], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    VK::transitionImageLayoutCmd(api.device, api.cmd, api.texture_data[id], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VK::copyBufferToImage(api.device, api.cmd, staging_buffer, api.texture_data[id]);
+    VK::transitionImageLayoutCmd(api.device, api.cmd, api.texture_data[id], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     
     //: Delete staging buffer
-    vmaDestroyBuffer(vk.allocator, staging_buffer.buffer, staging_buffer.allocation);
+    vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
     
     return id;
 }
@@ -2999,54 +2996,54 @@ void VK::renderFrame(Vulkan &vk, WindowData &win) {
 //Test
 //----------------------------------------
 
-void API::render(Vulkan &vk, WindowData &win, CameraData &cam) {
+void Graphics::render() {
     static std::vector<DrawDescription*> previous_draw_descriptions{};
     
     //: Get the current image
-    vk.cmd.current_buffer = VK::startRender(vk.device, vk.swapchain, vk.sync, [&vk, &win](){ VK::recreateSwapchain(vk, win); });
+    api.cmd.current_buffer = VK::startRender(api.device, api.swapchain, api.sync, [](){ VK::recreateSwapchain(); });
     
     //: Get timestamps
     #ifdef DEBUG
-    ui32 queries = ((ui32)API::shaders.size() + 1) * 2;
+    ui32 queries = ((ui32)api.shaders.size() + 1) * 2;
     if (Performance::timestamps.size() != queries)
-        Performance::timestamps.resize(vk.swapchain.size * queries);
-    if (Performance::timestamp_period > 0 and vk.cmd.current_buffer <= vk.swapchain.size) {
-        std::vector<ui64> timestamps = VK::getQueryResults(vk.device, vk.query_timestamp, vk.cmd.current_buffer * queries, queries);
-        std::copy(timestamps.begin(), timestamps.end(), Performance::timestamps.begin() + vk.cmd.current_buffer * queries);
+        Performance::timestamps.resize(api.swapchain.size * queries);
+    if (Performance::timestamp_period > 0 and api.cmd.current_buffer <= api.swapchain.size) {
+        std::vector<ui64> timestamps = VK::getQueryResults(api.device, api.query_timestamp, api.cmd.current_buffer * queries, queries);
+        std::copy(timestamps.begin(), timestamps.end(), Performance::timestamps.begin() + api.cmd.current_buffer * queries);
     }
     #endif
     
     //: Remove indirect buffers that are no longer in use
     if (Config::draw_indirect) {
-        if (previous_draw_descriptions != API::draw_descriptions) {
+        if (previous_draw_descriptions != api.draw_descriptions) {
             for (auto description : previous_draw_descriptions) {
-                if (std::find(API::draw_descriptions.begin(), API::draw_descriptions.end(), description) == API::draw_descriptions.end())
-                    API::removeIndirectDrawCommand(vk, *description);
+                if (std::find(api.draw_descriptions.begin(), api.draw_descriptions.end(), description) == api.draw_descriptions.end())
+                    removeIndirectDrawCommand(*description);
             }
         }
     }
     
     //: Update uniform buffers
     //      Keep an eye on how performant is this, another solution might be necessary
-    for (auto &f : VK::update_buffer_queue) f(vk.cmd.current_buffer);
+    for (auto &f : VK::update_buffer_queue) f(api.cmd.current_buffer);
     VK::update_buffer_queue.clear();
     
     //: Record command buffers
-    VK::recordRenderCommandBuffer(vk, vk.cmd.current_buffer);
-    IF_GUI(VK::Gui::recordGuiCommandBuffer(vk, vk.cmd.current_buffer));
+    VK::recordRenderCommandBuffer(api, api.cmd.current_buffer);
+    IF_GUI(VK::Gui::recordGuiCommandBuffer(api, api.cmd.current_buffer));
     
     //: Render the frame
-    VK::renderFrame(vk, win);
+    VK::renderFrame(api, win);
     
     //: Clear draw queue
-    previous_draw_descriptions = API::draw_descriptions;
-    API::draw_queue.clear();
-    API::draw_queue_instanced.clear();
-    API::draw_descriptions.clear();
+    previous_draw_descriptions = api.draw_descriptions;
+    api.draw_queue.clear();
+    api.draw_queue_instanced.clear();
+    api.draw_descriptions.clear();
 }
 
-void API::present(Vulkan &vk, WindowData &win) {
-    VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished.at(vk.sync.current_frame) };
+void Graphics::present() {
+    VkSemaphore signal_semaphores[]{ api.sync.semaphores_render_finished.at(api.sync.current_frame) };
     
     VkPresentInfoKHR present_info{};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -3054,20 +3051,20 @@ void API::present(Vulkan &vk, WindowData &win) {
     present_info.waitSemaphoreCount = 1;
     present_info.pWaitSemaphores = signal_semaphores;
     
-    VkSwapchainKHR swapchains[]{ vk.swapchain.swapchain };
+    VkSwapchainKHR swapchains[]{ api.swapchain.swapchain };
     present_info.swapchainCount = 1;
     present_info.pSwapchains = swapchains;
-    present_info.pImageIndices = &vk.cmd.current_buffer;
+    present_info.pImageIndices = &api.cmd.current_buffer;
     present_info.pResults = nullptr;
     
-    VkResult result = vkQueuePresentKHR(vk.cmd.queues.present, &present_info);
+    VkResult result = vkQueuePresentKHR(api.cmd.queues.present, &present_info);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR or result == VK_SUBOPTIMAL_KHR)
-        VK::recreateSwapchain(vk, win);
+        VK::recreateSwapchain();
     else if (result != VK_SUCCESS)
         log::error("Failed to present Swapchain Image");
     
-    vk.sync.current_frame = (vk.sync.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+    api.sync.current_frame = (api.sync.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 //----------------------------------------
@@ -3077,15 +3074,15 @@ void API::present(Vulkan &vk, WindowData &win) {
 //Resize
 //----------------------------------------
 
-void API::resize(Vulkan &vk, WindowData &win) {
-    VK::recreateSwapchain(vk, win);
+void Graphics::resize() {
+    VK::recreateSwapchain();
     
     //: Update scaled projection
-    for (auto &[shader, pipeline] : vk.pipelines) {
+    for (auto &[shader, pipeline] : api.pipelines) {
         if (shader.rfind("window", 0) == 0 or shader.rfind("debug", 0) == 0) {
-            for (auto &uniforms : vk.pipelines.at(shader).uniform_buffers)
+            for (auto &uniforms : api.pipelines.at(shader).uniform_buffers)
                 for (auto &u : uniforms)
-                    API::updateUniformBuffer(vk, u, win.scaled_ubo);
+                    updateUniformBuffer(u, win.scaled_ubo);
         }
     }
 }
@@ -3097,8 +3094,8 @@ void API::resize(Vulkan &vk, WindowData &win) {
 //Cleanup
 //----------------------------------------
 
-void API::clean(Vulkan &vk) {
-    vkDeviceWaitIdle(vk.device);
+void Graphics::clean() {
+    vkDeviceWaitIdle(api.device);
     
     //: Delete swapchain objects
     for (auto it = VK::deletion_queue_swapchain.rbegin(); it != VK::deletion_queue_swapchain.rend(); ++it)
@@ -3187,9 +3184,9 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
     Gui::descriptor_pool = createDescriptorPool(vk.device, pool_sizes);
     
     //: Render pass
-    AttachmentID attachment_swapchain_gui = API::registerAttachment(vk, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
-    SubpassID subpass_gui = API::registerSubpass({attachment_swapchain_gui});
-    vk.gui_render_pass = API::registerRenderPass(vk, {subpass_gui});
+    AttachmentID attachment_swapchain_gui = registerAttachment(ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+    SubpassID subpass_gui = registerSubpass({attachment_swapchain_gui});
+    vk.gui_render_pass = registerRenderPass({subpass_gui});
     
     //: Init Vulkan implementation
     ImGui_ImplVulkan_InitInfo init_info = {};
@@ -3202,7 +3199,7 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
     init_info.MinImageCount = vk.swapchain.min_image_count;
     init_info.ImageCount = vk.swapchain.size;
     init_info.Allocator = nullptr;
-    if (not ImGui_ImplVulkan_Init(&init_info, API::render_passes.at(vk.gui_render_pass).render_pass))
+    if (not ImGui_ImplVulkan_Init(&init_info, api.render_passes.at(vk.gui_render_pass).render_pass))
         log::error("Error initializing ImGui for Vulkan");
     
     //: Command buffers
@@ -3241,10 +3238,10 @@ void VK::Gui::recordGuiCommandBuffer(const Vulkan &vk, ui32 current) {
     //: Begin render pass
     VkRenderPassBeginInfo render_pass_info{};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = API::render_passes.at(vk.gui_render_pass).render_pass;
-    render_pass_info.framebuffer = API::render_passes.at(vk.gui_render_pass).framebuffers.at(current);
+    render_pass_info.renderPass = api.render_passes.at(vk.gui_render_pass).render_pass;
+    render_pass_info.framebuffer = api.render_passes.at(vk.gui_render_pass).framebuffers.at(current);
     render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = API::render_passes.at(vk.gui_render_pass).attachment_extent;
+    render_pass_info.renderArea.extent = api.render_passes.at(vk.gui_render_pass).attachment_extent;
     render_pass_info.clearValueCount = (ui32)clear_values.size();
     render_pass_info.pClearValues = clear_values.data();
     

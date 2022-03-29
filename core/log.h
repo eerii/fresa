@@ -61,21 +61,21 @@ namespace Fresa
         #endif
         }
         
-        template<typename T, std::enable_if_t<is_vec2<T>::value, bool> = true>
+        template<typename T, std::enable_if_t<is_vec2_v<T>, bool> = true>
         void info(T v) { //: Vec2 print
         #if LOG_LEVEL>=3
             std::cout << "[ INFO ] x: " << v.x << " y: " << v.y << std::endl;
         #endif
         }
         
-        template<typename T, std::enable_if_t<is_rect2<T>::value, bool> = true>
+        template<typename T, std::enable_if_t<is_rect2_v<T>, bool> = true>
         void info(T r) { //: Rect2 print
         #if LOG_LEVEL>=3
             std::cout << "[ INFO ] x: " << r.x << " y: " << r.y << " w: " << r.w << " h: " << r.h << std::endl;
         #endif
         }
         
-        template<typename T, std::enable_if_t<is_vector<T>::value, bool> = true>
+        template<typename T, std::enable_if_t<is_vector_v<T>, bool> = true>
         void info(T &v) { //: std::vector print
         #if LOG_LEVEL>=3
             std::cout << "[ INFO ]";

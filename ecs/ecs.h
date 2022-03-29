@@ -5,8 +5,6 @@
 #pragma once
 
 #include "types.h"
-#include "reflection.h"
-#include "variant_helper.h"
 
 //: A component list is necessary to include all the component types and define a variant with all those types
 //: You need to create a file component_list.h and add it to the project, the structure can be as follows:
@@ -84,7 +82,7 @@ namespace Fresa::Component
 {
     template <typename> struct component_tag {};
     
-    template<typename C, std::enable_if_t<Reflection::is_in_variant<C, ComponentType>::value, bool> = true>
+    template<typename C, std::enable_if_t<is_in_variant<C, ComponentType>::value, bool> = true>
     constexpr ComponentID getID() {
         constexpr ComponentID id_ = getVariantIndex<C, ComponentType>::value;
         static_assert(id_ < MAX_COMPONENTS, "Increase max component capacity");

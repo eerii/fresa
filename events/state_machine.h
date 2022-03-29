@@ -10,7 +10,6 @@
 #include <variant>
 #include <typeinfo>
 
-#include "static_str.h"
 #include "events.h"
 
 //---State machines---

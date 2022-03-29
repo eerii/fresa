@@ -19,19 +19,24 @@ using ui16 = std::uint16_t;
 using ui32 = std::uint32_t;
 using ui64 = std::uint64_t;
 
-#include "string_helper.h"
 #include "vec2.h"
 #include "rect2.h"
 
+#include "string_helper.h"
+#include "variant_helper.h"
+
 //: Compile time checks
-template<typename T> struct is_vector { static constexpr bool value=false; };
-template<typename A> struct is_vector<std::vector<A>> { static constexpr bool value=true; };
+template<typename T> struct is_vector : std::false_type {};
+template<typename A> struct is_vector<std::vector<A>> : std::true_type {};
+template<typename T> inline constexpr bool is_vector_v=is_vector<T>::value;
 
 template<typename T> struct is_vec2 { static constexpr bool value=false; };
 template<typename A> struct is_vec2<Fresa::Vec2<A>> { static constexpr bool value=true; };
+template<typename T> inline constexpr bool is_vec2_v=is_vec2<T>::value;
 
 template<typename T> struct is_rect2 { static constexpr bool value=false; };
 template<typename A> struct is_rect2<Fresa::Rect2<A>> { static constexpr bool value=true; };
+template<typename T> inline constexpr bool is_rect2_v=is_rect2<T>::value;
 
 //: Compile time type name in readable format (https://stackoverflow.com/a/56766138/17575567)
 template <typename T>

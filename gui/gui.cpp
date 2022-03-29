@@ -12,17 +12,17 @@
 
 using namespace Fresa;
 
-void Gui::init(Graphics::GraphicsAPI &api, const Graphics::WindowData &win) {
+void Gui::init() {
     //---Initialization---
     ImGui::CreateContext();
     
     #if defined USE_OPENGL
-    if (not ImGui_ImplSDL2_InitForOpenGL(win.window, api.context))
+    if (not ImGui_ImplSDL2_InitForOpenGL(Graphics::win.window, Graphics::api.context))
         log::error("Error initializing ImGui for SDL");
     if (not ImGui_ImplOpenGL3_Init())
         log::error("Error initializing ImGui for OpenGL");
     #elif defined USE_VULKAN
-    Graphics::VK::Gui::init(api, win);
+    Graphics::VK::Gui::init(Graphics::api, Graphics::win);
     #endif
     
     //---IO---
@@ -32,7 +32,7 @@ void Gui::init(Graphics::GraphicsAPI &api, const Graphics::WindowData &win) {
     auto font_path = File::path_optional("misc/font.ttf");
     
     if (font_path.has_value()) {
-        float font_scale = Graphics::API::getDPI();
+        float font_scale = Graphics::getDPI();
         io->Fonts->AddFontFromFileTTF(font_path.value().c_str(), 16 * font_scale);
         io->FontGlobalScale /= font_scale;
     } else {
@@ -42,7 +42,7 @@ void Gui::init(Graphics::GraphicsAPI &api, const Graphics::WindowData &win) {
     io->Fonts->Build();
     
     #ifdef USE_VULKAN
-    Graphics::VK::Gui::transferFonts(api);
+    Graphics::VK::Gui::transferFonts(Graphics::api);
     #endif
     
     //: Docking

@@ -42,7 +42,7 @@ namespace Fresa::Serialization
             x = std::stold(s);
         
         //: Vec2 (Format: [x, y])
-        if constexpr (is_vec2<T>::value) {
+        if constexpr (is_vec2_v<T>) {
             auto v = split(list_contents(s), ",");
             if (v.size() != 2) log::error("The Vec2 format is incorrect, %s", s.c_str());
             std::for_each(v.begin(), v.end(), trim);
@@ -51,7 +51,7 @@ namespace Fresa::Serialization
         }
         
         //: Rect2
-        if constexpr (is_rect2<T>::value) {
+        if constexpr (is_rect2_v<T>) {
             auto v = split(list_contents(s), ",");
             if (v.size() != 4) log::error("The Rect2 format is incorrect, %s", s.c_str());
             std::for_each(v.begin(), v.end(), trim);
@@ -60,7 +60,7 @@ namespace Fresa::Serialization
         }
         
         //: std::vector
-        if constexpr (is_vector<T>::value) {
+        if constexpr (is_vector_v<T>) {
             auto v = split(list_contents(s), ",");
             x.resize(v.size());
             for (int i = 0; i < v.size(); i++) {

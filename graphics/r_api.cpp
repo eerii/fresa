@@ -22,11 +22,10 @@
 #endif
 
 using namespace Fresa;
-using namespace Graphics;
 
 //---Common API calls for Vulkan and OpenGL---
 
-WindowData API::createWindow(Vec2<ui32> size, str name) {
+Graphics::WindowData Graphics::createWindow(Vec2<ui32> size, str name) {
     //---Create window data---
     WindowData win;
     
@@ -65,7 +64,7 @@ WindowData API::createWindow(Vec2<ui32> size, str name) {
     return win;
 }
 
-ui16 API::getRefreshRate(WindowData &win, bool force) {
+ui16 Graphics::getRefreshRate(WindowData &win, bool force) {
     //---Refresh rate---
     //      Either returns the already calculated refresh rate or it gets it using SDL_DisplayMode
     if (win.refresh_rate > 0 and not force)
@@ -80,13 +79,13 @@ ui16 API::getRefreshRate(WindowData &win, bool force) {
     return (ui16)mode.refresh_rate;
 }
 
-float API::getDPI() {
+float Graphics::getDPI() {
     float ddpi = 0.0f;
     SDL_GetDisplayDPI(0, &ddpi, nullptr, nullptr);
     return ddpi / 96.0f;
 }
 
-UniformBufferObject API::getScaledWindowUBO(const WindowData &win) {
+Graphics::UniformBufferObject Graphics::getScaledWindowUBO(const WindowData &win) {
     UniformBufferObject ubo{};
     
     Vec2<float> scaled_res = Config::resolution.to<float>() * win.scale;
@@ -98,25 +97,60 @@ UniformBufferObject API::getScaledWindowUBO(const WindowData &win) {
     return ubo;
 }
 
-void API::createShaderList() {
+void Graphics::onResize(Vec2<> size) {
+    //---On resize callback---
+    
+    //: Set new window size
+    win.size = size;
+    
+    //: Adjust render scale
+    Vec2<float> ratios = win.size.to<float>() / Config::resolution.to<float>();
+    win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
+    if (cam.proj_type & PROJECTION_SCALED)
+        win.scaled_ubo = getScaledWindowUBO(win);
+    updateCameraProjection();
+    
+    //: Pass the resize command to the API
+    resize();
+}
+
+void Graphics::updateCameraProjection() {
+    Vec2<float> resolution = (cam.proj_type & PROJECTION_SCALED) ? Config::resolution.to<float>() : win.size.to<float>();
+    
+    //: Orthographic (2D)
+    if (cam.proj_type & PROJECTION_ORTHOGRAPHIC)
+        cam.proj = glm::ortho(0.0f, resolution.x, 0.0f, resolution.y, -10000.0f, 10000.0f);
+    
+    //: Perspective (3D)
+    if (cam.proj_type & PROJECTION_PERSPECTIVE)
+        cam.proj = glm::perspective(glm::radians(45.0f), (float)resolution.x / (float)resolution.y, 0.1f, 10000.0f);
+    
+    cam.proj[1][1] *= -viewport_y;
+    
+    //: None (Vertex passthrough)
+    if (cam.proj_type & PROJECTION_NONE)
+        cam.proj = glm::mat4(1.0f);
+}
+
+void Graphics::createShaderList() {
     //---Shader list---
-    //      Fills API::shaders with a list of ShaderID (the names of the shaders) and the processed ShaderData
+    //      Fills shaders with a list of ShaderID (the names of the shaders) and the processed ShaderData
     auto shader_path = File::path("shaders/");
     for (auto &f : fs::recursive_directory_iterator(shader_path)) {
         if (f.path().extension() == ".vert" or f.path().extension() == ".frag") {
             str name = f.path().stem().string();
-            if (not API::shaders.count(name))
-                API::shaders[name] = API::createShaderData(name);
+            if (not api.shaders.count(name))
+                api.shaders[name] = createShaderData(name);
         }
         if (f.path().extension() == ".comp") {
             str name = f.path().stem().string();
-            if (not API::compute_shaders.count(name))
-                API::compute_shaders[name] = API::createShaderData(name);
+            if (not api.compute_shaders.count(name))
+                api.compute_shaders[name] = createShaderData(name);
         }
     }
 }
 
-std::vector<char> API::readSPIRV(std::string filename) {
+std::vector<char> Graphics::readSPIRV(std::string filename) {
     //---Read SPIRV---
     //      Opens a SPIRV shader file and returns an array with the data
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -135,7 +169,7 @@ std::vector<char> API::readSPIRV(std::string filename) {
     return buffer;
 }
 
-ShaderData API::createShaderData(str name) {
+Graphics::ShaderData Graphics::createShaderData(str name) {
     //---Shader data---
     //      Creates a shader data object from a list of locations for the different stages
     //      First it saves the locations and then it reads the SPIRV code
@@ -158,7 +192,7 @@ ShaderData API::createShaderData(str name) {
     return data;
 }
 
-ShaderCompiler API::getShaderCompiler(const std::vector<char> &code) {
+Graphics::ShaderCompiler Graphics::getShaderCompiler(const std::vector<char> &code) {
     //---Shader compiler---
     //      Creates and returns the SPIR-V Cross compiler for the shader code
     //      This for some reason requires to to invert the code bits, so that is done before passing to the CompilerGLSL function
@@ -174,28 +208,28 @@ ShaderCompiler API::getShaderCompiler(const std::vector<char> &code) {
     return spirv_cross::CompilerGLSL(std::move(spirv));
 }
 
-void API::removeIndirectDrawCommand(const GraphicsAPI &api, DrawDescription &description) {
-    if (API::draw_indirect_buffers.count(description.indirect_buffer))
-        API::draw_indirect_buffers.at(description.indirect_buffer).free_positions.push_back(description.indirect_offset);
+void Graphics::removeIndirectDrawCommand(DrawDescription &description) {
+    if (api.draw_indirect_buffers.count(description.indirect_buffer))
+        api.draw_indirect_buffers.at(description.indirect_buffer).free_positions.push_back(description.indirect_offset);
     description.indirect_buffer = no_indirect_buffer;
     description.indirect_offset = 0;
 }
 
-bool API::hasMultisampling(AttachmentID a, bool check_samples) {
-    if (not API::attachments.count(a))
+bool Graphics::hasMultisampling(AttachmentID a, bool check_samples) {
+    if (not api.attachments.count(a))
         return false;
-    AttachmentData &data = API::attachments.at(a);
+    AttachmentData &data = api.attachments.at(a);
     bool msaa = data.type & ATTACHMENT_MSAA and data.type & ATTACHMENT_COLOR;
     #ifdef USE_VULKAN
     if (check_samples)
         msaa = msaa and data.description.samples != VK_SAMPLE_COUNT_1_BIT;
     #endif
-    if (msaa and API::attachments.size() > a + 1 and (not API::attachments.count(a + 1) or API::attachments.at(a + 1).type & ATTACHMENT_MSAA))
+    if (msaa and api.attachments.size() > a + 1 and (not api.attachments.count(a + 1) or api.attachments.at(a + 1).type & ATTACHMENT_MSAA))
         log::error("Improper formatting on MSAA resolve attachment");
     return msaa;
 };
 
-void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
+void Graphics::processRendererDescription() {
     if (Config::renderer_description_path.size() == 0)
         log::error("You need to set Config::renderer_description_path with the location of your renderer description file");
 
@@ -218,7 +252,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             //: Name
             str name = line.at(1);
             if (name == "swapchain") {
-                attachment_list[name + std::to_string(++swapchain_count)] = API::registerAttachment(api, ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+                attachment_list[name + std::to_string(++swapchain_count)] = registerAttachment(ATTACHMENT_COLOR_SWAPCHAIN, win.size);
                 continue;
             }
             if (line.size() != 4) log::error("You have not provided all the required parameters for an attachment");
@@ -254,11 +288,11 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             }
             
             //: Register attachment
-            attachment_list[name] = API::registerAttachment(api, type, resolution);
+            attachment_list[name] = registerAttachment(type, resolution);
             
             //: Multisampling resolve
             if (type & ATTACHMENT_MSAA and type & ATTACHMENT_COLOR)
-                attachment_list[name + "_resolve"] = API::registerAttachment(api, AttachmentType(type & ~ATTACHMENT_MSAA), resolution);
+                attachment_list[name + "_resolve"] = registerAttachment(AttachmentType(type & ~ATTACHMENT_MSAA), resolution);
         }
         
         //---Subpass---
@@ -290,7 +324,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             }
             
             //: Register subpass
-            subpass_list[name] = API::registerSubpass(subpass_attachments, external_attachments);
+            subpass_list[name] = registerSubpass(subpass_attachments, external_attachments);
         }
         
         //---Render pass--- (only vulkan needs it)
@@ -308,7 +342,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             }
             
             //: Register renderpass
-            API::registerRenderPass(api, renderpass_subpasses);
+            registerRenderPass(renderpass_subpasses);
         }
         #endif
         
@@ -320,8 +354,8 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
             
             //: Shader
             ShaderID shader = line.at(1);
-            API::shaders.at(shader).is_draw = line.at(0) == "d";
-            API::shaders.at(shader).is_shadow = line.at(0) == "sd";
+            api.shaders.at(shader).is_draw = line.at(0) == "d";
+            api.shaders.at(shader).is_shadow = line.at(0) == "sd";
             
             //: Subpass
             str subpass_name = line.at(2);
@@ -342,7 +376,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                         if (line.size() == 4) { //: No instanced rendering
                             api.pipelines[shader] = VK::createPipeline<V>(api, shader, subpass);
                             found_vertex = true;
-                            API::shaders.at(shader).is_instanced = false;
+                            api.shaders.at(shader).is_instanced = false;
                         } else { //: Instanced rendering (the for_ inside a for_ may be improved in the future)
                             for_<VertexType>([&](auto j){
                                 using U = std::variant_alternative_t<j.value, VertexType>;
@@ -353,7 +387,7 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                                 if (inst_vertex_name == lower(line.at(4))) {
                                     api.pipelines[shader] = VK::createPipeline<V, U>(api, shader, subpass);
                                     found_vertex = true;
-                                    API::shaders.at(shader).is_instanced = true;
+                                    api.shaders.at(shader).is_instanced = true;
                                 }
                             });
                         }
@@ -361,9 +395,9 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
                 });
                 if (not found_vertex) log::error("The vertex you provided '%s' is invalid, check the spelling and vertex variant", line.at(3).c_str());
             #elif defined USE_OPENGL
-                API::Map::subpass_shader.add(subpass, shader);
-                API::shaders.at(shader).subpass = subpass;
-                API::shaders.at(shader).is_instanced = line.size() == 5;
+                Map::subpass_shader.add(subpass, shader);
+                api.shaders.at(shader).subpass = subpass;
+                api.shaders.at(shader).is_instanced = line.size() == 5;
             #endif
         }
     }
@@ -372,43 +406,43 @@ void API::processRendererDescription(GraphicsAPI &api, const WindowData &win) {
     #ifdef DEBUG
         AttachmentID swapchain = [&](){
             for (auto &[name, attachment] : attachment_list)
-                if (API::attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
+                if (api.attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
                     return attachment;
             return (AttachmentID)-1;
         }();
         
         for (auto &[name, attachment] : attachment_list) {
-            if (API::attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
+            if (api.attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
                 continue;
             
             str debug_shader = "debug_attachment_" + std::to_string(attachment);
-            str shader_code = API::attachments.at(attachment).type & ATTACHMENT_DEPTH ? "window_depth" : "window";
-            API::shaders[debug_shader] = API::createShaderData(shader_code);
+            str shader_code = api.attachments.at(attachment).type & ATTACHMENT_DEPTH ? "window_depth" : "window";
+            api.shaders[debug_shader] = createShaderData(shader_code);
             
-            SubpassID subpass = API::registerSubpass({swapchain}, {attachment});
-            API::registerRenderPass(api, {subpass});
+            SubpassID subpass = registerSubpass({swapchain}, {attachment});
+            registerRenderPass({subpass});
             
             #if defined USE_VULKAN
                 api.pipelines[debug_shader] = VK::createPipeline<VertexPos2>(api, debug_shader, subpass);
             #elif defined USE_OPENGL
                 GL::createShaderDataGL(debug_shader);
-                API::Map::subpass_shader.add(subpass, debug_shader);
-                API::shaders.at(debug_shader).subpass = subpass;
+                Map::subpass_shader.add(subpass, debug_shader);
+                api.shaders.at(debug_shader).subpass = subpass;
             #endif
             
             //TODO: Make this better
-            if (API::attachments.at(attachment).type & ATTACHMENT_DEPTH and API::attachments.at(attachment).type & ATTACHMENT_MSAA) {
-                API::shaders[debug_shader + "_msaa"] = API::createShaderData("window_depth_msaa");
+            if (api.attachments.at(attachment).type & ATTACHMENT_DEPTH and api.attachments.at(attachment).type & ATTACHMENT_MSAA) {
+                api.shaders[debug_shader + "_msaa"] = createShaderData("window_depth_msaa");
                 
-                SubpassID subpass_msaa = API::registerSubpass({swapchain}, {attachment});
-                API::registerRenderPass(api, {subpass_msaa});
+                SubpassID subpass_msaa = registerSubpass({swapchain}, {attachment});
+                registerRenderPass({subpass_msaa});
                 
                 #if defined USE_VULKAN
                     api.pipelines[debug_shader + "_msaa"] = VK::createPipeline<VertexPos2>(api, debug_shader + "_msaa", subpass_msaa);
                 #elif defined USE_OPENGL
                     GL::createShaderDataGL(debug_shader + "_msaa");
-                    API::Map::subpass_shader.add(subpass_msaa, debug_shader + "_msaa");
-                    API::shaders.at(debug_shader + "_msaa").subpass = subpass_msaa;
+                    Map::subpass_shader.add(subpass_msaa, debug_shader + "_msaa");
+                    api.shaders.at(debug_shader + "_msaa").subpass = subpass_msaa;
                 #endif
             }
         }

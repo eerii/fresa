@@ -29,7 +29,7 @@
 
 #endif
 
-#include "r_dtypes.h"
+#include "r_common_api.h"
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define glCheckError() glCheckError_(__FILENAME__, __LINE__)
@@ -39,7 +39,7 @@
 
 namespace Fresa::Graphics
 {
-    struct OpenGL {
+    struct OpenGL : CommonAPI {
         SDL_GLContext context;
         
         BufferData scaled_window_uniform;

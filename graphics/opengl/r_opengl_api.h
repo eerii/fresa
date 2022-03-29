@@ -68,7 +68,7 @@ namespace Fresa::Graphics::GL
         glBindBuffer(GL_ARRAY_BUFFER, buffer.id_);
         
         if (attributes.size() == 0)
-            attributes = API::getAttributeDescriptions<V>();
+            attributes = getAttributeDescriptions<V>();
         
         for (const auto &attr : attributes) {
             ui32 size = (ui32)attr.format; //Assuming float
@@ -90,16 +90,16 @@ namespace Fresa::Graphics::GL
     //----------------------------------------
 }
 
-namespace Fresa::Graphics::API
+namespace Fresa::Graphics
 {
     template <typename... UBO>
-    DrawUniformID registerDrawUniforms(GraphicsAPI &api, ShaderID shader) {
+    DrawUniformID registerDrawUniforms(ShaderID shader) {
         static DrawUniformID id = 0;
         do id++;
-        while (draw_uniform_data.find(id) != draw_uniform_data.end());
+        while (api.draw_uniform_data.find(id) != api.draw_uniform_data.end());
         
-        draw_uniform_data[id] = DrawUniformData{};
-        DrawUniformData &data = draw_uniform_data.at(id);
+        api.draw_uniform_data[id] = DrawUniformData{};
+        DrawUniformData &data = api.draw_uniform_data.at(id);
         
         ([&](){
             data.uniform_buffers.push_back(GL::createBuffer(sizeof(UBO), GL_UNIFORM_BUFFER, GL_STREAM_DRAW));
@@ -109,32 +109,32 @@ namespace Fresa::Graphics::API
     }
     
     template <typename UBO>
-    void updateUniformBuffer(GraphicsAPI &api, BufferData buffer, const UBO& ubo) {
+    void updateUniformBuffer(BufferData buffer, const UBO& ubo) {
         glBindBuffer(GL_UNIFORM_BUFFER, buffer.id_);
         glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(UBO), &ubo);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
     }
     
     template <typename... UBO>
-    void updateDrawUniformBuffer(GraphicsAPI &api, DrawDescription &description, const UBO& ...ubo) {
-        DrawUniformData &uniform = API::draw_uniform_data.at(description.uniform);
+    void updateDrawUniformBuffer(DrawDescription &description, const UBO& ...ubo) {
+        DrawUniformData &uniform = api.draw_uniform_data.at(description.uniform);
         int i = 0;
         ([&](){
-            API::updateUniformBuffer(api, uniform.uniform_buffers.at(i++), ubo);
+            updateUniformBuffer(uniform.uniform_buffers.at(i++), ubo);
         }(), ...);
     }
     
     template <typename... UBO>
-    void updateComputeUniformBuffers(GraphicsAPI &api, ShaderID shader, const UBO& ...ubo) { }
+    void updateComputeUniformBuffers(ShaderID shader, const UBO& ...ubo) { }
     
     template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
-    GeometryBufferID registerGeometryBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<I> &indices) {
+    GeometryBufferID registerGeometryBuffer(const std::vector<V> &vertices, const std::vector<I> &indices) {
         static GeometryBufferID id = 0;
         do id++;
-        while (geometry_buffer_data.find(id) != geometry_buffer_data.end());
+        while (api.geometry_buffer_data.find(id) != api.geometry_buffer_data.end());
         
-        geometry_buffer_data[id] = GeometryBufferData{};
-        GeometryBufferData &data = geometry_buffer_data.at(id);
+        api.geometry_buffer_data[id] = GeometryBufferData{};
+        GeometryBufferData &data = api.geometry_buffer_data.at(id);
         
         auto [vb, vao] = GL::createVertexBuffer(api, vertices);
         data.vertex_buffer = vb;
@@ -148,17 +148,17 @@ namespace Fresa::Graphics::API
     }
     
     template <typename V, typename U, std::enable_if_t<Reflection::is_reflectable<V> && Reflection::is_reflectable<U>, bool> = true>
-    InstancedBufferID registerInstancedBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<U> &instanced_data, ui32 vao) {
+    InstancedBufferID registerInstancedBuffer(const std::vector<V> &vertices, const std::vector<U> &instanced_data, ui32 vao) {
         static InstancedBufferID id = 0;
         do id++;
-        while (instanced_buffer_data.find(id) != instanced_buffer_data.end());
+        while (api.instanced_buffer_data.find(id) != api.instanced_buffer_data.end());
         
-        instanced_buffer_data[id] = InstancedBufferData{};
-        InstancedBufferData &data = instanced_buffer_data.at(id);
+        api.instanced_buffer_data[id] = InstancedBufferData{};
+        InstancedBufferData &data = api.instanced_buffer_data.at(id);
         
         //: Get only the instanced attributes with updated positions
-        auto attributes = API::getAttributeDescriptions<V, U>();
-        attributes.erase(attributes.begin(), attributes.begin() + API::getAttributeDescriptions<V>().size());
+        auto attributes = getAttributeDescriptions<V, U>();
+        attributes.erase(attributes.begin(), attributes.begin() + getAttributeDescriptions<V>().size());
         auto [inst_vb, _] = GL::createVertexBuffer(api, instanced_data, attributes, vao);
         data.instance_buffer = inst_vb;
         data.instance_count = (ui32)instanced_data.size();
@@ -167,8 +167,7 @@ namespace Fresa::Graphics::API
     }
     
     template <typename V>
-    void updateBufferFromCompute(const GraphicsAPI &api, const BufferData &buffer, ui32 buffer_size,
-                                 ShaderID shader, std::function<std::vector<V>()> fallback) {
+    void updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size, ShaderID shader, std::function<std::vector<V>()> fallback) {
         static_assert(sizeof(V) % sizeof(glm::vec4) == 0, "The buffer should be aligned to a vec4 (4 floats) for the compute shader padding to match");
         #ifdef HAS_COMPUTE
             static_assert(false, "The OpenGL renderer should not have compute capabilities right now, check if you are setting the correct macro");

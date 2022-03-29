@@ -26,25 +26,25 @@ bool Graphics::init() {
     //---Initialization---
     
     //: Pre configuration
-    API::configureAPI();
+    configureAPI();
     
     //: Create window
     str version = std::to_string(Config::version[0]) + "." + std::to_string(Config::version[1]) + "." + std::to_string(Config::version[2]);
     str name = Config::name + " - version " + version;
-    win = API::createWindow(Config::window_size, name);
+    win = createWindow(Config::window_size, name);
     
     //: Create renderer api
-    API::createShaderList();
-    api = API::createAPI(win);
+    createShaderList();
+    createAPI();
 
     //: Set projection
-    camera.proj_type = Projection(PROJECTION_ORTHOGRAPHIC | PROJECTION_SCALED);
-    updateCameraProjection(camera);
-    win.scaled_ubo = (camera.proj_type & PROJECTION_SCALED) ? API::getScaledWindowUBO(win) :
+    cam.proj_type = Projection(PROJECTION_ORTHOGRAPHIC | PROJECTION_SCALED);
+    updateCameraProjection();
+    win.scaled_ubo = (cam.proj_type & PROJECTION_SCALED) ? getScaledWindowUBO(win) :
                                                               UniformBufferObject{glm::mat4(1.0f),glm::mat4(1.0f),glm::mat4(1.0f)};
     
     //: Initialize GUI
-    IF_GUI(Gui::init(api, win));
+    IF_GUI(Gui::init());
     
     return true;
 }
@@ -60,10 +60,10 @@ bool Graphics::update() {
     }
     
     //: Render
-    API::render(api, win, camera);
+    render();
     
     //: Present
-    API::present(api, win);
+    present();
     
     return true;
 }
@@ -71,60 +71,43 @@ bool Graphics::update() {
 bool Graphics::stop() {
     //---Cleanup---
     
-    API::clean(api);
+    clean();
     return true;
-}
-
-void Graphics::onResize(Vec2<> size) {
-    //---On resize callback---
-    
-    //: Set new window size
-    win.size = size;
-    
-    //: Adjust render scale
-    Vec2<float> ratios = win.size.to<float>() / Config::resolution.to<float>();
-    win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
-    if (camera.proj_type & PROJECTION_SCALED)
-        win.scaled_ubo = API::getScaledWindowUBO(win);
-    updateCameraProjection(camera);
-    
-    //: Pass the resize command to the API
-    API::resize(api, win);
 }
 
 void Graphics::draw_(DrawDescription &description) {
     //---Draw---
     //      Checks if the description provided and all the data attached are valid, and adds it to the correct draw queue
     
-    if (not API::shaders.count(description.shader))
+    if (not api.shaders.count(description.shader))
         log::error("The ShaderID %s is not valid", description.shader.c_str());
     
-    if (description.texture != no_texture and not API::texture_data.count(description.texture))
+    if (description.texture != no_texture and not api.texture_data.count(description.texture))
         log::error("The TextureID %d is not valid", description.texture);
     
-    if (not API::draw_uniform_data.count(description.uniform))
+    if (not api.draw_uniform_data.count(description.uniform))
         log::error("The DrawUniformID %d is not valid", description.uniform);
     
-    if (not API::geometry_buffer_data.count(description.geometry))
+    if (not api.geometry_buffer_data.count(description.geometry))
         log::error("The GeometryBufferID %d is not valid", description.geometry);
     
     //: Instanced buffer
-    if (API::shaders.at(description.shader).is_instanced) {
-        if (description.instance == no_instance or not API::instanced_buffer_data.count(description.instance))
+    if (api.shaders.at(description.shader).is_instanced) {
+        if (description.instance == no_instance or not api.instanced_buffer_data.count(description.instance))
             log::error("The InstancedBufferID %d is not valid", description.instance);
-        API::draw_queue_instanced[description.shader][description.uniform][description.geometry][description.instance] = &description;
+        api.draw_queue_instanced[description.shader][description.uniform][description.geometry][description.instance] = &description;
     }
     //: Geometry buffer
     else {
         if (description.instance != no_instance)
             log::error("The InstancedBufferID %d is not valid", description.instance);
-        API::draw_queue[description.shader][description.geometry][description.texture][description.uniform] = &description;
+        api.draw_queue[description.shader][description.geometry][description.texture][description.uniform] = &description;
     }
     
     if(Config::draw_indirect and description.indirect_buffer == no_indirect_buffer)
-        API::addIndirectDrawCommand(api, description);
+        addIndirectDrawCommand(description);
     
-    API::draw_descriptions.push_back(&description);
+    api.draw_descriptions.push_back(&description);
 }
 
 TextureID Graphics::getTextureID(str path, Channels ch) {
@@ -155,29 +138,11 @@ TextureID Graphics::getTextureID(str path, Channels ch) {
     ui8* pixels = stbi_load(path.c_str(), &size.x, &size.y, &real_ch, mode);
     
     //: Create texture
-    TextureID tex_id = API::registerTexture(api, size, ch, pixels);
+    TextureID tex_id = registerTexture(size, ch, pixels);
     texture_locations[path] = tex_id;
     
     //: Free from memory
     stbi_image_free(pixels);
     
     return tex_id;
-}
-
-void Graphics::updateCameraProjection(CameraData &cam) {
-    Vec2<float> resolution = (cam.proj_type & PROJECTION_SCALED) ? Config::resolution.to<float>() : win.size.to<float>();
-    
-    //: Orthographic (2D)
-    if (cam.proj_type & PROJECTION_ORTHOGRAPHIC)
-        cam.proj = glm::ortho(0.0f, resolution.x, 0.0f, resolution.y, -10000.0f, 10000.0f);
-    
-    //: Perspective (3D)
-    if (cam.proj_type & PROJECTION_PERSPECTIVE)
-        cam.proj = glm::perspective(glm::radians(45.0f), (float)resolution.x / (float)resolution.y, 0.1f, 10000.0f);
-    
-    cam.proj[1][1] *= -viewport_y;
-    
-    //: None (Vertex passthrough)
-    if (cam.proj_type & PROJECTION_NONE)
-        cam.proj = glm::mat4(1.0f);
 }

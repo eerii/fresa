@@ -21,7 +21,7 @@ namespace Fresa::Graphics
 #endif
     
     inline WindowData win;
-    inline CameraData camera;
+    inline CameraData cam;
     inline GraphicsAPI api;
 }
 
@@ -29,47 +29,41 @@ namespace Fresa::Graphics
 //      This coordinates the different rendering APIs. Here are defined the common functions that are later expanded in the respective source files
 //      Right now it has full support for OpenGL and Vulkan.
 
-namespace Fresa::Graphics::API
+namespace Fresa::Graphics
 {
+    //: Window
     WindowData createWindow(Vec2<ui32> size, str name);
     ui16 getRefreshRate(WindowData &win, bool force = false);
     float getDPI();
     UniformBufferObject getScaledWindowUBO(const WindowData &win);
     
+    void onResize(Vec2<> size);
+    inline Event::Event<Vec2<>> event_window_resize;
+    inline Event::Observer observer = event_window_resize.createObserver(onResize);
+    
+    void updateCameraProjection();
+    
+    //: API
     void configureAPI();
-    GraphicsAPI createAPI(WindowData &win);
+    void createAPI();
 
     //---Drawing---
-    TextureID registerTexture(const GraphicsAPI &api, Vec2<> size, Channels ch, ui8* pixels);
-    
-    inline std::map<GeometryBufferID, GeometryBufferData> geometry_buffer_data{};
-    inline std::map<InstancedBufferID, InstancedBufferData> instanced_buffer_data{};
-    inline std::map<TextureID, TextureData> texture_data{};
-    inline std::map<DrawUniformID, DrawUniformData> draw_uniform_data{};
-    
-    inline DrawQueue draw_queue{};
-    inline DrawIQueue draw_queue_instanced{};
-    inline std::vector<DrawDescription*> draw_descriptions{};
+    TextureID registerTexture(Vec2<> size, Channels ch, ui8* pixels);
     
     //---Indirect Drawing---
-    IndirectBufferID registerIndirectCommandBuffer(const GraphicsAPI &api);
-    void addIndirectDrawCommand(const GraphicsAPI &api, DrawDescription &description);
-    void removeIndirectDrawCommand(const GraphicsAPI &api, DrawDescription &description);
-    inline std::map<IndirectBufferID, IndirectCommandBuffer> draw_indirect_buffers{};
+    IndirectBufferID registerIndirectCommandBuffer();
+    void addIndirectDrawCommand(DrawDescription &description);
+    void removeIndirectDrawCommand(DrawDescription &description);
     
     //---Render passes and attachments---
-    void processRendererDescription(GraphicsAPI &api, const WindowData &win);
+    void processRendererDescription();
     
-    RenderPassID registerRenderPass(const GraphicsAPI &api, std::vector<SubpassID> subpasses);
-    inline std::map<RenderPassID, RenderPassData> render_passes{};
+    RenderPassID registerRenderPass(std::vector<SubpassID> subpasses);
     
     SubpassID registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list = {});
-    inline std::map<SubpassID, SubpassData> subpasses{};
     
-    AttachmentID registerAttachment(const GraphicsAPI &api, AttachmentType type, Vec2<> size);
-    void recreateAttachments(const GraphicsAPI &api);
-    inline std::map<AttachmentID, AttachmentData> attachments{};
-    inline int render_attachment = -1; // -1: swapchain, -2: wireframe, 0...n: attachment
+    AttachmentID registerAttachment(AttachmentType type, Vec2<> size);
+    void recreateAttachments();
     bool hasMultisampling(AttachmentID attachment, bool check_samples = true);
     
     //---Mappings---
@@ -83,9 +77,6 @@ namespace Fresa::Graphics::API
     };
 
     //---Shaders---
-    inline std::map<ShaderID, ShaderData> shaders;
-    inline std::map<ShaderID, ShaderData> compute_shaders;
-    inline ShaderID shadowmap_shader;
     void createShaderList();
 
     std::vector<char> readSPIRV(std::string filename);
@@ -93,15 +84,15 @@ namespace Fresa::Graphics::API
     ShaderData createShaderData(str name);
     ShaderCompiler getShaderCompiler(const std::vector<char> &code);
     
-    void updateDrawDescriptorSets(const GraphicsAPI &api, const DrawDescription& draw);
+    void updateDrawDescriptorSets(const DrawDescription& draw);
     
     //---Other---
-    void resize(GraphicsAPI &api, WindowData &win);
+    void resize();
 
-    void render(GraphicsAPI &api, WindowData &win, CameraData &cam);
-    void present(GraphicsAPI &api, WindowData &win);
+    void render();
+    void present();
 
-    void clean(GraphicsAPI &api);
+    void clean();
 
     //---Attributes---
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>

@@ -79,13 +79,13 @@ namespace Fresa
             if (not map.ax.a_to_b.count(a)) //: There is no A key
                 log::error("Accessing map chain with an invalid A key is forbidden");
             auto x = map.ax.a_to_b.at(a);
-            if constexpr (not is_vector<decltype(x)>::value) { //: Single value of X (A -> X)
+            if constexpr (not is_vector_v<decltype(x)>) { //: Single value of X (A -> X)
                 return getAtoB<B>(x, map.xb);
             } else { //: List of X (A -> vX)
                 std::set<B> b_list;
                 for (auto i : x) {
                     auto b = getAtoB<B>(i, map.xb);
-                    if constexpr (not is_vector<decltype(b)>::value) { //: Single value of B (A -> vX -> B)
+                    if constexpr (not is_vector_v<decltype(b)>) { //: Single value of B (A -> vX -> B)
                         b_list.insert(b);
                     } else { //: List of B (A -> vX -> vB)
                         std::copy(b.begin(), b.end(), std::inserter(b_list, b_list.end()));
@@ -111,13 +111,13 @@ namespace Fresa
             if (not map.xb.b_to_a.count(b)) //: There is no B key
                 log::error("Accessing map chain with an invalid B key is forbidden");
             auto x = map.xb.b_to_a.at(b);
-            if constexpr (not is_vector<decltype(x)>::value) { //: Single value of X (B -> X)
+            if constexpr (not is_vector_v<decltype(x)>) { //: Single value of X (B -> X)
                 return getBtoA<A>(x, map.ax);
             } else { //: List of X (B -> vX)
                 std::set<A> a_list;
                 for (auto i : x) {
                     auto a = getBtoA<A>(i, map.ax);
-                    if constexpr (not is_vector<decltype(a)>::value) { //: Single value of A (B -> vX -> A)
+                    if constexpr (not is_vector_v<decltype(a)>) { //: Single value of A (B -> vX -> A)
                         a_list.insert(a);
                     } else { //: List of A (B -> vX -> vA)
                         std::copy(a.begin(), a.end(), std::inserter(a_list, a_list.end()));
@@ -132,7 +132,7 @@ namespace Fresa
     auto getAtoB_v(A a, Map &map, const std::map<B, BData> &b_data) {
         auto b = getAtoB<B>(a, map);
         
-        if constexpr (not is_vector<decltype(b)>::value) { //: Single value of B (A -> ... -> B)
+        if constexpr (not is_vector_v<decltype(b)>) { //: Single value of B (A -> ... -> B)
             return std::pair<B, const BData&>{b, b_data.at(b)};
         } else { //: List of B (A -> ... -> vB)
             std::map<B, const BData&> b_map{};
@@ -146,7 +146,7 @@ namespace Fresa
     auto getBtoA_v(B b, Map &map, const std::map<A, AData> &a_data) {
         auto a = getBtoA<A>(b, map);
         
-        if constexpr (not is_vector<decltype(a)>::value) { //: Single value of A (B -> ... -> A)
+        if constexpr (not is_vector_v<decltype(a)>) { //: Single value of A (B -> ... -> A)
             return std::pair<A, const AData&>{a, a_data.at(a)};
         } else { //: List of A (B -> ... -> vA)
             std::map<A, const AData&> a_map{};

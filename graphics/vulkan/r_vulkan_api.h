@@ -58,7 +58,7 @@ namespace Fresa::Graphics::VK
     
     SwapchainData createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
                                   const VkQueueIndices &queue_indices, const WindowData &win);
-    void recreateSwapchain(Vulkan &vk, const WindowData &win);
+    void recreateSwapchain();
     //----------------------------------------
 
 
@@ -110,7 +110,7 @@ namespace Fresa::Graphics::VK
 
     template <typename... V>
     std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
-        std::vector<VertexAttributeDescription> attr_v = API::getAttributeDescriptions<V...>();
+        std::vector<VertexAttributeDescription> attr_v = ::Fresa::Graphics::getAttributeDescriptions<V...>();
         std::vector<VkVertexInputAttributeDescription> attr;
         
         for (auto &a : attr_v) {
@@ -242,7 +242,7 @@ namespace Fresa::Graphics::VK
     void copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size, VkDeviceSize offset = 0);
     
     template <typename V>
-    BufferData createGPUBuffer(const GraphicsAPI &api, const std::vector<V> &v, VkBufferUsageFlags usage) {
+    BufferData createGPUBuffer(const std::vector<V> &v, VkBufferUsageFlags usage) {
         
         VkDeviceSize buffer_size = sizeof(V) * v.size();
         
@@ -269,7 +269,7 @@ namespace Fresa::Graphics::VK
         
         //: Delete helpers (staging now, buffer when the program finishes)
         vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
-        deletion_queue_program.push_back([api, buffer](){
+        deletion_queue_program.push_back([buffer](){
             vmaDestroyBuffer(api.allocator, buffer.buffer, buffer.allocation);
         });
         
@@ -277,26 +277,26 @@ namespace Fresa::Graphics::VK
     }
 
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    BufferData createVertexBuffer(const GraphicsAPI &api, const std::vector<V> &vertices) {
+    BufferData createVertexBuffer(const std::vector<V> &vertices) {
         //---Vertex buffer---
         //      Buffer that holds the vertex information for the shaders to use.
         //      It has a struct per vertex of the mesh, which can contain properties like position, color, uv, normals...
         //      The properties are described automatically using reflection in an attribute description in the pipeline
-        return createGPUBuffer(api, vertices, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+        return createGPUBuffer(vertices, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     }
     
     template <typename I, std::enable_if_t<std::is_integral_v<I>, bool> = true>
-    BufferData createIndexBuffer(const GraphicsAPI &api, const std::vector<I> &indices) {
+    BufferData createIndexBuffer(const std::vector<I> &indices) {
         //---Index buffer---
         //      This buffer contains a list of indices, which allows to draw complex meshes without repeating vertices
         //      A simple example, while a square only has 4 vertices, 6 vertices are needed for the 2 triangles, and it only gets worse from there
         //      An index buffer solves this by having a list of which vertices to use, avoiding vertex repetition
         //      The creating process is very similar to the above vertex buffer, using a staging buffer
-        return createGPUBuffer(api, indices, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+        return createGPUBuffer(indices, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
     }
     
     template <typename V>
-    void updateGPUBuffer(const GraphicsAPI &api, const BufferData &buffer, const std::vector<V> &v, size_t offset = 0) {
+    void updateGPUBuffer(const BufferData &buffer, const std::vector<V> &v, size_t offset = 0) {
         VkDeviceSize buffer_size = sizeof(V) * v.size();
         BufferData staging_buffer = VK::createBuffer(api.allocator, buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,  VMA_MEMORY_USAGE_CPU_ONLY);
         
@@ -310,7 +310,7 @@ namespace Fresa::Graphics::VK
         vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
     }
     
-    void updateBufferFromCompute(const GraphicsAPI &api, const BufferData &buffer, ui32 buffer_size, ShaderID shader);
+    void updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size, ShaderID shader);
     //----------------------------------------
     
     
@@ -347,21 +347,21 @@ namespace Fresa::Graphics::VK
         PipelineData data;
         
         //---Subpass---
-        API::Map::subpass_shader.add(subpass, shader);
+        Map::subpass_shader.add(subpass, shader);
         log::graphics("Pipeline %s", shader.c_str(), subpass);
         log::graphics("---");
         
         //---Shader data---
-        API::shaders.at(shader).stages = VK::createShaderStages(vk.device, API::shaders.at(shader).code);
+        api.shaders.at(shader).stages = VK::createShaderStages(vk.device, api.shaders.at(shader).code);
         
         //---Descriptor pool---
-        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::shaders.at(shader).code, vk.swapchain.size);
+        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, api.shaders.at(shader).code, vk.swapchain.size);
         data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
         data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
         data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
         
         //---Descriptor sets---
-        if (not API::shaders.at(shader).is_draw) {
+        if (not api.shaders.at(shader).is_draw) {
             data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
                                                               data.descriptor_pools, vk.swapchain.size);
             VK::createPipelineBuffers(vk, data, shader, vk.swapchain.size);
@@ -385,10 +385,10 @@ namespace Fresa::Graphics::VK
         PipelineData data;
         
         //---Shader data---
-        API::compute_shaders.at(shader).stages = VK::createShaderStages(vk.device, API::compute_shaders.at(shader).code);
+        api.compute_shaders.at(shader).stages = VK::createShaderStages(vk.device, api.compute_shaders.at(shader).code);
         
         //---Descriptor pool---
-        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, API::compute_shaders.at(shader).code, 1);
+        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, api.compute_shaders.at(shader).code, 1);
         data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
         data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
         data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
@@ -473,17 +473,15 @@ namespace Fresa::Graphics {
     inline bool operator ==(const VkExtent2D &a, const Vec2<> &b) {
         return a.width == b.x and a.height == b.y;
     }
-}
-
-namespace Fresa::Graphics::API {
+    
     template <typename... UBO>
-    DrawUniformID registerDrawUniforms(GraphicsAPI &api, ShaderID shader) {
+    DrawUniformID registerDrawUniforms(ShaderID shader) {
         static DrawUniformID id = 0;
         do id++;
-        while (draw_uniform_data.find(id) != draw_uniform_data.end());
+        while (api.draw_uniform_data.find(id) != api.draw_uniform_data.end());
         
-        draw_uniform_data[id] = DrawUniformData{};
-        DrawUniformData &data = draw_uniform_data.at(id);
+        api.draw_uniform_data[id] = DrawUniformData{};
+        DrawUniformData &data = api.draw_uniform_data.at(id);
         
         data.descriptor_sets = VK::allocateDescriptorSets(api.device, api.pipelines.at(shader).descriptor_layout,
                                                           api.pipelines.at(shader).descriptor_pool_sizes,
@@ -499,7 +497,7 @@ namespace Fresa::Graphics::API {
     }
     
     template <typename UBO>
-    void updateUniformBuffer(GraphicsAPI &api, BufferData buffer, const UBO& ubo) {
+    void updateUniformBuffer(BufferData buffer, const UBO& ubo) {
         void* data;
         vmaMapMemory(api.allocator, buffer.allocation, &data);
         memcpy(data, &ubo, sizeof(ubo));
@@ -507,8 +505,8 @@ namespace Fresa::Graphics::API {
     }
     
     template <typename... UBO>
-    void updateDrawUniformBuffer(GraphicsAPI &api, DrawDescription &description, const UBO& ...ubo) {
-        DrawUniformData &uniform = API::draw_uniform_data.at(description.uniform);
+    void updateDrawUniformBuffer(DrawDescription &description, const UBO& ...ubo) {
+        DrawUniformData &uniform = api.draw_uniform_data.at(description.uniform);
         
         //: If the swapchain becomes outdated, recreate first
         if (uniform.recreate) {
@@ -522,14 +520,14 @@ namespace Fresa::Graphics::API {
             }
             uniform.recreate = false;
             
-            API::updateDrawDescriptorSets(api, description);
+            updateDrawDescriptorSets(description);
         }
         
         //: Update the buffer
         VK::update_buffer_queue.push_back([uniform, ubo...](ui32 current){
             int i = 0;
             ([&](){
-                API::updateUniformBuffer(::Fresa::Graphics::api, uniform.uniform_buffers.at(current + ::Fresa::Graphics::api.swapchain.size * i++), ubo);
+                updateUniformBuffer(uniform.uniform_buffers.at(current + ::Fresa::Graphics::api.swapchain.size * i++), ubo);
             }(), ...);
         });
         
@@ -537,24 +535,24 @@ namespace Fresa::Graphics::API {
     }
     
     template <typename... UBO>
-    void updateComputeUniformBuffers(GraphicsAPI &api, ShaderID shader, const UBO& ...ubo) {
+    void updateComputeUniformBuffers(ShaderID shader, const UBO& ...ubo) {
         int i = 0;
         ([&](){
-            API::updateUniformBuffer(api, api.compute_pipelines.at(shader).uniform_buffers.at(i++).at(0), ubo);
+            updateUniformBuffer(api, api.compute_pipelines.at(shader).uniform_buffers.at(i++).at(0), ubo);
         }(), ...);
     }
     
     template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
-    GeometryBufferID registerGeometryBuffer(const GraphicsAPI &api, const std::vector<V> &vertices, const std::vector<I> &indices) {
+    GeometryBufferID registerGeometryBuffer(const std::vector<V> &vertices, const std::vector<I> &indices) {
         static GeometryBufferID id = 0;
         do id++;
-        while (geometry_buffer_data.find(id) != geometry_buffer_data.end());
+        while (api.geometry_buffer_data.find(id) != api.geometry_buffer_data.end());
         
-        geometry_buffer_data[id] = GeometryBufferData{};
-        GeometryBufferData &data = geometry_buffer_data.at(id);
+        api.geometry_buffer_data[id] = GeometryBufferData{};
+        GeometryBufferData &data = api.geometry_buffer_data.at(id);
         
-        data.vertex_buffer = VK::createVertexBuffer(api, vertices);
-        data.index_buffer = VK::createIndexBuffer(api, indices);
+        data.vertex_buffer = VK::createVertexBuffer(vertices);
+        data.index_buffer = VK::createIndexBuffer(indices);
         data.index_size = (ui32)indices.size();
         data.index_bytes = (ui8)sizeof(I);
         
@@ -562,13 +560,13 @@ namespace Fresa::Graphics::API {
     }
     
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    InstancedBufferID registerInstancedBuffer(const GraphicsAPI &api, const std::vector<V> &instanced_data) {
+    InstancedBufferID registerInstancedBuffer(const std::vector<V> &instanced_data) {
         static InstancedBufferID id = 0;
         do id++;
-        while (instanced_buffer_data.find(id) != instanced_buffer_data.end() or id == no_instance);
+        while (api.instanced_buffer_data.find(id) != api.instanced_buffer_data.end() or id == no_instance);
         
-        instanced_buffer_data[id] = InstancedBufferData{};
-        InstancedBufferData &data = instanced_buffer_data.at(id);
+        api.instanced_buffer_data[id] = InstancedBufferData{};
+        InstancedBufferData &data = api.instanced_buffer_data.at(id);
         
         data.instance_buffer = VK::createGPUBuffer(api, instanced_data, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         data.instance_count = (ui32)instanced_data.size();
@@ -577,11 +575,11 @@ namespace Fresa::Graphics::API {
     }
     
     template <typename V>
-    void updateBufferFromCompute(const GraphicsAPI &api, const BufferData &buffer, ui32 buffer_size,
+    void updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size,
                                  ShaderID shader, std::function<std::vector<V>()> fallback) {
         static_assert(sizeof(V) % sizeof(glm::vec4) == 0, "The buffer should be aligned to a vec4 (4 floats) for the compute shader padding to match");
         #ifdef HAS_COMPUTE
-            VK::updateBufferFromCompute(api, buffer, buffer_size, shader);
+            VK::updateBufferFromCompute(buffer, buffer_size, shader);
         #else
             static_assert(false, "The Vulkan renderer should have compute capabilities, check if you are setting the correct macro");
         #endif

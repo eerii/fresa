@@ -75,8 +75,8 @@ void Gui::win_performance() {
         render_systems_points.resize(System::render_update_systems.size());
         render_systems_averages.resize(System::render_update_systems.size());
         #ifdef USE_VULKAN
-        render_draw_shader_points.resize(Graphics::API::shaders.size());
-        render_draw_shader_averages.resize(Graphics::API::shaders.size());
+        render_draw_shader_points.resize(Graphics::api.shaders.size());
+        render_draw_shader_averages.resize(Graphics::api.shaders.size());
         #endif
         init = true;
     }
@@ -98,7 +98,7 @@ void Gui::win_performance() {
     if (Performance::timestamps.size() == 0) {
         log::warn("GPU Timestamps are not initilized...");
     } else if (Performance::timestamp_period > 0) {
-        ui32 time_points = (ui32)Graphics::API::shaders.size() + 1;
+        ui32 time_points = (ui32)Graphics::api.shaders.size() + 1;
         ui32 swapchain_size = (ui32)Performance::timestamps.size() / (time_points * 2);
         
         render_draw_points[current] = 0;
@@ -107,7 +107,7 @@ void Gui::win_performance() {
                                                              Performance::timestamps.at(i * time_points * 2 + 1));
         render_draw_points[current] /= swapchain_size;
         
-        for (int j = 0; j < Graphics::API::shaders.size(); j++) {
+        for (int j = 0; j < Graphics::api.shaders.size(); j++) {
             render_draw_shader_points.at(j)[current] = 0;
             for (int i = 0; i < swapchain_size; i++)
                 render_draw_shader_points.at(j)[current] += timeFromTimestamp(Performance::timestamps.at((i * time_points + j) * 2),
@@ -178,7 +178,7 @@ void Gui::win_performance() {
     #ifdef USE_VULKAN
     if (ImGui::CollapsingHeader("gpu timers")) {
         int i = 0;
-        for (auto &[shader, data] : Graphics::API::shaders) {
+        for (auto &[shader, data] : Graphics::api.shaders) {
             ImGui::Text("%s: %6.3f   %6.3f   %6.3f", shader.c_str(),
                         render_draw_shader_averages.at(i).at(0), render_draw_shader_averages.at(i).at(1), render_draw_shader_averages.at(i).at(2)); i++;
         }

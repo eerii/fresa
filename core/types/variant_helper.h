@@ -9,14 +9,13 @@
 
 namespace Fresa
 {
-    //---Check if it is variant type---
+    //---Constexpr checks---
     template<typename T> struct is_variant : std::false_type {};
+    template<typename ...A> struct is_variant<std::variant<A...>> : std::true_type {};
+    template<typename T> inline constexpr bool is_variant_v=is_variant<T>::value;
 
-    template<typename ...Args>
-    struct is_variant<std::variant<Args...>> : std::true_type {};
-
-    template<typename T>
-    inline constexpr bool is_variant_v=is_variant<T>::value;
+    template <class T, class U> struct is_in_variant;
+    template <class T, class... Ts> struct is_in_variant<T, std::variant<Ts...>> : std::bool_constant<(std::is_same_v<T, Ts> || ...)> { };
     
     //---Variant from tuple---
     template <typename... Ts>

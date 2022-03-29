@@ -18,27 +18,23 @@ namespace Fresa::Graphics
     bool update();
     bool stop();
     
-    void onResize(Vec2<> size);
-    inline Event::Event<Vec2<>> event_window_resize;
-    inline Event::Observer observer = event_window_resize.createObserver(onResize);
-    
     template <typename... UBO, typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
     DrawDescription getDrawDescription(const std::vector<V> &vertices, const std::vector<I> &indices,
                                        ShaderID shader, TextureID texture = no_texture, bool call_from_instanced = false) {
         
-        if (API::shaders.at(shader).is_instanced and not call_from_instanced)
+        if (api.shaders.at(shader).is_instanced and not call_from_instanced)
             log::error("You are getting a draw description for an instanced shader using the function for regular rendering, use getDrawDescriptionI()");
         
-        if (API::shaders.at(shader).is_shadow)
+        if (api.shaders.at(shader).is_shadow)
             log::error("You are getting a draw description for a shadowmap shader");
         
         DrawDescription description{};
         description.shader = shader;
         description.texture = texture;
-        description.uniform = API::registerDrawUniforms<UBO...>(api, shader);
-        description.geometry = API::registerGeometryBuffer(api, vertices, indices);
+        description.uniform = registerDrawUniforms<UBO...>(shader);
+        description.geometry = registerGeometryBuffer(vertices, indices);
         
-        API::updateDrawDescriptorSets(api, description);
+        updateDrawDescriptorSets(description);
         return description;
     }
     
@@ -47,14 +43,14 @@ namespace Fresa::Graphics
     DrawDescription getDrawDescriptionI(const std::vector<V> &vertices, const std::vector<U> &instanced_data,
                                         const std::vector<I> &indices, ShaderID shader, TextureID texture = no_texture) {
         
-        if (not API::shaders.at(shader).is_instanced)
+        if (not api.shaders.at(shader).is_instanced)
             log::error("You are getting a draw description for a regular shader using the function for instanced rendering, use getDrawDescription()");
         
         DrawDescription description = getDrawDescription<UBO...>(vertices, indices, shader, texture, true);
         #if defined USE_VULKAN
-        description.instance = API::registerInstancedBuffer(api, instanced_data);
+        description.instance = registerInstancedBuffer(api, instanced_data);
         #elif defined USE_OPENGL
-        description.instance = API::registerInstancedBuffer(api, vertices, instanced_data, API::geometry_buffer_data.at(description.geometry).vao);
+        description.instance = registerInstancedBuffer(api, vertices, instanced_data, api.geometry_buffer_data.at(description.geometry).vao);
         #endif
         
         return description;
@@ -103,12 +99,10 @@ namespace Fresa::Graphics
         }
         }(), ...);
         
-        API::updateDrawUniformBuffer(api, description, ubo...);
+        updateDrawUniformBuffer(description, ubo...);
     }
 
     TextureID getTextureID(str path, Channels ch = TEXTURE_CHANNELS_RGBA);
 
     void draw(DrawDescription &description, glm::mat4 model);
-    
-    void updateCameraProjection(CameraData &cam);
 }

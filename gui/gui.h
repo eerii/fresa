@@ -32,7 +32,7 @@ namespace Fresa
         inline ImGuiStyle* style;
         
         //---Gui functions---
-        void init(Graphics::GraphicsAPI &api, const Graphics::WindowData &win);
+        void init();
         
         struct GuiSystem : System::PhysicsUpdate<GuiSystem, System::PRIORITY_GUI>, System::RenderUpdate<GuiSystem, System::PRIORITY_GUI> {
             static void update();
@@ -126,7 +126,7 @@ namespace Fresa
                 if (slider("", x)) callback();
             
             //: Vec2
-            if constexpr (is_vec2<T>::value) {
+            if constexpr (is_vec2_v<T>) {
                 float line_height = style->FramePadding.y * 2.0f + ImGui::CalcTextSize("X").y;
                 ImVec2 button_size = { line_height + 3.0f, line_height };
                 
@@ -149,7 +149,7 @@ namespace Fresa
             }
             
             //: Rect2
-            if constexpr (is_rect2<T>::value) {
+            if constexpr (is_rect2_v<T>) {
                 float line_height = style->FramePadding.y * 2.0f + ImGui::CalcTextSize("X").y;
                 ImVec2 button_size = { line_height + 3.0f, line_height };
                 
@@ -191,7 +191,7 @@ namespace Fresa
             }
             
             //: std::vector
-            if constexpr (is_vector<T>::value) {
+            if constexpr (is_vector_v<T>) {
                 for (auto &v : x)
                     value(v);
             }
