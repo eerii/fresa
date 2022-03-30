@@ -2,17 +2,6 @@
 //by jose pazos perez
 //licensed under GPLv3 uwu
 
-//: You can add additional vertex data definitions creating a file called "vertex_list.h" and including it in your project
-//: An example of such definition is as follows
-//      struct VertexExample {
-//          Members(VertexExample, a, b)
-//          glm::vec3 a;
-//          glm::vec2 b;
-//      };
-//: Please also create a variant with all custom types
-//      using CustomVertexType = std::variant<VertexExample, ...>
-//: To specify it in the renderer_description, the name will be everything except for Vertex, so in this case, it is "example" (a-A is the same)
-
 #pragma once
 
 #include "types.h"
@@ -23,26 +12,81 @@
 #include <variant>
 #include <bitset>
 
+//---------------------------------------------------
+//: External libraries (warnings disabled)
+//---------------------------------------------------
 #ifndef _MSC_VER
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Weverything" //: Disable warnings for external libraries
 #endif
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+    //: GLM, glsl-like linear algebra
+    #include <glm/glm.hpp>
+    #include <glm/gtc/matrix_transform.hpp>
 
-#include "spirv_glsl.hpp" //: SPIRV-cross for reflection
+    //: SPIRV-cross, shader reflection and cross compilation
+    #include "spirv_glsl.hpp"
 
-#ifdef USE_VULKAN
-    #include <vulkan/vulkan.h>
-    #include "vk_mem_alloc.h"
-#endif
+    //: VMA, memory allocation for Vulkan
+    #ifdef USE_VULKAN
+        #include "vk_mem_alloc.h"
+    #endif
 
 #ifndef _MSC_VER
     #pragma clang diagnostic pop
 #endif
 
-//---Data types for graphics---
+//---------------------------------------------------
+//: Vulkan
+//---------------------------------------------------
+#ifdef USE_VULKAN
+    //: Vulkan main library
+    #include <vulkan/vulkan.h>
+
+    //: SDL layer for Vulkan
+    #include <SDL2/SDL_vulkan.h>
+#endif
+
+//---------------------------------------------------
+//: OpenGL
+//---------------------------------------------------
+#ifdef USE_OPENGL
+    // --- WEB ---
+    #ifdef __EMSCRIPTEN__
+        
+        //: GLES 3 main library
+        #include <GLES3/gl3.h>
+
+    // --- MACOS ---
+    #elif __APPLE__
+
+        //: Apple has deprecated OpenGL in favor of Metal. Last supported version is 4.1 (no compute shaders).
+        //  This line disables all the deprecation warnings so it is still usable. However, the Vulkan version is recommended
+        //  when developing for this platform, since thanks to MoltenVK it is cross compiled to Metal on compile.
+        #define GL_SILENCE_DEPRECATION
+
+        //: OpenGL main libraries
+        #include <OpenGL/OpenGL.h>
+        #include <OpenGL/gl3.h>
+
+    // --- LINUX and WINDOWS ---
+    #else
+    
+        //: GLEW, library management for modern OpenGL, it might change to GLAD in the future
+        #define USE_GLEW
+        #include <GL/glew.h>
+
+        //: OpenGL main library
+        #include <GL/gl.h>
+
+        //: SDL layer for OpenGL (not needed for MacOS)
+        #include <SDL2/SDL_opengl.h>
+        #include <SDL2/SDL_opengl_glext.h>
+
+    #endif
+#endif
+
+
 
 namespace Fresa::Graphics
 {
@@ -81,42 +125,6 @@ namespace Fresa::Graphics
         glm::mat4 view;
         glm::mat4 proj;
     };
-    //----------------------------------------
-    
-    //Window
-    //----------------------------------------
-    struct WindowData {
-        SDL_Window* window;
-        
-        Vec2<> size;
-        ui16 scale;
-        ui16 refresh_rate = 0;
-        
-        bool vsync;
-        
-        UniformBufferObject scaled_ubo;
-    };
-    
-    enum Projection {
-        PROJECTION_ORTHOGRAPHIC = 1 << 0,
-        PROJECTION_PERSPECTIVE = 1 << 1,
-        PROJECTION_SCALED = 1 << 2,
-        PROJECTION_NONE = 1 << 3,
-    };
-    
-    struct CameraData {
-        glm::vec3 pos;
-        glm::vec3 direction;
-        glm::mat4 view;
-        glm::mat4 proj;
-        Projection proj_type;
-    };
-    
-    #if defined USE_VULKAN
-    constexpr float viewport_y = -1.0f;
-    #elif defined USE_OPENGL
-    constexpr float viewport_y = 1.0f;
-    #endif
     //----------------------------------------
 
     //Texture
@@ -175,7 +183,7 @@ namespace Fresa::Graphics
     
     struct AttachmentData {
         AttachmentType type;
-        Vec2<> size;
+        Vec2<ui16> size;
         
         #if defined USE_VULKAN
         VkImage image;
@@ -340,6 +348,18 @@ namespace Fresa::Graphics
     //Vertex
     //----------------------------------------
     //Needs to be ordered the same way as the shader
+    
+    //: You can add additional vertex data definitions creating a file called "vertex_list.h" and including it in your project
+    //: An example of such definition is as follows
+    //      struct VertexExample {
+    //          Members(VertexExample, a, b)
+    //          glm::vec3 a;
+    //          glm::vec2 b;
+    //      };
+    //: Please also create a variant with all custom types
+    //      using CustomVertexType = std::variant<VertexExample, ...>
+    //: To specify it in the renderer_description, the name will be everything except for Vertex, so in this case, it is "example" (a-A is the same)
+    
     enum VertexFormat {
         VERTEX_FORMAT_R_F = 1,
         VERTEX_FORMAT_RG_F = 2,

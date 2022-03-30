@@ -15,6 +15,8 @@
 #endif
 
 #include "r_vulkan_api.h"
+#include "r_window.h"
+#include "r_camera.h"
 
 #include "config.h"
 #include "gui.h"
@@ -22,7 +24,6 @@
 
 #include <set>
 #include <numeric>
-#include <filesystem>
 #include <fstream>
 
 #define MAX_POOL_SETS 64
@@ -53,11 +54,11 @@ void Graphics::configureAPI() {
 
 void Graphics::createAPI() {
     //---Instance---
-    api.instance = VK::createInstance(win);
+    api.instance = VK::createInstance();
     api.debug_callback = VK::createDebug(api.instance);
     
     //---Surface---
-    api.surface = VK::createSurface(api.instance, win);
+    api.surface = VK::createSurface(api.instance);
     
     //---Physical device---
     api.physical_device = VK::selectPhysicalDevice(api.instance, api.surface, api.physical_device_features, api.physical_device_properties);
@@ -71,7 +72,7 @@ void Graphics::createAPI() {
     api.allocator = VK::createMemoryAllocator(api.device, api.physical_device, api.instance);
     
     //---Swapchain---
-    api.swapchain = VK::createSwapchain(api.device, api.physical_device, api.surface, api.cmd.queue_indices, win);
+    api.swapchain = VK::createSwapchain(api.device, api.physical_device, api.surface, api.cmd.queue_indices);
     
     //---Command pools---
     api.cmd.command_pools = VK::createCommandPools(api.device, api.cmd.queue_indices,
@@ -113,15 +114,15 @@ void Graphics::createAPI() {
 //Device
 //----------------------------------------
 
-VkInstance VK::createInstance(const WindowData &win) {
+VkInstance VK::createInstance() {
     log::graphics("");
     
     //---Instance extensions---
     //      Add extra functionality to Vulkan
     ui32 extension_count;
-    SDL_Vulkan_GetInstanceExtensions(win.window, &extension_count, nullptr);
+    SDL_Vulkan_GetInstanceExtensions(window.window, &extension_count, nullptr);
     std::vector<const char *> extension_names(extension_count);
-    SDL_Vulkan_GetInstanceExtensions(win.window, &extension_count, extension_names.data());
+    SDL_Vulkan_GetInstanceExtensions(window.window, &extension_count, extension_names.data());
     log::graphics("Vulkan requested instance extensions: %d", extension_count);
     for (const auto &ext : extension_names)
         log::graphics(" - %s", ext);
@@ -187,12 +188,12 @@ VkInstance VK::createInstance(const WindowData &win) {
     return instance;
 }
 
-VkSurfaceKHR VK::createSurface(VkInstance instance, const WindowData &win) {
+VkSurfaceKHR VK::createSurface(VkInstance instance) {
     VkSurfaceKHR surface;
     
     //---Surface---
     //      It is the abstraction of the window created by SDL to something Vulkan can draw onto
-    if (not SDL_Vulkan_CreateSurface(win.window, instance, &surface))
+    if (not SDL_Vulkan_CreateSurface(window.window, instance, &surface))
         log::error("Fatal error while creating a vulkan surface (from createSurface): %s", SDL_GetError());
     
     deletion_queue_program.push_back([surface, instance](){vkDestroySurfaceKHR(instance, surface, nullptr);});
@@ -605,7 +606,7 @@ VkPresentModeKHR VK::selectSwapPresentMode(const std::vector<VkPresentModeKHR> &
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D VK::selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const WindowData &win) {
+VkExtent2D VK::selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities) {
     //---Surface extent---
     //      This is the drawable are on the screen
     //      If the current extent is UINT32_MAX, we should calculate the actual extent using WindowData
@@ -614,7 +615,7 @@ VkExtent2D VK::selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const Win
         return capabilities.currentExtent;
     
     int w, h;
-    SDL_Vulkan_GetDrawableSize(win.window, &w, &h);
+    SDL_Vulkan_GetDrawableSize(window.window, &w, &h);
     
     VkExtent2D actual_extent{ (ui32)w, (ui32)h };
     
@@ -625,7 +626,7 @@ VkExtent2D VK::selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const Win
 }
 
 SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
-                                  const VkQueueIndices &queue_indices, const WindowData &win) {
+                                  const VkQueueIndices &queue_indices) {
     //---Swapchain---
     //      List of images that will get drawn to the screen by the render pipeline
     //      Swapchain data:
@@ -641,7 +642,7 @@ SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_dev
     VkSurfaceFormatKHR surface_format = selectSwapSurfaceFormat(support.formats);
     swapchain.format = surface_format.format;
     VkPresentModeKHR present_mode = selectSwapPresentMode(support.present_modes);
-    swapchain.extent = selectSwapExtent(support.capabilities, win);
+    swapchain.extent = selectSwapExtent(support.capabilities);
     
     
     //---Number of images---
@@ -731,7 +732,7 @@ void VK::recreateSwapchain() {
     deletion_queue_swapchain.clear();
     
     //---Swapchain---
-    api.swapchain = createSwapchain(api.device, api.physical_device, api.surface, api.cmd.queue_indices, win);
+    api.swapchain = createSwapchain(api.device, api.physical_device, api.surface, api.cmd.queue_indices);
     
     //: Attachments
     recreateAttachments();
@@ -1286,7 +1287,7 @@ VkAttachmentDescription VK::createAttachmentDescription(const AttachmentData &at
     return description;
 }
 
-AttachmentID Graphics::registerAttachment(AttachmentType type, Vec2<> size) {
+AttachmentID Graphics::registerAttachment(AttachmentType type, Vec2<ui16> size) {
     static AttachmentID id = 0;
     while (api.attachments.find(id) != api.attachments.end())
         id++;
@@ -2634,7 +2635,7 @@ void VK::updatePipelineDescriptorSets(const Vulkan &vk, const PipelineData &pipe
 //Images
 //----------------------------------------
 
-TextureID Graphics::registerTexture(Vec2<> size, Channels ch, ui8* pixels) {
+TextureID Graphics::registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels) {
     //---Create texture---
     static TextureID id = 0;
     do id++;
@@ -2683,7 +2684,7 @@ TextureID Graphics::registerTexture(Vec2<> size, Channels ch, ui8* pixels) {
 }
 
 TextureData VK::createTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                              VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<> size, VkFormat format, Channels ch) {
+                              VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<ui16> size, VkFormat format, Channels ch) {
     //---Texture---
     TextureData data{};
     
@@ -2710,7 +2711,7 @@ TextureData VK::createTexture(VkDevice device, VmaAllocator allocator, VkPhysica
     return data;
 }
 
-std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory, Vec2<> size,
+std::pair<VkImage, VmaAllocation> VK::createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory, Vec2<ui16> size,
                                                   VkSampleCountFlagBits samples, ui32 mip_levels, VkFormat format,
                                                   VkImageLayout layout, VkImageUsageFlags usage) {
     VkImage image;
@@ -2964,7 +2965,7 @@ ui32 VK::startRender(VkDevice device, const SwapchainData &swapchain, SyncData &
     return image_index;
 }
 
-void VK::renderFrame(Vulkan &vk, WindowData &win) {
+void VK::renderFrame(Vulkan &vk) {
     VkSemaphore wait_semaphores[]{ vk.sync.semaphores_image_available.at(vk.sync.current_frame) };
     VkPipelineStageFlags wait_stages[]{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished.at(vk.sync.current_frame) };
@@ -3033,7 +3034,7 @@ void Graphics::render() {
     IF_GUI(VK::Gui::recordGuiCommandBuffer(api, api.cmd.current_buffer));
     
     //: Render the frame
-    VK::renderFrame(api, win);
+    VK::renderFrame(api);
     
     //: Clear draw queue
     previous_draw_descriptions = api.draw_descriptions;
@@ -3077,12 +3078,16 @@ void Graphics::present() {
 void Graphics::resize() {
     VK::recreateSwapchain();
     
+    WindowTransform transform = {glm::mat4(1.f), glm::mat4(1.f)};
+    if (camera.projection & PROJECTION_SCALED)
+        transform = Window::getScaledTransform(Config::resolution);
+    
     //: Update scaled projection
     for (auto &[shader, pipeline] : api.pipelines) {
         if (shader.rfind("window", 0) == 0 or shader.rfind("debug", 0) == 0) {
             for (auto &uniforms : api.pipelines.at(shader).uniform_buffers)
                 for (auto &u : uniforms)
-                    updateUniformBuffer(u, win.scaled_ubo);
+                    updateUniformBuffer(u, transform);
         }
     }
 }
@@ -3162,9 +3167,9 @@ VkDebugReportCallbackEXT VK::createDebug(VkInstance &instance) {
 //----------------------------------------
 
 #ifndef DISABLE_GUI
-void VK::Gui::init(Vulkan &vk, const WindowData &win) {
+void VK::Gui::init(Vulkan &vk) {
     //: Init SDL implementation
-    if (not ImGui_ImplSDL2_InitForVulkan(win.window))
+    if (not ImGui_ImplSDL2_InitForVulkan(window.window))
         log::error("Error initializing ImGui for SDL");
     
     //: Create descriptor pool
@@ -3184,7 +3189,7 @@ void VK::Gui::init(Vulkan &vk, const WindowData &win) {
     Gui::descriptor_pool = createDescriptorPool(vk.device, pool_sizes);
     
     //: Render pass
-    AttachmentID attachment_swapchain_gui = registerAttachment(ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+    AttachmentID attachment_swapchain_gui = registerAttachment(ATTACHMENT_COLOR_SWAPCHAIN, window.size);
     SubpassID subpass_gui = registerSubpass({attachment_swapchain_gui});
     vk.gui_render_pass = registerRenderPass({subpass_gui});
     

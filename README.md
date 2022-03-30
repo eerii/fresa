@@ -38,6 +38,10 @@ A tiny game engine made in C++20.
 - Time managment and timers
 - Event handling
 
+## documentation :book:
+
+A work in progress documentation is available in [josekoalas.github.io/fresa](https://josekoalas.github.io/fresa/).
+
 ## building :hammer:
 
 Right now the project is in the **very pre-alpha** state, so use it at your own risk.

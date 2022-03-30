@@ -7,6 +7,9 @@
 #include "r_vulkan_api.h"
 #include "r_opengl_api.h"
 
+#include "r_window.h"
+#include "r_camera.h"
+
 //---Graphics---
 //      This is fresa's API for graphics, what is meant to be used when designing games
 //      It is intended to be as straightforward as possible, allowing for texture and vertex data registration for later use

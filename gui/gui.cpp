@@ -17,12 +17,12 @@ void Gui::init() {
     ImGui::CreateContext();
     
     #if defined USE_OPENGL
-    if (not ImGui_ImplSDL2_InitForOpenGL(Graphics::win.window, Graphics::api.context))
+    if (not ImGui_ImplSDL2_InitForOpenGL(Graphics::window.window, Graphics::api.context))
         log::error("Error initializing ImGui for SDL");
     if (not ImGui_ImplOpenGL3_Init())
         log::error("Error initializing ImGui for OpenGL");
     #elif defined USE_VULKAN
-    Graphics::VK::Gui::init(Graphics::api, Graphics::win);
+    Graphics::VK::Gui::init(Graphics::api);
     #endif
     
     //---IO---
@@ -32,7 +32,7 @@ void Gui::init() {
     auto font_path = File::path_optional("misc/font.ttf");
     
     if (font_path.has_value()) {
-        float font_scale = Graphics::getDPI();
+        float font_scale = Graphics::window.dpi;
         io->Fonts->AddFontFromFileTTF(font_path.value().c_str(), 16 * font_scale);
         io->FontGlobalScale /= font_scale;
     } else {
@@ -71,7 +71,7 @@ void Gui::init() {
     setColors(color_for_text, color_for_head, color_for_area, color_for_body, color_for_pops);
     
     //---Resize---
-    Graphics::event_window_resize.callback([](const Vec2<> &size){
+    Graphics::event_window_resize.callback([](const Vec2<ui16> &size){
         io->DisplaySize.x = (float)size.x;
         io->DisplaySize.y = (float)size.y;
     });

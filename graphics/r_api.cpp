@@ -3,6 +3,7 @@
 //licensed under GPLv3 uwu
 
 #include "r_api.h"
+#include "r_window.h"
 
 #include <fstream>
 
@@ -12,125 +13,14 @@
 
 //: SDL Window Flags
 #if defined USE_VULKAN
-    #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN
-    #define RENDERER_NAME "vulkan"
     #include "r_vulkan_api.h"
 #elif defined USE_OPENGL
-    #define W_FLAGS SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
-    #define RENDERER_NAME "opengl"
     #include "r_opengl_api.h"
 #endif
 
 using namespace Fresa;
 
 //---Common API calls for Vulkan and OpenGL---
-
-Graphics::WindowData Graphics::createWindow(Vec2<ui32> size, str name) {
-    //---Create window data---
-    WindowData win;
-    
-    //: SDL window
-#ifdef __EMSCRIPTEN__
-    SDL_Renderer* renderer = nullptr;
-    SDL_CreateWindowAndRenderer(size.x, size.y, SDL_WINDOW_OPENGL, &win.window, &renderer);
-    
-    if (win.window == nullptr or renderer == nullptr)
-        log::error("Failed to create a Window and a Renderer", SDL_GetError());
-#else
-    win.window = SDL_CreateWindow((name + " - " + RENDERER_NAME).c_str(),
-                                   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size.x, size.y, W_FLAGS);
-    
-    if (win.window == nullptr)
-        log::error("Failed to create a Window", SDL_GetError());
-    
-    SDL_SetWindowResizable(win.window, SDL_TRUE);
-    SDL_SetWindowMinimumSize(win.window, 256, 180);
-#endif
-    
-    //: Window size
-    win.size = size;
-    
-    //: Refresh rate
-    win.refresh_rate = getRefreshRate(win);
-    log::graphics("Refresh Rate: %d", win.refresh_rate);
-    
-    //: Calculate resolution and scale
-    Vec2<float> ratios = win.size.to<float>() / Config::resolution.to<float>();
-    win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
-    
-    //: V-Sync (it only changes something for OpenGL at the moment)
-    win.vsync = true;
-    
-    return win;
-}
-
-ui16 Graphics::getRefreshRate(WindowData &win, bool force) {
-    //---Refresh rate---
-    //      Either returns the already calculated refresh rate or it gets it using SDL_DisplayMode
-    if (win.refresh_rate > 0 and not force)
-        return win.refresh_rate;
-    
-    int displayIndex = SDL_GetWindowDisplayIndex(win.window);
-    
-    SDL_DisplayMode mode;
-    if(SDL_GetDisplayMode(displayIndex, 0, &mode))
-        log::error("Error getting display mode: ", SDL_GetError());
-    
-    return (ui16)mode.refresh_rate;
-}
-
-float Graphics::getDPI() {
-    float ddpi = 0.0f;
-    SDL_GetDisplayDPI(0, &ddpi, nullptr, nullptr);
-    return ddpi / 96.0f;
-}
-
-Graphics::UniformBufferObject Graphics::getScaledWindowUBO(const WindowData &win) {
-    UniformBufferObject ubo{};
-    
-    Vec2<float> scaled_res = Config::resolution.to<float>() * win.scale;
-    
-    ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(scaled_res.x, scaled_res.y, 1.0f));
-    ubo.view = glm::mat4(1.0f);
-    ubo.proj = glm::ortho((float)-win.size.x, (float)win.size.x, (float)-win.size.y, (float)win.size.y); //: This is to fix the coords going from -1 to 1
-    
-    return ubo;
-}
-
-void Graphics::onResize(Vec2<> size) {
-    //---On resize callback---
-    
-    //: Set new window size
-    win.size = size;
-    
-    //: Adjust render scale
-    Vec2<float> ratios = win.size.to<float>() / Config::resolution.to<float>();
-    win.scale = (ratios.x < ratios.y) ? floor(ratios.x) : floor(ratios.y);
-    if (cam.proj_type & PROJECTION_SCALED)
-        win.scaled_ubo = getScaledWindowUBO(win);
-    updateCameraProjection();
-    
-    //: Pass the resize command to the API
-    resize();
-}
-
-void Graphics::updateCameraProjection() {
-    Vec2<float> resolution = (cam.proj_type & PROJECTION_SCALED) ? Config::resolution.to<float>() : win.size.to<float>();
-    
-    //: Orthographic (2D)
-    if (cam.proj_type & PROJECTION_ORTHOGRAPHIC)
-        cam.proj = glm::ortho(0.0f, resolution.x, 0.0f, resolution.y, -10000.0f, 10000.0f);
-    
-    //: Perspective (3D)
-    if (cam.proj_type & PROJECTION_PERSPECTIVE)
-        cam.proj = glm::perspective(glm::radians(45.0f), (float)resolution.x / (float)resolution.y, 0.1f, 10000.0f);
-    
-    cam.proj[1][1] *= -viewport_y;
-    
-    //: None (Vertex passthrough)
-    if (cam.proj_type & PROJECTION_NONE)
-        cam.proj = glm::mat4(1.0f);
-}
 
 void Graphics::createShaderList() {
     //---Shader list---
@@ -252,7 +142,7 @@ void Graphics::processRendererDescription() {
             //: Name
             str name = line.at(1);
             if (name == "swapchain") {
-                attachment_list[name + std::to_string(++swapchain_count)] = registerAttachment(ATTACHMENT_COLOR_SWAPCHAIN, win.size);
+                attachment_list[name + std::to_string(++swapchain_count)] = registerAttachment(ATTACHMENT_COLOR_SWAPCHAIN, window.size);
                 continue;
             }
             if (line.size() != 4) log::error("You have not provided all the required parameters for an attachment");
@@ -273,18 +163,18 @@ void Graphics::processRendererDescription() {
             
             //: Resolution
             str res = line.at(3);
-            Vec2<> resolution{};
+            Vec2<ui16> resolution{};
             if (res == "res") {
-                resolution = Config::resolution.to<int>();
+                resolution = Config::resolution;
             }
             else if (res == "win") {
-                resolution = win.size;
+                resolution = window.size;
                 type = (AttachmentType)(type | ATTACHMENT_WINDOW);
             } else {
                 std::vector<str> res_str = split(res, "x");
                 if (not (res_str.size() == 2))
                     log::error("You need to either provide an smart attachment resolution (win, res...) or a numeric value in the form 1920x1080");
-                resolution = Vec2<>(std::stoi(res_str.at(0)), std::stoi(res_str.at(1)));
+                resolution = Vec2<ui16>((ui16)std::stoi(res_str.at(0)), (ui16)std::stoi(res_str.at(1)));
             }
             
             //: Register attachment

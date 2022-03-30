@@ -12,12 +12,12 @@ namespace Fresa::Graphics::GL
 {
     //Initialization
     //----------------------------------------
-    SDL_GLContext createContext(const WindowData &win);
+    SDL_GLContext createContext();
     //----------------------------------------
     
     //Render passes
     //----------------------------------------
-    ui32 createAttachmentTexture(Vec2<> size, AttachmentType type);
+    ui32 createAttachmentTexture(Vec2<ui16> size, AttachmentType type);
     ui32 createFramebuffer(SubpassID subpass);
     //----------------------------------------
 

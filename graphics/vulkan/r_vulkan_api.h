@@ -24,9 +24,9 @@ namespace Fresa::Graphics::VK
 
     //Device
     //----------------------------------------
-    VkInstance createInstance(const WindowData &win);
+    VkInstance createInstance();
 
-    VkSurfaceKHR createSurface(VkInstance instance, const WindowData &win);
+    VkSurfaceKHR createSurface(VkInstance instance);
 
     ui16 ratePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice physical_device);
     VkPhysicalDevice selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface,
@@ -54,10 +54,9 @@ namespace Fresa::Graphics::VK
     
     VkSurfaceFormatKHR selectSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &formats);
     VkPresentModeKHR selectSwapPresentMode(const std::vector<VkPresentModeKHR> &modes);
-    VkExtent2D selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities, const WindowData &win);
+    VkExtent2D selectSwapExtent(VkSurfaceCapabilitiesKHR capabilities);
     
-    SwapchainData createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface,
-                                  const VkQueueIndices &queue_indices, const WindowData &win);
+    SwapchainData createSwapchain(VkDevice device, VkPhysicalDevice physical_device, VkSurfaceKHR surface, const VkQueueIndices &queue_indices);
     void recreateSwapchain();
     //----------------------------------------
 
@@ -414,8 +413,8 @@ namespace Fresa::Graphics::VK
     //Images
     //----------------------------------------
     TextureData createTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                              VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<> size, VkFormat format, Channels ch);
-    std::pair<VkImage, VmaAllocation> createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory, Vec2<> size,
+                              VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<ui16> size, VkFormat format, Channels ch);
+    std::pair<VkImage, VmaAllocation> createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory, Vec2<ui16> size,
                                                   VkSampleCountFlagBits samples, ui32 mip_levels, VkFormat format,
                                                   VkImageLayout layout, VkImageUsageFlags usage);
     void transitionImageLayout(VkDevice device, VkCommandBuffer cmd, VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
@@ -437,7 +436,7 @@ namespace Fresa::Graphics::VK
     //Render
     //----------------------------------------
     ui32 startRender(VkDevice device, const SwapchainData &swapchain, SyncData &sync, std::function<void()> recreate_swapchain);
-    void renderFrame(Vulkan &vk, WindowData &win);
+    void renderFrame(Vulkan &vk);
     //----------------------------------------
 
 
@@ -452,7 +451,7 @@ namespace Fresa::Graphics::VK
     namespace Gui
     {
         inline VkDescriptorPool descriptor_pool;
-        void init(Vulkan &vk, const WindowData &win);
+        void init(Vulkan &vk);
         void transferFonts(const Vulkan &vk);
         void recordGuiCommandBuffer(const Vulkan &vk, ui32 current);
     }
@@ -464,7 +463,8 @@ namespace Fresa::Graphics {
     inline Vec2<> to_vec(VkExtent2D extent) {
         return Vec2<>(extent.width, extent.height);
     }
-    inline VkExtent2D to_extent(Vec2<> vec) {
+    template <typename T, std::enable_if_t<std::is_integral_v<T>, bool> = true>
+    inline VkExtent2D to_extent(Vec2<T> vec) {
         return VkExtent2D{(ui32)vec.x, (ui32)vec.y};
     }
     inline bool operator ==(const VkExtent2D &a, const VkExtent2D &b) {

@@ -32,7 +32,7 @@ void Gui::win_menu() {
             slider("game speed", Config::game_speed, 0.1f, 0.0f, 3.0f);
             
             ImGui::SetNextItemWidth(100.0f);
-            if (slider<ui8>("multisampling", Config::multisampling, 1.0f, 0, 6)) Graphics::resize();
+            if (slider<ui8>("multisampling", Config::multisampling, 1.0f, 0, 6)) Graphics::resize(); //TODO: Propper recreation of the pipeline
             
             ImGui::Checkbox("draw indirect", &Config::draw_indirect);
             
@@ -69,37 +69,32 @@ void Gui::win_menu() {
         
         //---Camera---
         if (ImGui::BeginMenu("camera")) {
-            if (Graphics::cam.proj_type & Graphics::PROJECTION_SCALED)
-                ImGui::Text("res: %dx%d (x%d)", Config::resolution.x, Config::resolution.y, Graphics::win.scale);
+            if (Graphics::camera.projection & Graphics::PROJECTION_SCALED)
+                ImGui::Text("res: %dx%d", Config::resolution.x, Config::resolution.y);
             else
-                ImGui::Text("res: %dx%d", Graphics::win.size.x, Graphics::win.size.y);
+                ImGui::Text("res: %dx%d", Graphics::window.size.x, Graphics::window.size.y);
             
-            if (Graphics::cam.proj_type & Graphics::PROJECTION_PERSPECTIVE)
+            if (Graphics::camera.projection & Graphics::PROJECTION_PERSPECTIVE)
                 ImGui::Text("proj: perspective");
-            if (Graphics::cam.proj_type & Graphics::PROJECTION_ORTHOGRAPHIC)
+            if (Graphics::camera.projection & Graphics::PROJECTION_ORTHOGRAPHIC)
                 ImGui::Text("proj: orthographic");
             
             ImGui::AlignTextToFramePadding();
             ImGui::Text("pos:");
             ImGui::SameLine(); ImGui::SetNextItemWidth(50.0f);
-            slider("", Graphics::cam.pos.x, 1.0f, -10000.0f, 10000.0f);
+            slider("", Graphics::camera.pos.x, 1.0f, -10000.0f, 10000.0f);
             ImGui::SameLine(); ImGui::SetNextItemWidth(50.0f);
-            slider("", Graphics::cam.pos.y, 1.0f, -10000.0f, 10000.0f);
+            slider("", Graphics::camera.pos.y, 1.0f, -10000.0f, 10000.0f);
             ImGui::SameLine(); ImGui::SetNextItemWidth(50.0f);
-            slider("", Graphics::cam.pos.z, 1.0f, -10000.0f, 10000.0f);
+            slider("", Graphics::camera.pos.z, 1.0f, -10000.0f, 10000.0f);
             
-            auto normalize_direction = [&](){
-                Graphics::cam.direction = glm::normalize(Graphics::cam.direction);
-            };
             
             ImGui::AlignTextToFramePadding();
             ImGui::Text("dir:");
-            ImGui::SameLine(); ImGui::SetNextItemWidth(50.0f);
-            if (slider("", Graphics::cam.direction.x, 0.01f, -1.0f, 1.0f)) normalize_direction();
-            ImGui::SameLine(); ImGui::SetNextItemWidth(50.0f);
-            if (slider("", Graphics::cam.direction.y, 0.01f, -1.0f, 1.0f)) normalize_direction();
-            ImGui::SameLine(); ImGui::SetNextItemWidth(50.0f);
-            if (slider("", Graphics::cam.direction.z, 0.01f, -1.0f, 1.0f)) normalize_direction();
+            ImGui::SameLine(); ImGui::SetNextItemWidth(70.0f);
+            slider("", Graphics::camera.phi, 0.01f, -0.0f, 6.28f);
+            ImGui::SameLine(); ImGui::SetNextItemWidth(70.0f);
+            slider("", Graphics::camera.theta, 0.01f, -0.0f, 3.14f);
             
             ImGui::EndMenu();
         }

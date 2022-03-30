@@ -61,7 +61,7 @@ void Event::handleSystemEvents() {
                 if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
                     event_paused.publish(false);
                 if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-                    Graphics::event_window_resize.publish(Vec2<>(event.window.data1, event.window.data2));
+                    Graphics::event_window_resize.publish(Vec2<ui16>((ui16)event.window.data1, (ui16)event.window.data2));
                 break;
             } case SDL_USEREVENT: {
                 bool* done = reinterpret_cast<bool*>(event.user.data1);

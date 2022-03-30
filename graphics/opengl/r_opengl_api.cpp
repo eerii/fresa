@@ -5,6 +5,8 @@
 #ifdef USE_OPENGL
 
 #include "r_opengl_api.h"
+#include "r_window.h"
+#include "r_camera.h"
 
 #include "log.h"
 #include "gui.h"
@@ -37,7 +39,7 @@ void Graphics::configureAPI() {
 }
 
 void Graphics::createAPI() {
-    api.context = GL::createContext(win);
+    api.context = GL::createContext();
     
     for (auto &[id, s] : api.shaders)
         GL::createShaderDataGL(id);
@@ -52,11 +54,11 @@ void Graphics::createAPI() {
     api.scaled_window_uniform = GL::createBuffer(sizeof(UniformBufferObject), GL_UNIFORM_BUFFER, GL_STREAM_DRAW);
 }
 
-SDL_GLContext GL::createContext(const WindowData &win) {
+SDL_GLContext GL::createContext() {
     //---Context---
     //      Contrary to Vulkan, OpenGL does a lot of this under the hood. The context can be thought as a compendium of all those things.
     //      While in Vulkan we needed to initialize every single part of the graphics pipeline, in OpenGL we just create a context.
-    SDL_GLContext context = SDL_GL_CreateContext(win.window);
+    SDL_GLContext context = SDL_GL_CreateContext(window.window);
     if (context == nullptr) {
         log::error("Error creating an OpenGL context: %s", SDL_GetError());
         SDL_Quit();
@@ -64,7 +66,7 @@ SDL_GLContext GL::createContext(const WindowData &win) {
     }
     
     //: Make the context active
-    if (SDL_GL_MakeCurrent(win.window, context)) {
+    if (SDL_GL_MakeCurrent(window.window, context)) {
         log::error("Error making the OpenGL context current: %s", SDL_GetError());
         SDL_Quit();
         exit(-1);
@@ -95,7 +97,7 @@ SDL_GLContext GL::createContext(const WindowData &win) {
     glEnable(GL_DEPTH_TEST);
     
     //: V-Sync
-    SDL_GL_SetSwapInterval(win.vsync ? 1 : 0);
+    SDL_GL_SetSwapInterval(window.vsync ? 1 : 0);
     
     return context;
 }
@@ -316,7 +318,7 @@ void GL::validateShaderData(ui32 vao_id) {
 //Attachments
 //----------------------------------------
 
-AttachmentID Graphics::registerAttachment(AttachmentType type, Vec2<> size) {
+AttachmentID Graphics::registerAttachment(AttachmentType type, Vec2<ui16> size) {
     static AttachmentID id = 0;
     while (api.attachments.find(id) != api.attachments.end())
         id++;
@@ -331,17 +333,17 @@ AttachmentID Graphics::registerAttachment(AttachmentType type, Vec2<> size) {
     return id;
 }
 
-ui32 GL::createAttachmentTexture(Vec2<> size, AttachmentType type) {
+ui32 GL::createAttachmentTexture(Vec2<ui16> size, AttachmentType type) {
     ui32 tex;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     
     if (type & ATTACHMENT_COLOR) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (int)size.x, (int)size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     } else if (type & ATTACHMENT_DEPTH) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, size.x, size.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, (int)size.x, (int)size.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     }
     glCheckError();
     
@@ -514,7 +516,7 @@ ui32 GL::createVertexArray() {
 //Images
 //----------------------------------------
 
-TextureID Graphics::registerTexture(Vec2<> size, Channels ch, ui8* pixels) {
+TextureID Graphics::registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels) {
     //---Create texture---
     static TextureID id = 0;
     do id++;
@@ -524,8 +526,8 @@ TextureID Graphics::registerTexture(Vec2<> size, Channels ch, ui8* pixels) {
     TextureData &texture = api.texture_data[id];
     
     //: Parameters
-    texture.w = size.x;
-    texture.h = size.y;
+    texture.w = (int)size.x;
+    texture.h = (int)size.y;
     texture.ch = (int)ch;
     
     //: Create
@@ -777,7 +779,7 @@ void Graphics::render() {
 void Graphics::present() {
     //---Present---
     SDL_GL_SetSwapInterval(0);
-    SDL_GL_SwapWindow(win.window);
+    SDL_GL_SwapWindow(window.window);
 }
 
 //----------------------------------------
@@ -790,7 +792,7 @@ void Graphics::present() {
 void Graphics::resize() {
     for (auto &[id, attachment] : api.attachments) {
         if (attachment.type & ATTACHMENT_WINDOW) {
-            attachment.size = win.size;
+            attachment.size = window.size;
             attachment.tex = GL::createAttachmentTexture(attachment.size, attachment.type);
         }
     }
@@ -803,7 +805,11 @@ void Graphics::resize() {
         subpass.framebuffer = GL::createFramebuffer(id);
     }
     
-    updateUniformBuffer(api.scaled_window_uniform, win.scaled_ubo);
+    WindowTransform transform = {glm::mat4(1.f), glm::mat4(1.f)};
+    if (camera.projection & PROJECTION_SCALED)
+        transform = Window::getScaledTransform(Config::resolution);
+    
+    updateUniformBuffer(api.scaled_window_uniform, transform);
     
     glCheckError();
 }

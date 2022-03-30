@@ -6,29 +6,6 @@
 
 #ifdef USE_OPENGL
 
-#ifdef __EMSCRIPTEN__ //WEB
-
-    #include <GLES3/gl3.h>
-
-#elif __APPLE__ //MACOS
-
-    #define GL_SILENCE_DEPRECATION
-
-    #include <OpenGL/OpenGL.h>
-    #include <OpenGL/gl3.h>
-
-#else //LINUX and WINDOWS
-
-    #define USE_GLEW
-
-    #include <GL/glew.h>
-    #include <GL/gl.h>
-
-    #include <SDL2/SDL_opengl.h>
-    #include <SDL2/SDL_opengl_glext.h>
-
-#endif
-
 #include "r_common_api.h"
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)

@@ -10,8 +10,8 @@ namespace Fresa {
     struct Config {
         static const str name;
         static const ui8 version[3];
-        static const Vec2<ui32> window_size;
-        static const Vec2<ui32> resolution;
+        static const Vec2<ui16> window_size;
+        static const Vec2<ui16> resolution;
         
         static const float timestep;
         static float game_speed;

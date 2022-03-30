@@ -6,8 +6,10 @@
 
 #include "r_opengl.h"
 #include "r_vulkan.h"
+
 #include "events.h"
 #include "bidirectional_map.h"
+
 #include <set>
 
 #define MAX_INDIRECT_COMMANDS 64
@@ -20,8 +22,6 @@ namespace Fresa::Graphics
     using GraphicsAPI = OpenGL;
 #endif
     
-    inline WindowData win;
-    inline CameraData cam;
     inline GraphicsAPI api;
 }
 
@@ -29,26 +29,25 @@ namespace Fresa::Graphics
 //      This coordinates the different rendering APIs. Here are defined the common functions that are later expanded in the respective source files
 //      Right now it has full support for OpenGL and Vulkan.
 
+//TODO: REFACTORING IN PROGRESS
+// Undergoing a big refactoring process for various reasons. I need to redo how the draw lists are handled and migrate everything to GPU driven
+// rendering. This is a big process, and along the way I might as well rewrite the API in a more friendly and ordered way, as with every new thing
+// I added it became a bit more messy and convoluted. I think this is a wonderfull way to simplify everything and make it friendlier. I also want to
+// focus on the data oriented approach I was trying to take, but went a bit astray.
+// The API is going to change considerably on the next commits, hopefully for the better.
+
+// Completed:
+//  - Window
+//  - Camera
+
 namespace Fresa::Graphics
 {
-    //: Window
-    WindowData createWindow(Vec2<ui32> size, str name);
-    ui16 getRefreshRate(WindowData &win, bool force = false);
-    float getDPI();
-    UniformBufferObject getScaledWindowUBO(const WindowData &win);
-    
-    void onResize(Vec2<> size);
-    inline Event::Event<Vec2<>> event_window_resize;
-    inline Event::Observer observer = event_window_resize.createObserver(onResize);
-    
-    void updateCameraProjection();
-    
-    //: API
+    //---API---
     void configureAPI();
     void createAPI();
 
     //---Drawing---
-    TextureID registerTexture(Vec2<> size, Channels ch, ui8* pixels);
+    TextureID registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels);
     
     //---Indirect Drawing---
     IndirectBufferID registerIndirectCommandBuffer();
@@ -62,7 +61,7 @@ namespace Fresa::Graphics
     
     SubpassID registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list = {});
     
-    AttachmentID registerAttachment(AttachmentType type, Vec2<> size);
+    AttachmentID registerAttachment(AttachmentType type, Vec2<ui16> size);
     void recreateAttachments();
     bool hasMultisampling(AttachmentID attachment, bool check_samples = true);
     

@@ -7,7 +7,6 @@
 #ifdef USE_VULKAN
 
 #include "r_common_api.h"
-#include <SDL2/SDL_vulkan.h>
 
 #define HAS_COMPUTE
 #define MAX_WRITE_DESCRIPTORS 32

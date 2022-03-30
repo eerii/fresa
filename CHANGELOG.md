@@ -4,10 +4,21 @@
 
 ---
 
-#### 0.3.14 - TITLE - _00 00 2022_
+#### 0.3.15 - documentation + more refactoring - _30 03 2022_
+
+**added**
+- basic documentation framework using docsify
+- window and camera refactoring with full data driven approach
 
 **changed**
-- Core and graphics refactoring
+- more refactoring
+
+---
+
+#### 0.3.14 - refactoring - _30 03 2022_
+
+**changed**
+- core and graphics refactoring
 
 ---
 

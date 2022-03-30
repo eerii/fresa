@@ -3,7 +3,6 @@
 //licensed under GPLv3 uwu
 
 #include "r_graphics.h"
-#include <filesystem>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -13,6 +12,7 @@
 #include "config.h"
 #include "ecs.h"
 #include "gui.h"
+#include "file.h"
 #include "f_time.h"
 
 using namespace Fresa;
@@ -31,17 +31,14 @@ bool Graphics::init() {
     //: Create window
     str version = std::to_string(Config::version[0]) + "." + std::to_string(Config::version[1]) + "." + std::to_string(Config::version[2]);
     str name = Config::name + " - version " + version;
-    win = createWindow(Config::window_size, name);
+    window = Window::create(Config::window_size, name);
+    
+    //: Create camera
+    camera = Camera::create();
     
     //: Create renderer api
     createShaderList();
     createAPI();
-
-    //: Set projection
-    cam.proj_type = Projection(PROJECTION_ORTHOGRAPHIC | PROJECTION_SCALED);
-    updateCameraProjection();
-    win.scaled_ubo = (cam.proj_type & PROJECTION_SCALED) ? getScaledWindowUBO(win) :
-                                                              UniformBufferObject{glm::mat4(1.0f),glm::mat4(1.0f),glm::mat4(1.0f)};
     
     //: Initialize GUI
     IF_GUI(Gui::init());
@@ -114,8 +111,7 @@ TextureID Graphics::getTextureID(str path, Channels ch) {
     //---Create TextureID---
     
     //: Check if path exists
-    if (not std::filesystem::exists(std::filesystem::path{path}))
-        log::error("The texture path does not exist!");
+    File::path(path);
     
     //: Check if texture is already registered
     auto it = texture_locations.find(path);
@@ -133,12 +129,11 @@ TextureID Graphics::getTextureID(str path, Channels ch) {
         return STBI_rgb_alpha;
     }();
     
-    Vec2<> size;
-    int real_ch;
-    ui8* pixels = stbi_load(path.c_str(), &size.x, &size.y, &real_ch, mode);
+    int x, y, real_ch;
+    ui8* pixels = stbi_load(path.c_str(), &x, &y, &real_ch, mode);
     
     //: Create texture
-    TextureID tex_id = registerTexture(size, ch, pixels);
+    TextureID tex_id = registerTexture(Vec2<ui16>((ui16)x, (ui16)y), ch, pixels);
     texture_locations[path] = tex_id;
     
     //: Free from memory
