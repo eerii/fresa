@@ -9,15 +9,18 @@ A tiny game engine made in C++20.
   <img src="https://user-images.githubusercontent.com/22449369/156197502-0e555a4a-8a71-4920-bb01-b29cefcf4a25.gif" width="24%" />
 </p>
 
+_Warning: The rendering API is being completely refactored at the moment. If you want to try the previous version refer to commit [3bfebeb
+](https://github.com/josekoalas/fresa/tree/3bfebeb104d70dc3ccb027749f9b8b075933e8aa), however, this should not be considered stable. This process shouldn't take more than a few weeks, sorry for the inconvenience._
+
 ## features :sparkles:
 
 **Graphics** 
 - Custom renderer with Vulkan, OpenGL and WebGL support
-- Instanced rendering
-- Multiple shader subpasses
 - Automatic GLSL shader compilation for each API and reflection using SPIRV-Cross
-- High level API that allows complete customization of the cross platform renderer
-- Compute shaders and Indirect drawing (Vulkan only)
+- Customizable rendering pipeline with multiple render passes
+- Instanced rendering
+- Vulkan compute shader support
+- _(In progress...) GPU driven rendering_ 
 
 **ECS**
 - Data oriented Entity Component System
@@ -34,13 +37,8 @@ A tiny game engine made in C++20.
 - Custom compile time state machine implementation
 - Input handling
 - Logging and debugging tools
-- Collision checking
 - Time managment and timers
 - Event handling
-
-## documentation :book:
-
-A work in progress documentation is available in [josekoalas.github.io/fresa](https://josekoalas.github.io/fresa/).
 
 ## building :hammer:
 
@@ -56,7 +54,7 @@ You can check  for an example on how one could set up a **fresa** project. Instr
 - SDL2 (cross-platform window and input)
 - Vulkan/OpenGL (renderer of choice)
 - SPIR-V Cross (shader reflection and compilation)
-- VulkanMemoryAllocator (only Vulkan renderer, memory management)
+- VulkanMemoryAllocator (only for Vulkan renderer, memory management)
 - imGUI (for a debug graphical interface)
 - stb_image (loading images)
 - glm (glsl linear algebra)
@@ -65,7 +63,6 @@ You can check  for an example on how one could set up a **fresa** project. Instr
 - `USE_VULKAN` or `USE_OPENGL`: Enables the desired renderer
 - `LOG_LEVEL = 1...5`: Selects log verbosity, 1 being only errors and 5 debug
 - `DISABLE_GUI`: Disables the compilation of imGUI and all the GUI code
-- `PROJECT_DIR`: For debugging editor tools, the root of your project
 
 ## code example :books:
 
@@ -105,11 +102,7 @@ You can also create a `vertex_list.h` to add new vertex type definitions to use 
 
 ## license :pencil:
 
-This project is licensed under GNU GPLv3. I made **fresa** :strawberry: because I wanted to learn, and I did, so many things. But this learning was possible only because there are thousands of awesome people that publish their projects for others to see. That is why I am so happy, after all this time, I made something I consider it is worth sharing. It is not perfect, and it has room to grow, but it is something.
-
-This is the reason I chose this license. It allows anyone to see, use, modify and learn from this code. There is one condition though, that all derivative distributed projects must also be **shared** with the same license, as open source code. That way other people might learn from what we make in the future, and they might end up creating something much better.
-
-Here is a brief explanation of the license:
+This project is licensed under GNU GPLv3. It allows anyone to see, use, modify and learn from this code under the condition that all derivative distributed projects must also be **shared** with the same license, as open source code. Here is a brief explanation of the license:
 
 ```markdown
 1. Anyone can copy, modify and distribute this software.

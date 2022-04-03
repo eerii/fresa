@@ -22,6 +22,13 @@ namespace Fresa::Graphics
         BufferData scaled_window_uniform;
         std::pair<BufferData, ui32> window_vertex_buffer;
     };
+    
+    struct GlDescriptorSetLayoutBinding {
+        ui32 binding;
+        ShaderDescriptorType descriptorType;
+        ui32 descriptorCount;
+        ShaderStage stageFlags;
+    };
 
     [[maybe_unused]] static void glCheckError_(std::string file, int line) {
         GLenum e_code;

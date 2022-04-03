@@ -7,6 +7,8 @@
 #include "r_opengl.h"
 #include "r_vulkan.h"
 
+#include "r_shaders.h"
+
 #include "events.h"
 #include "bidirectional_map.h"
 
@@ -16,12 +18,7 @@
 
 namespace Fresa::Graphics
 {
-#if defined USE_VULKAN
-    using GraphicsAPI = Vulkan;
-#elif defined USE_OPENGL
-    using GraphicsAPI = OpenGL;
-#endif
-    
+    using GraphicsAPI = IF_VULKAN(Vulkan) IF_OPENGL(OpenGL);
     inline GraphicsAPI api;
 }
 
@@ -76,13 +73,6 @@ namespace Fresa::Graphics
     };
 
     //---Shaders---
-    void createShaderList();
-
-    std::vector<char> readSPIRV(std::string filename);
-    ShaderCode readSPIRV(const ShaderLocations &locations);
-    ShaderData createShaderData(str name);
-    ShaderCompiler getShaderCompiler(const std::vector<char> &code);
-    
     void updateDrawDescriptorSets(const DrawDescription& draw);
     
     //---Other---

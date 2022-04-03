@@ -25,11 +25,8 @@ namespace Fresa::Graphics
     DrawDescription getDrawDescription(const std::vector<V> &vertices, const std::vector<I> &indices,
                                        ShaderID shader, TextureID texture = no_texture, bool call_from_instanced = false) {
         
-        if (api.shaders.at(shader).is_instanced and not call_from_instanced)
+        if (shaders.at(shader).is_instanced and not call_from_instanced)
             log::error("You are getting a draw description for an instanced shader using the function for regular rendering, use getDrawDescriptionI()");
-        
-        if (api.shaders.at(shader).is_shadow)
-            log::error("You are getting a draw description for a shadowmap shader");
         
         DrawDescription description{};
         description.shader = shader;
@@ -46,14 +43,14 @@ namespace Fresa::Graphics
     DrawDescription getDrawDescriptionI(const std::vector<V> &vertices, const std::vector<U> &instanced_data,
                                         const std::vector<I> &indices, ShaderID shader, TextureID texture = no_texture) {
         
-        if (not api.shaders.at(shader).is_instanced)
+        if (not shaders.at(shader).is_instanced)
             log::error("You are getting a draw description for a regular shader using the function for instanced rendering, use getDrawDescription()");
         
         DrawDescription description = getDrawDescription<UBO...>(vertices, indices, shader, texture, true);
         #if defined USE_VULKAN
-        description.instance = registerInstancedBuffer(api, instanced_data);
+        description.instance = registerInstancedBuffer(instanced_data);
         #elif defined USE_OPENGL
-        description.instance = registerInstancedBuffer(api, vertices, instanced_data, api.geometry_buffer_data.at(description.geometry).vao);
+        description.instance = registerInstancedBuffer(vertices, instanced_data, api.geometry_buffer_data.at(description.geometry).vao);
         #endif
         
         return description;

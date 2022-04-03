@@ -4,7 +4,6 @@
 
 #include "file.h"
 
-#include <fstream>
 #include <streambuf>
 
 #include "log.h"

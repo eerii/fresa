@@ -45,6 +45,10 @@
 
     //: SDL layer for Vulkan
     #include <SDL2/SDL_vulkan.h>
+
+    //: Shorthand macros
+    #define IF_VULKAN(x) x
+    #define IF_OPENGL(x)
 #endif
 
 //---------------------------------------------------
@@ -84,6 +88,10 @@
         #include <SDL2/SDL_opengl_glext.h>
 
     #endif
+
+    //: Shorthand macros
+    #define IF_VULKAN(x)
+    #define IF_OPENGL(x) x
 #endif
 
 
@@ -235,48 +243,7 @@ namespace Fresa::Graphics
     
     //Shader
     //----------------------------------------
-    using ShaderCompiler = spirv_cross::CompilerGLSL;
-    using ShaderResources = spirv_cross::ShaderResources;
     using ShaderID = str;
-
-    struct ShaderLocations {
-        std::optional<str> vert;
-        std::optional<str> frag;
-        std::optional<str> compute;
-        std::optional<str> geometry;
-    };
-
-    struct ShaderCode {
-        std::optional<std::vector<char>> vert;
-        std::optional<std::vector<char>> frag;
-        std::optional<std::vector<char>> compute;
-        std::optional<std::vector<char>> geometry;
-    };
-
-    #ifdef USE_VULKAN
-    struct ShaderStages {
-        std::optional<VkShaderModule> vert;
-        std::optional<VkShaderModule> frag;
-        std::optional<VkShaderModule> compute;
-        std::optional<VkShaderModule> geometry;
-    };
-    #endif
-
-    struct ShaderData {
-        ShaderLocations locations;
-        ShaderCode code;
-        bool is_draw;
-        bool is_instanced;
-        bool is_shadow;
-        #if defined USE_VULKAN
-        ShaderStages stages;
-        #elif defined USE_OPENGL
-        ui8 pid;
-        std::map<str, ui32> uniforms;
-        std::map<str, ui32> images;
-        SubpassID subpass;
-        #endif
-    };
     //----------------------------------------
 
     //Draw

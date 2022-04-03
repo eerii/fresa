@@ -71,6 +71,9 @@ void Graphics::createAPI() {
     //---Allocator---
     api.allocator = VK::createMemoryAllocator(api.device, api.physical_device, api.instance);
     
+    //---Shaders---
+    Shader::loadShaders();
+    
     //---Swapchain---
     api.swapchain = VK::createSwapchain(api.device, api.physical_device, api.surface, api.cmd.queue_indices);
     
@@ -93,7 +96,7 @@ void Graphics::createAPI() {
     processRendererDescription();
     
     //---Compute pipelines---
-    for (auto &[shader, data] : api.compute_shaders)
+    for (auto &[shader, data] : compute_shaders)
         api.compute_pipelines[shader] = VK::createComputePipeline(api, shader);
     
     //---Window vertex buffer---
@@ -737,7 +740,7 @@ void VK::recreateSwapchain() {
     //: Attachments
     recreateAttachments();
     for (const auto &[shader, data] : api.pipelines) {
-        if (not api.shaders.at(shader).is_draw)
+        if (not shaders.at(shader).is_draw)
             VK::updatePipelineDescriptorSets(api, data, shader);
     }
     
@@ -862,7 +865,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
     
     //: Reset timestamps and time before all passes
     #ifdef DEBUG
-    ui32 queries = (((ui32)api.shaders.size() + 1) * 2);
+    ui32 queries = (((ui32)shaders.size() + 1) * 2);
     if (Performance::timestamp_period > 0) {
         vkCmdResetQueryPool(cmd, vk.query_timestamp, current * queries, queries);
         vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, vk.query_timestamp, current * queries);
@@ -907,9 +910,9 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                 vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
             
             //: Get all shaders associated with this subpass
-            std::vector<ShaderID> shaders = getAtoB<ShaderID>(s_id, Map::subpass_shader);
+            std::vector<ShaderID> subpass_shaders = getAtoB<ShaderID>(s_id, Map::subpass_shader);
             
-            for (const auto &shader : shaders) {
+            for (const auto &shader : subpass_shaders) {
                 #ifdef DEBUG
                 //: Timestamp before shader
                 if (Performance::timestamp_period > 0)
@@ -917,7 +920,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                 #endif
                 
                 //---Draw shaders---
-                if (api.shaders.at(shader).is_draw) {
+                if (shaders.at(shader).is_draw) {
                     if (not api.draw_queue.count(shader) and not api.draw_queue_instanced.count(shader))
                         continue;
                     
@@ -925,7 +928,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
                     
                     //---Instanced rendering queue---
-                    if (api.shaders.at(shader).is_instanced) {
+                    if (shaders.at(shader).is_instanced) {
                         //: Direct rendering
                         auto queue_uniform = api.draw_queue_instanced.at(shader);
                         for (const auto &[uniform_id, queue_geometry] : queue_uniform) {
@@ -1005,25 +1008,6 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                                     }
                                 }
                             }
-                        }
-                    }
-                }
-                
-                //---Shadowmap shaders--- (Renders all draw calls into the shadowmap)
-                else if (api.shaders.at(shader).is_shadow) {
-                    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
-                    
-                    for (const auto &[draw_shader_id, draw_shader] : api.shaders) {
-                        if (not draw_shader.is_draw)
-                            continue;
-                        if (not api.draw_queue.count(draw_shader_id) and not api.draw_queue_instanced.count(draw_shader_id))
-                            continue;
-                        
-                        if (draw_shader.is_instanced) {
-                            //
-                        }
-                        else {
-                            //
                         }
                     }
                 }
@@ -1196,7 +1180,7 @@ VkQueryPool VK::createQueryPool(VkDevice device, ui32 swapchain_size, VkQueryTyp
     
     //: Timestamp
     if (type == VK_QUERY_TYPE_TIMESTAMP) {
-        create_info.queryCount = swapchain_size * (((ui32)api.shaders.size() + 1) * 2);
+        create_info.queryCount = swapchain_size * (((ui32)shaders.size() + 1) * 2);
         //: One query before and after each draw call for each shader, and one for the entire gpu
     }
     
@@ -1694,95 +1678,36 @@ void VK::recreateRenderPasses(Vulkan &vk) {
 //Shaders
 //----------------------------------------
 
-VkShaderModule VK::createShaderModule(VkDevice device, const std::vector<char> &code) {
+IShaderModule Common::createInternalShaderModule(const std::vector<ui32> &code, ShaderStage stage) {
     VkShaderModuleCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    create_info.codeSize = code.size();
-    create_info.pCode = reinterpret_cast<const ui32*>(code.data());
+    create_info.codeSize = code.size() * sizeof(ui32);
+    create_info.pCode = code.data();
     
     VkShaderModule shader_module;
-    if (vkCreateShaderModule(device, &create_info, nullptr, &shader_module) != VK_SUCCESS)
+    if (vkCreateShaderModule(api.device, &create_info, nullptr, &shader_module) != VK_SUCCESS)
         log::error("Error creating a Vulkan Shader Module");
         
+    VK::deletion_queue_program.push_back([shader_module](){ vkDestroyShaderModule(api.device, shader_module, nullptr); });
     return shader_module;
 }
 
-ShaderStages VK::createShaderStages(VkDevice device, const ShaderCode &code) {
-    ShaderStages stages;
-    
-    if (code.vert.has_value())
-        stages.vert = createShaderModule(device, code.vert.value());
-    if (code.frag.has_value())
-        stages.frag = createShaderModule(device, code.frag.value());
-    if (code.compute.has_value())
-        stages.compute = createShaderModule(device, code.compute.value());
-    if (code.geometry.has_value())
-        stages.geometry = createShaderModule(device, code.geometry.value());
-    
-    deletion_queue_program.push_back([device, stages](){ VK::destroyShaderStages(device, stages); });
-    return stages;
-}
-
-std::vector<VkPipelineShaderStageCreateInfo> VK::getShaderStageInfo(const ShaderStages &stages) {
+std::vector<VkPipelineShaderStageCreateInfo> VK::getShaderStageInfo(const ShaderPass &pass) {
     std::vector<VkPipelineShaderStageCreateInfo> info;
-    
-    if (stages.vert.has_value()) {
-        VkPipelineShaderStageCreateInfo vert_stage_info = {};
+    //TODO: CHANGE NAME AND COMMENT
+    for (auto &stage : pass.stages) {
+        VkPipelineShaderStageCreateInfo create_info{};
         
-        vert_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        vert_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-        vert_stage_info.module = stages.vert.value();
-        vert_stage_info.pName = "main";
-        vert_stage_info.pSpecializationInfo = nullptr; //You can customize shader variable values at compile time
+        create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        create_info.stage = (VkShaderStageFlagBits)stage.stage;
+        create_info.module = stage.module;
+        create_info.pName = "main";
+        create_info.pSpecializationInfo = nullptr;
         
-        info.push_back(vert_stage_info);
-    }
-    
-    if (stages.frag.has_value()) {
-        VkPipelineShaderStageCreateInfo frag_stage_info = {};
-        
-        frag_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        frag_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        frag_stage_info.module = stages.frag.value();
-        frag_stage_info.pName = "main";
-        
-        info.push_back(frag_stage_info);
-    }
-    
-    if (stages.compute.has_value()) {
-        VkPipelineShaderStageCreateInfo compute_stage_info = {};
-        
-        compute_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        compute_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-        compute_stage_info.module = stages.compute.value();
-        compute_stage_info.pName = "main";
-        
-        info.push_back(compute_stage_info);
-    }
-    
-    if (stages.geometry.has_value()) {
-        VkPipelineShaderStageCreateInfo geometry_stage_info = {};
-        
-        geometry_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        geometry_stage_info.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
-        geometry_stage_info.module = stages.geometry.value();
-        geometry_stage_info.pName = "main";
-        
-        info.push_back(geometry_stage_info);
+        info.push_back(create_info);
     }
     
     return info;
-}
-
-void VK::destroyShaderStages(VkDevice device, const ShaderStages &stages) {
-    if (stages.vert.has_value())
-        vkDestroyShaderModule(device, stages.vert.value(), nullptr);
-    if (stages.frag.has_value())
-        vkDestroyShaderModule(device, stages.frag.value(), nullptr);
-    if (stages.compute.has_value())
-        vkDestroyShaderModule(device, stages.compute.value(), nullptr);
-    if (stages.geometry.has_value())
-        vkDestroyShaderModule(device, stages.geometry.value(), nullptr);
 }
 
 //----------------------------------------
@@ -2139,7 +2064,7 @@ VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData
     create_info.subpass = relative_subpass;
     
     //: Shader stages
-    std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(api.shaders.at(shader).stages);
+    std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(shaders.at(shader));
     create_info.stageCount = (int)stage_info.size();
     create_info.pStages = stage_info.data();
     
@@ -2187,11 +2112,10 @@ VkPipeline VK::createComputePipelineObject(const Vulkan &vk, const PipelineData 
     create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     
     //: Shader stage
-    if (not api.compute_shaders.at(shader).stages.compute.has_value())
-        log::error("You are using an invalid compute shader");
+    const ShaderModule* compute_module = Shader::getPassModule(compute_shaders.at(shader), SHADER_STAGE_COMPUTE);
     create_info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     create_info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    create_info.stage.module = api.compute_shaders.at(shader).stages.compute.value();
+    create_info.stage.module = compute_module->module;
     create_info.stage.pName = "main";
     
     //: Layout
@@ -2209,39 +2133,18 @@ VkPipeline VK::createComputePipelineObject(const Vulkan &vk, const PipelineData 
 
 void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader) {
     //: Descriptor set
-    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, api.shaders.at(shader).code, vk.swapchain.size);
-    data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
+    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, shaders.at(shader), vk.swapchain.size);
+    data.descriptor_layout = VK::createDescriptorSetLayout(data.descriptor_layout_bindings);
     data.descriptor_pools.clear();
     data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
     data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
     
-    if (not api.shaders.at(shader).is_draw)
+    if (not shaders.at(shader).is_draw)
         VK::updatePipelineDescriptorSets(vk, data, shader);
 
     //: Pipeline
     data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
     data.pipeline = VK::createGraphicsPipelineObject(vk, data, shader);
-}
-
-std::array<ui32, 3> VK::getComputeGroupSize(const Vulkan &vk, ShaderID shader) {
-    //: Get the local_size_xyz from the reflected shader
-    //      I would guess that get_work_group_size_specialization_constants returned the values as is, however, it seems that the id
-    //      that spirv cross uses for "specialization constants" always returns 0 with this, so instead I opted to go straight
-    //      into the raw reflected data. It looks like dark magic with a hundred sub arrays but it gets the job done
-    
-    std::array<ui32, 3> sizes;
-    
-    ShaderCode &code = api.compute_shaders.at(shader).code;
-    
-    ShaderCompiler compiler = getShaderCompiler(code.compute.value());
-    
-    std::vector<spirv_cross::SpecializationConstant> a(3);
-    ui32 constant = compiler.get_work_group_size_specialization_constants(a[0], a[1], a[2]);
-    auto &c = compiler.get_constant(constant);
-    
-    sizes = { c.m.c[0].r[0].u32, c.m.c[0].r[1].u32, c.m.c[0].r[2].u32 };
-    
-    return sizes;
 }
 
 //----------------------------------------
@@ -2305,11 +2208,11 @@ std::vector<BufferData> VK::createUniformBuffers(VmaAllocator allocator, ui32 bu
 }
 
 void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID shader, ui32 buffer_count) {
-    ShaderCode* shader_code = nullptr;
-    if (api.shaders.count(shader))
-        shader_code = &api.shaders.at(shader).code;
-    else if (api.compute_shaders.count(shader))
-        shader_code = &api.compute_shaders.at(shader).code;
+    ShaderPass* shader_pass = nullptr;
+    if (shaders.count(shader))
+        shader_pass = &shaders.at(shader);
+    else if (compute_shaders.count(shader))
+        shader_pass = &compute_shaders.at(shader);
     else
         log::error("Shader not valid: %s", shader.c_str());
     
@@ -2317,8 +2220,8 @@ void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID sh
     std::map<ui32, std::vector<BufferData>> uniforms;
     std::map<ui32, std::vector<BufferData>> storage;
     
-    auto get_buffers = [&](const std::vector<char> &code) {
-        ShaderCompiler compiler = getShaderCompiler(code);
+    auto get_buffers = [&](const std::vector<ui32> &code) {
+        ShaderCompiler compiler = Shader::getCompiler(code);
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -2332,12 +2235,8 @@ void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID sh
         }
     };
     
-    if (shader_code->vert.has_value())
-        get_buffers(shader_code->vert.value());
-    if (shader_code->frag.has_value())
-        get_buffers(shader_code->frag.value());
-    if (shader_code->compute.has_value())
-        get_buffers(shader_code->compute.value());
+    for (auto &stage : shader_pass->stages)
+        get_buffers(stage.code);
     
     for (auto &[binding, uniform] : uniforms)
         data.uniform_buffers.push_back(uniform);
@@ -2390,7 +2289,7 @@ VkDescriptorSetLayoutBinding VK::prepareDescriptorSetLayoutBinding(VkShaderStage
     return layout_binding;
 }
 
-std::vector<VkDescriptorSetLayoutBinding> VK::createDescriptorSetLayoutBindings(VkDevice device, const ShaderCode &code, ui32 swapchain_size) {
+std::vector<VkDescriptorSetLayoutBinding> VK::createDescriptorSetLayoutBindings(VkDevice device, const ShaderPass &pass, ui32 swapchain_size) {
     //---Descriptor set layout---
     //      It is a blueprint for creating descriptor sets, specifies the number and type of descriptors in the GLSL shader
     //      Descriptors can be anything passed into a shader: uniforms, images, ...
@@ -2400,8 +2299,8 @@ std::vector<VkDescriptorSetLayoutBinding> VK::createDescriptorSetLayoutBindings(
     log::graphics("");
     log::graphics("Creating descriptor set layout...");
     
-    auto get_bindings = [&](const std::vector<char> &code, VkShaderStageFlagBits stage, str stage_name) {
-        ShaderCompiler compiler = getShaderCompiler(code);
+    auto get_bindings = [&](const std::vector<ui32> &code, VkShaderStageFlagBits stage, str stage_name) {
+        ShaderCompiler compiler = Shader::getCompiler(code);
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -2437,24 +2336,17 @@ std::vector<VkDescriptorSetLayoutBinding> VK::createDescriptorSetLayoutBindings(
         }
     };
     
-    //---Vertex shader---
-    if (code.vert.has_value())
-        get_bindings(code.vert.value(), VK_SHADER_STAGE_VERTEX_BIT, "Vertex");
+    //---Shader stages---
+    for (auto &stage : pass.stages)
+        get_bindings(stage.code, (VkShaderStageFlagBits)stage.stage, Shader::shader_extensions.at(stage.stage));
     
-    //---Fragment shader---
-    if (code.frag.has_value())
-        get_bindings(code.frag.value(), VK_SHADER_STAGE_FRAGMENT_BIT, "Fragment");
-    
-    //---Compute shader---
-    if (code.compute.has_value())
-        get_bindings(code.compute.value(), VK_SHADER_STAGE_COMPUTE_BIT, "Compute");
-    
+    //---Sort bindings---
     std::sort(layout_binding.begin(), layout_binding.end(), [](auto &a, auto &b){  return a.binding < b.binding; });
     
     return layout_binding;
 }
     
-VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
+VkDescriptorSetLayout VK::createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
     //---Create the descriptor layout itself---
     VkDescriptorSetLayout layout;
     
@@ -2463,10 +2355,10 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(VkDevice device, const std::
     create_info.bindingCount = (ui32)bindings.size();
     create_info.pBindings = bindings.data();
     
-    if (vkCreateDescriptorSetLayout(device, &create_info, nullptr, &layout) != VK_SUCCESS)
+    if (vkCreateDescriptorSetLayout(api.device, &create_info, nullptr, &layout) != VK_SUCCESS)
         log::error("Error creating a descriptor set layout, check shader reflection");
     
-    deletion_queue_program.push_back([device, layout](){ vkDestroyDescriptorSetLayout(device, layout, nullptr); });
+    deletion_queue_program.push_back([layout](){ vkDestroyDescriptorSetLayout(api.device, layout, nullptr); });
     return layout;
 }
 
@@ -2614,7 +2506,7 @@ void VK::updatePipelineDescriptorSets(const Vulkan &vk, const PipelineData &pipe
     std::vector<VkImageView> input_views{};
     
     //: Only for render shaders, not compute
-    if (api.shaders.count(shader)) {
+    if (shaders.count(shader)) {
         auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
         
         for (auto &a : subpass.second.external_attachments)
@@ -3005,7 +2897,7 @@ void Graphics::render() {
     
     //: Get timestamps
     #ifdef DEBUG
-    ui32 queries = ((ui32)api.shaders.size() + 1) * 2;
+    ui32 queries = ((ui32)shaders.size() + 1) * 2;
     if (Performance::timestamps.size() != queries)
         Performance::timestamps.resize(api.swapchain.size * queries);
     if (Performance::timestamp_period > 0 and api.cmd.current_buffer <= api.swapchain.size) {

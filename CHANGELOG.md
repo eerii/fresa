@@ -4,14 +4,25 @@
 
 ---
 
-#### 0.3.15 - documentation + more refactoring - _30 03 2022_
+#### 0.3.16 - really? more refactoring? - _00 00 2022_
+
+**added**
+- .
+
+---
+
+#### 0.3.15 - documentation + more refactoring - _04 04 2022_
 
 **added**
 - basic documentation framework using docsify
 - window and camera refactoring with full data driven approach
+- shader cleanup and tidying
 
 **changed**
 - more refactoring
+
+**fixed**
+- render system timers
 
 ---
 

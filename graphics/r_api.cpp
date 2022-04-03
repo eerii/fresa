@@ -4,6 +4,7 @@
 
 #include "r_api.h"
 #include "r_window.h"
+#include "r_shaders.h"
 
 #include <fstream>
 
@@ -21,82 +22,6 @@
 using namespace Fresa;
 
 //---Common API calls for Vulkan and OpenGL---
-
-void Graphics::createShaderList() {
-    //---Shader list---
-    //      Fills shaders with a list of ShaderID (the names of the shaders) and the processed ShaderData
-    auto shader_path = File::path("shaders/");
-    for (auto &f : fs::recursive_directory_iterator(shader_path)) {
-        if (f.path().extension() == ".vert" or f.path().extension() == ".frag") {
-            str name = f.path().stem().string();
-            if (not api.shaders.count(name))
-                api.shaders[name] = createShaderData(name);
-        }
-        if (f.path().extension() == ".comp") {
-            str name = f.path().stem().string();
-            if (not api.compute_shaders.count(name))
-                api.compute_shaders[name] = createShaderData(name);
-        }
-    }
-}
-
-std::vector<char> Graphics::readSPIRV(std::string filename) {
-    //---Read SPIRV---
-    //      Opens a SPIRV shader file and returns an array with the data
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open())
-        log::error("Failed to open the shader file (%s)", filename.c_str());
-    
-    size_t file_size = (size_t) file.tellg();
-    std::vector<char> buffer(file_size);
-    
-    file.seekg(0);
-    file.read(buffer.data(), file_size);
-    
-    file.close();
-
-    return buffer;
-}
-
-Graphics::ShaderData Graphics::createShaderData(str name) {
-    //---Shader data---
-    //      Creates a shader data object from a list of locations for the different stages
-    //      First it saves the locations and then it reads the SPIRV code
-    ShaderData data;
-    
-    data.locations.vert = File::path_optional("shaders/" + name + "/" + name + ".vert.spv");
-    data.locations.frag = File::path_optional("shaders/" + name + "/" + name + ".frag.spv");
-    data.locations.compute = File::path_optional("shaders/" + name + "/" + name + ".comp.spv");
-    data.locations.geometry = File::path_optional("shaders/" + name + "/" + name + ".geom.spv");
-    
-    if (data.locations.vert.has_value())
-        data.code.vert = readSPIRV(data.locations.vert.value());
-    if (data.locations.frag.has_value())
-        data.code.frag = readSPIRV(data.locations.frag.value());
-    if (data.locations.compute.has_value())
-        data.code.compute = readSPIRV(data.locations.compute.value());
-    if (data.locations.geometry.has_value())
-        data.code.geometry = readSPIRV(data.locations.geometry.value());
-    
-    return data;
-}
-
-Graphics::ShaderCompiler Graphics::getShaderCompiler(const std::vector<char> &code) {
-    //---Shader compiler---
-    //      Creates and returns the SPIR-V Cross compiler for the shader code
-    //      This for some reason requires to to invert the code bits, so that is done before passing to the CompilerGLSL function
-    std::vector<ui32> spirv;
-    
-    for (int i = 0; i < code.size() / 4; i++) {
-        spirv.push_back((code[4*i] << 24) |
-                        (code[4*i+1] << 16) |
-                        (code[4*i+2] << 8) |
-                         code[4*i+3]);
-    }
-    
-    return spirv_cross::CompilerGLSL(std::move(spirv));
-}
 
 void Graphics::removeIndirectDrawCommand(DrawDescription &description) {
     if (api.draw_indirect_buffers.count(description.indirect_buffer))
@@ -244,8 +169,7 @@ void Graphics::processRendererDescription() {
             
             //: Shader
             ShaderID shader = line.at(1);
-            api.shaders.at(shader).is_draw = line.at(0) == "d";
-            api.shaders.at(shader).is_shadow = line.at(0) == "sd";
+            shaders.at(shader).is_draw = line.at(0) == "d";
             
             //: Subpass
             str subpass_name = line.at(2);
@@ -266,7 +190,7 @@ void Graphics::processRendererDescription() {
                         if (line.size() == 4) { //: No instanced rendering
                             api.pipelines[shader] = VK::createPipeline<V>(api, shader, subpass);
                             found_vertex = true;
-                            api.shaders.at(shader).is_instanced = false;
+                            shaders.at(shader).is_instanced = false;
                         } else { //: Instanced rendering (the for_ inside a for_ may be improved in the future)
                             for_<VertexType>([&](auto j){
                                 using U = std::variant_alternative_t<j.value, VertexType>;
@@ -277,7 +201,7 @@ void Graphics::processRendererDescription() {
                                 if (inst_vertex_name == lower(line.at(4))) {
                                     api.pipelines[shader] = VK::createPipeline<V, U>(api, shader, subpass);
                                     found_vertex = true;
-                                    api.shaders.at(shader).is_instanced = true;
+                                    shaders.at(shader).is_instanced = true;
                                 }
                             });
                         }
@@ -307,7 +231,7 @@ void Graphics::processRendererDescription() {
             
             str debug_shader = "debug_attachment_" + std::to_string(attachment);
             str shader_code = api.attachments.at(attachment).type & ATTACHMENT_DEPTH ? "window_depth" : "window";
-            api.shaders[debug_shader] = createShaderData(shader_code);
+            shaders[debug_shader] = Shader::createPass(shader_code);
             
             SubpassID subpass = registerSubpass({swapchain}, {attachment});
             registerRenderPass({subpass});
@@ -322,7 +246,7 @@ void Graphics::processRendererDescription() {
             
             //TODO: Make this better
             if (api.attachments.at(attachment).type & ATTACHMENT_DEPTH and api.attachments.at(attachment).type & ATTACHMENT_MSAA) {
-                api.shaders[debug_shader + "_msaa"] = createShaderData("window_depth_msaa");
+                shaders[debug_shader + "_msaa"] = Shader::createPass("window_depth_msaa");
                 
                 SubpassID subpass_msaa = registerSubpass({swapchain}, {attachment});
                 registerRenderPass({subpass_msaa});

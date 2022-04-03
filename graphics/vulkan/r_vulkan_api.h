@@ -81,10 +81,7 @@ namespace Fresa::Graphics::VK
 
     //Shaders
     //----------------------------------------
-    VkShaderModule createShaderModule(VkDevice device, const std::vector<char> &code);
-    ShaderStages createShaderStages(VkDevice device, const ShaderCode &code);
-    std::vector<VkPipelineShaderStageCreateInfo> getShaderStageInfo(const ShaderStages &stages);
-    void destroyShaderStages(VkDevice device, const ShaderStages &stages);
+    std::vector<VkPipelineShaderStageCreateInfo> getShaderStageInfo(const ShaderPass &pass);
 
     template <typename... V>
     std::vector<VkVertexInputBindingDescription> getBindingDescriptions() {
@@ -162,8 +159,8 @@ namespace Fresa::Graphics::VK
     //Descriptors
     //----------------------------------------
     VkDescriptorSetLayoutBinding prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding);
-    std::vector<VkDescriptorSetLayoutBinding> createDescriptorSetLayoutBindings(VkDevice device, const ShaderCode &code, ui32 swapchain_size);
-    VkDescriptorSetLayout createDescriptorSetLayout(VkDevice device, const std::vector<VkDescriptorSetLayoutBinding> &bindings);
+    std::vector<VkDescriptorSetLayoutBinding> createDescriptorSetLayoutBindings(VkDevice device, const ShaderPass &pass, ui32 swapchain_size);
+    VkDescriptorSetLayout createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings);
 
     std::vector<VkDescriptorPoolSize> createDescriptorPoolSizes(const std::vector<VkDescriptorSetLayoutBinding> &bindings);
     VkDescriptorPool createDescriptorPool(VkDevice device, const std::vector<VkDescriptorPoolSize> &sizes);
@@ -338,8 +335,6 @@ namespace Fresa::Graphics::VK
     VkPipelineLayout createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout);
     VkPipeline createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader);
     void recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader);
-    
-    std::array<ui32, 3> getComputeGroupSize(const Vulkan &vk, ShaderID shader);
 
     template <typename... V>
     PipelineData createPipeline(const Vulkan &vk, ShaderID shader, SubpassID subpass) {
@@ -350,17 +345,14 @@ namespace Fresa::Graphics::VK
         log::graphics("Pipeline %s", shader.c_str(), subpass);
         log::graphics("---");
         
-        //---Shader data---
-        api.shaders.at(shader).stages = VK::createShaderStages(vk.device, api.shaders.at(shader).code);
-        
         //---Descriptor pool---
-        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, api.shaders.at(shader).code, vk.swapchain.size);
-        data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
+        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, shaders.at(shader), vk.swapchain.size);
+        data.descriptor_layout = VK::createDescriptorSetLayout(data.descriptor_layout_bindings);
         data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
         data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
         
         //---Descriptor sets---
-        if (not api.shaders.at(shader).is_draw) {
+        if (not shaders.at(shader).is_draw) {
             data.descriptor_sets = VK::allocateDescriptorSets(vk.device, data.descriptor_layout, data.descriptor_pool_sizes,
                                                               data.descriptor_pools, vk.swapchain.size);
             VK::createPipelineBuffers(vk, data, shader, vk.swapchain.size);
@@ -383,12 +375,9 @@ namespace Fresa::Graphics::VK
     inline PipelineData createComputePipeline(const Vulkan &vk, ShaderID shader) {
         PipelineData data;
         
-        //---Shader data---
-        api.compute_shaders.at(shader).stages = VK::createShaderStages(vk.device, api.compute_shaders.at(shader).code);
-        
         //---Descriptor pool---
-        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, api.compute_shaders.at(shader).code, 1);
-        data.descriptor_layout = VK::createDescriptorSetLayout(vk.device, data.descriptor_layout_bindings);
+        data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, compute_shaders.at(shader), 1);
+        data.descriptor_layout = VK::createDescriptorSetLayout(data.descriptor_layout_bindings);
         data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
         data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
         
@@ -398,7 +387,7 @@ namespace Fresa::Graphics::VK
         VK::updatePipelineDescriptorSets(vk, data, shader);
         
         //---Workgroup sizes---
-        data.group_size = VK::getComputeGroupSize(vk, shader);
+        data.group_size = Shader::getComputeGroupSize(compute_shaders.at(shader));
         
         //---Pipeline---
         data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
@@ -568,7 +557,7 @@ namespace Fresa::Graphics {
         api.instanced_buffer_data[id] = InstancedBufferData{};
         InstancedBufferData &data = api.instanced_buffer_data.at(id);
         
-        data.instance_buffer = VK::createGPUBuffer(api, instanced_data, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        data.instance_buffer = VK::createGPUBuffer(instanced_data, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         data.instance_count = (ui32)instanced_data.size();
         
         return id;

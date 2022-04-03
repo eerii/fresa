@@ -24,8 +24,5 @@ namespace Fresa::Graphics
         std::map<SubpassID, SubpassData> subpasses;
         std::map<AttachmentID, AttachmentData> attachments;
         int render_attachment = -1; // -1: swapchain, -2: wireframe, 0...n: attachment
-        
-        std::map<ShaderID, ShaderData> shaders;
-        std::map<ShaderID, ShaderData> compute_shaders;
     };
 }

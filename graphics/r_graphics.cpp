@@ -37,7 +37,6 @@ bool Graphics::init() {
     camera = Camera::create();
     
     //: Create renderer api
-    createShaderList();
     createAPI();
     
     //: Initialize GUI
@@ -76,7 +75,7 @@ void Graphics::draw_(DrawDescription &description) {
     //---Draw---
     //      Checks if the description provided and all the data attached are valid, and adds it to the correct draw queue
     
-    if (not api.shaders.count(description.shader))
+    if (not shaders.count(description.shader))
         log::error("The ShaderID %s is not valid", description.shader.c_str());
     
     if (description.texture != no_texture and not api.texture_data.count(description.texture))
@@ -89,7 +88,7 @@ void Graphics::draw_(DrawDescription &description) {
         log::error("The GeometryBufferID %d is not valid", description.geometry);
     
     //: Instanced buffer
-    if (api.shaders.at(description.shader).is_instanced) {
+    if (shaders.at(description.shader).is_instanced) {
         if (description.instance == no_instance or not api.instanced_buffer_data.count(description.instance))
             log::error("The InstancedBufferID %d is not valid", description.instance);
         api.draw_queue_instanced[description.shader][description.uniform][description.geometry][description.instance] = &description;

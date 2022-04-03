@@ -15,7 +15,7 @@
 //      }
 //: The component classes need to be serialized in order to be reflectable, you can define them as:
 //      struct SomeComponent {
-//          Serialize(SomeComponent, something, another_thing, ...);
+//          Members(SomeComponent, something, another_thing, ...);
 //          int something;
 //          str another_thing; ...
 //      };
@@ -31,7 +31,7 @@
 #define INVALID_ENTITY Entity::createID(EntityIndex(-1), 0)
 
 #define UPDATE_LIST(update_name, update_map, update_function) \
-template<typename Object, UpdatePriorities priority = PRIORITY_LAST> \
+template<typename Object, UpdatePriorities priority = PRIORITY_FIRST> \
 struct update_name { \
     struct exec_register { \
         exec_register() { \

@@ -7,6 +7,7 @@
 #include "r_opengl_api.h"
 #include "r_window.h"
 #include "r_camera.h"
+#include "r_shaders.h"
 
 #include "log.h"
 #include "gui.h"
@@ -41,7 +42,7 @@ void Graphics::configureAPI() {
 void Graphics::createAPI() {
     api.context = GL::createContext();
     
-    for (auto &[id, s] : api.shaders)
+    for (auto &[id, s] : shaders)
         GL::createShaderDataGL(id);
     
     processRendererDescription();
@@ -107,7 +108,9 @@ ShaderData GL::createShaderDataGL(ShaderID shader) {
     //      In this step we are loading the shader "name" and creating all the important elements it needs
     //      This includes reading the shader SPIR-V code, performing reflection on it and converting it to compatible GLSL
     //      The final code is then used to create a GL program which contains the shader information and we can use for rendering
-    ShaderData &data = api.shaders.at(shader);
+    ShaderData &data = shaders.at(shader);
+    
+    //TODO: REMOVE COMPILING FROM HERE
     
     //: Options
     spirv_cross::CompilerGLSL::Options options;
@@ -127,7 +130,7 @@ ShaderData GL::createShaderDataGL(ShaderID shader) {
     
     //---Vertex shader---
     if (data.code.vert.has_value()) {
-        ShaderCompiler compiler = getShaderCompiler(data.code.vert.value());
+        ShaderCompiler compiler = Shader::getCompiler(data.code.vert.value());
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -144,7 +147,7 @@ ShaderData GL::createShaderDataGL(ShaderID shader) {
     
     //---Fragment shader---
     if (data.code.frag.has_value()) {
-        ShaderCompiler compiler = getShaderCompiler(data.code.frag.value());
+        ShaderCompiler compiler = Shader::getCompiler(data.code.frag.value());
         ShaderResources resources = compiler.get_shader_resources();
         
         //: Uniform buffers
@@ -166,7 +169,7 @@ ShaderData GL::createShaderDataGL(ShaderID shader) {
     glCheckError();
     
     //: Compile program
-    ui32 pid = GL::compileProgram(vert_source_glsl, frag_source_glsl);
+    ui32 pid = GL::compileProgram(data.code.vert.value(), data.code.frag.value());
     data.pid = pid;
     
     log::graphics("Program (%s) ID: %d", shader.c_str(), data.pid);
@@ -198,14 +201,49 @@ ShaderData GL::createShaderDataGL(ShaderID shader) {
     return data;
 }
 
-ui8 GL::compileShader(const char* source, ui32 shader_type) {
-    //CREATE SHADER FROM SOURCE
-    ui8 id = glCreateShader(shader_type);
+Common::InternalShaderModule Common::createInternalShaderModule(const std::vector<ui32> &code, ShaderStage stage) {
+    //---SPIRV conversion---
+    
+    //: Variables where the GLSL converted code will be saved
+    str glsl_source;
+    
+    //: Get compiler
+    ShaderCompiler compiler = Shader::getCompiler(code);
+    
+    //: Options
+    ShaderCompiler::Options options;
+    options.version = 410; //: Max supported version
+    options.es = false; //: Desktop OpenGL
+    options.enable_420pack_extension = false; //: Strip binding of uniforms and samplers+
+    
+    //: Override for web
+    #ifdef __EMSCRIPTEN__
+    options.version = 300;
+    options.es = true; //: Mobile OpenGL
+    options.fragment.default_float_precision = options.Highp; //: High float precision, requirement for web
+    #endif
+    
+    //: Set options
+    compiler.set_common_options(options);
+    
+    //: Compile to GLSL
+    glsl_source = compiler.compile();
+    
+    glCheckError();
+    
+    //---Create shader module---
+    
+    //: Create shader
+    ui8 id = glCreateShader(stage);
+    
+    //: Add SPIRV converted source
+    const char* source = glsl_source.c_str();
     glShaderSource(id, 1, &source, NULL);
-    //COMPILE SHADER
+    
+    //: Compile shader
     glCompileShader(id);
 
-    //ERROR HANDLING
+    //: Error handling
     int shader_compiled = GL_FALSE;
     glGetShaderiv(id, GL_COMPILE_STATUS, &shader_compiled);
     if(shader_compiled != GL_TRUE) {
@@ -223,13 +261,15 @@ ui8 GL::compileShader(const char* source, ui32 shader_type) {
         glDeleteShader(id);
         return 0;
     }
+    
     glCheckError();
     
+    //---Return shader module---
     log::graphics("Shader compiled correctly, ID: %d", id);
     return id;
 }
 
-ui8 GL::compileProgram(str vert_source, str frag_source) {
+ui8 GL::compileProgram(const std::vector<ui32> &vert_source, const std::vector<ui32> &frag_source) {
     ui8 pid = 0;
     ui8 vert_shader = 0;
     ui8 frag_shader = 0;
@@ -242,11 +282,11 @@ ui8 GL::compileProgram(str vert_source, str frag_source) {
 
     //COMPILE VERTEX SHADER
     if (vert_source.size() > 0)
-        vert_shader = compileShader(vert_source.c_str(), GL_VERTEX_SHADER);
+        vert_shader = API::createInternalShaderModule(vert_source, SHADER_STAGE_VERTEX);
     
     //COMPILE FRAGMENT SHADER
     if (frag_source.size() > 0)
-        frag_shader = compileShader(frag_source.c_str(), GL_FRAGMENT_SHADER);
+        frag_shader = API::createInternalShaderModule(frag_source, SHADER_STAGE_FRAGMENT);
 
     //ATTACH TO PROGRAM
     if (vert_source.size() > 0)

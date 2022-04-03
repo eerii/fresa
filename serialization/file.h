@@ -11,6 +11,7 @@
 #include "types.h"
 #include <optional>
 #include <filesystem>
+#include <fstream>
 
 namespace fs = std::filesystem;
 
