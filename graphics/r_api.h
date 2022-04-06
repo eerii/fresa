@@ -26,19 +26,15 @@ namespace Fresa::Graphics
 //      This coordinates the different rendering APIs. Here are defined the common functions that are later expanded in the respective source files
 //      Right now it has full support for OpenGL and Vulkan.
 
-//TODO: REFACTORING IN PROGRESS
-// Undergoing a big refactoring process for various reasons. I need to redo how the draw lists are handled and migrate everything to GPU driven
-// rendering. This is a big process, and along the way I might as well rewrite the API in a more friendly and ordered way, as with every new thing
-// I added it became a bit more messy and convoluted. I think this is a wonderfull way to simplify everything and make it friendlier. I also want to
-// focus on the data oriented approach I was trying to take, but went a bit astray.
-// The API is going to change considerably on the next commits, hopefully for the better.
-
-// Completed:
-//  - Window
-//  - Camera
-
 namespace Fresa::Graphics
 {
+    namespace Common {
+        BufferData allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data = nullptr, bool delete_with_program = true);
+        void copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset = 0);
+    }
+    
+    //: TODO: REFACTOR
+    
     //---API---
     void configureAPI();
     void createAPI();
@@ -85,7 +81,7 @@ namespace Fresa::Graphics
 
     //---Attributes---
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    std::vector<VertexAttributeDescription> getAttributeDescriptions_(ui32 binding = 0, ui32 previous_location = 0) {
+    std::vector<VertexAttributeDescription> getAttributeDescriptions(ui32 binding = 0, ui32 previous_location = 0) {
         std::vector<VertexAttributeDescription> attribute_descriptions{};
         
         log::graphics("");
@@ -118,21 +114,6 @@ namespace Fresa::Graphics
         });
         
         log::graphics("");
-        return attribute_descriptions;
-    }
-    
-    template <typename... V>
-    std::vector<VertexAttributeDescription> getAttributeDescriptions() {
-        std::vector<VertexAttributeDescription> attribute_descriptions{};
-        ui32 binding = 0;
-        ui32 previous_location = 0;
-        
-        ([&](){
-            auto a = getAttributeDescriptions_<V>(binding++, previous_location);
-            previous_location = (ui32)a.size();
-            attribute_descriptions.insert(attribute_descriptions.end(), a.begin(), a.end());
-        }(), ...);
-        
         return attribute_descriptions;
     }
 }

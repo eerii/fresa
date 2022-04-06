@@ -27,29 +27,19 @@ namespace Fresa::Graphics
         std::vector<VkImage> images;
         std::vector<VkImageView> image_views;
     };
-
-    struct PipelineData {
-        //---Pipeline---
-        //      A pipeline is the device that has all the draw stages, such as vertex, fragment, geometry, rasterization...
-        //      It can be configured through a series of descriptions
-        //      We create one pipeline for each shader that we use
-        std::vector<VkDescriptorSetLayoutBinding> descriptor_layout_bindings;
-        VkDescriptorSetLayout descriptor_layout;
-        
-        std::vector<VkDescriptorPoolSize> descriptor_pool_sizes;
-        std::vector<VkDescriptorPool> descriptor_pools;
-        
-        std::vector<VkDescriptorSet> descriptor_sets;
-        
-        std::vector<VkVertexInputBindingDescription> binding_descriptions;
-        std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
-        
-        std::vector<std::vector<BufferData>> uniform_buffers;
-        
-        VkPipelineLayout pipeline_layout;
-        VkPipeline pipeline;
-        
-        std::array<ui32, 3> group_size;
+    
+    struct PipelineCreateData {
+        std::vector<VkVertexInputBindingDescription> vertex_input_binding_descriptions;
+        std::vector<VkVertexInputAttributeDescription> vertex_input_attribute_descriptions;
+        VkPipelineInputAssemblyStateCreateInfo input_assembly;
+        VkPipelineRasterizationStateCreateInfo rasterizer;
+        VkPipelineMultisampleStateCreateInfo multisampling;
+        VkPipelineColorBlendAttachmentState color_blend_attachment;
+        VkPipelineDepthStencilStateCreateInfo depth_stencil;
+        VkViewport viewport;
+        VkRect2D scissor;
+        VkPipelineLayout layout;
+        ShaderID shader;
     };
 
     struct VkQueueIndices {
@@ -68,19 +58,19 @@ namespace Fresa::Graphics
 
     struct CommandData {
         std::map<str, VkCommandPool> command_pools;
-        std::map<str, std::vector<VkCommandBuffer>> command_buffers;
+        std::map<str, std::array<VkCommandBuffer, Config::frames_in_flight>> command_buffers;
         
         VkQueueIndices queue_indices;
         VkQueueData queues;
         
-        ui32 current_buffer;
+        ui8 current_image;
     };
 
     struct SyncData {
-        std::vector<VkSemaphore> semaphores_image_available;
-        std::vector<VkSemaphore> semaphores_render_finished;
+        std::array<VkSemaphore, Config::frames_in_flight> semaphores_image_available;
+        std::array<VkSemaphore, Config::frames_in_flight> semaphores_render_finished;
         
-        std::vector<VkFence> fences_in_flight;
+        std::array<VkFence, Config::frames_in_flight> fences_in_flight;
         std::vector<VkFence> fences_images_in_flight;
         
         ui8 current_frame;
@@ -101,23 +91,6 @@ namespace Fresa::Graphics
     struct VkCommandPoolHelperData {
         std::optional<ui32> queue;
         std::optional<VkCommandPoolCreateFlagBits> flags;
-    };
-
-    struct VkPipelineHelperData {
-        VkPipelineVertexInputStateCreateInfo vertex_input;
-        VkPipelineInputAssemblyStateCreateInfo input_assembly;
-        VkPipelineRasterizationStateCreateInfo rasterizer;
-        VkPipelineMultisampleStateCreateInfo multisampling;
-        VkPipelineDepthStencilStateCreateInfo depth_stencil;
-        VkPipelineColorBlendAttachmentState color_blend_attachment;
-        VkPipelineColorBlendStateCreateInfo color_blend_state;
-        
-        VkPipelineViewportStateCreateInfo viewport_state;
-        VkViewport viewport;
-        VkRect2D scissor;
-        
-        std::vector<VkVertexInputBindingDescription> vertex_input_binding_description;
-        std::vector<VkVertexInputAttributeDescription> vertex_input_attribute_descriptions;
     };
 
     struct WriteDescriptorBuffer {
@@ -162,10 +135,6 @@ namespace Fresa::Graphics
         CommandData cmd;
         SyncData sync;
         
-        //: Pipelines
-        std::map<ShaderID, PipelineData> pipelines;
-        std::map<ShaderID, PipelineData> compute_pipelines;
-        
         //: Image sampler
         VkSampler sampler;
         
@@ -176,10 +145,6 @@ namespace Fresa::Graphics
         IF_GUI(RenderPassID gui_render_pass;)
         
         //: Debug
-        #ifdef DEBUG
-        VkQueryPool query_timestamp;
-        VkQueryPool query_statistics;
-        #endif
         VkDebugReportCallbackEXT debug_callback;
     };
 }

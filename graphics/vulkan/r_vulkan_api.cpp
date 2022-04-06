@@ -18,16 +18,12 @@
 #include "r_window.h"
 #include "r_camera.h"
 
-#include "config.h"
 #include "gui.h"
 #include "f_time.h"
 
 #include <set>
 #include <numeric>
 #include <fstream>
-
-#define MAX_POOL_SETS 64
-#define PREFER_MAILBOX_DISPLAY_MODE
 
 using namespace Fresa;
 using namespace Graphics;
@@ -71,9 +67,6 @@ void Graphics::createAPI() {
     //---Allocator---
     api.allocator = VK::createMemoryAllocator(api.device, api.physical_device, api.instance);
     
-    //---Shaders---
-    Shader::loadShaders();
-    
     //---Swapchain---
     api.swapchain = VK::createSwapchain(api.device, api.physical_device, api.surface, api.cmd.queue_indices);
     
@@ -84,10 +77,10 @@ void Graphics::createAPI() {
         {"transfer", {api.cmd.queue_indices.transfer.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
         {"compute",  {api.cmd.queue_indices.compute.value(), VkCommandPoolCreateFlagBits(0)}},
     });
-    api.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(api.device, api.swapchain.size, api.cmd);
+    api.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers();
     
     //---Sync objects---
-    api.sync = VK::createSyncObjects(api.device, api.swapchain.size);
+    api.sync = VK::createSyncObjects();
     
     //---Image sampler---
     api.sampler = VK::createSampler(api.device);
@@ -96,18 +89,13 @@ void Graphics::createAPI() {
     processRendererDescription();
     
     //---Compute pipelines---
-    for (auto &[shader, data] : compute_shaders)
-        api.compute_pipelines[shader] = VK::createComputePipeline(api, shader);
+    //TODO: ENABLE COMPUTE SHADERS
+    log::warn("Enable compute shaders");
+    /*for (auto &[shader, data] : compute_shaders)
+        api.compute_pipelines[shader] = VK::createComputePipeline(api, shader);*/
     
     //---Window vertex buffer---
     api.window_vertex_buffer = VK::createVertexBuffer(Vertices::window);
-    
-    //---Query pools---
-    #ifdef DEBUG
-    api.query_timestamp = VK::createQueryPool(api.device, api.swapchain.size, VK_QUERY_TYPE_TIMESTAMP);
-    if (api.physical_device_features.pipelineStatisticsQuery == VK_TRUE)
-        api.query_statistics = VK::createQueryPool(api.device, api.swapchain.size, VK_QUERY_TYPE_PIPELINE_STATISTICS);
-    #endif
 }
 
 //----------------------------------------
@@ -307,12 +295,6 @@ VkPhysicalDevice VK::selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surf
     //: Get physical device properties
     vkGetPhysicalDeviceProperties(physical_device, &properties);
     
-    //: Get the timestamp period (For time performance metrics)
-    #ifdef DEBUG
-    if (properties.limits.timestampComputeAndGraphics) Performance::timestamp_period = properties.limits.timestampPeriod;
-    else log::warn("Timestamps not supported");
-    #endif
-    
     //---Show the result of the process---
     for (VkPhysicalDevice device : devices) {
         VkPhysicalDeviceProperties device_properties;
@@ -478,7 +460,10 @@ VkDevice VK::createDevice(VkPhysicalDevice physical_device, VkPhysicalDeviceFeat
     if (vkCreateDevice(physical_device, &device_create_info, nullptr, &device)!= VK_SUCCESS)
         log::error("Error creating a vulkan logical device");
     
-    deletion_queue_program.push_back([device](){vkDestroyDevice(device, nullptr);});
+    deletion_queue_program.push_back([device](){
+        vkDeviceWaitIdle(device);
+        vkDestroyDevice(device, nullptr);
+    });
     return device;
 }
 
@@ -594,16 +579,15 @@ VkPresentModeKHR VK::selectSwapPresentMode(const std::vector<VkPresentModeKHR> &
     //      - Fifo: Vsync, when the queue is full the program waits
     //      - Mailbox: Triple buffering, the program replaces the last images of the queue, less latency but more power consumption
     //      Not all GPUs support mailbox (for example integrated Intel GPUs), so while it is preferred, Fifo can be used as well
-    //      You can choose whether to try to use mailbox setting the PREFER_MAILBOX_PRESENT_MODE macro (change to config in the future)
     
-    #ifdef PREFER_MAILBOX_PRESENT_MODE
-    for (const VkPresentModeKHR &mode : modes) {
-        if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-            log::graphics("Present mode: Mailbox");
-            return VK_PRESENT_MODE_MAILBOX_KHR;
+    if (Config::prefer_mailbox_mode) {
+        for (const VkPresentModeKHR &mode : modes) {
+            if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+                log::graphics("Present mode: Mailbox");
+                return VK_PRESENT_MODE_MAILBOX_KHR;
+            }
         }
     }
-    #endif
     
     log::graphics("Present mode: Fifo");
     return VK_PRESENT_MODE_FIFO_KHR;
@@ -650,9 +634,6 @@ SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_dev
     
     //---Number of images---
     swapchain.min_image_count = support.capabilities.minImageCount;
-    if (support.capabilities.maxImageCount > 0 and swapchain.min_image_count > support.capabilities.maxImageCount)
-        swapchain.min_image_count = support.capabilities.maxImageCount;
-    
     
     //---Create swapchain---
     VkSwapchainCreateInfoKHR create_info{};
@@ -660,7 +641,7 @@ SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_dev
     create_info.surface = surface;
     
     //: Swapchain images
-    create_info.minImageCount = swapchain.min_image_count;
+    create_info.minImageCount = swapchain.min_image_count + 1;
     create_info.imageFormat = surface_format.format;
     create_info.imageColorSpace = surface_format.colorSpace;
     create_info.imageExtent = swapchain.extent;
@@ -701,10 +682,10 @@ SwapchainData VK::createSwapchain(VkDevice device, VkPhysicalDevice physical_dev
         swapchain.image_views[i] = createImageView(device, swapchain.images[i], VK_IMAGE_ASPECT_COLOR_BIT, swapchain.format);
     
     //---Deletion queue---
-    deletion_queue_swapchain.push_back([swapchain, device](){
+    deletion_queue_swapchain.push_back([swapchain](){
         for (VkImageView view : swapchain.image_views)
-            vkDestroyImageView(device, view, nullptr);
-        vkDestroySwapchainKHR(device, swapchain.swapchain, nullptr);
+            vkDestroyImageView(api.device, view, nullptr);
+        vkDestroySwapchainKHR(api.device, swapchain.swapchain, nullptr);
     });
     
     log::graphics("Created a vulkan swapchain");
@@ -723,9 +704,6 @@ void VK::recreateSwapchain() {
     log::graphics("---");
     log::graphics("");
     
-    //: Save previous size to avoid recreating non necessary things
-    ui32 previous_size = api.swapchain.size;
-    
     //: Wait for draw operations to finish
     vkDeviceWaitIdle(api.device);
     
@@ -739,48 +717,13 @@ void VK::recreateSwapchain() {
     
     //: Attachments
     recreateAttachments();
-    for (const auto &[shader, data] : api.pipelines) {
-        if (not shaders.at(shader).is_draw)
-            VK::updatePipelineDescriptorSets(api, data, shader);
-    }
+    for (auto &[id, shader] : shaders.list.at(SHADER_DRAW))
+        VK::linkPipelineDescriptors(id);
+    for (auto &[id, shader] : shaders.list.at(SHADER_POST))
+        VK::linkPipelineDescriptors(id);
     
     //: Render passes and framebuffers
     VK::recreateRenderPasses(api);
-    
-    //: Pipeline
-    for (auto &[shader, data] : api.pipelines)
-        data.pipeline = VK::createGraphicsPipelineObject(api, data, shader);
-    
-    //---Objects that depend on the swapchain size---
-    if (previous_size != api.swapchain.size) {
-        //: Clean
-        for (auto it = deletion_queue_size_change.rbegin(); it != deletion_queue_size_change.rend(); ++it)
-            (*it)();
-        deletion_queue_size_change.clear();
-        
-        //: Command buffer allocation
-        api.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(api.device, api.swapchain.size, api.cmd);
-        IF_GUI(api.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers(api.device, api.swapchain.size, api.cmd));
-        
-        //: Sync
-        api.sync = VK::createSyncObjects(api.device, api.swapchain.size);
-        
-        //: Recreate pipelines
-        for (auto &[shader, data] : api.pipelines)
-            recreatePipeline(api, data, shader);
-        
-        //: Update draw data
-        for (auto &[id, draw] : api.draw_uniform_data) {
-            draw.recreate = true;
-        }
-        
-        //: Query pools
-        #ifdef DEBUG
-        api.query_timestamp = VK::createQueryPool(api.device, api.swapchain.size, VK_QUERY_TYPE_TIMESTAMP);
-        if (api.physical_device_features.pipelineStatisticsQuery == VK_TRUE)
-            api.query_statistics = VK::createQueryPool(api.device, api.swapchain.size, VK_QUERY_TYPE_PIPELINE_STATISTICS);
-        #endif
-    }
 }
 
 //----------------------------------------
@@ -814,45 +757,46 @@ std::map<str, VkCommandPool> VK::createCommandPools(VkDevice device, const VkQue
             log::error("Failed to create a vulkan command pool (%s)", key.c_str());
     }
     
-    deletion_queue_program.push_back([command_pools, device](){
+    deletion_queue_program.push_back([command_pools](){
         for (auto [key, pool] : command_pools)
-            vkDestroyCommandPool(device, pool, nullptr);
+            vkDestroyCommandPool(api.device, pool, nullptr);
     });
     log::graphics("Created all vulkan command pools");
     return command_pools;
 }
 
-std::vector<VkCommandBuffer> VK::allocateDrawCommandBuffers(VkDevice device, ui32 swapchain_size, const CommandData &cmd) {
+std::array<VkCommandBuffer, Config::frames_in_flight> VK::allocateDrawCommandBuffers() {
     //---Command buffers---
     //      All vulkan commands must be executed inside a command buffer
     //      Here we create the command buffers we will use for drawing, and allocate them inside a command pool ("draw")
     //      We are creating one buffer per swapchain image
     
-    std::vector<VkCommandBuffer> command_buffers(swapchain_size);
+    std::array<VkCommandBuffer, Config::frames_in_flight> command_buffers{};
     
     VkCommandBufferAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocate_info.commandPool = cmd.command_pools.at("draw");
-    allocate_info.commandBufferCount = (ui32)command_buffers.size();
+    allocate_info.commandPool = api.cmd.command_pools.at("draw");
+    allocate_info.commandBufferCount = (ui32)Config::frames_in_flight;
     
-    if (vkAllocateCommandBuffers(device, &allocate_info, command_buffers.data()) != VK_SUCCESS)
+    if (vkAllocateCommandBuffers(api.device, &allocate_info, command_buffers.data()) != VK_SUCCESS)
         log::error("Failed to allocate the vulkan main draw command buffers");
     
     log::graphics("Allocated the vulkan draw command buffers");
     
-    deletion_queue_size_change.push_back([cmd, command_buffers, device](){
-        vkFreeCommandBuffers(device, cmd.command_pools.at("draw"), (ui32)command_buffers.size(), command_buffers.data());
+    deletion_queue_program.push_back([command_buffers](){
+        vkFreeCommandBuffers(api.device, api.cmd.command_pools.at("draw"), (ui32)Config::frames_in_flight, command_buffers.data());
     });
+    
     return command_buffers;
 }
 
-void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
+void VK::recordRenderCommandBuffer() {
     //---Draw command buffer---
     //      We are going to use a command buffer for drawing
     //      It needs to bind the vertex and index buffers, as well as the descriptor sets that map the shader inputs such as uniforms
     //      We also have helper functions for begin and end the drawing buffer so it is easier to create different drawings
-    const VkCommandBuffer &cmd = vk.cmd.command_buffers.at("draw")[current];
+    const VkCommandBuffer &cmd = api.cmd.command_buffers.at("draw").at(api.sync.current_frame);
     
     //: Begin buffer
     VkCommandBufferBeginInfo begin_info{};
@@ -863,18 +807,8 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
     if (vkBeginCommandBuffer(cmd, &begin_info) != VK_SUCCESS)
         log::error("Failed to begin recording on a vulkan command buffer");
     
-    //: Reset timestamps and time before all passes
-    #ifdef DEBUG
-    ui32 queries = (((ui32)shaders.size() + 1) * 2);
-    if (Performance::timestamp_period > 0) {
-        vkCmdResetQueryPool(cmd, vk.query_timestamp, current * queries, queries);
-        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, vk.query_timestamp, current * queries);
-    }
-    int query_index = 0;
-    #endif
-    
     for (const auto &[r_id, render] : api.render_passes) {
-        IF_GUI(if (r_id == vk.gui_render_pass) continue;) //: Skip gui render pass
+        IF_GUI(if (r_id == api.gui_render_pass) continue;) //: Skip gui render pass
         
         auto subpasses = getAtoB<SubpassID>(r_id, Map::renderpass_subpass);
         auto attachments = getAtoB_v(r_id, Map::renderpass_attachment, api.attachments);
@@ -896,13 +830,16 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
         VkRenderPassBeginInfo render_pass_info{};
         render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         render_pass_info.renderPass = render.render_pass;
-        render_pass_info.framebuffer = render.framebuffers.at(current);
+        render_pass_info.framebuffer = render.framebuffers.at(api.cmd.current_image);
         render_pass_info.renderArea.offset = {0, 0};
         render_pass_info.renderArea.extent = render.attachment_extent;
         render_pass_info.clearValueCount = (ui32)clear_values.size();
         render_pass_info.pClearValues = clear_values.data();
         
         vkCmdBeginRenderPass(cmd, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+        
+        //: Set viewport and scissor
+        setViewport(cmd, render.attachment_extent);
         
         for (const auto &s_id : subpasses) {
             //: Next subpass
@@ -912,30 +849,25 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
             //: Get all shaders associated with this subpass
             std::vector<ShaderID> subpass_shaders = getAtoB<ShaderID>(s_id, Map::subpass_shader);
             
-            for (const auto &shader : subpass_shaders) {
-                #ifdef DEBUG
-                //: Timestamp before shader
-                if (Performance::timestamp_period > 0)
-                    vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, vk.query_timestamp, current * queries + 2 * ++query_index);
-                #endif
-                
+            for (const auto &shader_id : subpass_shaders) {
+                const ShaderPass& shader = Shader::getShader(shader_id);
                 //---Draw shaders---
-                if (shaders.at(shader).is_draw) {
-                    if (not api.draw_queue.count(shader) and not api.draw_queue_instanced.count(shader))
+                if (shader.is_draw) {
+                    if (not api.draw_queue.count(shader_id) and not api.draw_queue_instanced.count(shader_id))
                         continue;
                     
                     //: Bind pipeline
-                    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
+                    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline);
                     
                     //---Instanced rendering queue---
-                    if (shaders.at(shader).is_instanced) {
+                    if (shader.is_instanced) {
                         //: Direct rendering
-                        auto queue_uniform = api.draw_queue_instanced.at(shader);
+                        auto queue_uniform = api.draw_queue_instanced.at(shader_id);
                         for (const auto &[uniform_id, queue_geometry] : queue_uniform) {
                             DrawUniformData &uniform = api.draw_uniform_data.at(uniform_id);
                             //: Descriptor set
-                            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
-                                                    &uniform.descriptor_sets.at(current), 0, nullptr);
+                            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
+                                                    &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
                             
                             for (const auto &[geometry_id, queue_instance] : queue_geometry) {
                                 GeometryBufferData &geometry = api.geometry_buffer_data.at(geometry_id);
@@ -974,7 +906,7 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                     }
                     //---Regular rendering queue---
                     else {
-                        auto queue_buffer = api.draw_queue.at(shader);
+                        auto queue_buffer = api.draw_queue.at(shader_id);
                         for (const auto &[buffer, queue_tex] : queue_buffer) {
                             GeometryBufferData &geometry = api.geometry_buffer_data.at(buffer);
                             
@@ -993,8 +925,8 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                                     DrawUniformData &uniform = api.draw_uniform_data.at(uniform_id);
                                     
                                     //: Descriptor set
-                                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
-                                                            &uniform.descriptor_sets.at(current), 0, nullptr);
+                                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
+                                                            &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
 
                                     //: Draw vertices
                                     if (Config::draw_indirect) {
@@ -1014,44 +946,20 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
                 
                 //---Post shaders---
                 else  {
-                    //: Debug attachments
-                    #ifdef DEBUG
-                    if (shader.rfind("debug", 0) == 0) {
-                        if (api.render_attachment < 0)
-                            continue;
-                        if (shader.find("_" + std::to_string(api.render_attachment)) == str::npos)
-                            continue;
-                        if (api.attachments.at(api.render_attachment).type & ATTACHMENT_DEPTH and
-                            api.attachments.at(api.render_attachment).type & ATTACHMENT_MSAA) {
-                            bool msaa_shader = shader.find("_msaa") != str::npos;
-                            if (msaa_shader and api.attachments.at(api.render_attachment).description.samples == VK_SAMPLE_COUNT_1_BIT)
-                                continue;
-                            if (not msaa_shader and api.attachments.at(api.render_attachment).description.samples != VK_SAMPLE_COUNT_1_BIT)
-                                continue;
-                        }
-                    }
-                    #endif
-                    
                     //: Pipeline
-                    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline);
+                    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline);
                     
                     //: Descriptor sets
-                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk.pipelines.at(shader).pipeline_layout, 0, 1,
-                                            &vk.pipelines.at(shader).descriptor_sets.at(current), 0, nullptr);
+                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
+                                            &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
                     
                     //: Vertex buffer (It has the 4 vertices of the window area)
                     VkDeviceSize offsets[]{ 0 };
-                    vkCmdBindVertexBuffers(cmd, 0, 1, &vk.window_vertex_buffer.buffer, offsets);
+                    vkCmdBindVertexBuffers(cmd, 0, 1, &api.window_vertex_buffer.buffer, offsets);
                     
                     //: Draw
                     vkCmdDraw(cmd, 6, 1, 0, 0);
                 }
-                
-                //: Timestamp after shader
-                #ifdef DEBUG
-                if (Performance::timestamp_period > 0)
-                    vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, vk.query_timestamp, current * queries + 2 * query_index + 1);
-                #endif
             }
         }
         
@@ -1059,15 +967,24 @@ void VK::recordRenderCommandBuffer(const Vulkan &vk, ui32 current) {
         vkCmdEndRenderPass(cmd);
     }
     
-    #ifdef DEBUG
-    //: Timestamp after all passes
-    if (Performance::timestamp_period > 0)
-        vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, vk.query_timestamp, current * queries + 1);
-    #endif
-    
     //: End command buffer
     if (vkEndCommandBuffer(cmd) != VK_SUCCESS)
         log::error("Failed to end recording on a vulkan command buffer");
+}
+
+void VK::setViewport(const VkCommandBuffer &cmd, VkExtent2D extent) {
+    VkViewport viewport;
+    viewport.x = 0.0f; viewport.y = 0.0f;
+    viewport.width = (float)extent.width; viewport.height = (float)extent.height;
+    viewport.minDepth = 0.0f; viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor;
+    scissor.offset = {0, 0};
+    scissor.extent = extent;
+    
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+    vkCmdSetDepthBias(cmd, 0, 0, 0);
 }
 
 IndirectBufferID Graphics::registerIndirectCommandBuffer() {
@@ -1078,15 +995,11 @@ IndirectBufferID Graphics::registerIndirectCommandBuffer() {
     api.draw_indirect_buffers[id] = IndirectCommandBuffer{};
     IndirectCommandBuffer &icmd = api.draw_indirect_buffers[id];
     
-    VkDeviceSize s = MAX_INDIRECT_COMMANDS * sizeof(VkDrawIndexedIndirectCommand);
-    icmd.buffer = VK::createBuffer(api.allocator, s, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    ui32 size = MAX_INDIRECT_COMMANDS * sizeof(VkDrawIndexedIndirectCommand);
+    icmd.buffer = Common::allocateBuffer(size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
     
     icmd.current_offset = 0;
     icmd.free_positions = {};
-    
-    VK::deletion_queue_program.push_back([icmd](){
-        vmaDestroyBuffer(api.allocator, icmd.buffer.buffer, icmd.buffer.allocation);
-    });
     
     return id;
 }
@@ -1168,7 +1081,7 @@ void VK::endSingleUseCommandBuffer(VkDevice device, VkCommandBuffer command_buff
 
 #ifdef DEBUG
 
-VkQueryPool VK::createQueryPool(VkDevice device, ui32 swapchain_size, VkQueryType type) {
+VkQueryPool VK::createQueryPool(VkQueryType type) {
     //---Query pool---
     //      This will allocate queries that we can perform, for example, to measure the execution time for a command buffer
     VkQueryPool query_pool;
@@ -1180,7 +1093,7 @@ VkQueryPool VK::createQueryPool(VkDevice device, ui32 swapchain_size, VkQueryTyp
     
     //: Timestamp
     if (type == VK_QUERY_TYPE_TIMESTAMP) {
-        create_info.queryCount = swapchain_size * (((ui32)shaders.size() + 1) * 2);
+        create_info.queryCount = Config::frames_in_flight * 2;
         //: One query before and after each draw call for each shader, and one for the entire gpu
     }
     
@@ -1194,21 +1107,21 @@ VkQueryPool VK::createQueryPool(VkDevice device, ui32 swapchain_size, VkQueryTyp
             VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT |
             VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT |
             VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT;
-        create_info.queryCount = swapchain_size * 6;
+        create_info.queryCount = Config::frames_in_flight * 6;
     }
 
-    if (vkCreateQueryPool(device, &create_info, nullptr, &query_pool) != VK_SUCCESS)
+    if (vkCreateQueryPool(api.device, &create_info, nullptr, &query_pool) != VK_SUCCESS)
         log::error("Failed to create a query pool");
     
-    deletion_queue_size_change.push_back([query_pool, device](){ vkDestroyQueryPool(device, query_pool, nullptr); });
+    deletion_queue_program.push_back([query_pool](){ vkDestroyQueryPool(api.device, query_pool, nullptr); });
     
     return query_pool;
 }
 
-std::vector<ui64> VK::getQueryResults(VkDevice device, VkQueryPool query, ui32 offset, ui32 count) {
+std::vector<ui64> VK::getQueryResults(VkQueryPool query, ui32 offset, ui32 count) {
     std::vector<ui64> results(count);
     
-    vkGetQueryPoolResults(device, query, offset, count, count * sizeof(ui64), results.data(), sizeof(ui64), VK_QUERY_RESULT_64_BIT);
+    vkGetQueryPoolResults(api.device, query, offset, count, count * sizeof(ui64), results.data(), sizeof(ui64), VK_QUERY_RESULT_64_BIT);
     
     return results;
 }
@@ -1324,6 +1237,7 @@ AttachmentID Graphics::registerAttachment(AttachmentType type, Vec2<ui16> size) 
             attachment.final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         if (type & ATTACHMENT_DEPTH)
             attachment.final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        attachment.store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     }
     
     if (hasMultisampling(id - 1)) //: Resolve
@@ -1416,9 +1330,9 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, RenderPassID 
         framebuffers[i] = VK::createFramebuffer(device, render.render_pass, fb_attachments, extent);
     }
     
-    deletion_queue_swapchain.push_back([framebuffers, device](){
+    deletion_queue_swapchain.push_back([framebuffers](){
         for (VkFramebuffer fb : framebuffers)
-            vkDestroyFramebuffer(device, fb, nullptr);
+            vkDestroyFramebuffer(api.device, fb, nullptr);
     });
     log::graphics("Created vulkan framebuffers");
     return framebuffers;
@@ -1634,10 +1548,10 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
     create_info.dependencyCount = (ui32)render_pass_helper.dependencies.size();
     create_info.pDependencies = render_pass_helper.dependencies.data();
     
-    if (vkCreateRenderPass(vk.device, &create_info, nullptr, &render.render_pass) != VK_SUCCESS)
+    if (vkCreateRenderPass(api.device, &create_info, nullptr, &render.render_pass) != VK_SUCCESS)
         log::error("Error creating a vulkan render pass");
     
-    VK::deletion_queue_swapchain.push_back([render, vk](){ vkDestroyRenderPass(vk.device, render.render_pass, nullptr); });
+    VK::deletion_queue_swapchain.push_back([render, vk](){ vkDestroyRenderPass(api.device, render.render_pass, nullptr); });
     log::graphics("Created a vulkan render pass with %d subpasses and %d attachments",
                   render_pass_helper.subpasses.size(), render_pass_helper.attachments.size());
     
@@ -1667,7 +1581,7 @@ RenderPassID Graphics::registerRenderPass(std::vector<SubpassID> subpasses) {
 void VK::recreateRenderPasses(Vulkan &vk) {
     for (auto &[id, render] : api.render_passes) {
         render = VK::createRenderPass(vk, id);
-        render.framebuffers = VK::createFramebuffers(vk.device, id, render.attachment_extent, vk.swapchain);
+        render.framebuffers = VK::createFramebuffers(api.device, id, render.attachment_extent, vk.swapchain);
     }
 }
 
@@ -1694,12 +1608,11 @@ IShaderModule Common::createInternalShaderModule(const std::vector<ui32> &code, 
 
 std::vector<VkPipelineShaderStageCreateInfo> VK::getShaderStageInfo(const ShaderPass &pass) {
     std::vector<VkPipelineShaderStageCreateInfo> info;
-    //TODO: CHANGE NAME AND COMMENT
     for (auto &stage : pass.stages) {
         VkPipelineShaderStageCreateInfo create_info{};
         
         create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        create_info.stage = (VkShaderStageFlagBits)stage.stage;
+        create_info.stage = (ShaderStageT)stage.stage;
         create_info.module = stage.module;
         create_info.pName = "main";
         create_info.pSpecializationInfo = nullptr;
@@ -1717,7 +1630,7 @@ std::vector<VkPipelineShaderStageCreateInfo> VK::getShaderStageInfo(const Shader
 //Sync objects
 //----------------------------------------
 
-SyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
+SyncData VK::createSyncObjects() {
     //---Sync objects---
     //      Used to control the flow of operations when executing commands
     //      - Fence: GPU->CPU, we can wait from the CPU until a fence has finished on a GPU operation
@@ -1732,20 +1645,16 @@ SyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
     
     //---Semaphores--- (GPU->GPU)
     //: Image available, locks when vkAcquireNextImageKHR() is getting a new image, then submits command buffer
-    sync.semaphores_image_available.resize(MAX_FRAMES_IN_FLIGHT);
     //: Render finished, locks while the command buffer is in execution, then finishes frame
-    sync.semaphores_render_finished.resize(MAX_FRAMES_IN_FLIGHT);
     
     //: Default semaphore creation info
     VkSemaphoreCreateInfo semaphore_info{};
     semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     
-    
     //---Fences--- (GPU->CPU)
     //: Frame in flight, waits until the frame is not in flight and can be writter again
-    sync.fences_in_flight.resize(MAX_FRAMES_IN_FLIGHT);
     //: Images in flight, we need to track for each swapchain image if a frame in flight is currently using it, has size of swapchain
-    sync.fences_images_in_flight.resize(swapchain_size, VK_NULL_HANDLE);
+    sync.fences_images_in_flight.resize(api.swapchain.size, VK_NULL_HANDLE);
     
     //: Default fence creation info, signaled bit means they start like they have already finished once
     VkFenceCreateInfo fence_info{};
@@ -1753,22 +1662,22 @@ SyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
     fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     
     //---Create semaphores and fences---
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (vkCreateSemaphore(device, &semaphore_info, nullptr, &sync.semaphores_image_available.at(i)) != VK_SUCCESS)
+    for (int i = 0; i < Config::frames_in_flight; i++) {
+        if (vkCreateSemaphore(api.device, &semaphore_info, nullptr, &sync.semaphores_image_available.at(i)) != VK_SUCCESS)
             log::error("Failed to create a vulkan semaphore (image available)");
         
-        if (vkCreateSemaphore(device, &semaphore_info, nullptr, &sync.semaphores_render_finished.at(i)) != VK_SUCCESS)
+        if (vkCreateSemaphore(api.device, &semaphore_info, nullptr, &sync.semaphores_render_finished.at(i)) != VK_SUCCESS)
             log::error("Failed to create a vulkan semaphore (render finished)");
         
-        if (vkCreateFence(device, &fence_info, nullptr, &sync.fences_in_flight.at(i)) != VK_SUCCESS)
+        if (vkCreateFence(api.device, &fence_info, nullptr, &sync.fences_in_flight.at(i)) != VK_SUCCESS)
             log::error("Failed to create a vulkan fence (frame in flight)");
     }
     
-    deletion_queue_size_change.push_back([device, sync](){
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            vkDestroySemaphore(device, sync.semaphores_image_available.at(i), nullptr);
-            vkDestroySemaphore(device, sync.semaphores_render_finished.at(i), nullptr);
-            vkDestroyFence(device, sync.fences_in_flight.at(i), nullptr);
+    deletion_queue_program.push_back([sync](){
+        for (int i = 0; i < Config::frames_in_flight; i++) {
+            vkDestroySemaphore(api.device, sync.semaphores_image_available.at(i), nullptr);
+            vkDestroySemaphore(api.device, sync.semaphores_render_finished.at(i), nullptr);
+            vkDestroyFence(api.device, sync.fences_in_flight.at(i), nullptr);
         }
     });
     log::graphics("Created all vulkan sync objects");
@@ -1784,113 +1693,21 @@ SyncData VK::createSyncObjects(VkDevice device, ui32 swapchain_size) {
 //Pipeline
 //----------------------------------------
 
-VkPipelineHelperData VK::preparePipelineCreateInfo(const std::vector<VkVertexInputBindingDescription> binding_description,
-                                                   const std::vector<VkVertexInputAttributeDescription> attribute_description, VkExtent2D extent) {
-    //---Preprare pipeline info---
-    //      Pipelines are huge objects in vulkan, and building them is both complicated and expensive
-    //      There is a lot of configuration needed, so this with all the helper functions attempt to break it down into manageable components
-    //      Each function explains itself, so refer to them for reference
-    VkPipelineHelperData info;
-    
-    info.vertex_input_binding_description = binding_description;
-    info.vertex_input_attribute_descriptions = attribute_description;
-    info.vertex_input = preparePipelineCreateInfoVertexInput(info.vertex_input_binding_description, info.vertex_input_attribute_descriptions);
-    
-    info.input_assembly = preparePipelineCreateInfoInputAssembly();
-    
-    info.viewport = preparePipelineCreateInfoViewport(extent);
-    info.scissor = preparePipelineCreateInfoScissor(extent);
-    info.viewport_state = preparePipelineCreateInfoViewportState(info.viewport, info.scissor);
-    
-    info.rasterizer = preparePipelineCreateInfoRasterizer();
-    
-    info.multisampling = preparePipelineCreateInfoMultisampling();
-    
-    info.depth_stencil = preparePipelineCreateInfoDepthStencil();
-    
-    info.color_blend_attachment = preparePipelineCreateInfoColorBlendAttachment();
-    info.color_blend_state = preparePipelineCreateInfoColorBlendState(info.color_blend_attachment);
-    
-    return info;
-}
-
-VkPipelineVertexInputStateCreateInfo VK::preparePipelineCreateInfoVertexInput(
-    const std::vector<VkVertexInputBindingDescription> &binding, const std::vector<VkVertexInputAttributeDescription> &attributes) {
-    
-    //---Vertex input info---
-    //      Each vertex can have a different shape, this struct details it's structure
-    //      It has two components, the binding and the attribute descriptions
-    //      You can think of it as if the binding is the global binding and size of the struct (we have just one in this case, VertexData)
-    //      The attribute description is an array including each member of the array, with its size and stride
-    //      We get this information using fresa's reflection on the types we pass
-    VkPipelineVertexInputStateCreateInfo vertex_input{};
-    vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    
-    vertex_input.vertexBindingDescriptionCount = (ui32)binding.size();
-    vertex_input.pVertexBindingDescriptions = binding.data();
-    
-    vertex_input.vertexAttributeDescriptionCount = (ui32)attributes.size();
-    vertex_input.pVertexAttributeDescriptions = attributes.data();
-    
-    return vertex_input;
-}
-
-VkPipelineInputAssemblyStateCreateInfo VK::preparePipelineCreateInfoInputAssembly() {
+VkPipelineInputAssemblyStateCreateInfo VK::Pipeline::getInputAssembly(VkPrimitiveTopology topology) {
     //---Input assembly info---
-    //      Here we specify the way the vertices will be processed, in this case a triangle list (Each 3 vertices will form a triangle)
+    //      Here we specify the way the vertices will be processed, for example a triangle list (Each 3 vertices will form a triangle)
     //      Other possible configurations make it possible to draw points or lines
     //      If primitiveRestartEnable is set to true, it is possible to break strips using a special index, but we won't use it yet
     VkPipelineInputAssemblyStateCreateInfo input_assembly{};
     input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     
-    input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    input_assembly.topology = topology;
     input_assembly.primitiveRestartEnable = VK_FALSE;
     
     return input_assembly;
 }
 
-VkViewport VK::preparePipelineCreateInfoViewport(VkExtent2D extent) {
-    //---Viewport---
-    //      The offset and dimensions of the draw viewport inside the window, we just set this to the default
-    VkViewport viewport{};
-    
-    viewport.x = 0;
-    viewport.y = 0;
-    viewport.width = extent.width;
-    viewport.height = extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    
-    return viewport;
-}
-
-VkRect2D VK::preparePipelineCreateInfoScissor(VkExtent2D extent) {
-    //---Scissor---
-    //      It is possible to crop the viewport and only present a part of it, but for now we will leave it as default
-    VkRect2D scissor{};
-    
-    scissor.offset = {0, 0};
-    scissor.extent = extent;
-    
-    return scissor;
-}
-
-VkPipelineViewportStateCreateInfo VK::preparePipelineCreateInfoViewportState(const VkViewport &viewport, const VkRect2D &scissor) {
-    //---Viewport state info---
-    //      We combine the viewport and scissor into one vulkan info struct
-    VkPipelineViewportStateCreateInfo viewport_state{};
-    viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    
-    viewport_state.viewportCount = 1;
-    viewport_state.pViewports = &viewport;
-    
-    viewport_state.scissorCount = 1;
-    viewport_state.pScissors = &scissor;
-    
-    return viewport_state;
-}
-
-VkPipelineRasterizationStateCreateInfo VK::preparePipelineCreateInfoRasterizer() {
+VkPipelineRasterizationStateCreateInfo VK::Pipeline::getRasterizer(VkPolygonMode polygon_mode, VkCullModeFlagBits cull, float line_width) {
     //---Rasterizer info---
     //      Configuration for the rasterizer stage
     //      While it is not directly programmable like the vertex or fragment stage, we can set some variables to modify how it works
@@ -1905,19 +1722,18 @@ VkPipelineRasterizationStateCreateInfo VK::preparePipelineCreateInfoRasterizer()
     //      - Line, draws the edges of the triangle as lines
     //      - Point, only draws the vertices of the triangle as points
     //      (Line and point require enabling GPU features)
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.polygonMode = polygon_mode;
     
     //: Line width
     //      Describes the thickness of lines in term of fragments, it requires enabling the wideLines GPU feature
-    rasterizer.lineWidth = 1.0f;
+    rasterizer.lineWidth = line_width;
     
     //: Culling (disabled)
     //      We will be culling the back face to save in performance
     //      To calculate the front face, if we are not sending normals, the vertices will be calculated in counter clockwise order
     //      If nothing shows to the screen, one of the most probable causes is the winding order of the vertices to be reversed
-    rasterizer.cullMode = VK_CULL_MODE_NONE;
-    //rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    log::graphics("Culling: disabled");
+    rasterizer.cullMode = cull;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;
@@ -1927,7 +1743,7 @@ VkPipelineRasterizationStateCreateInfo VK::preparePipelineCreateInfoRasterizer()
     return rasterizer;
 }
 
-VkPipelineMultisampleStateCreateInfo VK::preparePipelineCreateInfoMultisampling() {
+VkPipelineMultisampleStateCreateInfo VK::Pipeline::getMultisampling() {
     //---Multisampling info---
     //      It is one of the ways to perform anti-aliasing when multiple polygons rasterize to the same pixel
     //      We will get back to this and enable it
@@ -1946,77 +1762,143 @@ VkPipelineMultisampleStateCreateInfo VK::preparePipelineCreateInfoMultisampling(
     return multisampling;
 }
 
-VkPipelineDepthStencilStateCreateInfo VK::preparePipelineCreateInfoDepthStencil() {
-    //---Depth info---
-    //      WORK IN PROGRESS, get back to this
-    VkPipelineDepthStencilStateCreateInfo depth_stencil{};
-    depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    
-    depth_stencil.depthTestEnable = VK_TRUE;
-    depth_stencil.depthWriteEnable = VK_TRUE;
-    
-    depth_stencil.depthBoundsTestEnable = VK_FALSE;
-    depth_stencil.stencilTestEnable = VK_FALSE;
-    
-    depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
-    
-    depth_stencil.minDepthBounds = 0.0f;
-    depth_stencil.maxDepthBounds = 1.0f;
-    
-    depth_stencil.front = {};
-    depth_stencil.back = {};
-    
-    return depth_stencil;
-}
-
-VkPipelineColorBlendAttachmentState VK::preparePipelineCreateInfoColorBlendAttachment() {
+VkPipelineColorBlendAttachmentState VK::Pipeline::getColorBlend() {
     //---Color blending attachment---
-    //      Specifies how colors should be blended together
-    //      We are using alpha blending:
-    //          final_color.rgb = new_color.a * new_color.rgb + (1 - new_color.a) * old_color.rgb;
-    //          final_color.a = new_color.a;
-    //      This still needs testing and possible tweaking
+    //      Specifies how colors should be blended together (disabled by default)
     VkPipelineColorBlendAttachmentState color_blend{};
     
     color_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    color_blend.blendEnable = VK_FALSE;
+
+    //: One possible configuration is alpha blending:
+    //      final_color.rgb = new_color.a * new_color.rgb + (1 - new_color.a) * old_color.rgb;
+    //      final_color.a = new_color.a;
     
-    color_blend.blendEnable = VK_TRUE;
-    
-    color_blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    /*color_blend.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     color_blend.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     color_blend.colorBlendOp = VK_BLEND_OP_ADD;
     
     color_blend.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     color_blend.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    color_blend.alphaBlendOp = VK_BLEND_OP_ADD;
+    color_blend.alphaBlendOp = VK_BLEND_OP_ADD;*/
     
     return color_blend;
 }
 
-VkPipelineColorBlendStateCreateInfo VK::preparePipelineCreateInfoColorBlendState(const VkPipelineColorBlendAttachmentState &attachment) {
-    //---Color blending info---
-    //      Combines all the color blending attachments into one struct
-    //      Note: each framebuffer can have a different attachment, right now we are only using one for all
-    //      Here logic operations can be specified manually, but we will use vulkan's blend attachments to handle blending
-    VkPipelineColorBlendStateCreateInfo color_blend_state{};
-
-    color_blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+VkPipelineDepthStencilStateCreateInfo VK::Pipeline::getDepthStencil(bool depth_test, bool depth_write, VkCompareOp compare_op) {
+    //---Depth info---
+    //      WORK IN PROGRESS, get back to this
+    VkPipelineDepthStencilStateCreateInfo depth_stencil{};
+    depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     
-    color_blend_state.logicOpEnable = VK_FALSE;
-    color_blend_state.logicOp = VK_LOGIC_OP_COPY;
+    depth_stencil.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
+    depth_stencil.depthWriteEnable = depth_write ? VK_TRUE : VK_FALSE;
     
-    color_blend_state.attachmentCount = 1;
-    color_blend_state.pAttachments = &attachment;
+    depth_stencil.depthBoundsTestEnable = VK_FALSE;
+    depth_stencil.stencilTestEnable = VK_FALSE;
     
-    color_blend_state.blendConstants[0] = 0.0f;
-    color_blend_state.blendConstants[1] = 0.0f;
-    color_blend_state.blendConstants[2] = 0.0f;
-    color_blend_state.blendConstants[3] = 0.0f;
+    depth_stencil.depthCompareOp = depth_test ? compare_op : VK_COMPARE_OP_ALWAYS;
     
-    return color_blend_state;
+    depth_stencil.minDepthBounds = 0.0f;
+    depth_stencil.maxDepthBounds = 1.0f;
+    
+    return depth_stencil;
 }
 
-VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSetLayout &descriptor_set_layout) {
+VkVertexInputBindingDescription VK::Pipeline::getVertexBindingDescription(ui32 size, ui32 binding, VkVertexInputRate rate) {
+    VkVertexInputBindingDescription v;
+    
+    v.stride = size;
+    v.binding = binding;
+    v.inputRate = rate;
+    
+    return v;
+}
+
+PipelineCreateData VK::Pipeline::getCreateData(ConfigData config, ShaderID shader) {
+    PipelineCreateData data{};
+    
+    //: Vertex info
+    data.vertex_input_binding_descriptions = {};
+    data.vertex_input_attribute_descriptions = {};
+    
+    ui32 binding = 0;
+    ui32 previous_location = 0;
+    
+    static const std::map<VertexFormat, VkFormat> format_map = {
+        {VERTEX_FORMAT_R_F, VK_FORMAT_R32_SFLOAT},
+        {VERTEX_FORMAT_RG_F, VK_FORMAT_R32G32_SFLOAT},
+        {VERTEX_FORMAT_RGB_F, VK_FORMAT_R32G32B32_SFLOAT},
+        {VERTEX_FORMAT_RGBA_F, VK_FORMAT_R32G32B32A32_SFLOAT},
+    };
+    
+    for (auto v : config.vertex_descriptions) {
+        for_<VertexType>([&](auto i) {
+            using V = std::variant_alternative_t<i.value, VertexType>;
+            
+            str vertex_name = str(type_name<V>());
+            if (vertex_name.rfind("Vertex", 0) != 0) log::error("All vertex types need to start with 'Vertex', this is %s", vertex_name.c_str());
+            vertex_name = lower(vertex_name.substr(6));
+            
+            if (vertex_name == lower(v.first)) {
+                //: Binding descriptions
+                data.vertex_input_binding_descriptions.push_back(getVertexBindingDescription(sizeof(V), binding, (VkVertexInputRate)v.second));
+                
+                //: Attribute descriptions
+                auto attributes = getAttributeDescriptions<V>(binding, previous_location);
+                previous_location += (ui32)attributes.size();
+                for (auto &a : attributes) {
+                    data.vertex_input_attribute_descriptions.push_back(
+                        VkVertexInputAttributeDescription{a.location, a.binding, format_map.at(a.format), a.offset});
+                }
+            }
+        });
+        binding++;
+        if (data.vertex_input_binding_descriptions.size() != binding)
+            log::error("The vertex '%s' didn't match any of the VertexType names", v.first.c_str());
+    }
+    
+    //: Input assembly (primitive topology)
+    data.input_assembly = getInputAssembly(config.topology);
+
+    //: Rasterization state (polygon mode, face culling)
+    data.rasterizer = getRasterizer(config.polygon_mode, config.cull, config.line_width);
+    
+    //: Multisampling
+    data.multisampling = getMultisampling();
+    auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
+    auto attachments = getAtoB_v(subpass.first, Map::subpass_attachment, api.attachments);
+    std::optional<VkSampleCountFlagBits> samples;
+    for (auto &[id, a] : attachments) {
+        if (std::count(subpass.second.external_attachments.begin(), subpass.second.external_attachments.end(), id)) //: Skip external attachments
+            continue;
+        if (subpass.second.attachment_descriptions.at(id) == ATTACHMENT_INPUT) //: Skip input attachments when they are used as input (already resolved)
+            continue;
+        if (not samples.has_value())
+            samples = a.description.samples;
+        if (samples.value() != a.description.samples)
+            log::error("All attachments that are not external must have the same number of samples %d, attachment: %d - %d",
+                       samples.value(), id, a.description.samples);
+    }
+    if (samples.has_value())
+        data.multisampling.rasterizationSamples = samples.value();
+    //TODO: Recreate pipelines when multisampling changes
+    
+    //: Color blend
+    data.color_blend_attachment = getColorBlend();
+    
+    //: Depth stencil
+    data.depth_stencil = getDepthStencil(config.depth_test, config.depth_write, config.compare_op);
+    
+    //: Shader and layout
+    data.shader = shader;
+    data.layout = Shader::getShader(shader).pipeline_layout;
+    
+    return data;
+}
+
+VkPipelineLayout VK::createPipelineLayout(const std::vector<VkDescriptorSetLayout> &set_layouts,
+                                          const std::vector<VkPushConstantRange> &push_constants) {
     //---Pipeline layout---
     //      Holds the information of the descriptor set layouts that we created earlier
     //      This allows to reference uniforms or images at draw time and change them without recreating the pipeline
@@ -2025,126 +1907,125 @@ VkPipelineLayout VK::createPipelineLayout(VkDevice device, const VkDescriptorSet
     VkPipelineLayoutCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     
-    create_info.setLayoutCount = 1;
-    create_info.pSetLayouts = &descriptor_set_layout;
+    create_info.setLayoutCount = (ui32)set_layouts.size();
+    create_info.pSetLayouts = set_layouts.data();
     
-    create_info.pushConstantRangeCount = 0;
-    create_info.pPushConstantRanges = nullptr;
+    create_info.pushConstantRangeCount = (ui32)push_constants.size();
+    create_info.pPushConstantRanges = push_constants.data();
     
-    if (vkCreatePipelineLayout(device, &create_info, nullptr, &pipeline_layout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(api.device, &create_info, nullptr, &pipeline_layout) != VK_SUCCESS)
         log::error("Error creating a vulkan pipeline layout");
     
-    deletion_queue_program.push_back([pipeline_layout, device](){ vkDestroyPipelineLayout(device, pipeline_layout, nullptr); });
+    deletion_queue_program.push_back([pipeline_layout](){ vkDestroyPipelineLayout(api.device, pipeline_layout, nullptr); });
     log::graphics("Created a vulkan pipeline layout");
     return pipeline_layout;
 }
 
-VkPipeline VK::createGraphicsPipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader) {
+VkPipeline VK::buildGraphicsPipeline(const PipelineCreateData &data) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
     //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
     //      Here we put together all the previous helper functions and structs
     //      It holds shader stages, all the creation info, a layout for description sets, render passes...
-    //      IMPORTANT: Only call this function when pipeline is ONLY missing the VkPipeline object
-    VkPipeline pipeline;
-    VkGraphicsPipelineCreateInfo create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    
+    //: Vertex input info
+    VkPipelineVertexInputStateCreateInfo vertex_input{};
+    vertex_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    
+    vertex_input.vertexBindingDescriptionCount = (ui32)data.vertex_input_binding_descriptions.size();
+    vertex_input.pVertexBindingDescriptions = data.vertex_input_binding_descriptions.data();
+    
+    vertex_input.vertexAttributeDescriptionCount = (ui32)data.vertex_input_attribute_descriptions.size();
+    vertex_input.pVertexAttributeDescriptions = data.vertex_input_attribute_descriptions.data();
+    
+    //: Viewport
+    VkPipelineViewportStateCreateInfo viewport_state{};
+    viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport_state.pNext = nullptr;
+    
+    viewport_state.viewportCount = 1;
+    viewport_state.pViewports = &data.viewport;
+    viewport_state.scissorCount = 1;
+    viewport_state.pScissors = &data.scissor;
+    
+    //: Color blending
+    VkPipelineColorBlendStateCreateInfo color_blending{};
+    color_blending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    
+    color_blending.logicOpEnable = VK_FALSE;
+    color_blending.logicOp = VK_LOGIC_OP_COPY;
+    
+    color_blending.attachmentCount = 1;
+    color_blending.pAttachments = &data.color_blend_attachment;
+    
+    //: Dynamic state
+    std::vector<VkDynamicState> states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_DEPTH_BIAS};
+    
+    VkPipelineDynamicStateCreateInfo dynamic_state{};
+    dynamic_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic_state.pDynamicStates = states.data();
+    dynamic_state.dynamicStateCount = (ui32)states.size();
+    
+    //: Shader stages
+    std::vector<VkPipelineShaderStageCreateInfo> shader_stages = getShaderStageInfo(Shader::getShader(data.shader));
     
     //: Render pass
-    auto renderpass = getBtoA_v(shader, Map::renderpass_shader, api.render_passes);
+    auto renderpass = getBtoA_v(data.shader, Map::renderpass_shader, api.render_passes);
     auto subpass_list = getAtoB<SubpassID>(renderpass.first, Map::renderpass_subpass);
-    auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
+    auto subpass = getBtoA_v(data.shader, Map::subpass_shader, api.subpasses);
     
     auto it = std::find(subpass_list.begin(), subpass_list.end(), subpass.first);
     if (it == subpass_list.end())
         log::error("The subpass %d is not part of the render pass %d", subpass.first, renderpass.first);
     ui32 relative_subpass = (ui32)(it - subpass_list.begin());
     
+    //: Add all pipeline create info
+    VkGraphicsPipelineCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    create_info.pNext = nullptr;
+    
+    create_info.pVertexInputState = &vertex_input;
+    create_info.pViewportState = &viewport_state;
+    create_info.pColorBlendState = &color_blending;
+    create_info.pDynamicState = &dynamic_state;
+    
+    create_info.stageCount = (ui32)shader_stages.size();
+    create_info.pStages = shader_stages.data();
+    
+    create_info.pInputAssemblyState = &data.input_assembly;
+    create_info.pRasterizationState = &data.rasterizer;
+    create_info.pMultisampleState = &data.multisampling;
+    create_info.pDepthStencilState = &data.depth_stencil;
+    
+    create_info.layout = data.layout;
+    create_info.basePipelineHandle = VK_NULL_HANDLE;
+    
     create_info.renderPass = renderpass.second.render_pass;
     create_info.subpass = relative_subpass;
     
-    //: Shader stages
-    std::vector<VkPipelineShaderStageCreateInfo> stage_info = getShaderStageInfo(shaders.at(shader));
-    create_info.stageCount = (int)stage_info.size();
-    create_info.pStages = stage_info.data();
-    
-    //: Pipeline info
-    VkPipelineHelperData pipeline_create_info = preparePipelineCreateInfo(data.binding_descriptions, data.attribute_descriptions,
-                                                                          renderpass.second.attachment_extent);
-    
-    //: Multisampling
-    auto attachments = getAtoB_v(subpass.first, Map::subpass_attachment, api.attachments);
-    std::vector<VkSampleCountFlagBits> samples(attachments.size());
-    std::transform(attachments.begin(), attachments.end(), samples.begin(), [&](auto &a){ return VK::getAttachmentSamples(vk, a.second); });
-    pipeline_create_info.multisampling.rasterizationSamples = *std::min_element(samples.begin(), samples.end());
-    
-    //: Create info
-    create_info.pVertexInputState = &pipeline_create_info.vertex_input;
-    create_info.pInputAssemblyState = &pipeline_create_info.input_assembly;
-    create_info.pViewportState = &pipeline_create_info.viewport_state;
-    create_info.pRasterizationState = &pipeline_create_info.rasterizer;
-    create_info.pMultisampleState = &pipeline_create_info.multisampling;
-    create_info.pDepthStencilState = &pipeline_create_info.depth_stencil;
-    create_info.pColorBlendState = &pipeline_create_info.color_blend_state;
-    create_info.pDynamicState = nullptr;
-    create_info.pTessellationState = nullptr;
-    
-    //: Layout
-    create_info.layout = data.pipeline_layout;
-    
-    //: Recreation info
-    create_info.basePipelineHandle = VK_NULL_HANDLE;
-    create_info.basePipelineIndex = -1;
-    
-    //---Create pipeline---
-    if (vkCreateGraphicsPipelines(vk.device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline) != VK_SUCCESS)
-        log::error("Error while creating a vulkan graphics pipeline");
-    
-    deletion_queue_swapchain.push_back([pipeline, vk](){ vkDestroyPipeline(vk.device, pipeline, nullptr); });
-    log::graphics("Created a vulkan graphics pipeline");
-    log::graphics("");
-    return pipeline;
-}
-
-VkPipeline VK::createComputePipelineObject(const Vulkan &vk, const PipelineData &data, ShaderID shader) {
+    //: Build pipeline
     VkPipeline pipeline;
-    VkComputePipelineCreateInfo create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     
-    //: Shader stage
-    const ShaderModule* compute_module = Shader::getPassModule(compute_shaders.at(shader), SHADER_STAGE_COMPUTE);
-    create_info.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    create_info.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    create_info.stage.module = compute_module->module;
-    create_info.stage.pName = "main";
+    if (vkCreateGraphicsPipelines(api.device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline) != VK_SUCCESS)
+        log::error("Error while creating a vulkan graphics pipeline");
+    log::graphics("Created a vulkan graphics pipeline");
     
-    //: Layout
-    create_info.layout = data.pipeline_layout;
-    
-    //---Create pipeline---
-    if (vkCreateComputePipelines(vk.device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline) != VK_SUCCESS)
-        log::error("Error while creating a vulkan compute pipeline");
-    
-    deletion_queue_swapchain.push_back([pipeline, vk](){ vkDestroyPipeline(vk.device, pipeline, nullptr); });
-    log::graphics("Created a vulkan compute pipeline");
-    
+    //: Cleanup
+    deletion_queue_program.push_back([pipeline](){ vkDestroyPipeline(api.device, pipeline, nullptr); });
     return pipeline;
 }
 
-void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader) {
-    //: Descriptor set
-    data.descriptor_layout_bindings = VK::createDescriptorSetLayoutBindings(vk.device, shaders.at(shader), vk.swapchain.size);
-    data.descriptor_layout = VK::createDescriptorSetLayout(data.descriptor_layout_bindings);
-    data.descriptor_pools.clear();
-    data.descriptor_pool_sizes = VK::createDescriptorPoolSizes(data.descriptor_layout_bindings);
-    data.descriptor_pools.push_back(VK::createDescriptorPool(vk.device, data.descriptor_pool_sizes));
+IPipeline Common::createGraphicsPipeline(ShaderID shader, std::vector<std::pair<str, VertexInputRate>> vertices) {
+    log::graphics("Pipeline %s", shader.c_str());
     
-    if (not shaders.at(shader).is_draw)
-        VK::updatePipelineDescriptorSets(vk, data, shader);
-
-    //: Pipeline
-    data.pipeline_layout = VK::createPipelineLayout(vk.device, data.descriptor_layout);
-    data.pipeline = VK::createGraphicsPipelineObject(vk, data, shader);
+    Common::linkDescriptorResources(shader);
+    VK::linkPipelineDescriptors(shader);
+    
+    VK::Pipeline::ConfigData config{};
+    config.vertex_descriptions = vertices;
+    
+    PipelineCreateData create_info = VK::Pipeline::getCreateData(config, shader);
+    return VK::buildGraphicsPipeline(create_info);
 }
 
 //----------------------------------------
@@ -2154,117 +2035,113 @@ void VK::recreatePipeline(const Vulkan &vk, PipelineData &data, ShaderID shader)
 //Buffers
 //----------------------------------------
 
-BufferData VK::createBuffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memory) {
+BufferData Common::allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data, bool delete_with_program) {
     //---Buffers---
     //      These are regions of memory that store arbitrary data that the CPU, GPU or both can read
     //      We are using Vulkan Memory Allocator for allocating their memory in a bigger pool
-    BufferData data;
+    BufferData buffer;
     
+    //---Create buffer---
     VkBufferCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     create_info.size = size;
-    create_info.usage = usage;
     create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    create_info.usage = (BufferUsageT)usage;
+
+    if (memory == BUFFER_MEMORY_GPU_ONLY)
+        create_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     
     VmaAllocationCreateInfo allocate_info{};
-    allocate_info.usage = memory;
+    allocate_info.usage = (BufferMemoryT)memory;
     
-    if (vmaCreateBuffer(allocator, &create_info, &allocate_info, &data.buffer, &data.allocation, nullptr) != VK_SUCCESS)
+    if (vmaCreateBuffer(api.allocator, &create_info, &allocate_info, &buffer.buffer, &buffer.allocation, nullptr) != VK_SUCCESS)
         log::error("Failed to create a vulkan buffer");
     
-    return data;
+    if (delete_with_program)
+        VK::deletion_queue_program.push_back([buffer](){ vmaDestroyBuffer(api.allocator, buffer.buffer, buffer.allocation); });
+    
+    //---No data provided, just allocation---
+    if (data == nullptr)
+        return buffer;
+    
+    //---Data provided, CPU buffer---
+    if (memory != BUFFER_MEMORY_GPU_ONLY) {
+        //: Copy data
+        void* b;
+        vmaMapMemory(api.allocator, buffer.allocation, &b);
+        memcpy(b, data, (size_t)size);
+        vmaUnmapMemory(api.allocator, buffer.allocation);
+    }
+    
+    //---Data provided, GPU buffer---
+    else {
+        //: Staging buffer
+        //      We want to make the vertex buffer accessible to the GPU in the most efficient way, so we use a staging buffer
+        //      This is created in CPU only memory, in which we can easily map the vertex data
+        BufferData staging_buffer = allocateBuffer(size, BUFFER_USAGE_TRANSFER_SRC, BUFFER_MEMORY_CPU_ONLY, nullptr, false);
+        
+        //: Map data to staging buffer
+        void* b;
+        vmaMapMemory(api.allocator, staging_buffer.allocation, &b);
+        memcpy(b, data, (size_t)size);
+        vmaUnmapMemory(api.allocator, staging_buffer.allocation);
+        
+        //: Copy from staging to buffer
+        //      Since we can't access the buffer memory from the CPU, we will use vkCmdCopyBuffer(), which will execute on a queue
+        //      and move data between the staging and buffer
+        copyBuffer(staging_buffer, buffer, size);
+        
+        //: Delete staging buffer
+        vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
+    }
+    
+    return buffer;
 }
 
-void VK::copyBuffer(VkDevice device, const CommandData &cmd, VkBuffer src, VkBuffer dst, VkDeviceSize size, VkDeviceSize offset) {
+void Common::copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset) {
     //---Copy buffer---
     //      Simple function that creates a command buffer to copy the memory from one buffer to another
     //      Very helpful when using staging buffers to move information from CPU to GPU only memory (can be done in reverse)
-    VkCommandBuffer command_buffer = beginSingleUseCommandBuffer(device, cmd.command_pools.at("transfer"));
+    VkCommandBuffer command_buffer = VK::beginSingleUseCommandBuffer(api.device, api.cmd.command_pools.at("transfer"));
     
     VkBufferCopy copy_region{};
     copy_region.srcOffset = 0;
     copy_region.dstOffset = offset;
     copy_region.size = size;
-    vkCmdCopyBuffer(command_buffer, src, dst, 1, &copy_region);
+    vkCmdCopyBuffer(command_buffer, src.buffer, dst.buffer, 1, &copy_region);
     
-    endSingleUseCommandBuffer(device, command_buffer, cmd.command_pools.at("transfer"), cmd.queues.transfer);
-}
-
-std::vector<BufferData> VK::createUniformBuffers(VmaAllocator allocator, ui32 buffer_count, ui32 buffer_size, bool uniform) {
-    std::vector<BufferData> buffers{};
-    
-    VkBufferUsageFlags usage = uniform ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    VmaMemoryUsage memory = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    
-    for (int i = 0; i < buffer_count; i++)
-        buffers.push_back(createBuffer(allocator, (VkDeviceSize)buffer_size, usage, memory));
-    
-    deletion_queue_program.push_back([allocator, buffers](){
-        for (auto &buffer : buffers)
-            vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
-    });
-    
-    return buffers;
-}
-
-void VK::createPipelineBuffers(const Vulkan &vk, PipelineData &data, ShaderID shader, ui32 buffer_count) {
-    ShaderPass* shader_pass = nullptr;
-    if (shaders.count(shader))
-        shader_pass = &shaders.at(shader);
-    else if (compute_shaders.count(shader))
-        shader_pass = &compute_shaders.at(shader);
-    else
-        log::error("Shader not valid: %s", shader.c_str());
-    
-    //: These maps are so they are added to the pipeline in binding order
-    std::map<ui32, std::vector<BufferData>> uniforms;
-    std::map<ui32, std::vector<BufferData>> storage;
-    
-    auto get_buffers = [&](const std::vector<ui32> &code) {
-        ShaderCompiler compiler = Shader::getCompiler(code);
-        ShaderResources resources = compiler.get_shader_resources();
-        
-        //: Uniform buffers
-        for (const auto &res : resources.uniform_buffers) {
-            const spirv_cross::SPIRType &type = compiler.get_type(res.base_type_id);
-            ui32 size = (ui32)compiler.get_declared_struct_size(type);
-            if (size == 0)
-                log::error("Runtime arrays not supported yet");
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            uniforms[binding] = createUniformBuffers(vk.allocator, buffer_count, size, true);
-        }
-    };
-    
-    for (auto &stage : shader_pass->stages)
-        get_buffers(stage.code);
-    
-    for (auto &[binding, uniform] : uniforms)
-        data.uniform_buffers.push_back(uniform);
+    VK::endSingleUseCommandBuffer(api.device, command_buffer, api.cmd.command_pools.at("transfer"), api.cmd.queues.transfer);
 }
 
 void VK::updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size, ShaderID shader) {
-    const PipelineData &pipeline = api.compute_pipelines.at(shader);
+    //TODO: ENABLE COMPUTE SHADERS
+    log::warn("Enable compute shaders");
+    /*const PipelineData &pipeline = api.compute_pipelines.at(shader);
     
     //: Update pipeline descriptor sets to add the buffer and pipeline uniforms. For now this only works with a single buffer.
     std::vector<VkBuffer> uniforms{};
-    for (auto &a : pipeline.uniform_buffers)
-        for (auto &b : a)
-            uniforms.push_back(b.buffer);
-    VK::updateDescriptorSets(api, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniforms, {buffer.buffer}, {}, {});
+    for (auto &b : pipeline.uniform_buffers)
+        uniforms.push_back(b.at(0).buffer);
+    
+    WriteDescriptors descriptors{};
+    ui32 count = 0;
+    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER>(descriptors, shader, count, uniforms);
+    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_STORAGE_BUFFER>(descriptors, shader, count, std::vector<VkBuffer>{buffer.buffer});
+    vkUpdateDescriptorSets(api.device, count, descriptors.write.data(), 0, nullptr);
     
     //: Begin one time command buffer
     VkCommandBuffer cmd = VK::beginSingleUseCommandBuffer(api.device, api.cmd.command_pools.at("compute"));
     
     //: Bind pipeline and descriptors
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline_layout, 0, 1, &pipeline.descriptor_sets.at(0), 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline_layout, 0, 1, &compute_shaders.at(shader).descriptors.at(0).descriptors.at(0), 0, nullptr);
     
     //: Calculate group count and dispatch compute calls
     ui32 group_count = (buffer_size / pipeline.group_size[0]) + 1;
     vkCmdDispatch(cmd, group_count, 1, 1);
     
     //: End and submit command buffer
-    VK::endSingleUseCommandBuffer(api.device, cmd, api.cmd.command_pools.at("compute"), api.cmd.queues.compute);
+    VK::endSingleUseCommandBuffer(api.device, cmd, api.cmd.command_pools.at("compute"), api.cmd.queues.compute);*/
 }
 
 //----------------------------------------
@@ -2274,78 +2151,6 @@ void VK::updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size, Sha
 //Descriptors
 //----------------------------------------
 
-VkDescriptorSetLayoutBinding VK::prepareDescriptorSetLayoutBinding(VkShaderStageFlagBits stage, VkDescriptorType type, ui32 binding) {
-    //---Descriptor set layout binding---
-    //      One item of a descriptor set layout, it includes the stage (vertex, frag...),
-    //      the type of the descriptor (uniform, image...) and the binding position
-    VkDescriptorSetLayoutBinding layout_binding;
-    
-    layout_binding.binding = binding;
-    layout_binding.descriptorType = type;
-    layout_binding.descriptorCount = 1;
-    layout_binding.stageFlags = stage;
-    layout_binding.pImmutableSamplers = nullptr;
-    
-    return layout_binding;
-}
-
-std::vector<VkDescriptorSetLayoutBinding> VK::createDescriptorSetLayoutBindings(VkDevice device, const ShaderPass &pass, ui32 swapchain_size) {
-    //---Descriptor set layout---
-    //      It is a blueprint for creating descriptor sets, specifies the number and type of descriptors in the GLSL shader
-    //      Descriptors can be anything passed into a shader: uniforms, images, ...
-    //      We use SPIRV-cross to get reflection from the shaders themselves and create the descriptor layout automatically
-    std::vector<VkDescriptorSetLayoutBinding> layout_binding;
-    
-    log::graphics("");
-    log::graphics("Creating descriptor set layout...");
-    
-    auto get_bindings = [&](const std::vector<ui32> &code, VkShaderStageFlagBits stage, str stage_name) {
-        ShaderCompiler compiler = Shader::getCompiler(code);
-        ShaderResources resources = compiler.get_shader_resources();
-        
-        //: Uniform buffers
-        for (const auto &res : resources.uniform_buffers) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Uniform buffer (%s) - Binding : %d - Stage: %s", res.name.c_str(), binding, stage_name.c_str());
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(stage, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, binding));
-        }
-        
-        //: Storage buffers
-        for (const auto &res : resources.storage_buffers) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Buffer (%s) - Binding : %d - Stage : %s", res.name.c_str(), binding, stage_name.c_str());
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(stage, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, binding));
-        }
-        
-        //: Combined image samplers
-        for (const auto &res : resources.sampled_images) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Image (%s) - Binding : %d - Stage : %s", res.name.c_str(), binding, stage_name.c_str());
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(stage, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, binding));
-        }
-        
-        //: Subpass input
-        for (const auto &res : resources.subpass_inputs) {
-            ui32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-            log::graphics(" - Subpass (%s) - Binding : %d - Stage : %s", res.name.c_str(), binding, stage_name.c_str());
-            layout_binding.push_back(
-                prepareDescriptorSetLayoutBinding(stage, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, binding));
-        }
-    };
-    
-    //---Shader stages---
-    for (auto &stage : pass.stages)
-        get_bindings(stage.code, (VkShaderStageFlagBits)stage.stage, Shader::shader_extensions.at(stage.stage));
-    
-    //---Sort bindings---
-    std::sort(layout_binding.begin(), layout_binding.end(), [](auto &a, auto &b){  return a.binding < b.binding; });
-    
-    return layout_binding;
-}
-    
 VkDescriptorSetLayout VK::createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
     //---Create the descriptor layout itself---
     VkDescriptorSetLayout layout;
@@ -2362,26 +2167,7 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(const std::vector<VkDescript
     return layout;
 }
 
-std::vector<VkDescriptorPoolSize> VK::createDescriptorPoolSizes(const std::vector<VkDescriptorSetLayoutBinding> &bindings) {
-    //---Define the descriptor pool sizes---
-    //      This specifies how many resources of each type we need, and will be later used when creating a descriptor pool
-    //      We use the number of items of that type, times the number of images in the swapchain
-    std::vector<VkDescriptorPoolSize> sizes;
-    std::map<VkDescriptorType, ui32> counts;
-    
-    for (auto &binding : bindings)
-        counts[binding.descriptorType]++;
-    
-    for (auto &[descriptor_type, count] : counts)
-        sizes.push_back({descriptor_type, count * MAX_POOL_SETS});
-    
-    if (sizes.size() == 0)
-        sizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1});
-    
-    return sizes;
-}
-
-VkDescriptorPool VK::createDescriptorPool(VkDevice device, const std::vector<VkDescriptorPoolSize> &sizes) {
+IDescriptorPool Common::createDescriptorPool(const std::vector<IDescriptorPoolSize> &pool_sizes) {
     //---Descriptor pool---
     //      A descriptor pool will house descriptor sets of various kinds
     //      There are two types of usage for a descriptor pool:
@@ -2394,130 +2180,106 @@ VkDescriptorPool VK::createDescriptorPool(VkDevice device, const std::vector<VkD
     VkDescriptorPool descriptor_pool;
     
     //: Create info
-    //      This uses the descriptor pool size from the list of sizes initialized in createDescriptorSetLayout() using SPIRV reflection
+    //      This uses the descriptor pool size from the list of sizes specified in r_shaders.h
     VkDescriptorPoolCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    create_info.poolSizeCount = (ui32)sizes.size();
-    create_info.pPoolSizes = sizes.data();
-    create_info.maxSets = MAX_POOL_SETS;
-    /*std::accumulate(descriptor_pool_sizes.begin(), descriptor_pool_sizes.end(), 0,
-     [](ui32 sum, const VkDescriptorPoolSize &item){ return sum + item.descriptorCount; });*/
+    create_info.poolSizeCount = (ui32)pool_sizes.size();
+    create_info.pPoolSizes = pool_sizes.data();
+    create_info.maxSets = Shader::descriptor_pool_max_sets;
     
     //: Create descriptor pool
-    if (vkCreateDescriptorPool(device, &create_info, nullptr, &descriptor_pool) != VK_SUCCESS)
+    if (vkCreateDescriptorPool(api.device, &create_info, nullptr, &descriptor_pool) != VK_SUCCESS)
         log::error("Failed to create a vulkan descriptor pool");
+    log::graphics("Created a vulkan descriptor pool");
     
-    //: Log the allowed types and respective sizes
-    log::graphics("");
-    log::graphics("Created a vulkan descriptor pool with sizes:");
-    for (const auto &item : sizes) {
-        str name = [item](){
-            switch (item.type) {
-                case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                    return "Uniform";
-                case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-                    return "Image sampler";
-                case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-                    return "Input attachment";
-                default:
-                    return "";
-            }
-        }();
-        log::graphics(" - %s: %d", name.c_str(), item.descriptorCount);
-    }
-    log::graphics("");
-    
-    deletion_queue_program.push_back([device, descriptor_pool](){ vkDestroyDescriptorPool(device, descriptor_pool, nullptr); });
+    //: Cleanup and return
+    VK::deletion_queue_program.push_back([descriptor_pool](){ vkDestroyDescriptorPool(api.device, descriptor_pool, nullptr); });
     return descriptor_pool;
 }
 
-std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescriptorSetLayout layout,
-                                                        const std::vector<VkDescriptorPoolSize> &sizes,
-                                                        std::vector<VkDescriptorPool> &pools, ui32 swapchain_size) {
-    //---Descriptor sets---
-    //      These objects can be thought as a pointer to a resource that the shader can access, for example an image sampler or uniform bufffer
-    //      We allocate one set per swapchain image since multiple frames can be in flight at the same time
-    std::vector<VkDescriptorSet> descriptor_sets(swapchain_size);
-    
+std::vector<VkDescriptorSet> Common::allocateDescriptorSets(IDescriptorLayout layout, IDescriptorPool *pool) {
     //: Allocate information
     VkDescriptorSetAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocate_info.descriptorPool = pools.back();
-    allocate_info.descriptorSetCount = swapchain_size;
-    std::vector<VkDescriptorSetLayout> layouts(swapchain_size, layout);
+    allocate_info.descriptorPool = *pool;
+    allocate_info.descriptorSetCount = Config::frames_in_flight;
+    std::vector<VkDescriptorSetLayout> layouts(Config::frames_in_flight, layout);
     allocate_info.pSetLayouts = layouts.data();
     
     //: Create the descriptor set
-    if (vkAllocateDescriptorSets(device, &allocate_info, descriptor_sets.data()) != VK_SUCCESS) {
-        pools.push_back(VK::createDescriptorPool(device, sizes));
-        log::info("Created a new vulkan descriptor pool");
-        allocate_info.descriptorPool = pools.back();
-        
-        if (vkAllocateDescriptorSets(device, &allocate_info, descriptor_sets.data()) != VK_SUCCESS)
-            log::error("Failed to allocate vulkan descriptor sets");
-    }
-    
-    //: No need for cleanup since they get destroyed with the pool
-    //log::graphics("Allocated vulkan descriptor sets");
-    return descriptor_sets;
+    std::vector<VkDescriptorSet> descriptors(Config::frames_in_flight);
+    if (vkAllocateDescriptorSets(api.device, &allocate_info, descriptors.data()) == VK_SUCCESS)
+        return descriptors;
+    return {};
 }
 
-void VK::updateDescriptorSets(const Vulkan &vk, const std::vector<VkDescriptorSet> &descriptor_sets,
-                              const std::vector<VkDescriptorSetLayoutBinding> &layout_bindings,
-                              std::vector<VkBuffer> uniform_buffers, std::vector<VkBuffer> storage_buffers,
-                              std::vector<VkImageView> image_views, std::vector<VkImageView> input_attachments) {
+void VK::updateDescriptorSets(ShaderID shader, std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_buffers,
+                              std::vector<VkBuffer> storage_buffers, std::vector<VkImageView> image_views, std::vector<VkImageView> input_attachments) {
     WriteDescriptors descriptors{};
     ui32 count = 0;
     
     //: Uniform buffers
-    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER>(vk, descriptors, descriptor_sets, layout_bindings, count, uniform_buffers, true);
+    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER>(descriptors, shader, count, uniform_buffers);
     //: Storage buffers
-    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_STORAGE_BUFFER>(vk, descriptors, descriptor_sets, layout_bindings, count, storage_buffers);
+    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_STORAGE_BUFFER>(descriptors, shader, count, storage_buffers);
     //: Images
-    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER>(vk, descriptors, descriptor_sets, layout_bindings, count, image_views);
+    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER>(descriptors, shader, count, image_views);
     //: Input attachments
-    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT>(vk, descriptors, descriptor_sets, layout_bindings, count, input_attachments);
+    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT>(descriptors, shader, count, input_attachments);
     
-    vkUpdateDescriptorSets(vk.device, count, descriptors.write.data(), 0, nullptr);
+    vkUpdateDescriptorSets(api.device, count, descriptors.write.data(), 0, nullptr);
 }
 
 void Graphics::updateDrawDescriptorSets(const DrawDescription& draw) {
     //: Uniforms
-    std::vector<VkBuffer> uniform_buffers{};
-    std::transform(api.draw_uniform_data.at(draw.uniform).uniform_buffers.begin(), api.draw_uniform_data.at(draw.uniform).uniform_buffers.end(),
-                   std::back_inserter(uniform_buffers), [](BufferData &x){ return x.buffer; });
+    std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_buffers{};
+    for (auto &v : api.draw_uniform_data.at(draw.uniform).uniform_buffers) {
+        uniform_buffers.resize(uniform_buffers.size() + 1);
+        for (int i = 0; i < Config::frames_in_flight; i++)
+            uniform_buffers.back().at(i) = v.at(i).buffer;
+    }
     
     //: Images
     std::vector<VkImageView> image_views{};
     if (draw.texture != no_texture) image_views.push_back(api.texture_data.at(draw.texture).image_view);
     
     //: Update
-    VK::updateDescriptorSets(api, api.draw_uniform_data.at(draw.uniform).descriptor_sets, api.pipelines.at(draw.shader).descriptor_layout_bindings,
-                             uniform_buffers, {}, image_views, {});
+    VK::updateDescriptorSets(draw.shader, uniform_buffers, {}, image_views, {});
 }
 
-void VK::updatePipelineDescriptorSets(const Vulkan &vk, const PipelineData &pipeline, ShaderID shader) {
-    std::vector<VkBuffer> uniforms{};
-    for (auto &a : pipeline.uniform_buffers)
-        for (auto &b : a)
-            uniforms.push_back(b.buffer);
-    
+void VK::linkPipelineDescriptors(ShaderID shader) {
     std::vector<VkImageView> image_views{};
     std::vector<VkImageView> input_views{};
     
-    //: Only for render shaders, not compute
-    if (shaders.count(shader)) {
-        auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
+    auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
+    
+    for (auto &a : subpass.second.external_attachments)
+        image_views.push_back(api.attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
         
-        for (auto &a : subpass.second.external_attachments)
-            image_views.push_back(api.attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
-            
-        for (auto &[a, type] : subpass.second.attachment_descriptions)
-            if (type == ATTACHMENT_INPUT)
-                input_views.push_back(api.attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
+    for (auto &[a, type] : subpass.second.attachment_descriptions)
+        if (type == ATTACHMENT_INPUT)
+            input_views.push_back(api.attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
+    
+    VK::updateDescriptorSets(shader, {}, {}, image_views, input_views);
+}
+
+void Common::linkDescriptorResources(ShaderID shader) {
+    auto &descriptors = Shader::getShader(shader).descriptors;
+    
+    std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_buffers{};
+    
+    for (auto &d : descriptors) {
+        for (auto &r : d.resources) {
+            if (r.type == DESCRIPTOR_UNIFORM) {
+                std::array<VkBuffer, Config::frames_in_flight> u{};
+                for (int i = 0; i < Config::frames_in_flight; i++)
+                    u.at(i) = descriptor_resources.uniform_buffers.at(r.id + i).buffer;
+                uniform_buffers.push_back(u);
+            }
+        }
     }
     
-    VK::updateDescriptorSets(vk, pipeline.descriptor_sets, pipeline.descriptor_layout_bindings, uniforms, {}, image_views, input_views);
+    VK::updateDescriptorSets(shader, uniform_buffers, {}, {}, {});
 }
 
 //----------------------------------------
@@ -2549,14 +2311,12 @@ TextureID Graphics::registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels) {
     
     //: Texture
     api.texture_data[id] = VK::createTexture(api.device, api.allocator, api.physical_device,
-                                         VkImageUsageFlagBits(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
-                                         VK_IMAGE_ASPECT_COLOR_BIT, size, format, ch);
+                                             VkImageUsageFlagBits(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
+                                             VK_IMAGE_ASPECT_COLOR_BIT, size, format, ch);
     
     //: Staging buffer
-    VkDeviceSize buffer_size = size.x * size.y * (int)ch * sizeof(ui8);
-    BufferData staging_buffer = VK::createBuffer(api.allocator, buffer_size,
-                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VMA_MEMORY_USAGE_CPU_ONLY);
+    ui32 buffer_size = size.x * size.y * (int)ch * sizeof(ui8);
+    BufferData staging_buffer = Common::allocateBuffer(buffer_size, BUFFER_USAGE_TRANSFER_SRC, BUFFER_MEMORY_CPU_ONLY, nullptr, false);
     
     //: Map pixels to staging buffer
     void* data;
@@ -2598,7 +2358,7 @@ TextureData VK::createTexture(VkDevice device, VmaAllocator allocator, VkPhysica
     
     //: Image view
     data.image_view = VK::createImageView(device, data.image, aspect, data.format);
-    deletion_queue_program.push_back([device, data](){ vkDestroyImageView(device, data.image_view, nullptr); });
+    deletion_queue_program.push_back([data](){ vkDestroyImageView(api.device, data.image_view, nullptr); });
     
     return data;
 }
@@ -2804,7 +2564,7 @@ VkSampler VK::createSampler(VkDevice device) {
     if (vkCreateSampler(device, &create_info, nullptr, &sampler) != VK_SUCCESS)
         log::error("Error creating a Vulkan image sampler");
     
-    deletion_queue_program.push_back([device, sampler](){ vkDestroySampler(device, sampler, nullptr); });
+    deletion_queue_program.push_back([sampler](){ vkDestroySampler(api.device, sampler, nullptr); });
     return sampler;
 }
 
@@ -2832,35 +2592,35 @@ bool VK::hasDepthStencilComponent(VkFormat format) {
 //Render
 //----------------------------------------
 
-ui32 VK::startRender(VkDevice device, const SwapchainData &swapchain, SyncData &sync, std::function<void()> recreate_swapchain) {
+ui8 VK::startRender() {
     ui32 image_index;
     
-    std::vector<VkFence> fences = { sync.fences_in_flight.at(sync.current_frame) };
-    vkWaitForFences(device, (ui32)fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
+    std::vector<VkFence> fences = { api.sync.fences_in_flight.at(api.sync.current_frame) };
+    vkWaitForFences(api.device, (ui32)fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
     
-    VkResult result = vkAcquireNextImageKHR(device, swapchain.swapchain, UINT64_MAX,
-                                            sync.semaphores_image_available.at(sync.current_frame), VK_NULL_HANDLE, &image_index);
+    VkResult result = vkAcquireNextImageKHR(api.device, api.swapchain.swapchain, UINT64_MAX,
+                                            api.sync.semaphores_image_available.at(api.sync.current_frame), VK_NULL_HANDLE, &image_index);
     
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        recreate_swapchain();
-        return UINT32_MAX;
+        VK::recreateSwapchain();
+        return UINT8_MAX;
     }
     
     if (result != VK_SUCCESS and result != VK_SUBOPTIMAL_KHR)
         log::error("Failed to acquire swapchain image");
     
-    if (sync.fences_images_in_flight.at(image_index) != VK_NULL_HANDLE)
-        vkWaitForFences(device, 1, &sync.fences_images_in_flight.at(image_index), VK_TRUE, UINT64_MAX);
+    if (api.sync.fences_images_in_flight.at(image_index) != VK_NULL_HANDLE)
+        vkWaitForFences(api.device, 1, &api.sync.fences_images_in_flight.at(image_index), VK_TRUE, UINT64_MAX);
     
-    sync.fences_images_in_flight.at(image_index) = sync.fences_in_flight.at(sync.current_frame);
+    api.sync.fences_images_in_flight.at(image_index) = api.sync.fences_in_flight.at(api.sync.current_frame);
     
-    return image_index;
+    return (ui8)image_index;
 }
 
-void VK::renderFrame(Vulkan &vk) {
-    VkSemaphore wait_semaphores[]{ vk.sync.semaphores_image_available.at(vk.sync.current_frame) };
+void VK::renderFrame() {
+    VkSemaphore wait_semaphores[]{ api.sync.semaphores_image_available.at(api.sync.current_frame) };
     VkPipelineStageFlags wait_stages[]{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    VkSemaphore signal_semaphores[]{ vk.sync.semaphores_render_finished.at(vk.sync.current_frame) };
+    VkSemaphore signal_semaphores[]{ api.sync.semaphores_render_finished.at(api.sync.current_frame) };
     
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -2869,17 +2629,17 @@ void VK::renderFrame(Vulkan &vk) {
     submit_info.pWaitSemaphores = wait_semaphores;
     submit_info.pWaitDstStageMask = wait_stages;
     
-    std::vector<VkCommandBuffer> command_buffers = { vk.cmd.command_buffers.at("draw").at(vk.cmd.current_buffer) };
-    IF_GUI(command_buffers.push_back( vk.cmd.command_buffers.at("gui").at(vk.cmd.current_buffer) ));
+    std::vector<VkCommandBuffer> command_buffers = { api.cmd.command_buffers.at("draw").at(api.sync.current_frame) };
+    IF_GUI(command_buffers.push_back( api.cmd.command_buffers.at("gui").at(api.sync.current_frame) ));
     submit_info.commandBufferCount = (ui32)command_buffers.size();
     submit_info.pCommandBuffers = command_buffers.data();
     
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
     
-    vkResetFences(vk.device, 1, &vk.sync.fences_in_flight.at(vk.sync.current_frame));
+    vkResetFences(api.device, 1, &api.sync.fences_in_flight.at(api.sync.current_frame));
     
-    if (vkQueueSubmit(vk.cmd.queues.graphics, 1, &submit_info, vk.sync.fences_in_flight.at(vk.sync.current_frame)) != VK_SUCCESS)
+    if (vkQueueSubmit(api.cmd.queues.graphics, 1, &submit_info, api.sync.fences_in_flight.at(api.sync.current_frame)) != VK_SUCCESS)
         log::error("Failed to submit Draw Command Buffer");
 }
 
@@ -2893,18 +2653,7 @@ void Graphics::render() {
     static std::vector<DrawDescription*> previous_draw_descriptions{};
     
     //: Get the current image
-    api.cmd.current_buffer = VK::startRender(api.device, api.swapchain, api.sync, [](){ VK::recreateSwapchain(); });
-    
-    //: Get timestamps
-    #ifdef DEBUG
-    ui32 queries = ((ui32)shaders.size() + 1) * 2;
-    if (Performance::timestamps.size() != queries)
-        Performance::timestamps.resize(api.swapchain.size * queries);
-    if (Performance::timestamp_period > 0 and api.cmd.current_buffer <= api.swapchain.size) {
-        std::vector<ui64> timestamps = VK::getQueryResults(api.device, api.query_timestamp, api.cmd.current_buffer * queries, queries);
-        std::copy(timestamps.begin(), timestamps.end(), Performance::timestamps.begin() + api.cmd.current_buffer * queries);
-    }
-    #endif
+    api.cmd.current_image = VK::startRender();
     
     //: Remove indirect buffers that are no longer in use
     if (Config::draw_indirect) {
@@ -2918,15 +2667,15 @@ void Graphics::render() {
     
     //: Update uniform buffers
     //      Keep an eye on how performant is this, another solution might be necessary
-    for (auto &f : VK::update_buffer_queue) f(api.cmd.current_buffer);
+    for (auto &f : VK::update_buffer_queue) f(api.sync.current_frame);
     VK::update_buffer_queue.clear();
     
     //: Record command buffers
-    VK::recordRenderCommandBuffer(api, api.cmd.current_buffer);
-    IF_GUI(VK::Gui::recordGuiCommandBuffer(api, api.cmd.current_buffer));
+    VK::recordRenderCommandBuffer();
+    IF_GUI(VK::Gui::recordGuiCommandBuffer());
     
     //: Render the frame
-    VK::renderFrame(api);
+    VK::renderFrame();
     
     //: Clear draw queue
     previous_draw_descriptions = api.draw_descriptions;
@@ -2947,7 +2696,7 @@ void Graphics::present() {
     VkSwapchainKHR swapchains[]{ api.swapchain.swapchain };
     present_info.swapchainCount = 1;
     present_info.pSwapchains = swapchains;
-    present_info.pImageIndices = &api.cmd.current_buffer;
+    present_info.pImageIndices = (ui32*)&api.cmd.current_image;
     present_info.pResults = nullptr;
     
     VkResult result = vkQueuePresentKHR(api.cmd.queues.present, &present_info);
@@ -2957,7 +2706,7 @@ void Graphics::present() {
     else if (result != VK_SUCCESS)
         log::error("Failed to present Swapchain Image");
     
-    api.sync.current_frame = (api.sync.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+    api.sync.current_frame = (api.sync.current_frame + 1) % Config::frames_in_flight;
 }
 
 //----------------------------------------
@@ -2975,11 +2724,11 @@ void Graphics::resize() {
         transform = Window::getScaledTransform(Config::resolution);
     
     //: Update scaled projection
-    for (auto &[shader, pipeline] : api.pipelines) {
-        if (shader.rfind("window", 0) == 0 or shader.rfind("debug", 0) == 0) {
-            for (auto &uniforms : api.pipelines.at(shader).uniform_buffers)
-                for (auto &u : uniforms)
-                    updateUniformBuffer(u, transform);
+    for (auto &[id, shader] : shaders.list.at(SHADER_POST)) {
+        if (id.rfind("window", 0) == 0) {
+            auto &u = shader.descriptors.at(0).resources.at(0); //Hardcoded to be in set 0, descriptor 0
+            for (int i = 0; i < u.count; i++)
+                updateUniformBuffer(descriptor_resources.uniform_buffers.at(u.id + i), transform);
         }
     }
 }
@@ -2998,11 +2747,6 @@ void Graphics::clean() {
     for (auto it = VK::deletion_queue_swapchain.rbegin(); it != VK::deletion_queue_swapchain.rend(); ++it)
         (*it)();
     VK::deletion_queue_swapchain.clear();
-    
-    //: Delete objects that depend on swapchain size
-    for (auto it = VK::deletion_queue_size_change.rbegin(); it != VK::deletion_queue_size_change.rend(); ++it)
-        (*it)();
-    VK::deletion_queue_size_change.clear();
     
     //: Delete program resources
     for (auto it = VK::deletion_queue_program.rbegin(); it != VK::deletion_queue_program.rend(); ++it)
@@ -3078,7 +2822,7 @@ void VK::Gui::init(Vulkan &vk) {
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
         { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
     };
-    Gui::descriptor_pool = createDescriptorPool(vk.device, pool_sizes);
+    Gui::descriptor_pool = Common::createDescriptorPool(pool_sizes);
     
     //: Render pass
     AttachmentID attachment_swapchain_gui = registerAttachment(ATTACHMENT_COLOR_SWAPCHAIN, window.size);
@@ -3089,7 +2833,7 @@ void VK::Gui::init(Vulkan &vk) {
     ImGui_ImplVulkan_InitInfo init_info = {};
     init_info.Instance = vk.instance;
     init_info.PhysicalDevice = vk.physical_device;
-    init_info.Device = vk.device;
+    init_info.Device = api.device;
     init_info.QueueFamily = vk.cmd.queue_indices.graphics.value();
     init_info.Queue = vk.cmd.queues.graphics;
     init_info.DescriptorPool = Gui::descriptor_pool;
@@ -3100,7 +2844,7 @@ void VK::Gui::init(Vulkan &vk) {
         log::error("Error initializing ImGui for Vulkan");
     
     //: Command buffers
-    vk.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
+    vk.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers();
     
     //: Cleanup
     deletion_queue_program.push_back([](){
@@ -3111,14 +2855,14 @@ void VK::Gui::init(Vulkan &vk) {
 
 void VK::Gui::transferFonts(const Vulkan &vk) {
     //: Transfer fonts
-    VkCommandBuffer command_buffer = Graphics::VK::beginSingleUseCommandBuffer(vk.device, vk.cmd.command_pools.at("transfer"));
+    VkCommandBuffer command_buffer = Graphics::VK::beginSingleUseCommandBuffer(api.device, vk.cmd.command_pools.at("transfer"));
     ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-    Graphics::VK::endSingleUseCommandBuffer(vk.device, command_buffer, vk.cmd.command_pools.at("transfer"), vk.cmd.queues.transfer);
+    Graphics::VK::endSingleUseCommandBuffer(api.device, command_buffer, vk.cmd.command_pools.at("transfer"), vk.cmd.queues.transfer);
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
-void VK::Gui::recordGuiCommandBuffer(const Vulkan &vk, ui32 current) {
-    const VkCommandBuffer &cmd = vk.cmd.command_buffers.at("gui")[current];
+void VK::Gui::recordGuiCommandBuffer() {
+    const VkCommandBuffer &cmd = api.cmd.command_buffers.at("gui").at(api.sync.current_frame);
     
     //: Begin buffer
     VkCommandBufferBeginInfo begin_info{};
@@ -3135,10 +2879,10 @@ void VK::Gui::recordGuiCommandBuffer(const Vulkan &vk, ui32 current) {
     //: Begin render pass
     VkRenderPassBeginInfo render_pass_info{};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = api.render_passes.at(vk.gui_render_pass).render_pass;
-    render_pass_info.framebuffer = api.render_passes.at(vk.gui_render_pass).framebuffers.at(current);
+    render_pass_info.renderPass = api.render_passes.at(api.gui_render_pass).render_pass;
+    render_pass_info.framebuffer = api.render_passes.at(api.gui_render_pass).framebuffers.at(api.cmd.current_image);
     render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = api.render_passes.at(vk.gui_render_pass).attachment_extent;
+    render_pass_info.renderArea.extent = api.render_passes.at(api.gui_render_pass).attachment_extent;
     render_pass_info.clearValueCount = (ui32)clear_values.size();
     render_pass_info.pClearValues = clear_values.data();
     

@@ -102,21 +102,7 @@ namespace Fresa
         //: One event handling iteration inside the physics time
         inline double physics_event_time = 0.0;
         
-        //: Render frame time (The time of the entire rendering call, including vsync)
-        inline double render_frame_time = 0.0;
-        
-        //: Render time for the draw commands to execute
-        inline double render_draw_time = 0.0;
-        
         //: Timings of each render system
         inline std::vector<double> render_system_time{};
-        
-        #ifdef USE_VULKAN
-        //: In Vulkan, a value that represents the number of nanoseconds it takes for a timestamp query to be incremented by 1
-        //: Additionally, if timestamps are not supported in the current graphics queue it will be set back to 0
-        inline float timestamp_period = 0.0f;
-        
-        inline std::vector<ui64> timestamps{};
-        #endif
     }
 }

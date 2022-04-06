@@ -4,10 +4,20 @@
 
 ---
 
-#### 0.3.16 - really? more refactoring? - _00 00 2022_
+#### 0.3.17 - NAME - _00 00 2022_
 
-**added**
-- .
+**changed**
+- descriptor set manager
+- now shaders are created when read from the renderer description
+- moved shaders to an improved shaderlist
+
+---
+
+#### 0.3.16 - really? more refactoring? - _08 04 2022_
+
+**changed**
+- binding layout refactoring
+- pipeline refactoring
 
 ---
 

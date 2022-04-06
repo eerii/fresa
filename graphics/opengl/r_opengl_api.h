@@ -91,6 +91,20 @@ namespace Fresa::Graphics::GL
 
 namespace Fresa::Graphics
 {
+    struct GlDescriptorPoolSize {
+        ShaderDescriptorType type;
+        ui32 descriptorCount;
+    };
+    
+    struct GlDescriptorPool {
+        std::vector<GlDescriptorPoolSize> sizes;
+        //: ...
+    };
+    
+    struct GlDescriptorSet {
+        //: ...
+    };
+    
     template <typename... UBO>
     DrawUniformID registerDrawUniforms(ShaderID shader) {
         static DrawUniformID id = 0;

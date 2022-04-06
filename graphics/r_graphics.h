@@ -25,7 +25,7 @@ namespace Fresa::Graphics
     DrawDescription getDrawDescription(const std::vector<V> &vertices, const std::vector<I> &indices,
                                        ShaderID shader, TextureID texture = no_texture, bool call_from_instanced = false) {
         
-        if (shaders.at(shader).is_instanced and not call_from_instanced)
+        if (Shader::getShader(shader).is_instanced and not call_from_instanced)
             log::error("You are getting a draw description for an instanced shader using the function for regular rendering, use getDrawDescriptionI()");
         
         DrawDescription description{};
@@ -43,7 +43,7 @@ namespace Fresa::Graphics
     DrawDescription getDrawDescriptionI(const std::vector<V> &vertices, const std::vector<U> &instanced_data,
                                         const std::vector<I> &indices, ShaderID shader, TextureID texture = no_texture) {
         
-        if (not shaders.at(shader).is_instanced)
+        if (not Shader::getShader(shader).is_instanced)
             log::error("You are getting a draw description for a regular shader using the function for instanced rendering, use getDrawDescription()");
         
         DrawDescription description = getDrawDescription<UBO...>(vertices, indices, shader, texture, true);

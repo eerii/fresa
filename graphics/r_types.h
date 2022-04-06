@@ -7,6 +7,7 @@
 #include "types.h"
 #include "reflection.h"
 #include "log.h"
+#include "config.h"
 
 #include <optional>
 #include <variant>
@@ -26,6 +27,7 @@
 
     //: SPIRV-cross, shader reflection and cross compilation
     #include "spirv_glsl.hpp"
+    namespace spv_c = spirv_cross;
 
     //: VMA, memory allocation for Vulkan
     #ifdef USE_VULKAN
@@ -98,16 +100,57 @@
 
 namespace Fresa::Graphics
 {
+    //---------------------------------------------------
+    //: Buffer data
+    //      Contains the representation of a buffer for each API
+    //---------------------------------------------------
+    struct BufferData {
+        IF_VULKAN(
+            VkBuffer buffer;
+            VmaAllocation allocation;
+        )
+        IF_OPENGL(ui32 buffer;)
+    };
+    
+    enum BufferMemory {
+        BUFFER_MEMORY_CPU_ONLY  =  IF_VULKAN(VMA_MEMORY_USAGE_CPU_ONLY)    IF_OPENGL(1 << 0),
+        BUFFER_MEMORY_GPU_ONLY  =  IF_VULKAN(VMA_MEMORY_USAGE_GPU_ONLY)    IF_OPENGL(1 << 1),
+        BUFFER_MEMORY_BOTH      =  IF_VULKAN(VMA_MEMORY_USAGE_CPU_TO_GPU)  IF_OPENGL(1 << 2),
+    };
+    using BufferMemoryT = IF_VULKAN(VmaMemoryUsage) IF_OPENGL(BufferMemory);
+    
+    enum BufferUsage {
+        BUFFER_USAGE_UNIFORM       =  IF_VULKAN(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)  IF_OPENGL(1 << 0),
+        BUFFER_USAGE_STORAGE       =  IF_VULKAN(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)  IF_OPENGL(1 << 1),
+        BUFFER_USAGE_VERTEX        =  IF_VULKAN(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)   IF_OPENGL(1 << 2),
+        BUFFER_USAGE_INDEX         =  IF_VULKAN(VK_BUFFER_USAGE_INDEX_BUFFER_BIT)    IF_OPENGL(1 << 3),
+        BUFFER_USAGE_TRANSFER_SRC  =  IF_VULKAN(VK_BUFFER_USAGE_TRANSFER_SRC_BIT)    IF_OPENGL(1 << 4),
+        BUFFER_USAGE_TRANSFER_DST  =  IF_VULKAN(VK_BUFFER_USAGE_TRANSFER_DST_BIT)    IF_OPENGL(1 << 5),
+        BUFFER_USAGE_INDIRECT      =  IF_VULKAN(VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) IF_OPENGL(1 << 6),
+    };
+    using BufferUsageT = IF_VULKAN(VkBufferUsageFlags) IF_OPENGL(BufferUsage);
+    
+    //---------------------------------------------------
+    //: Texture data
+    //      Contains the representation of a texture for each API
+    //---------------------------------------------------
+    struct TextureData {
+        int w, h, ch;
+        IF_VULKAN(
+            VkImage image;
+            VkImageView image_view;
+            VkFormat format;
+            VkImageLayout layout;
+            VmaAllocation allocation;
+        )
+        IF_OPENGL(ui32 image;)
+    };
+    
+    
+    //TODO: REFACTOR
+    
     //Buffer
     //----------------------------------------
-    struct BufferData {
-        #if defined USE_VULKAN
-        VkBuffer buffer;
-        VmaAllocation allocation;
-        #elif defined USE_OPENGL
-        ui32 id_;
-        #endif
-    };
 
     using GeometryBufferID = ui32;
     struct GeometryBufferData {
@@ -145,19 +188,6 @@ namespace Fresa::Graphics
         TEXTURE_CHANNELS_GA = 2,
         TEXTURE_CHANNELS_RGB = 3,
         TEXTURE_CHANNELS_RGBA = 4
-    };
-
-    struct TextureData {
-        int w, h, ch;
-        #if defined USE_VULKAN
-        VkImage image;
-        VmaAllocation allocation;
-        VkFormat format;
-        VkImageLayout layout;
-        VkImageView image_view;
-        #elif defined USE_OPENGL
-        ui32 id_;
-        #endif
     };
     //----------------------------------------
 
@@ -250,11 +280,9 @@ namespace Fresa::Graphics
     //----------------------------------------
     using DrawUniformID = ui32;
     struct DrawUniformData {
-        std::vector<BufferData> uniform_buffers;
+        std::vector<std::array<BufferData, Config::frames_in_flight>> uniform_buffers;
         #ifdef USE_VULKAN
-        std::vector<VkDescriptorSet> descriptor_sets;
         std::vector<ui16> size;
-        bool recreate = false;
         #endif
     };
     

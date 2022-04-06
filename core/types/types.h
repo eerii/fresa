@@ -30,6 +30,9 @@ template<typename T> struct is_vector : std::false_type {};
 template<typename A> struct is_vector<std::vector<A>> : std::true_type {};
 template<typename T> inline constexpr bool is_vector_v=is_vector<T>::value;
 
+template<class T> struct is_array : std::is_array<T>{};
+template<class T, std::size_t N> struct is_array<std::array<T,N>> : std::true_type{};
+
 template<typename T> struct is_vec2 { static constexpr bool value=false; };
 template<typename A> struct is_vec2<Fresa::Vec2<A>> { static constexpr bool value=true; };
 template<typename T> inline constexpr bool is_vec2_v=is_vec2<T>::value;

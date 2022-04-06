@@ -80,7 +80,7 @@ bool Game::update() {
         return false;
    
     //: Render update
-    TIME(Performance::render_frame_time, Graphics::update);
+    Graphics::update();
     
     //: Advance time
     timeFrame();

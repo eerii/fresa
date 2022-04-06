@@ -36,34 +36,6 @@ void Gui::win_menu() {
             
             ImGui::Checkbox("draw indirect", &Config::draw_indirect);
             
-            //: Attachments
-            if (ImGui::BeginMenu("attachments"))
-            {
-                if (ImGui::MenuItem("s - swapchain"))
-                    Graphics::api.render_attachment = -1;
-                if (ImGui::MenuItem("w - wireframe"))
-                    Graphics::api.render_attachment = -2;
-                
-                for (auto &[id, attachment] : Graphics::api.attachments) {
-                    if (attachment.type & Graphics::ATTACHMENT_SWAPCHAIN)
-                        continue;
-                    if (Config::multisampling > 0 and Graphics::hasMultisampling(id, false))
-                        continue;
-                    if (Config::multisampling == 0 and Graphics::hasMultisampling(id-1, false))
-                        continue;
-                    
-                    str name = std::to_string(id) + " - ";
-                    for (auto &[s, type] : Graphics::attachment_type_names)
-                        if (attachment.type & type)
-                            name += s + " ";
-                    
-                    if (ImGui::MenuItem(name.c_str()))
-                        Graphics::api.render_attachment = (int)id;
-                }
-                
-                ImGui::EndMenu();
-            }
-            
             ImGui::EndMenu();
         }
         

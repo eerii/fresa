@@ -82,9 +82,6 @@ void Graphics::processRendererDescription() {
                     log::error("You provided an invalid attachment type, check the name list for all the options, index %d", i);
                 type = (AttachmentType)(type | attachment_type_names.at(type_str.at(i)));
             }
-            #ifdef DEBUG
-                type = (AttachmentType)(type | ATTACHMENT_EXTERNAL);
-            #endif
             
             //: Resolution
             str res = line.at(3);
@@ -163,102 +160,43 @@ void Graphics::processRendererDescription() {
         
         //---Shaders---
         //:     d/p shader subpass vertices      d - draw shader, p - post shader
-        if (line.at(0) == "d" or line.at(0) == "p" or line.at(0) == "sd") {
+        if (line.at(0) == "d" or line.at(0) == "p") {
             if (line.size() < 4 or line.size() > 5)
-                log::error("The description of the shader is invalid, it has to be 'd/p/sd shader subpass vertexdata (optional)instanced_vertexdata'");
+                log::error("The description of the shader is invalid, it has to be 'd/p shader subpass vertexdata (optional)instanced_vertexdata'");
             
-            //: Shader
+            //: Shader name
             ShaderID shader = line.at(1);
-            shaders.at(shader).is_draw = line.at(0) == "d";
+            
+            //: Shader type
+            ShaderType type = SHADER_LAST;
+            if (line.at(0) == "d")
+                type = SHADER_DRAW;
+            else if (line.at(0) == "p")
+                type = SHADER_POST;
+            
+            //: Register shader
+            Shader::registerShader(shader, type);
+            
+            //: TODO: TEMPORARY
+            shaders.list.at(type).at(shader).is_draw = line.at(0) == "d";
+            shaders.list.at(type).at(shader).is_instanced = line.size() == 5;
             
             //: Subpass
             str subpass_name = line.at(2);
             if (not subpass_list.count(subpass_name)) log::error("You have used an incorrect subpass name, %s", subpass_name.c_str());
             SubpassID subpass = subpass_list.at(subpass_name);
+            Map::subpass_shader.add(subpass, shader);
             
             //: Register shader
             #if defined USE_VULKAN
-                bool found_vertex = false;
-                for_<VertexType>([&](auto i){
-                    using V = std::variant_alternative_t<i.value, VertexType>;
-                    
-                    str vertex_name = str(type_name<V>());
-                    if (vertex_name.rfind("Vertex", 0) != 0) log::error("All vertex types need to start with 'Vertex', this is %s", vertex_name.c_str());
-                    vertex_name = lower(vertex_name.substr(6));
-                    
-                    if (vertex_name == lower(line.at(3))) {
-                        if (line.size() == 4) { //: No instanced rendering
-                            api.pipelines[shader] = VK::createPipeline<V>(api, shader, subpass);
-                            found_vertex = true;
-                            shaders.at(shader).is_instanced = false;
-                        } else { //: Instanced rendering (the for_ inside a for_ may be improved in the future)
-                            for_<VertexType>([&](auto j){
-                                using U = std::variant_alternative_t<j.value, VertexType>;
-                                
-                                str inst_vertex_name = str(type_name<U>());
-                                inst_vertex_name = lower(inst_vertex_name.substr(6));
-                                
-                                if (inst_vertex_name == lower(line.at(4))) {
-                                    api.pipelines[shader] = VK::createPipeline<V, U>(api, shader, subpass);
-                                    found_vertex = true;
-                                    shaders.at(shader).is_instanced = true;
-                                }
-                            });
-                        }
-                    }
-                });
-                if (not found_vertex) log::error("The vertex you provided '%s' is invalid, check the spelling and vertex variant", line.at(3).c_str());
+                //: TODO: REFACTOR
+                std::vector<std::pair<str, VertexInputRate>> vertex_descriptions = {{line.at(3), INPUT_RATE_VERTEX}};
+                if (shaders.list.at(type).at(shader).is_instanced) //: Instanced rendering
+                    vertex_descriptions.push_back({line.at(4), INPUT_RATE_INSTANCE});
+                shaders.list.at(type).at(shader).pipeline = Common::createGraphicsPipeline(shader, vertex_descriptions);
             #elif defined USE_OPENGL
-                Map::subpass_shader.add(subpass, shader);
                 api.shaders.at(shader).subpass = subpass;
-                api.shaders.at(shader).is_instanced = line.size() == 5;
             #endif
         }
     }
-    
-    //---Debug pipelines---
-    #ifdef DEBUG
-        AttachmentID swapchain = [&](){
-            for (auto &[name, attachment] : attachment_list)
-                if (api.attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
-                    return attachment;
-            return (AttachmentID)-1;
-        }();
-        
-        for (auto &[name, attachment] : attachment_list) {
-            if (api.attachments.at(attachment).type & ATTACHMENT_SWAPCHAIN)
-                continue;
-            
-            str debug_shader = "debug_attachment_" + std::to_string(attachment);
-            str shader_code = api.attachments.at(attachment).type & ATTACHMENT_DEPTH ? "window_depth" : "window";
-            shaders[debug_shader] = Shader::createPass(shader_code);
-            
-            SubpassID subpass = registerSubpass({swapchain}, {attachment});
-            registerRenderPass({subpass});
-            
-            #if defined USE_VULKAN
-                api.pipelines[debug_shader] = VK::createPipeline<VertexPos2>(api, debug_shader, subpass);
-            #elif defined USE_OPENGL
-                GL::createShaderDataGL(debug_shader);
-                Map::subpass_shader.add(subpass, debug_shader);
-                api.shaders.at(debug_shader).subpass = subpass;
-            #endif
-            
-            //TODO: Make this better
-            if (api.attachments.at(attachment).type & ATTACHMENT_DEPTH and api.attachments.at(attachment).type & ATTACHMENT_MSAA) {
-                shaders[debug_shader + "_msaa"] = Shader::createPass("window_depth_msaa");
-                
-                SubpassID subpass_msaa = registerSubpass({swapchain}, {attachment});
-                registerRenderPass({subpass_msaa});
-                
-                #if defined USE_VULKAN
-                    api.pipelines[debug_shader + "_msaa"] = VK::createPipeline<VertexPos2>(api, debug_shader + "_msaa", subpass_msaa);
-                #elif defined USE_OPENGL
-                    GL::createShaderDataGL(debug_shader + "_msaa");
-                    Map::subpass_shader.add(subpass_msaa, debug_shader + "_msaa");
-                    api.shaders.at(debug_shader + "_msaa").subpass = subpass_msaa;
-                #endif
-            }
-        }
-    #endif
 }

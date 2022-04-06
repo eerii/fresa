@@ -111,9 +111,10 @@ ShaderData GL::createShaderDataGL(ShaderID shader) {
     ShaderData &data = shaders.at(shader);
     
     //TODO: REMOVE COMPILING FROM HERE
+    // THIS SHOULD ACTUALLY BE REPLACED WITH A BUILD PIPELINE
     
     //: Options
-    spirv_cross::CompilerGLSL::Options options;
+    spv_c::CompilerGLSL::Options options;
     options.version = 410; //: Max supported version
     options.es = false; //: Desktop OpenGL
     options.enable_420pack_extension = false; //: Strip binding of uniforms and samplers+

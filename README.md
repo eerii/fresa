@@ -9,9 +9,6 @@ A tiny game engine made in C++20.
   <img src="https://user-images.githubusercontent.com/22449369/156197502-0e555a4a-8a71-4920-bb01-b29cefcf4a25.gif" width="24%" />
 </p>
 
-_Warning: The rendering API is being completely refactored at the moment. If you want to try the previous version refer to commit [3bfebeb
-](https://github.com/josekoalas/fresa/tree/3bfebeb104d70dc3ccb027749f9b8b075933e8aa), however, this should not be considered stable. This process shouldn't take more than a few weeks, sorry for the inconvenience._
-
 ## features :sparkles:
 
 **Graphics** 

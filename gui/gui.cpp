@@ -30,16 +30,12 @@ void Gui::init() {
     
     //: Fonts
     auto font_path = File::path_optional("misc/font.ttf");
-    
     if (font_path.has_value()) {
         float font_scale = Graphics::window.dpi;
         io->Fonts->AddFontFromFileTTF(font_path.value().c_str(), 16 * font_scale);
         io->FontGlobalScale /= font_scale;
-    } else {
-        io->Fonts->AddFontDefault();
+        io->Fonts->Build();
     }
-    
-    io->Fonts->Build();
     
     #ifdef USE_VULKAN
     Graphics::VK::Gui::transferFonts(Graphics::api);
