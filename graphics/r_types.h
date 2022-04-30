@@ -104,14 +104,6 @@ namespace Fresa::Graphics
     //: Buffer data
     //      Contains the representation of a buffer for each API
     //---------------------------------------------------
-    struct BufferData {
-        IF_VULKAN(
-            VkBuffer buffer;
-            VmaAllocation allocation;
-        )
-        IF_OPENGL(ui32 buffer;)
-    };
-    
     enum BufferMemory {
         BUFFER_MEMORY_CPU_ONLY  =  IF_VULKAN(VMA_MEMORY_USAGE_CPU_ONLY)    IF_OPENGL(1 << 0),
         BUFFER_MEMORY_GPU_ONLY  =  IF_VULKAN(VMA_MEMORY_USAGE_GPU_ONLY)    IF_OPENGL(1 << 1),
@@ -129,6 +121,15 @@ namespace Fresa::Graphics
         BUFFER_USAGE_INDIRECT      =  IF_VULKAN(VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) IF_OPENGL(1 << 6),
     };
     using BufferUsageT = IF_VULKAN(VkBufferUsageFlags) IF_OPENGL(BufferUsage);
+    
+    struct BufferData {
+        IF_VULKAN(
+            VkBuffer buffer;
+            VmaAllocation allocation;
+        )
+        IF_OPENGL(ui32 buffer;)
+        BufferMemory memory;
+    };
     
     //---------------------------------------------------
     //: Texture data

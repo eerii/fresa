@@ -9,6 +9,8 @@ A tiny game engine made in C++20.
   <img src="https://user-images.githubusercontent.com/22449369/156197502-0e555a4a-8a71-4920-bb01-b29cefcf4a25.gif" width="24%" />
 </p>
 
+_Development branch: Currently working on version 0.4 with a redesigned graphics API. Refer to the main branch for a working version, this will see breaking changes._
+
 ## features :sparkles:
 
 **Graphics** 

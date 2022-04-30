@@ -30,6 +30,7 @@ namespace Fresa::Graphics
 {
     namespace Common {
         BufferData allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data = nullptr, bool delete_with_program = true);
+        void updateBuffer(BufferData &buffer, ui32 size, void* data);
         void copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset = 0);
     }
     

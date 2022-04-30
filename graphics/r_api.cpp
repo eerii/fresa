@@ -161,23 +161,14 @@ void Graphics::processRendererDescription() {
         //---Shaders---
         //:     d/p shader subpass vertices      d - draw shader, p - post shader
         if (line.at(0) == "d" or line.at(0) == "p") {
-            if (line.size() < 4 or line.size() > 5)
-                log::error("The description of the shader is invalid, it has to be 'd/p shader subpass vertexdata (optional)instanced_vertexdata'");
+            if (line.size() != 4)
+                log::error("The description of the shader is invalid, it has to be 'd/p shader subpass vertexdata'");
             
             //: Shader name
             ShaderID shader = line.at(1);
             
             //: Shader type
-            ShaderType type = SHADER_LAST;
-            if (line.at(0) == "d") {
-                type = SHADER_DRAW;
-                if (line.size() != 5)
-                    log::error("Draw shaders have to be instanced");
-            } else if (line.at(0) == "p") {
-                type = SHADER_POST;
-                if (line.size() != 4)
-                    log::error("Post shaders can't be instanced");
-            }
+            ShaderType type = line.at(0) == "d" ? SHADER_DRAW : SHADER_POST;
             
             //: Register shader
             Shader::registerShader(shader, type);
@@ -192,8 +183,6 @@ void Graphics::processRendererDescription() {
             #if defined USE_VULKAN
                 //: TODO: REFACTOR
                 std::vector<std::pair<str, VertexInputRate>> vertex_descriptions = {{line.at(3), INPUT_RATE_VERTEX}};
-                if (line.size() == 5) //: Instanced rendering
-                    vertex_descriptions.push_back({line.at(4), INPUT_RATE_INSTANCE});
                 shaders.list.at(type).at(shader).pipeline = Common::createGraphicsPipeline(shader, vertex_descriptions);
             #elif defined USE_OPENGL
                 api.shaders.at(shader).subpass = subpass;

@@ -2023,12 +2023,21 @@ BufferData Common::allocateBuffer(ui32 size, BufferUsage usage, BufferMemory mem
     if (delete_with_program)
         VK::deletion_queue_program.push_back([buffer](){ vmaDestroyBuffer(api.allocator, buffer.buffer, buffer.allocation); });
     
-    //---No data provided, just allocation---
+    buffer.memory = memory;
+    
+    //---Data provided---
+    if (data != nullptr)
+        updateBuffer(buffer, size, data);
+    
+    return buffer;
+}
+
+void Common::updateBuffer(BufferData &buffer, ui32 size, void *data) {
     if (data == nullptr)
-        return buffer;
+        log::error("You are trying to update a buffer with a nullptr");
     
     //---Data provided, CPU buffer---
-    if (memory != BUFFER_MEMORY_GPU_ONLY) {
+    if (buffer.memory != BUFFER_MEMORY_GPU_ONLY) {
         //: Copy data
         void* b;
         vmaMapMemory(api.allocator, buffer.allocation, &b);
@@ -2057,8 +2066,6 @@ BufferData Common::allocateBuffer(ui32 size, BufferUsage usage, BufferMemory mem
         //: Delete staging buffer
         vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
     }
-    
-    return buffer;
 }
 
 void Common::copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset) {
@@ -2230,6 +2237,7 @@ void Common::linkDescriptorResources(ShaderID shader) {
     auto &descriptors = Shader::getShader(shader).descriptors;
     
     std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_buffers{};
+    std::vector<VkBuffer> storage_buffers{};
     
     for (auto &d : descriptors) {
         for (auto &r : d.resources) {
@@ -2239,10 +2247,13 @@ void Common::linkDescriptorResources(ShaderID shader) {
                     u.at(i) = descriptor_resources.uniform_buffers.at(r.id + i).buffer;
                 uniform_buffers.push_back(u);
             }
+            
+            if (r.type == DESCRIPTOR_STORAGE)
+                storage_buffers.push_back(descriptor_resources.storage_buffers.at(r.id).buffer);
         }
     }
     
-    VK::updateDescriptorSets(shader, uniform_buffers, {}, {}, {});
+    VK::updateDescriptorSets(shader, uniform_buffers, storage_buffers, {}, {});
 }
 
 //----------------------------------------

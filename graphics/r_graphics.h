@@ -35,6 +35,7 @@ namespace Fresa::Graphics
         
         #if defined USE_VULKAN
         description.instance = registerInstancedBuffer(instanced_data);
+        Common::updateBuffer(descriptor_resources.storage_buffers.begin()->second, (ui32)(instanced_data.size() * sizeof(U)), (void*)instanced_data.data());
         #elif defined USE_OPENGL
         description.instance = registerInstancedBuffer(vertices, instanced_data, api.geometry_buffer_data.at(description.geometry).vao);
         #endif

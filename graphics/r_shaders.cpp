@@ -222,8 +222,11 @@ std::map<ui32, std::vector<IDescriptorLayoutBinding>> Shader::getDescriptorLayou
             if (descriptor_type == DESCRIPTOR_UNIFORM or descriptor_type == DESCRIPTOR_STORAGE) {
                 const spv_c::SPIRType &type = compiler.get_type(res.base_type_id);
                 data.size = (ui32)compiler.get_declared_struct_size(type);
-                if (data.size == 0)
-                    log::warn("Runtime arrays not supported yet");
+                if (data.size == 0) {
+                    constexpr ui32 MAX_OBJECTS = 10000;
+                    data.size = (ui32)compiler.get_declared_struct_size_runtime_array(type, MAX_OBJECTS);
+                    log::warn("Using a fixed size allocation for a dynamic storage buffer, (%d items)", MAX_OBJECTS);
+                }
             }
             
             //: Other properties
@@ -387,8 +390,18 @@ std::vector<ShaderResource> Shader::createDescriptorResources(const std::vector<
         
         if (b.descriptor_type == DESCRIPTOR_STORAGE) {
             res.count = 1;
-            log::info("Storage buffer descriptors not supported yet");
-            continue;
+            res.id = find_id();
+            descriptor_resources.storage_buffers[res.id] = Common::allocateBuffer(b.size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);
+            
+            //TODO: TEST
+            std::vector<glm::vec4> test_pos{};
+            for (int i = 0; i < 1000; i++)
+                test_pos.push_back(glm::vec4(float(rand() % 500), float(rand() % 500), float(rand() % 500), float(rand() % 500)));
+            
+            void* b;
+            vmaMapMemory(api.allocator, descriptor_resources.storage_buffers[res.id].allocation, &b);
+            memcpy(b, test_pos.data(), (size_t)(test_pos.size() * 4 * sizeof(float)));
+            vmaUnmapMemory(api.allocator, descriptor_resources.storage_buffers[res.id].allocation);
         }
         
         if (b.descriptor_type == DESCRIPTOR_IMAGE_SAMPLER) {

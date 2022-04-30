@@ -198,6 +198,11 @@ namespace Fresa::Graphics::VK
     }
     
     template <typename T>
+    void updateBuffer(BufferData &buffer, const std::vector<T> &v, size_t offset = 0) {
+        
+    }
+    
+    template <typename T>
     void updateGPUBuffer(BufferData &buffer, const std::vector<T> &v, size_t offset = 0) {
         //: Create a staging buffer
         ui32 buffer_size = ui32(sizeof(T) * v.size());
