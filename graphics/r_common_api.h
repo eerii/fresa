@@ -14,7 +14,6 @@ namespace Fresa::Graphics
         std::map<TextureID, TextureData> texture_data;
         std::map<DrawUniformID, DrawUniformData> draw_uniform_data;
         
-        DrawQueue draw_queue;
         DrawIQueue draw_queue_instanced;
         std::vector<DrawDescription*> draw_descriptions;
         

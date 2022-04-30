@@ -128,15 +128,10 @@ namespace Fresa::Graphics
         std::vector<DescriptorSet> descriptors;
         IF_VULKAN(VkPipelineLayout pipeline_layout;)
         IPipeline pipeline;
-        
-        //LEGACY - TODO: REPLACE
-        bool is_draw;
-        bool is_instanced;
     };
     
-    //: Shader lists (Temporary)
+    //: Shader lists
     //      Hold the multiple shader passes with their associated id (for now it is their name)
-    //      TODO: Refactor this, gather them in different groups, like draw_opaque, draw_transparent, post, compute...
     enum ShaderType {
         SHADER_DRAW,
         SHADER_POST,

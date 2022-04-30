@@ -21,13 +21,10 @@ namespace Fresa::Graphics
     bool update();
     bool stop();
     
-    template <typename... UBO, typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
-    DrawDescription getDrawDescription(const std::vector<V> &vertices, const std::vector<I> &indices,
-                                       ShaderID shader, TextureID texture = no_texture, bool call_from_instanced = false) {
-        
-        if (Shader::getShader(shader).is_instanced and not call_from_instanced)
-            log::error("You are getting a draw description for an instanced shader using the function for regular rendering, use getDrawDescriptionI()");
-        
+    template <typename... UBO, typename V, typename U, typename I,
+              std::enable_if_t<Reflection::is_reflectable<V> && Reflection::is_reflectable<U> && std::is_integral_v<I>, bool> = true>
+    DrawDescription getDrawDescription(const std::vector<V> &vertices, const std::vector<U> &instanced_data, const std::vector<I> &indices,
+                                       ShaderID shader, TextureID texture = no_texture) {
         DrawDescription description{};
         description.shader = shader;
         description.texture = texture;
@@ -35,18 +32,7 @@ namespace Fresa::Graphics
         description.geometry = registerGeometryBuffer(vertices, indices);
         
         updateDrawDescriptorSets(description);
-        return description;
-    }
-    
-    template <typename... UBO, typename V, typename U, typename I,
-              std::enable_if_t<Reflection::is_reflectable<V> && Reflection::is_reflectable<U> && std::is_integral_v<I>, bool> = true>
-    DrawDescription getDrawDescriptionI(const std::vector<V> &vertices, const std::vector<U> &instanced_data,
-                                        const std::vector<I> &indices, ShaderID shader, TextureID texture = no_texture) {
         
-        if (not Shader::getShader(shader).is_instanced)
-            log::error("You are getting a draw description for a regular shader using the function for instanced rendering, use getDrawDescription()");
-        
-        DrawDescription description = getDrawDescription<UBO...>(vertices, indices, shader, texture, true);
         #if defined USE_VULKAN
         description.instance = registerInstancedBuffer(instanced_data);
         #elif defined USE_OPENGL

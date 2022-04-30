@@ -16,6 +16,16 @@ void Gui::init() {
     //---Initialization---
     ImGui::CreateContext();
     
+    //---IO---
+    io = &ImGui::GetIO();
+    
+    //: Docking
+    io->ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    
+    //: Multi viewports
+    io->ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    
+    //---Backends---
     #if defined USE_OPENGL
     if (not ImGui_ImplSDL2_InitForOpenGL(Graphics::window.window, Graphics::api.context))
         log::error("Error initializing ImGui for SDL");
@@ -25,10 +35,7 @@ void Gui::init() {
     Graphics::VK::Gui::init(Graphics::api);
     #endif
     
-    //---IO---
-    io = &ImGui::GetIO();
-    
-    //: Fonts
+    //---Fonts---
     auto font_path = File::path_optional("misc/font.ttf");
     if (font_path.has_value()) {
         float font_scale = Graphics::window.dpi;
@@ -40,9 +47,6 @@ void Gui::init() {
     #ifdef USE_VULKAN
     Graphics::VK::Gui::transferFonts(Graphics::api);
     #endif
-    
-    //: Docking
-    //  io->ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     
     //---Style---
     style = &ImGui::GetStyle();
@@ -102,6 +106,12 @@ void Gui::GuiSystem::render() {
     }
     
     ImGui::Render();
+    
+    //: Multi viewports
+    if (io->ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+    }
 }
 
 void Gui::setColors(ImVec3 text, ImVec3 head, ImVec3 area, ImVec3 body, ImVec3 pops) {

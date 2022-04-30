@@ -169,17 +169,18 @@ void Graphics::processRendererDescription() {
             
             //: Shader type
             ShaderType type = SHADER_LAST;
-            if (line.at(0) == "d")
+            if (line.at(0) == "d") {
                 type = SHADER_DRAW;
-            else if (line.at(0) == "p")
+                if (line.size() != 5)
+                    log::error("Draw shaders have to be instanced");
+            } else if (line.at(0) == "p") {
                 type = SHADER_POST;
+                if (line.size() != 4)
+                    log::error("Post shaders can't be instanced");
+            }
             
             //: Register shader
             Shader::registerShader(shader, type);
-            
-            //: TODO: TEMPORARY
-            shaders.list.at(type).at(shader).is_draw = line.at(0) == "d";
-            shaders.list.at(type).at(shader).is_instanced = line.size() == 5;
             
             //: Subpass
             str subpass_name = line.at(2);
@@ -191,7 +192,7 @@ void Graphics::processRendererDescription() {
             #if defined USE_VULKAN
                 //: TODO: REFACTOR
                 std::vector<std::pair<str, VertexInputRate>> vertex_descriptions = {{line.at(3), INPUT_RATE_VERTEX}};
-                if (shaders.list.at(type).at(shader).is_instanced) //: Instanced rendering
+                if (line.size() == 5) //: Instanced rendering
                     vertex_descriptions.push_back({line.at(4), INPUT_RATE_INSTANCE});
                 shaders.list.at(type).at(shader).pipeline = Common::createGraphicsPipeline(shader, vertex_descriptions);
             #elif defined USE_OPENGL

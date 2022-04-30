@@ -90,18 +90,10 @@ void Graphics::draw_(DrawDescription &description) {
     if (not api.geometry_buffer_data.count(description.geometry))
         log::error("The GeometryBufferID %d is not valid", description.geometry);
     
-    //: Instanced buffer
-    if (Shader::getShader(description.shader).is_instanced) {
-        if (description.instance == no_instance or not api.instanced_buffer_data.count(description.instance))
-            log::error("The InstancedBufferID %d is not valid", description.instance);
-        api.draw_queue_instanced[description.shader][description.uniform][description.geometry][description.instance] = &description;
-    }
-    //: Geometry buffer
-    else {
-        if (description.instance != no_instance)
-            log::error("The InstancedBufferID %d is not valid", description.instance);
-        api.draw_queue[description.shader][description.geometry][description.texture][description.uniform] = &description;
-    }
+    if (description.instance == no_instance or not api.instanced_buffer_data.count(description.instance))
+        log::error("The InstancedBufferID %d is not valid", description.instance);
+    
+    api.draw_queue_instanced[description.shader][description.uniform][description.geometry][description.instance] = &description;
     
     if(Config::draw_indirect and description.indirect_buffer == no_indirect_buffer)
         addIndirectDrawCommand(description);

@@ -305,38 +305,16 @@ namespace Fresa::Graphics
     };
     
     //: This is a hierarchical map for rendering
-    //  - Regular rendering
-    //      1: Vertex buffer (geometry)                 GeometryBufferData
-    //      2: Texture                                  TextureData
-    //      3: Uniforms (global + per instance)         DrawUniformData
     //  - Instanced rendedring
     //      1: Global uniforms                          DrawUniformData
     //      2: Vertex buffer (geometry)                 GeometryBufferData
     //      3: Per instance buffer                      InstancedBufferID
     //      .: Textures not supported yet
-    //: Indirect rendering is the same as instanced, but it uses a command buffer
-    
-    using DrawQueueUniform = std::map<DrawUniformID, DrawDescription*>;
-    using DrawQueueTexture = std::map<TextureID, DrawQueueUniform>;
-    using DrawQueueGeometry = std::map<GeometryBufferID, DrawQueueTexture>;
-    using DrawQueue = std::map<ShaderID, DrawQueueGeometry>;
     
     using DrawIQueueInstance = std::map<InstancedBufferID, DrawDescription*>;
     using DrawIQueueGeometry = std::map<GeometryBufferID, DrawIQueueInstance>;
     using DrawIQueueUniform = std::map<DrawUniformID, DrawIQueueGeometry>;
     using DrawIQueue = std::map<ShaderID, DrawIQueueUniform>;
-    
-    // What do i need for drawing?
-    // - Uniform buffers
-    //      - On regular rendering these include *per instance* and global attributes (model, view...), inside a descriptor set
-    //      - On instanced rendering these only include *global* attibutes
-    // - Vertex buffers
-    //      - On regular rendering these contain geometry, color, uvs... model properties, these also have an index buffer for optimizations
-    //      - On instanced rendering, we have two vertex buffers: the regular one and another one with the per instance attributes
-    //        The per instance vertex uses VK_VERTEX_INPUT_RATE_INSTANCE
-    // - Textures
-    //      - On regular rendering there are either binded (OpenGL) or in a descriptor set along with the uniform buffers (Vulkan)
-    //      - Not working with them yet for instancing
     
     //----------------------------------------
     

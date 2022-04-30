@@ -6,10 +6,16 @@
 
 #### 0.3.17 - NAME - _00 00 2022_
 
+**added**
+- imgui docking and multiviewports
+
 **changed**
 - descriptor set manager
 - now shaders are created when read from the renderer description
 - moved shaders to an improved shaderlist
+
+**removed**
+- all non instanced shader rendering
 
 ---
 

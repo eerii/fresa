@@ -852,66 +852,26 @@ void VK::recordRenderCommandBuffer() {
             for (const auto &shader_id : subpass_shaders) {
                 const ShaderPass& shader = Shader::getShader(shader_id);
                 //---Draw shaders---
-                if (shader.is_draw) {
-                    if (not api.draw_queue.count(shader_id) and not api.draw_queue_instanced.count(shader_id))
+                if (shaders.types.at(shader_id) == SHADER_DRAW) {
+                    if (not api.draw_queue_instanced.count(shader_id))
                         continue;
                     
                     //: Bind pipeline
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline);
                     
                     //---Instanced rendering queue---
-                    if (shader.is_instanced) {
-                        //: Direct rendering
-                        auto queue_uniform = api.draw_queue_instanced.at(shader_id);
-                        for (const auto &[uniform_id, queue_geometry] : queue_uniform) {
-                            DrawUniformData &uniform = api.draw_uniform_data.at(uniform_id);
-                            //: Descriptor set
-                            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
-                                                    &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
+                    auto queue_uniform = api.draw_queue_instanced.at(shader_id);
+                    for (const auto &[uniform_id, queue_geometry] : queue_uniform) {
+                        DrawUniformData &uniform = api.draw_uniform_data.at(uniform_id);
+                        //: Descriptor set
+                        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
+                                                &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
+                        
+                        for (const auto &[geometry_id, queue_instance] : queue_geometry) {
+                            GeometryBufferData &geometry = api.geometry_buffer_data.at(geometry_id);
                             
-                            for (const auto &[geometry_id, queue_instance] : queue_geometry) {
-                                GeometryBufferData &geometry = api.geometry_buffer_data.at(geometry_id);
-                                
-                                VkDeviceSize offsets[]{ 0 };
-                                //: Vertex buffer geometry
-                                vkCmdBindVertexBuffers(cmd, 0, 1, &geometry.vertex_buffer.buffer, offsets);
-                                
-                                //: Index buffer
-                                VkIndexType index_type = VK_INDEX_TYPE_UINT16;
-                                if (geometry.index_bytes == 4) index_type = VK_INDEX_TYPE_UINT32;
-                                else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
-                                vkCmdBindIndexBuffer(cmd, geometry.index_buffer.buffer, 0, index_type);
-                                
-                                for (const auto &[instance_id, description] : queue_instance) {
-                                    InstancedBufferData &instance = api.instanced_buffer_data.at(instance_id);
-                                    
-                                    //: Vertex buffer per instance
-                                    vkCmdBindVertexBuffers(cmd, 1, 1, &instance.instance_buffer.buffer, offsets);
-                                    
-                                    //: Draw indirect
-                                    if (Config::draw_indirect) {
-                                        vkCmdDrawIndexedIndirect(cmd, api.draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
-                                                                 description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
-                                                                 1, sizeof(VkDrawIndexedIndirectCommand));
-                                        // - See how multi draw indirect could be implemented, probably you have to squash all the vertex buffers
-                                        //   and make use of the vertex offset in the indirect command
-                                    }
-                                    //: Draw direct
-                                    else {
-                                        vkCmdDrawIndexed(cmd, geometry.index_size, instance.instance_count, 0, 0, 0);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    //---Regular rendering queue---
-                    else {
-                        auto queue_buffer = api.draw_queue.at(shader_id);
-                        for (const auto &[buffer, queue_tex] : queue_buffer) {
-                            GeometryBufferData &geometry = api.geometry_buffer_data.at(buffer);
-                            
-                            //: Vertex buffer
                             VkDeviceSize offsets[]{ 0 };
+                            //: Vertex buffer geometry
                             vkCmdBindVertexBuffers(cmd, 0, 1, &geometry.vertex_buffer.buffer, offsets);
                             
                             //: Index buffer
@@ -920,24 +880,23 @@ void VK::recordRenderCommandBuffer() {
                             else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
                             vkCmdBindIndexBuffer(cmd, geometry.index_buffer.buffer, 0, index_type);
                             
-                            for (const auto &[tex, queue_uniform] : queue_tex) {
-                                for (auto &[uniform_id, description] : queue_uniform) {
-                                    DrawUniformData &uniform = api.draw_uniform_data.at(uniform_id);
-                                    
-                                    //: Descriptor set
-                                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
-                                                            &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
-
-                                    //: Draw vertices
-                                    if (Config::draw_indirect) {
-                                        vkCmdDrawIndexedIndirect(cmd, api.draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
-                                                                 description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
-                                                                 1, sizeof(VkDrawIndexedIndirectCommand));
-                                    }
-                                    //: Draw direct
-                                    else {
-                                        vkCmdDrawIndexed(cmd, geometry.index_size, 1, 0, 0, 0);
-                                    }
+                            for (const auto &[instance_id, description] : queue_instance) {
+                                InstancedBufferData &instance = api.instanced_buffer_data.at(instance_id);
+                                
+                                //: Vertex buffer per instance
+                                vkCmdBindVertexBuffers(cmd, 1, 1, &instance.instance_buffer.buffer, offsets);
+                                
+                                //: Draw indirect
+                                if (Config::draw_indirect) {
+                                    vkCmdDrawIndexedIndirect(cmd, api.draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
+                                                             description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
+                                                             1, sizeof(VkDrawIndexedIndirectCommand));
+                                    // - See how multi draw indirect could be implemented, probably you have to squash all the vertex buffers
+                                    //   and make use of the vertex offset in the indirect command
+                                }
+                                //: Draw direct
+                                else {
+                                    vkCmdDrawIndexed(cmd, geometry.index_size, instance.instance_count, 0, 0, 0);
                                 }
                             }
                         }
@@ -945,7 +904,7 @@ void VK::recordRenderCommandBuffer() {
                 }
                 
                 //---Post shaders---
-                else  {
+                else if (shaders.types.at(shader_id) == SHADER_POST) {
                     //: Pipeline
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline);
                     
@@ -959,6 +918,10 @@ void VK::recordRenderCommandBuffer() {
                     
                     //: Draw
                     vkCmdDraw(cmd, 6, 1, 0, 0);
+                }
+                
+                else {
+                    log::error("Shader type for %s is invalid", shader_id.c_str());
                 }
             }
         }
@@ -2679,7 +2642,6 @@ void Graphics::render() {
     
     //: Clear draw queue
     previous_draw_descriptions = api.draw_descriptions;
-    api.draw_queue.clear();
     api.draw_queue_instanced.clear();
     api.draw_descriptions.clear();
 }
