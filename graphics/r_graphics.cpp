@@ -71,14 +71,14 @@ bool Graphics::stop() {
     return true;
 }
 
-void Graphics::draw_(DrawDescription &description) {
+void Graphics::draw_(DrawDescription &description, ShaderID shader) {
     //---Draw---
     //      Checks if the description provided and all the data attached are valid, and adds it to the correct draw queue
     
-    if (not shaders.types.count(description.shader))
-        log::error("The ShaderID %s is not valid", description.shader.c_str());
+    if (not shaders.types.count(shader))
+        log::error("The ShaderID %s is not valid", shader.value.c_str());
     
-    if (shaders.types.at(description.shader) != SHADER_DRAW)
+    if (shaders.types.at(shader) != SHADER_DRAW)
         log::error("The shader must be a draw shader");
     
     if (description.texture != no_texture and not api.texture_data.count(description.texture))
@@ -93,7 +93,7 @@ void Graphics::draw_(DrawDescription &description) {
     if (description.instance == no_instance or not api.instanced_buffer_data.count(description.instance))
         log::error("The InstancedBufferID %d is not valid", description.instance);
     
-    api.draw_queue_instanced[description.shader][description.uniform][description.geometry][description.instance] = &description;
+    draw_queue_instanced[shader][description.uniform][description.geometry][description.instance] = &description;
     
     if(Config::draw_indirect and description.indirect_buffer == no_indirect_buffer)
         addIndirectDrawCommand(description);

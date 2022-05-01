@@ -15,7 +15,7 @@ namespace Fresa::Graphics
     //: TODO: MOVE BUFFER DATA HERE
     
     //: Mesh ID (for indexing the mesh buffers list)
-    using MeshID = FresaType<struct MeshTag, ui16>;
+    using MeshID = FresaType<ui16, struct MeshTag>;
     
     //: Paddings of each mesh for each of the big vertex and index buffers
     struct MeshPadding {
@@ -26,10 +26,10 @@ namespace Fresa::Graphics
     };
     
     //: Uniform ID
-    using UniformBufferID = FresaType<struct UniformTag, ui16>;
+    using UniformBufferID = FresaType<ui16, struct UniformTag>;
     
     //: Storage ID
-    using StorageBufferID = FresaType<struct StorageTag, ui16>;
+    using StorageBufferID = FresaType<ui16, struct StorageTag>;
     
     //---------------------------------------------------
     //: Data

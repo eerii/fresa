@@ -39,7 +39,6 @@ namespace Fresa::Graphics
         VkViewport viewport;
         VkRect2D scissor;
         VkPipelineLayout layout;
-        ShaderID shader;
     };
 
     struct VkQueueIndices {

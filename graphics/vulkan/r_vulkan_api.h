@@ -228,7 +228,7 @@ namespace Fresa::Graphics::VK
     //Pipeline
     //----------------------------------------
     VkPipelineLayout createPipelineLayout(const std::vector<VkDescriptorSetLayout> &set_layouts, const std::vector<VkPushConstantRange> &push_constants);
-    VkPipeline buildGraphicsPipeline(const PipelineCreateData &data);
+    VkPipeline buildGraphicsPipeline(const PipelineCreateData &data, ShaderID shader);
     
     namespace Pipeline {
         //: Helper functions

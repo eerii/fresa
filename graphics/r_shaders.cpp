@@ -121,15 +121,18 @@ ShaderPass Shader::createPass(str name) {
 //: Register shader
 //---------------------------------------------------
 void Shader::registerShader(str name, ShaderType type) {
-    if (shaders.types.count(name))
+    //: ShaderID
+    ShaderID id{name};
+    
+    if (shaders.types.count(id))
         log::error("You are adding a repeated shader, %s", name.c_str());
     if (type == SHADER_LAST)
         log::error("Invalid shader type");
     
     //: Add to type list
-    shaders.types[name] = type;
+    shaders.types[id] = type;
     //: Add to shader list
-    shaders.list[type][name] = Shader::createPass(name);
+    shaders.list[type][id] = Shader::createPass(name);
     
     //: Build pipeline (only for compute shaders)
     //TODO: COMPUTE SHADER
@@ -142,7 +145,7 @@ void Shader::registerShader(str name, ShaderType type) {
 //---------------------------------------------------
 const ShaderPass& Shader::getShader(ShaderID shader) {
     if (not shaders.types.count(shader))
-        log::error("The shader you specified is not valid (%s)", shader.c_str());
+        log::error("The shader you specified is not valid (%s)", shader.value.c_str());
     ShaderType type = shaders.types.at(shader);
     return shaders.list.at(type).at(shader);
 }
@@ -365,7 +368,7 @@ std::vector<ShaderResource> Shader::createDescriptorResources(const std::vector<
     std::vector<ShaderResource> resources{};
     
     auto find_id = [](){
-        do { descriptor_resources.last_id++;
+        do { descriptor_resources.last_id.value++;
         } while (descriptor_resources.uniform_buffers.count(descriptor_resources.last_id) or
                  descriptor_resources.storage_buffers.count(descriptor_resources.last_id) or
                  descriptor_resources.textures.count(descriptor_resources.last_id));

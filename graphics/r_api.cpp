@@ -165,13 +165,13 @@ void Graphics::processRendererDescription() {
                 log::error("The description of the shader is invalid, it has to be 'd/p shader subpass vertexdata'");
             
             //: Shader name
-            ShaderID shader = line.at(1);
+            ShaderID shader{line.at(1)};
             
             //: Shader type
             ShaderType type = line.at(0) == "d" ? SHADER_DRAW : SHADER_POST;
             
             //: Register shader
-            Shader::registerShader(shader, type);
+            Shader::registerShader(shader.value, type);
             
             //: Subpass
             str subpass_name = line.at(2);

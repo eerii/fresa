@@ -14,6 +14,9 @@ namespace Fresa::Graphics
     //: Definitions
     //---------------------------------------------------
     
+    //: Shader ID (for indexing the shader list)
+    using ShaderID = FresaType<str, struct ShaderTag>;
+    
     //: Shader stages, represnet the different parts of the rendering or compute pipelines
     enum ShaderStage {
         SHADER_STAGE_VERTEX    =  IF_VULKAN(VK_SHADER_STAGE_VERTEX_BIT)    IF_OPENGL(1 << 0),
@@ -62,7 +65,7 @@ namespace Fresa::Graphics
         ShaderDescriptor descriptor_type;
         ShaderStage stage_flags;
     };
-    using IDescriptorLayout         =  IF_VULKAN(VkDescriptorSetLayout)         IF_OPENGL(std::vector<GlDescriptorSetLayoutBinding>);
+    using IDescriptorLayout  =  IF_VULKAN(VkDescriptorSetLayout)  IF_OPENGL(std::vector<GlDescriptorSetLayoutBinding>);
     
     //: Descriptor pools
     using IDescriptorPoolSize  =  IF_VULKAN(VkDescriptorPoolSize)  IF_OPENGL(GlDescriptorPoolSize);
@@ -83,12 +86,12 @@ namespace Fresa::Graphics
     
     //: Descriptor resources
     //      Holds the relevant buffers for binding to descriptor sets
-    using ShaderResourceID = ui32;
+    using ShaderResourceID = FresaType<ui32, struct ShaderResourceTag>;
     inline struct DescriptorResources {
         std::map<ShaderResourceID, BufferData> uniform_buffers;
         std::map<ShaderResourceID, BufferData> storage_buffers;
         std::map<ShaderResourceID, TextureData> textures;
-        ShaderResourceID last_id = 0;
+        ShaderResourceID last_id{0};
     } descriptor_resources;
     
     //: Shader resource

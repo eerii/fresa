@@ -853,14 +853,14 @@ void VK::recordRenderCommandBuffer() {
                 const ShaderPass& shader = Shader::getShader(shader_id);
                 //---Draw shaders---
                 if (shaders.types.at(shader_id) == SHADER_DRAW) {
-                    if (not api.draw_queue_instanced.count(shader_id))
+                    if (not draw_queue_instanced.count(shader_id))
                         continue;
                     
                     //: Bind pipeline
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline);
                     
                     //---Instanced rendering queue---
-                    auto queue_uniform = api.draw_queue_instanced.at(shader_id);
+                    auto queue_uniform = draw_queue_instanced.at(shader_id);
                     for (const auto &[uniform_id, queue_geometry] : queue_uniform) {
                         DrawUniformData &uniform = api.draw_uniform_data.at(uniform_id);
                         //: Descriptor set
@@ -921,7 +921,7 @@ void VK::recordRenderCommandBuffer() {
                 }
                 
                 else {
-                    log::error("Shader type for %s is invalid", shader_id.c_str());
+                    log::error("Shader type for %s is invalid", shader_id.value.c_str());
                 }
             }
         }
@@ -1854,7 +1854,6 @@ PipelineCreateData VK::Pipeline::getCreateData(ConfigData config, ShaderID shade
     data.depth_stencil = getDepthStencil(config.depth_test, config.depth_write, config.compare_op);
     
     //: Shader and layout
-    data.shader = shader;
     data.layout = Shader::getShader(shader).pipeline_layout;
     
     return data;
@@ -1884,7 +1883,7 @@ VkPipelineLayout VK::createPipelineLayout(const std::vector<VkDescriptorSetLayou
     return pipeline_layout;
 }
 
-VkPipeline VK::buildGraphicsPipeline(const PipelineCreateData &data) {
+VkPipeline VK::buildGraphicsPipeline(const PipelineCreateData &data, ShaderID shader) {
     //---Pipeline---
     //      The graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
     //      Input assembler -> Vertex shader -> Tesselation -> Geometry shader -> Rasterization -> Fragment shader -> Color blending -> Frame
@@ -1930,12 +1929,12 @@ VkPipeline VK::buildGraphicsPipeline(const PipelineCreateData &data) {
     dynamic_state.dynamicStateCount = (ui32)states.size();
     
     //: Shader stages
-    std::vector<VkPipelineShaderStageCreateInfo> shader_stages = getShaderStageInfo(Shader::getShader(data.shader));
+    std::vector<VkPipelineShaderStageCreateInfo> shader_stages = getShaderStageInfo(Shader::getShader(shader));
     
     //: Render pass
-    auto renderpass = getBtoA_v(data.shader, Map::renderpass_shader, api.render_passes);
+    auto renderpass = getBtoA_v(shader, Map::renderpass_shader, api.render_passes);
     auto subpass_list = getAtoB<SubpassID>(renderpass.first, Map::renderpass_subpass);
-    auto subpass = getBtoA_v(data.shader, Map::subpass_shader, api.subpasses);
+    auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
     
     auto it = std::find(subpass_list.begin(), subpass_list.end(), subpass.first);
     if (it == subpass_list.end())
@@ -1979,7 +1978,7 @@ VkPipeline VK::buildGraphicsPipeline(const PipelineCreateData &data) {
 }
 
 IPipeline Common::createGraphicsPipeline(ShaderID shader, std::vector<std::pair<str, VertexInputRate>> vertices) {
-    log::graphics("Pipeline %s", shader.c_str());
+    log::graphics("Pipeline %s", shader.value.c_str());
     
     Common::linkDescriptorResources(shader);
     VK::linkPipelineDescriptors(shader);
@@ -1988,7 +1987,7 @@ IPipeline Common::createGraphicsPipeline(ShaderID shader, std::vector<std::pair<
     config.vertex_descriptions = vertices;
     
     PipelineCreateData create_info = VK::Pipeline::getCreateData(config, shader);
-    return VK::buildGraphicsPipeline(create_info);
+    return VK::buildGraphicsPipeline(create_info, shader);
 }
 
 //----------------------------------------
@@ -2200,7 +2199,7 @@ void VK::updateDescriptorSets(ShaderID shader, std::vector<std::array<VkBuffer, 
     vkUpdateDescriptorSets(api.device, count, descriptors.write.data(), 0, nullptr);
 }
 
-void Graphics::updateDrawDescriptorSets(const DrawDescription& draw) {
+void Graphics::updateDrawDescriptorSets(const DrawDescription& draw, ShaderID shader) {
     //: Uniforms
     std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_buffers{};
     for (auto &v : api.draw_uniform_data.at(draw.uniform).uniform_buffers) {
@@ -2214,7 +2213,7 @@ void Graphics::updateDrawDescriptorSets(const DrawDescription& draw) {
     if (draw.texture != no_texture) image_views.push_back(api.texture_data.at(draw.texture).image_view);
     
     //: Update
-    VK::updateDescriptorSets(draw.shader, uniform_buffers, {}, image_views, {});
+    VK::updateDescriptorSets(shader, uniform_buffers, {}, image_views, {});
 }
 
 void VK::linkPipelineDescriptors(ShaderID shader) {
@@ -2653,7 +2652,7 @@ void Graphics::render() {
     
     //: Clear draw queue
     previous_draw_descriptions = api.draw_descriptions;
-    api.draw_queue_instanced.clear();
+    draw_queue_instanced.clear();
     api.draw_descriptions.clear();
 }
 
@@ -2698,7 +2697,7 @@ void Graphics::resize() {
     
     //: Update scaled projection
     for (auto &[id, shader] : shaders.list.at(SHADER_POST)) {
-        if (id.rfind("window", 0) == 0) {
+        if (id.value.rfind("window", 0) == 0) {
             auto &u = shader.descriptors.at(0).resources.at(0); //Hardcoded to be in set 0, descriptor 0
             for (int i = 0; i < u.count; i++)
                 updateUniformBuffer(descriptor_resources.uniform_buffers.at(u.id + i), transform);

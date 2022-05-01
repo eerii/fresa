@@ -10,7 +10,7 @@
 - basic documentation framework using docsify
 - shader cleanup and tidying
 - imgui docking and multiviewports
-- unique typing aliases (fresatype) 
+- unique typing aliases (fresatype)
 
 **changed**
 - core and graphics refactoring

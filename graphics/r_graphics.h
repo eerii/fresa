@@ -26,12 +26,11 @@ namespace Fresa::Graphics
     DrawDescription getDrawDescription(const std::vector<V> &vertices, const std::vector<U> &instanced_data, const std::vector<I> &indices,
                                        ShaderID shader, TextureID texture = no_texture) {
         DrawDescription description{};
-        description.shader = shader;
         description.texture = texture;
         description.uniform = registerDrawUniforms<UBO...>(shader);
         description.geometry = registerGeometryBuffer(vertices, indices);
         
-        updateDrawDescriptorSets(description);
+        updateDrawDescriptorSets(description, shader);
         
         #if defined USE_VULKAN
         description.instance = registerInstancedBuffer(instanced_data);
@@ -64,11 +63,11 @@ namespace Fresa::Graphics
             GlobalUniforms<UBO>::members.erase(it);
     }
     
-    void draw_(DrawDescription &description);
+    void draw_(DrawDescription &description, ShaderID shader);
     
     template <typename... UBO>
-    void draw(DrawDescription &description, UBO& ...ubo) {
-        draw_(description);
+    void draw(DrawDescription &description, ShaderID shader, UBO& ...ubo) {
+        draw_(description, shader);
         
         ([&](){
         if constexpr (Reflection::is_reflectable<UBO>) {

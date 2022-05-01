@@ -271,11 +271,6 @@ namespace Fresa::Graphics
         #endif
     };
     //----------------------------------------
-    
-    //Shader
-    //----------------------------------------
-    using ShaderID = str;
-    //----------------------------------------
 
     //Draw
     //----------------------------------------
@@ -296,7 +291,6 @@ namespace Fresa::Graphics
     };
     
     struct DrawDescription {
-        ShaderID shader;
         TextureID texture;
         DrawUniformID uniform;
         GeometryBufferID geometry;
@@ -304,18 +298,6 @@ namespace Fresa::Graphics
         IndirectBufferID indirect_buffer = no_indirect_buffer;
         ui32 indirect_offset = 0;
     };
-    
-    //: This is a hierarchical map for rendering
-    //  - Instanced rendedring
-    //      1: Global uniforms                          DrawUniformData
-    //      2: Vertex buffer (geometry)                 GeometryBufferData
-    //      3: Per instance buffer                      InstancedBufferID
-    //      .: Textures not supported yet
-    
-    using DrawIQueueInstance = std::map<InstancedBufferID, DrawDescription*>;
-    using DrawIQueueGeometry = std::map<GeometryBufferID, DrawIQueueInstance>;
-    using DrawIQueueUniform = std::map<DrawUniformID, DrawIQueueGeometry>;
-    using DrawIQueue = std::map<ShaderID, DrawIQueueUniform>;
     
     //----------------------------------------
     
