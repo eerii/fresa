@@ -196,7 +196,7 @@ namespace Fresa::Graphics::VK
             for (const auto &binding : layout_bindings) {
                 if (binding.descriptorType != type)
                     continue;
-                
+
                 if (bindings.size() == 0) {
                     index++;
                 } else {
@@ -205,7 +205,7 @@ namespace Fresa::Graphics::VK
                         continue;
                     index = (int)std::distance(bindings.begin(), it);
                 }
-                ui32 data_index = index + (multiple ? i * ((ui32)descriptor_sets.size() - 1) : 0);
+                ui32 data_index = index; // + (multiple ? i * ((ui32)descriptor_sets.size() - 1) : 0);
                 
                 if constexpr (is_buffer) {
                     descriptors.buffer[count].buffer = data.at(data_index);
@@ -218,15 +218,15 @@ namespace Fresa::Graphics::VK
                     descriptors.image[count].imageView = data.at(data_index);
                     descriptors.image[count].sampler = type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ? vk.sampler : VK_NULL_HANDLE;
                 }
-                
+               
                 descriptors.write[count].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 descriptors.write[count].dstSet = descriptor_sets.at(i);
                 descriptors.write[count].dstBinding = binding.binding;
                 descriptors.write[count].dstArrayElement = 0;
                 descriptors.write[count].descriptorType = type;
                 descriptors.write[count].descriptorCount = 1;
-                descriptors.write[count].pBufferInfo = is_buffer ? &descriptors.buffer[count] : nullptr;
-                descriptors.write[count].pImageInfo = is_image ? &descriptors.image[count] : nullptr;
+                descriptors.write[count].pBufferInfo = is_buffer ? &descriptors.buffer.at(count) : nullptr;
+                descriptors.write[count].pImageInfo = is_image ? &descriptors.image.at(count) : nullptr;
                 descriptors.write[count].pTexelBufferView = nullptr;
                 
                 count++;

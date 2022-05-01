@@ -37,7 +37,6 @@ namespace {
     };
 
     const std::vector<const char*> required_device_extensions{
-        "VK_KHR_portability_subset",
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 }
@@ -77,10 +76,10 @@ Vulkan API::createAPI(WindowData &win) {
     
     //---Command pools---
     vk.cmd.command_pools = VK::createCommandPools(vk.device, vk.cmd.queue_indices,
-    {   {"draw",     {vk.cmd.queue_indices.present.value(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}},
-        {"temp",     {vk.cmd.queue_indices.graphics.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
-        {"transfer", {vk.cmd.queue_indices.transfer.value(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
-        {"compute",  {vk.cmd.queue_indices.compute.value(), VkCommandPoolCreateFlagBits(0)}},
+    {   {"draw",     {vk.cmd.queue_indices.present, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}},
+        {"temp",     {vk.cmd.queue_indices.graphics, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
+        {"transfer", {vk.cmd.queue_indices.transfer, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT}},
+        {"compute",  {vk.cmd.queue_indices.compute, VkCommandPoolCreateFlagBits(0)}},
     });
     vk.cmd.command_buffers["draw"] = VK::allocateDrawCommandBuffers(vk.device, vk.swapchain.size, vk.cmd);
     
@@ -94,8 +93,8 @@ Vulkan API::createAPI(WindowData &win) {
     API::processRendererDescription(vk, win);
     
     //---Compute pipelines---
-    for (auto &[shader, data] : API::compute_shaders)
-        vk.compute_pipelines[shader] = VK::createComputePipeline(vk, shader);
+    /*for (auto &[shader, data] : API::compute_shaders)
+        vk.compute_pipelines[shader] = VK::createComputePipeline(vk, shader);*/
     
     //---Window vertex buffer---
     vk.window_vertex_buffer = VK::createVertexBuffer(vk, Vertices::window);
@@ -2527,7 +2526,7 @@ std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescr
     //      These objects can be thought as a pointer to a resource that the shader can access, for example an image sampler or uniform bufffer
     //      We allocate one set per swapchain image since multiple frames can be in flight at the same time
     std::vector<VkDescriptorSet> descriptor_sets(swapchain_size);
-    
+
     //: Allocate information
     VkDescriptorSetAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -2547,7 +2546,7 @@ std::vector<VkDescriptorSet> VK::allocateDescriptorSets(VkDevice device, VkDescr
     }
     
     //: No need for cleanup since they get destroyed with the pool
-    //log::graphics("Allocated vulkan descriptor sets");
+    log::graphics("Allocated vulkan descriptor sets");
     return descriptor_sets;
 }
 
@@ -2625,14 +2624,14 @@ TextureID API::registerTexture(const Vulkan &vk, Vec2<> size, Channels ch, ui8* 
     //: Format
     VkFormat format = [ch](){
         switch(ch) {
-            case TEXTURE_CHANNELS_G:
-                return VK_FORMAT_R8_UNORM;
             case TEXTURE_CHANNELS_GA:
                 return VK_FORMAT_R8G8_UNORM;
             case TEXTURE_CHANNELS_RGB:
                 return VK_FORMAT_R8G8B8_UNORM;
             case TEXTURE_CHANNELS_RGBA:
                 return VK_FORMAT_R8G8B8A8_UNORM;
+            default:
+                return VK_FORMAT_R8_UNORM;
         }
     }();
     

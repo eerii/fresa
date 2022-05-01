@@ -12,6 +12,7 @@
 
 #include <functional>
 #include <memory>
+#include <cstdint>
 
 //: Unsigned int
 using ui8 = std::uint8_t;

@@ -58,17 +58,17 @@ void Gui::win_entities() {
                                 if (component_open) {
                                     C* component = scene.getComponent<C>(e);
                                     
-                                    for_<Reflection::as_type_list<C>>([&](auto i){
-                                        using M = std::variant_alternative_t<i.value, Reflection::as_type_list<C>>;
-                                        auto x = Reflection::get_member_i<i.value>(component);
+                                    for_<Reflection::as_type_list<C>>([&](auto j){
+                                        using M = std::variant_alternative_t<j.value, Reflection::as_type_list<C>>;
+                                        auto x = Reflection::get_member_i<j.value>(component);
                                         
-                                        ImGui::PushID(i.value);
+                                        ImGui::PushID(j.value);
                                         ImGui::TableNextRow();
                                         
                                         //: Member name
                                         ImGui::TableSetColumnIndex(0);
                                         ImGui::AlignTextToFramePadding();
-                                        ImGui::Text("%s", C::member_names.at(i.value));
+                                        ImGui::Text("%s", C::member_names.at(j.value));
                                         
                                         //: Member value
                                         ImGui::TableSetColumnIndex(1);

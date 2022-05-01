@@ -9,6 +9,14 @@ A tiny game engine made in C++20.
   <img src="https://user-images.githubusercontent.com/22449369/156197502-0e555a4a-8a71-4920-bb01-b29cefcf4a25.gif" width="24%" />
 </p>
 
+_This repository holds the legacy working version of **fresa**. **fresa** was being redesigned from scratch in a '[new](https://github.com/eerii/fresa/tree/experimental)' branch. I was reimplementing the entire API, this time with a focus on clarity and documentation. However, I no longer had the time to work on this project and I have moved on to other ways of making graphics. Still, this had taught me so much and is so special to me, and there are some things I'm really proud of hidden here._
+
+▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+**Check the project template [here](https://github.com/eerii/mermelada)**
+
+▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
 ## features :sparkles:
 
 **Graphics** 
@@ -42,20 +50,20 @@ A tiny game engine made in C++20.
 
 Right now the project is in the **very pre-alpha** state, so use it at your own risk.
 
-**Examples:**
-- :avocado: [aguacate](https://github.com/josekoalas/aguacate): Full **fresa** template, with detailed instructions on how to build
-- :sun_behind_large_cloud: [raymarching](https://github.com/josekoalas/maracuya/tree/main/raymarching): Quick and simple raymarching example
+**Template:** [mermelada](https://github.com/eerii/mermelada)
 
-You can check  for an example on how one could set up a **fresa** project. Instructions on how to build it are there.
+You can check the template on how one could set up a **fresa** project. Detailed instructions on how to build it are there.
 
 **Dependencies**
 - SDL2 (cross-platform window and input)
 - Vulkan/OpenGL (renderer of choice)
-- SPIR-V Cross (shader reflection and compilation)
-- VulkanMemoryAllocator (only Vulkan renderer, memory management)
-- imGUI (for a debug graphical interface)
-- stb_image (loading images)
-- glm (glsl linear algebra)
+- _SPIR-V Cross_ (shader reflection and compilation)
+- _VulkanMemoryAllocator_ (only Vulkan renderer, memory management)
+- _imGUI_ (for a debug graphical interface)
+- _stb_image_ (loading images)
+- _glm_ (glsl linear algebra)
+
+_Included as submodules. Only SDL2 and VK/GL are needed._
 
 **Options**
 - `USE_VULKAN` or `USE_OPENGL`: Enables the desired renderer
@@ -95,26 +103,10 @@ int main(int argc, const char * argv[]) {
 
 **other files**
 
-To access the ECS capabilities, a `component_list.h` file may be created that `#includes` all the component headers you create, as well as a variant for the component type. Follow the instructions on [`ecs.h`](https://github.com/josekoalas/fresa/blob/main/ecs/ecs.h) or the example in [aguacate](https://github.com/josekoalas/aguacate) to create one.
+To access the ECS capabilities, a `component_list.h` file may be created that `#includes` all the component headers you create, as well as a variant for the component type. Follow the instructions on [`ecs.h`](https://github.com/eerii/fresa/blob/main/ecs/ecs.h) or the example in [mermelada](https://github.com/eerii/aguacate) to create one.
 
 You can also create a `vertex_list.h` to add new vertex type definitions to use with glsl.
 
 ## license :pencil:
 
-This project is licensed under GNU GPLv3. I made **fresa** :strawberry: because I wanted to learn, and I did, so many things. But this learning was possible only because there are thousands of awesome people that publish their projects for others to see. That is why I am so happy, after all this time, I made something I consider it is worth sharing. It is not perfect, and it has room to grow, but it is something.
-
-This is the reason I chose this license. It allows anyone to see, use, modify and learn from this code. There is one condition though, that all derivative distributed projects must also be **shared** with the same license, as open source code. That way other people might learn from what we make in the future, and they might end up creating something much better.
-
-Here is a brief explanation of the license:
-
-```markdown
-1. Anyone can copy, modify and distribute this software.
-2. You have to include the license and copyright notice with each and every distribution.
-3. You can use this software privately and for commercial purposes.
-4. If you modify it, you have to indicate changes made to the code.
-5. Any modifications of this code base MUST be distributed with the same license, GPLv3.
-6. This software is provided without warranty.
-7. The software author or license can not be held liable for any damages inflicted by the software.
-```
-
-For reference, please read the full license [here](https://github.com/josekoalas/fresa/blob/main/LICENSE.md).
+This project is licensed under [GNU GPLv3](https://github.com/eerii/fresa/blob/main/LICENSE.md).

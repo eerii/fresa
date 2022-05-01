@@ -14,6 +14,7 @@
 //  In the future I'd like to keep improving this part of the project and maybe add a compiler tool to generate the reflection data.
 
 #pragma once
+#pragma GCC diagnostic ignored "-Wnon-template-friend"
 
 #ifndef USING_REFLECTION
 #define USING_REFLECTION
@@ -249,3 +250,5 @@ static constexpr std::array<const char*, ::Fresa::Reflection::n_args(#__VA_ARGS_
     return out;}(); \
 
 #endif
+
+#pragma GCC diagnostic pop
