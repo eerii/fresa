@@ -74,6 +74,13 @@ constexpr auto type_name() { //: Remove fresa namespaces, keep std::, glm::, ...
     return name;
 }
 
+//: Unique alias types, used as
+//      using NewType = FresaType<struct NewTag, ui32>
+template<typename Tag, typename ValueType = ui32>
+struct FresaType {
+    ValueType value;
+};
+
 //: Gui
 #ifndef DISABLE_GUI
 #define IF_GUI(x) x

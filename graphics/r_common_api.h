@@ -9,6 +9,10 @@
 namespace Fresa::Graphics
 {
     struct CommonAPI {
+        
+        
+        //TODO: REFACTOR
+        
         std::map<GeometryBufferID, GeometryBufferData> geometry_buffer_data;
         std::map<InstancedBufferID, InstancedBufferData> instanced_buffer_data;
         std::map<TextureID, TextureData> texture_data;
@@ -21,5 +25,6 @@ namespace Fresa::Graphics
         
         std::map<RenderPassID, RenderPassData> render_passes;
         std::map<SubpassID, SubpassData> subpasses;
-        std::map<AttachmentID, AttachmentData> attachments;    };
+        std::map<AttachmentID, AttachmentData> attachments;
+    };
 }

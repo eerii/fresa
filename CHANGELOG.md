@@ -1,51 +1,37 @@
 ### changelog :sparkles:
 
-### 0.3 - duck :duck:
+### 0.4 - frog :frog:
 
 ---
 
-#### 0.3.17 - NAME - _00 00 2022_
+#### 0.4.0 - refactoring - _00 00 2022_
 
 **added**
+- basic documentation framework using docsify
+- shader cleanup and tidying
 - imgui docking and multiviewports
+- unique typing aliases (fresatype) 
 
 **changed**
+- core and graphics refactoring
+- window and camera refactoring with full data driven approach
+- binding layout refactoring
+- pipeline refactoring
 - descriptor set manager
 - now shaders are created when read from the renderer description
 - moved shaders to an improved shaderlist
+
+**fixed**
+- render system timers
 
 **removed**
 - all non instanced shader rendering
 
 ---
-
-#### 0.3.16 - really? more refactoring? - _08 04 2022_
-
-**changed**
-- binding layout refactoring
-- pipeline refactoring
-
+---
 ---
 
-#### 0.3.15 - documentation + more refactoring - _04 04 2022_
-
-**added**
-- basic documentation framework using docsify
-- window and camera refactoring with full data driven approach
-- shader cleanup and tidying
-
-**changed**
-- more refactoring
-
-**fixed**
-- render system timers
-
----
-
-#### 0.3.14 - refactoring - _30 03 2022_
-
-**changed**
-- core and graphics refactoring
+### 0.3 - duck :duck:
 
 ---
 

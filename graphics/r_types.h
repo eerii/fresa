@@ -100,6 +100,7 @@
 
 namespace Fresa::Graphics
 {
+    //TODO: MOVE TO BUFFERS
     //---------------------------------------------------
     //: Buffer data
     //      Contains the representation of a buffer for each API
@@ -146,7 +147,6 @@ namespace Fresa::Graphics
         )
         IF_OPENGL(ui32 image;)
     };
-    
     
     //TODO: REFACTOR
     
