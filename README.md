@@ -9,6 +9,8 @@ A tiny game engine made in C++20.
   <img src="https://user-images.githubusercontent.com/22449369/156197502-0e555a4a-8a71-4920-bb01-b29cefcf4a25.gif" width="24%" />
 </p>
 
+_This repository holds the legacy working version of **fresa**. The '[graphics](https://github.com/josekoalas/fresa-legacy/tree/graphics)' branch contains an experimental new renderer. However, **fresa** is being redesigned from scratch in a '[new](https://github.com/josekoalas/fresa)' repository. I am reimplementing the entire API, this time with a focus on clarity and documentation._
+
 ## features :sparkles:
 
 **Graphics** 
@@ -43,7 +45,7 @@ A tiny game engine made in C++20.
 Right now the project is in the **very pre-alpha** state, so use it at your own risk.
 
 **Examples:**
-- :avocado: [aguacate](https://github.com/josekoalas/aguacate): Full **fresa** template, with detailed instructions on how to build
+- :peach: [melocoton](https://github.com/josekoalas/melocoton): Full **fresa** template, with detailed instructions on how to build
 - :sun_behind_large_cloud: [raymarching](https://github.com/josekoalas/maracuya/tree/main/raymarching): Quick and simple raymarching example
 
 You can check  for an example on how one could set up a **fresa** project. Instructions on how to build it are there.
