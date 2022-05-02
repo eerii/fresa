@@ -7,6 +7,7 @@
 #include "r_types.h"
 #include "r_opengl.h"
 #include "r_vulkan.h"
+#include "r_buffers.h"
 
 namespace Fresa::Graphics
 {
@@ -84,20 +85,10 @@ namespace Fresa::Graphics
     //: Descriptor pool
     inline std::vector<IDescriptorPool> descriptor_pools;
     
-    //: Descriptor resources
-    //      Holds the relevant buffers for binding to descriptor sets
-    using ShaderResourceID = FresaType<ui32, struct ShaderResourceTag>;
-    inline struct DescriptorResources {
-        std::map<ShaderResourceID, BufferData> uniform_buffers;
-        std::map<ShaderResourceID, BufferData> storage_buffers;
-        std::map<ShaderResourceID, TextureData> textures;
-        ShaderResourceID last_id{0};
-    } descriptor_resources;
-    
     //: Shader resource
     //      A binding for a specific descriptor resource item
     struct ShaderResource {
-        ShaderResourceID id;
+        std::variant<UniformBufferID, StorageBufferID> id;
         ShaderDescriptor type;
         ui32 count;
     };

@@ -83,7 +83,7 @@ struct FresaType {
     bool operator ==(const FresaType<ValueType, Tag>& v) const { return value == v.value; };
     bool operator <(const FresaType<ValueType, Tag>& v) const { return value < v.value; };
     
-    FresaType<ValueType, Tag> operator +(const ValueType v) const { return FresaType<ValueType, Tag>{value + v}; };
+    FresaType<ValueType, Tag> operator +(const ValueType v) const { return FresaType<ValueType, Tag>{ValueType(value + v)}; };
     FresaType<ValueType, Tag> operator +(const FresaType<ValueType, Tag> v) const { return FresaType<ValueType, Tag>{value + v.value}; };
 };
 

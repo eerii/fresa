@@ -2026,25 +2026,25 @@ BufferData Common::allocateBuffer(ui32 size, BufferUsage usage, BufferMemory mem
     
     //---Data provided---
     if (data != nullptr)
-        updateBuffer(buffer, size, data);
+        updateBuffer(buffer, data, size);
     
     return buffer;
 }
 
-void Common::updateBuffer(BufferData &buffer, ui32 size, void *data) {
+void Common::updateBuffer(BufferData &buffer, void *data, ui32 size, ui32 offset) {
     if (data == nullptr)
         log::error("You are trying to update a buffer with a nullptr");
     
-    //---Data provided, CPU buffer---
+    //---CPU buffer---
     if (buffer.memory != BUFFER_MEMORY_GPU_ONLY) {
         //: Copy data
         void* b;
         vmaMapMemory(api.allocator, buffer.allocation, &b);
-        memcpy(b, data, (size_t)size);
+        memcpy((ui8*)b + offset, data, (size_t)size);
         vmaUnmapMemory(api.allocator, buffer.allocation);
     }
     
-    //---Data provided, GPU buffer---
+    //---GPU buffer---
     else {
         //: Staging buffer
         //      We want to make the vertex buffer accessible to the GPU in the most efficient way, so we use a staging buffer
@@ -2060,7 +2060,7 @@ void Common::updateBuffer(BufferData &buffer, ui32 size, void *data) {
         //: Copy from staging to buffer
         //      Since we can't access the buffer memory from the CPU, we will use vkCmdCopyBuffer(), which will execute on a queue
         //      and move data between the staging and buffer
-        copyBuffer(staging_buffer, buffer, size);
+        copyBuffer(staging_buffer, buffer, size, offset);
         
         //: Delete staging buffer
         vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
@@ -2182,15 +2182,15 @@ std::vector<VkDescriptorSet> Common::allocateDescriptorSets(IDescriptorLayout la
     return {};
 }
 
-void VK::updateDescriptorSets(ShaderID shader, std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_buffers,
-                              std::vector<VkBuffer> storage_buffers, std::vector<VkImageView> image_views, std::vector<VkImageView> input_attachments) {
+void VK::updateDescriptorSets(ShaderID shader, std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniforms, std::vector<VkBuffer> storage,
+                              std::vector<VkImageView> image_views, std::vector<VkImageView> input_attachments) {
     WriteDescriptors descriptors{};
     ui32 count = 0;
     
     //: Uniform buffers
-    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER>(descriptors, shader, count, uniform_buffers);
+    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER>(descriptors, shader, count, uniforms);
     //: Storage buffers
-    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_STORAGE_BUFFER>(descriptors, shader, count, storage_buffers);
+    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_STORAGE_BUFFER>(descriptors, shader, count, storage);
     //: Images
     VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER>(descriptors, shader, count, image_views);
     //: Input attachments
@@ -2201,11 +2201,11 @@ void VK::updateDescriptorSets(ShaderID shader, std::vector<std::array<VkBuffer, 
 
 void Graphics::updateDrawDescriptorSets(const DrawDescription& draw, ShaderID shader) {
     //: Uniforms
-    std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_buffers{};
+    std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_list{};
     for (auto &v : api.draw_uniform_data.at(draw.uniform).uniform_buffers) {
-        uniform_buffers.resize(uniform_buffers.size() + 1);
+        uniform_list.resize(uniform_list.size() + 1);
         for (int i = 0; i < Config::frames_in_flight; i++)
-            uniform_buffers.back().at(i) = v.at(i).buffer;
+            uniform_list.back().at(i) = v.at(i).buffer;
     }
     
     //: Images
@@ -2213,7 +2213,7 @@ void Graphics::updateDrawDescriptorSets(const DrawDescription& draw, ShaderID sh
     if (draw.texture != no_texture) image_views.push_back(api.texture_data.at(draw.texture).image_view);
     
     //: Update
-    VK::updateDescriptorSets(shader, uniform_buffers, {}, image_views, {});
+    VK::updateDescriptorSets(shader, uniform_list, {}, image_views, {});
 }
 
 void VK::linkPipelineDescriptors(ShaderID shader) {
@@ -2235,24 +2235,24 @@ void VK::linkPipelineDescriptors(ShaderID shader) {
 void Common::linkDescriptorResources(ShaderID shader) {
     auto &descriptors = Shader::getShader(shader).descriptors;
     
-    std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_buffers{};
-    std::vector<VkBuffer> storage_buffers{};
+    std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_list{};
+    std::vector<VkBuffer> storage_list{};
     
     for (auto &d : descriptors) {
         for (auto &r : d.resources) {
             if (r.type == DESCRIPTOR_UNIFORM) {
                 std::array<VkBuffer, Config::frames_in_flight> u{};
                 for (int i = 0; i < Config::frames_in_flight; i++)
-                    u.at(i) = descriptor_resources.uniform_buffers.at(r.id + i).buffer;
-                uniform_buffers.push_back(u);
+                    u.at(i) = uniform_buffers.at(std::get<UniformBufferID>(r.id) + i).buffer;
+                uniform_list.push_back(u);
             }
             
             if (r.type == DESCRIPTOR_STORAGE)
-                storage_buffers.push_back(descriptor_resources.storage_buffers.at(r.id).buffer);
+                storage_list.push_back(storage_buffers.at(std::get<StorageBufferID>(r.id)).buffer);
         }
     }
     
-    VK::updateDescriptorSets(shader, uniform_buffers, storage_buffers, {}, {});
+    VK::updateDescriptorSets(shader, uniform_list, storage_list, {}, {});
 }
 
 //----------------------------------------
@@ -2700,7 +2700,7 @@ void Graphics::resize() {
         if (id.value.rfind("window", 0) == 0) {
             auto &u = shader.descriptors.at(0).resources.at(0); //Hardcoded to be in set 0, descriptor 0
             for (int i = 0; i < u.count; i++)
-                updateUniformBuffer(descriptor_resources.uniform_buffers.at(u.id + i), transform);
+                updateUniformBuffer(uniform_buffers.at(std::get<UniformBufferID>(u.id) + i), transform);
         }
     }
 }

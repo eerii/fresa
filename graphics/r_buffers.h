@@ -14,8 +14,10 @@ namespace Fresa::Graphics
     
     //: TODO: MOVE BUFFER DATA HERE
     
-    //: Mesh ID (for indexing the mesh buffers list)
+    //: Indexing IDs
     using MeshID = FresaType<ui16, struct MeshTag>;
+    using UniformBufferID = FresaType<ui16, struct UniformTag>;
+    using StorageBufferID = FresaType<ui16, struct StorageTag>;
     
     //: Paddings of each mesh for each of the big vertex and index buffers
     struct MeshPadding {
@@ -24,12 +26,6 @@ namespace Fresa::Graphics
         ui32 index_offset;
         ui32 index_size;
     };
-    
-    //: Uniform ID
-    using UniformBufferID = FresaType<ui16, struct UniformTag>;
-    
-    //: Storage ID
-    using StorageBufferID = FresaType<ui16, struct StorageTag>;
     
     //---------------------------------------------------
     //: Data
@@ -42,20 +38,21 @@ namespace Fresa::Graphics
         BufferData vertex_buffer;
         BufferData index_buffer;
         std::map<MeshID, MeshPadding> paddings;
+        ui32 pool_size{0};
     } meshes;
     
     //: Uniform buffers
     inline std::map<UniformBufferID, BufferData> uniform_buffers;
     
     //: Storage buffers
-    inline std::map<StorageBufferID, BufferData> storage_buffer;
+    inline std::map<StorageBufferID, BufferData> storage_buffers;
     
     //---------------------------------------------------
     //: Systems
     //---------------------------------------------------
     
     namespace Buffer {
-        
+        MeshBuffers allocateMeshBuffer();
     }
     
     //---------------------------------------------------
@@ -64,7 +61,7 @@ namespace Fresa::Graphics
     //---------------------------------------------------
     namespace Common {
         BufferData allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data = nullptr, bool delete_with_program = true);
-        void updateBuffer(BufferData &buffer, ui32 size, void* data);
+        void updateBuffer(BufferData &buffer, void* data, ui32 size, ui32 offset = 0);
         void copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset = 0);
     }
 }

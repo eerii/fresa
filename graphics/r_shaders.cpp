@@ -367,14 +367,6 @@ std::vector<DescriptorSet> Shader::createDescriptorSets(const std::vector<Shader
 std::vector<ShaderResource> Shader::createDescriptorResources(const std::vector<IDescriptorLayoutBinding> &bindings) {
     std::vector<ShaderResource> resources{};
     
-    auto find_id = [](){
-        do { descriptor_resources.last_id.value++;
-        } while (descriptor_resources.uniform_buffers.count(descriptor_resources.last_id) or
-                 descriptor_resources.storage_buffers.count(descriptor_resources.last_id) or
-                 descriptor_resources.textures.count(descriptor_resources.last_id));
-        return descriptor_resources.last_id;
-    };
-    
     for (auto &b : bindings) {
         if (b.descriptor_type == DESCRIPTOR_INPUT_ATTACHMENT)
             continue;
@@ -385,16 +377,20 @@ std::vector<ShaderResource> Shader::createDescriptorResources(const std::vector<
         if (b.descriptor_type == DESCRIPTOR_UNIFORM) {
             res.count = Config::frames_in_flight;
             for (int i = 0; i < Config::frames_in_flight; i++) {
-                auto id = find_id();
-                descriptor_resources.uniform_buffers[id] = Common::allocateBuffer(b.size, BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
+                auto id = uniform_buffers.size() == 0 ? UniformBufferID{} : uniform_buffers.end()->first;
+                do { id.value++; } while (uniform_buffers.count(UniformBufferID{id}));
+                uniform_buffers[id] = Common::allocateBuffer(b.size, BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
                 if (i == 0) res.id = id;
             }
         }
         
         if (b.descriptor_type == DESCRIPTOR_STORAGE) {
             res.count = 1;
-            res.id = find_id();
-            descriptor_resources.storage_buffers[res.id] = Common::allocateBuffer(b.size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);
+            
+            auto id = storage_buffers.size() == 0 ? StorageBufferID{} : storage_buffers.end()->first;
+            do { id.value++; } while (storage_buffers.count(StorageBufferID{id}));
+            storage_buffers[id] = Common::allocateBuffer(b.size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);
+            res.id = id;
             
             //TODO: TEST
             std::vector<glm::vec4> test_pos{};
@@ -402,9 +398,9 @@ std::vector<ShaderResource> Shader::createDescriptorResources(const std::vector<
                 test_pos.push_back(glm::vec4(float(rand() % 500), float(rand() % 500), float(rand() % 500), float(rand() % 500)));
             
             void* b;
-            vmaMapMemory(api.allocator, descriptor_resources.storage_buffers[res.id].allocation, &b);
+            vmaMapMemory(api.allocator, storage_buffers[id].allocation, &b);
             memcpy(b, test_pos.data(), (size_t)(test_pos.size() * 4 * sizeof(float)));
-            vmaUnmapMemory(api.allocator, descriptor_resources.storage_buffers[res.id].allocation);
+            vmaUnmapMemory(api.allocator, storage_buffers[id].allocation);
         }
         
         if (b.descriptor_type == DESCRIPTOR_IMAGE_SAMPLER) {
