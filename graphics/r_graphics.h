@@ -28,7 +28,7 @@ namespace Fresa::Graphics
         DrawDescription description{};
         description.texture = texture;
         description.uniform = registerDrawUniforms<UBO...>(shader);
-        description.geometry = registerGeometryBuffer(vertices, indices);
+        description.mesh = Buffer::registerMesh(vertices, indices);
         
         updateDrawDescriptorSets(description, shader);
         

@@ -25,6 +25,7 @@ namespace Fresa::Graphics
         ui32 vertex_size;
         ui32 index_offset;
         ui32 index_size;
+        ui8 index_bytes;
     };
     
     //---------------------------------------------------
@@ -52,7 +53,18 @@ namespace Fresa::Graphics
     //---------------------------------------------------
     
     namespace Buffer {
+        //:
         MeshBuffers allocateMeshBuffer();
+        
+        //:
+        MeshID registerMeshInternal(void* vertices, void* indices, ui32 vertices_size, ui32 indices_size, ui8 index_bytes);
+        
+        //:
+        template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
+        MeshID registerMesh(const std::vector<V> &vertices, const std::vector<I> &indices) {
+            return registerMeshInternal((void*)vertices.data(), (void*)indices.data(),
+                                        (ui32)(vertices.size() * sizeof(V)), (ui32)(indices.size() * sizeof(I)), (ui8)sizeof(I));
+        }
     }
     
     //---------------------------------------------------

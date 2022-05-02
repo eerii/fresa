@@ -861,24 +861,23 @@ void VK::recordRenderCommandBuffer() {
                     
                     //---Instanced rendering queue---
                     auto queue_uniform = draw_queue_instanced.at(shader_id);
-                    for (const auto &[uniform_id, queue_geometry] : queue_uniform) {
+                    for (const auto &[uniform_id, queue_mesh] : queue_uniform) {
                         DrawUniformData &uniform = api.draw_uniform_data.at(uniform_id);
                         //: Descriptor set
                         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
                                                 &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
                         
-                        for (const auto &[geometry_id, queue_instance] : queue_geometry) {
-                            GeometryBufferData &geometry = api.geometry_buffer_data.at(geometry_id);
-                            
+                        for (const auto &[mesh_id, queue_instance] : queue_mesh) {
                             VkDeviceSize offsets[]{ 0 };
-                            //: Vertex buffer geometry
-                            vkCmdBindVertexBuffers(cmd, 0, 1, &geometry.vertex_buffer.buffer, offsets);
+                            //: Vertex buffer
+                            VkDeviceSize vertex_offset = meshes.paddings.at(mesh_id).vertex_offset;
+                            vkCmdBindVertexBuffers(cmd, 0, 1, &meshes.vertex_buffer.buffer, &vertex_offset);
                             
                             //: Index buffer
-                            VkIndexType index_type = VK_INDEX_TYPE_UINT16;
-                            if (geometry.index_bytes == 4) index_type = VK_INDEX_TYPE_UINT32;
-                            else if (geometry.index_bytes != 2) log::error("Unsupported index byte size %d", geometry.index_bytes);
-                            vkCmdBindIndexBuffer(cmd, geometry.index_buffer.buffer, 0, index_type);
+                            VkDeviceSize index_offset = meshes.paddings.at(mesh_id).index_offset;
+                            VkIndexType index_type = meshes.paddings.at(mesh_id).index_bytes == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+                            ui32 index_count = meshes.paddings.at(mesh_id).index_size / meshes.paddings.at(mesh_id).index_bytes;
+                            vkCmdBindIndexBuffer(cmd, meshes.index_buffer.buffer, index_offset, index_type);
                             
                             for (const auto &[instance_id, description] : queue_instance) {
                                 InstancedBufferData &instance = api.instanced_buffer_data.at(instance_id);
@@ -896,7 +895,7 @@ void VK::recordRenderCommandBuffer() {
                                 }
                                 //: Draw direct
                                 else {
-                                    vkCmdDrawIndexed(cmd, geometry.index_size, instance.instance_count, 0, 0, 0);
+                                    vkCmdDrawIndexed(cmd, index_count, instance.instance_count, 0, 0, 0);
                                 }
                             }
                         }
@@ -968,7 +967,6 @@ IndirectBufferID Graphics::registerIndirectCommandBuffer() {
 }
 
 void Graphics::addIndirectDrawCommand(DrawDescription &description) {
-    GeometryBufferData &geometry = api.geometry_buffer_data.at(description.geometry);
     bool is_instanced = api.instanced_buffer_data.count(description.instance);
     
     //: Draw indirect command
@@ -976,7 +974,7 @@ void Graphics::addIndirectDrawCommand(DrawDescription &description) {
     cmd.at(0).instanceCount = is_instanced ? api.instanced_buffer_data.at(description.instance).instance_count : 1;
     cmd.at(0).firstInstance = 0; //instance.instance_count * i++;
     cmd.at(0).firstIndex = 0;
-    cmd.at(0).indexCount = geometry.index_size;
+    cmd.at(0).indexCount = meshes.paddings.at(description.mesh).index_size / meshes.paddings.at(description.mesh).index_bytes;
     
     //: Find available offset
     for (auto &[id, icmd] : api.draw_indirect_buffers) {
@@ -2630,9 +2628,9 @@ void Graphics::render() {
     
     //: Remove indirect buffers that are no longer in use
     if (Config::draw_indirect) {
-        if (previous_draw_descriptions != api.draw_descriptions) {
+        if (previous_draw_descriptions != draw_descriptions) {
             for (auto description : previous_draw_descriptions) {
-                if (std::find(api.draw_descriptions.begin(), api.draw_descriptions.end(), description) == api.draw_descriptions.end())
+                if (std::find(draw_descriptions.begin(), draw_descriptions.end(), description) == draw_descriptions.end())
                     removeIndirectDrawCommand(*description);
             }
         }
@@ -2651,9 +2649,9 @@ void Graphics::render() {
     VK::renderFrame();
     
     //: Clear draw queue
-    previous_draw_descriptions = api.draw_descriptions;
+    previous_draw_descriptions = draw_descriptions;
     draw_queue_instanced.clear();
-    api.draw_descriptions.clear();
+    draw_descriptions.clear();
 }
 
 void Graphics::present() {

@@ -372,23 +372,6 @@ namespace Fresa::Graphics {
         }(), ...);*/
     }
     
-    template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
-    GeometryBufferID registerGeometryBuffer(const std::vector<V> &vertices, const std::vector<I> &indices) {
-        static GeometryBufferID id = 0;
-        do id++;
-        while (api.geometry_buffer_data.find(id) != api.geometry_buffer_data.end());
-        
-        api.geometry_buffer_data[id] = GeometryBufferData{};
-        GeometryBufferData &data = api.geometry_buffer_data.at(id);
-        
-        data.vertex_buffer = VK::createVertexBuffer(vertices);
-        data.index_buffer = VK::createIndexBuffer(indices);
-        data.index_size = (ui32)indices.size();
-        data.index_bytes = (ui8)sizeof(I);
-        
-        return id;
-    }
-    
     template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
     InstancedBufferID registerInstancedBuffer(const std::vector<V> &instanced_data) {
         static InstancedBufferID id = 0;

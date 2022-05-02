@@ -153,17 +153,6 @@ namespace Fresa::Graphics
     //Buffer
     //----------------------------------------
 
-    using GeometryBufferID = ui32;
-    struct GeometryBufferData {
-        BufferData vertex_buffer;
-        BufferData index_buffer;
-        ui32 index_size;
-        ui8 index_bytes;
-        #ifdef USE_OPENGL
-        ui32 vao;
-        #endif
-    };
-    
     using InstancedBufferID = ui32;
     inline InstancedBufferID no_instance = 0;
     struct InstancedBufferData {
@@ -288,15 +277,6 @@ namespace Fresa::Graphics
         BufferData buffer;
         ui32 current_offset;
         std::vector<ui32> free_positions;
-    };
-    
-    struct DrawDescription {
-        TextureID texture;
-        DrawUniformID uniform;
-        GeometryBufferID geometry;
-        InstancedBufferID instance = no_instance;
-        IndirectBufferID indirect_buffer = no_indirect_buffer;
-        ui32 indirect_offset = 0;
     };
     
     //----------------------------------------

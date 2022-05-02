@@ -46,12 +46,55 @@ MeshBuffers Buffer::allocateMeshBuffer() {
     return new_meshes;
 }
 
-/*
- meshes = Buffer::allocateMeshBuffer();
- std::vector<ui32> test(100);
- for (auto &t : test)
-     t = rand() % 200;
- Common::updateBuffer(meshes.vertex_buffer, (void*)test.data(), (ui32)(test.size() * sizeof(ui32)));
- meshes.paddings[MeshID{1}] = MeshPadding{0, 100 * sizeof(ui32), 0, 1};
- meshes = Buffer::allocateMeshBuffer();
- */
+//---------------------------------------------------
+//: Register mesh
+//      Adds the mesh data to the mesh buffers with the appropiate offset and padding
+//      Also checks if the buffer is too small and extends it otherwise
+//      Returns a MeshID for referencing during draw
+//---------------------------------------------------
+MeshID Buffer::registerMeshInternal(void *vertices, void *indices, ui32 vertices_size, ui32 indices_size, ui8 index_bytes) {
+    MeshID id{0};
+    ui32 vertices_offset = 0;
+    ui32 indices_offset = 0;
+    
+    //: Error checking
+    if (vertices_size > mesh_pool_chunk)
+        log::error("Adding vertices to the mesh buffer with a size of %d but the max pool chunk is %d", vertices_size, mesh_pool_chunk);
+    if (indices_size > mesh_pool_chunk)
+        log::error("Adding indices to the mesh buffer with a size of %d but the max pool chunk is %d", indices_size, mesh_pool_chunk);
+    
+    //: If there are more meshes
+    if (meshes.paddings.size() > 0) {
+        //: Find new mesh id
+        id = meshes.paddings.rbegin()->first;
+        do { id = id + 1; } while (meshes.paddings.count(id));
+        
+        //: Get last elements so we can use the offset
+        auto last_vertex = std::max_element(meshes.paddings.begin(), meshes.paddings.end(),
+                                            [](auto &a, auto &b)->bool{ return a.second.vertex_offset < b.second.vertex_offset; } );
+        auto last_index = std::max_element(meshes.paddings.begin(), meshes.paddings.end(),
+                                           [](auto &a, auto &b)->bool{ return a.second.index_offset < b.second.index_offset; } );
+        vertices_offset = last_vertex->second.vertex_offset + last_vertex->second.vertex_size;
+        indices_offset = last_index->second.index_offset + last_index->second.index_size;
+    }
+    
+    //: Grow mesh buffer if it is full
+    if (vertices_offset + vertices_size > meshes.pool_size or indices_offset + indices_size > meshes.pool_size) {
+        meshes = allocateMeshBuffer();
+        if (meshes.pool_size > mesh_pool_chunk)
+            log::warn("Growing mesh buffer more than one pool chunk, consider increasing it for efficiency");
+    }
+    
+    //: Update buffers
+    Common::updateBuffer(meshes.vertex_buffer, vertices, vertices_size, vertices_offset);
+    Common::updateBuffer(meshes.index_buffer, indices, indices_size, indices_offset);
+    
+    //: Check index bytes
+    if (not (index_bytes == 2 or index_bytes == 4))
+        log::error("Index buffers support ui16 (2 bytes) and ui32 (4 bytes) formats, but you loaded one index with %d bytes", index_bytes);
+    
+    //: Update paddings
+    meshes.paddings[id] = MeshPadding{vertices_offset, vertices_size, indices_offset, indices_size, index_bytes};
+    
+    return id;
+}
