@@ -65,6 +65,7 @@ namespace Fresa::Graphics
         ui32 descriptor_count;
         ShaderDescriptor descriptor_type;
         ShaderStage stage_flags;
+        str name;
     };
     using IDescriptorLayout  =  IF_VULKAN(VkDescriptorSetLayout)  IF_OPENGL(std::vector<GlDescriptorSetLayoutBinding>);
     
@@ -216,7 +217,7 @@ namespace Fresa::Graphics
     }
     
     //---------------------------------------------------
-    //: API dependen systems
+    //: API dependent systems
     //      They are not implemented in this file, instead you can find them in each API code
     //---------------------------------------------------
     

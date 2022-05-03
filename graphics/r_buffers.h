@@ -18,6 +18,7 @@ namespace Fresa::Graphics
     using MeshID = FresaType<ui16, struct MeshTag>;
     using UniformBufferID = FresaType<ui16, struct UniformTag>;
     using StorageBufferID = FresaType<ui16, struct StorageTag>;
+    inline StorageBufferID no_storage_buffer{USHRT_MAX};
     
     //: Paddings of each mesh for each of the big vertex and index buffers
     struct MeshPadding {
@@ -47,28 +48,32 @@ namespace Fresa::Graphics
     
     //: Storage buffers
     inline std::map<StorageBufferID, BufferData> storage_buffers;
+    inline std::map<str, StorageBufferID> key_storage_buffers = {
+        {"TransformBuffer", no_storage_buffer},
+    };
     
     //---------------------------------------------------
     //: Systems
     //---------------------------------------------------
     
     namespace Buffer {
-        //:
+        //: Allocate or grow vertex and index buffers
         MeshBuffers allocateMeshBuffer();
         
-        //:
+        //: Add mesh vertices and indices to the mesh buffers
         MeshID registerMeshInternal(void* vertices, void* indices, ui32 vertices_size, ui32 indices_size, ui8 index_bytes);
-        
-        //:
         template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
         MeshID registerMesh(const std::vector<V> &vertices, const std::vector<I> &indices) {
             return registerMeshInternal((void*)vertices.data(), (void*)indices.data(),
                                         (ui32)(vertices.size() * sizeof(V)), (ui32)(indices.size() * sizeof(I)), (ui8)sizeof(I));
         }
+        
+        //: Register storage buffer
+        StorageBufferID registerStorageBuffer(str name, ui32 size);
     }
     
     //---------------------------------------------------
-    //: API dependen systems
+    //: API dependent systems
     //      They are not implemented in this file, instead you can find them in each API code
     //---------------------------------------------------
     namespace Common {

@@ -232,6 +232,9 @@ std::map<ui32, std::vector<IDescriptorLayoutBinding>> Shader::getDescriptorLayou
                 }
             }
             
+            //: Descriptor name
+            data.name = res.name;
+            
             //: Other properties
             data.descriptor_type = descriptor_type;
             data.descriptor_count = 1;
@@ -240,7 +243,7 @@ std::map<ui32, std::vector<IDescriptorLayoutBinding>> Shader::getDescriptorLayou
             //: Add it to the binding list
             bindings[set].push_back(data);
             log::graphics(" - %s (%s) - Set: %d - Binding : %d - Stage: %s",
-                          name.c_str(), res.name.c_str(), set, data.binding, shader_stage_names.at(module.stage).c_str());
+                          name.c_str(), data.name.c_str(), set, data.binding, shader_stage_names.at(module.stage).c_str());
         }
     }
     
@@ -386,21 +389,7 @@ std::vector<ShaderResource> Shader::createDescriptorResources(const std::vector<
         
         if (b.descriptor_type == DESCRIPTOR_STORAGE) {
             res.count = 1;
-            
-            auto id = storage_buffers.size() == 0 ? StorageBufferID{} : storage_buffers.end()->first;
-            do { id.value++; } while (storage_buffers.count(StorageBufferID{id}));
-            storage_buffers[id] = Common::allocateBuffer(b.size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);
-            res.id = id;
-            
-            //TODO: TEST
-            std::vector<glm::vec4> test_pos{};
-            for (int i = 0; i < 1000; i++)
-                test_pos.push_back(glm::vec4(float(rand() % 500), float(rand() % 500), float(rand() % 500), float(rand() % 500)));
-            
-            void* b;
-            vmaMapMemory(api.allocator, storage_buffers[id].allocation, &b);
-            memcpy(b, test_pos.data(), (size_t)(test_pos.size() * 4 * sizeof(float)));
-            vmaUnmapMemory(api.allocator, storage_buffers[id].allocation);
+            res.id = Buffer::registerStorageBuffer(b.name, b.size);
         }
         
         if (b.descriptor_type == DESCRIPTOR_IMAGE_SAMPLER) {
