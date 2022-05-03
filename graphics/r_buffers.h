@@ -46,7 +46,7 @@ namespace Fresa::Graphics
     } meshes;
     
     //: Uniform buffers
-    inline std::map<UniformBufferID, BufferData> uniform_buffers;
+    inline std::map<UniformBufferID, BufferData> uniform_buffers; //TODO: One buffer offset per frame in flight
     
     //: Storage buffers
     inline std::map<StorageBufferID, BufferData> storage_buffers;
@@ -71,7 +71,7 @@ namespace Fresa::Graphics
         }
         
         //: Register uniform buffer
-        //
+        UniformBufferID registerUniformBuffer(ui32 size);
         
         //: Register storage buffer
         StorageBufferID registerStorageBuffer(str name, ui32 size);

@@ -378,21 +378,13 @@ std::vector<ShaderResource> Shader::createDescriptorResources(const std::vector<
         res.type = b.descriptor_type;
         res.name = b.name;
         
-        if (b.descriptor_type == DESCRIPTOR_UNIFORM) {
-            res.count = 1;
-            auto id = uniform_buffers.size() == 0 ? UniformBufferID{} : uniform_buffers.end()->first;
-            do { id.value++; } while (uniform_buffers.count(UniformBufferID{id}));
-            uniform_buffers[id] = Common::allocateBuffer(b.size, BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
-            res.id = id;
-        }
+        if (b.descriptor_type == DESCRIPTOR_UNIFORM)
+            res.id = Buffer::registerUniformBuffer(b.size);
         
-        if (b.descriptor_type == DESCRIPTOR_STORAGE) {
-            res.count = 1;
+        if (b.descriptor_type == DESCRIPTOR_STORAGE)
             res.id = Buffer::registerStorageBuffer(b.name, b.size);
-        }
         
         if (b.descriptor_type == DESCRIPTOR_IMAGE_SAMPLER) {
-            res.count = 1;
             log::info("Image descriptors not supported yet");
             continue;
         }

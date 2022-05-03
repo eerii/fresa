@@ -6,7 +6,7 @@
 
 #ifdef USE_VULKAN
 
-#include "r_common_api.h"
+#include "r_types.h"
 
 #define HAS_COMPUTE
 #define MAX_WRITE_DESCRIPTORS 32
@@ -108,7 +108,7 @@ namespace Fresa::Graphics
         std::array<VkWriteDescriptorSet, MAX_WRITE_DESCRIPTORS> write;
     };
     
-    struct Vulkan : CommonAPI {
+    struct Vulkan {
         //: Instance
         VkInstance instance;
         std::vector<VkExtensionProperties> instance_extensions;

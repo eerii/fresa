@@ -24,9 +24,8 @@ namespace Fresa::Graphics
     template <typename... UBO, typename V, typename U, typename I,
               std::enable_if_t<Reflection::is_reflectable<V> && Reflection::is_reflectable<U> && std::is_integral_v<I>, bool> = true>
     DrawDescription getDrawDescription(const std::vector<V> &vertices, const std::vector<U> &instanced_data, const std::vector<I> &indices,
-                                       ShaderID shader, TextureID texture = no_texture) {
+                                       ShaderID shader) {
         DrawDescription description{};
-        description.texture = texture;
         description.mesh = Buffer::registerMesh(vertices, indices);
         
         Common::updateBuffer(storage_buffers.at(key_storage_buffers.at("TransformBuffer")),

@@ -6,7 +6,7 @@
 
 #ifdef USE_OPENGL
 
-#include "r_common_api.h"
+#include "r_types.h"
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define glCheckError() glCheckError_(__FILENAME__, __LINE__)
@@ -16,7 +16,7 @@
 
 namespace Fresa::Graphics
 {
-    struct OpenGL : CommonAPI {
+    struct OpenGL {
         SDL_GLContext context;
         
         BufferData scaled_window_uniform;

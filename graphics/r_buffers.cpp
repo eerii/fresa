@@ -100,6 +100,20 @@ MeshID Buffer::registerMeshInternal(void *vertices, void *indices, ui32 vertices
 }
 
 //---------------------------------------------------
+//: Register uniform buffer
+//---------------------------------------------------
+UniformBufferID Buffer::registerUniformBuffer(ui32 size) {
+    //: Find new id
+    UniformBufferID id = uniform_buffers.size() == 0 ? UniformBufferID{} : uniform_buffers.end()->first;
+    do { id.value++; } while (id == no_uniform_buffer or uniform_buffers.count(UniformBufferID{id}));
+    
+    //: Allocate new buffer
+    uniform_buffers[id] = Common::allocateBuffer(size, BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
+    
+    return id;
+}
+
+//---------------------------------------------------
 //: Register storage buffer
 //      Adds a storage buffer to the list and returns an id for indexing
 //      If the buffer name is part of the key list and the buffer is allocated, return the id

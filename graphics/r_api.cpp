@@ -24,22 +24,22 @@ using namespace Fresa;
 //---Common API calls for Vulkan and OpenGL---
 
 void Graphics::removeIndirectDrawCommand(DrawDescription &description) {
-    if (api.draw_indirect_buffers.count(description.indirect_buffer))
-        api.draw_indirect_buffers.at(description.indirect_buffer).free_positions.push_back(description.indirect_offset);
+    if (draw_indirect_buffers.count(description.indirect_buffer))
+        draw_indirect_buffers.at(description.indirect_buffer).free_positions.push_back(description.indirect_offset);
     description.indirect_buffer = no_indirect_buffer;
     description.indirect_offset = 0;
 }
 
 bool Graphics::hasMultisampling(AttachmentID a, bool check_samples) {
-    if (not api.attachments.count(a))
+    if (not attachments.count(a))
         return false;
-    AttachmentData &data = api.attachments.at(a);
+    AttachmentData &data = attachments.at(a);
     bool msaa = data.type & ATTACHMENT_MSAA and data.type & ATTACHMENT_COLOR;
     #ifdef USE_VULKAN
     if (check_samples)
         msaa = msaa and data.description.samples != VK_SAMPLE_COUNT_1_BIT;
     #endif
-    if (msaa and api.attachments.size() > a + 1 and (not api.attachments.count(a + 1) or api.attachments.at(a + 1).type & ATTACHMENT_MSAA))
+    if (msaa and attachments.size() > a + 1 and (not attachments.count(a + 1) or attachments.at(a + 1).type & ATTACHMENT_MSAA))
         log::error("Improper formatting on MSAA resolve attachment");
     return msaa;
 };

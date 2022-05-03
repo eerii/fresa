@@ -807,15 +807,15 @@ void VK::recordRenderCommandBuffer() {
     if (vkBeginCommandBuffer(cmd, &begin_info) != VK_SUCCESS)
         log::error("Failed to begin recording on a vulkan command buffer");
     
-    for (const auto &[r_id, render] : api.render_passes) {
+    for (const auto &[r_id, render] : render_passes) {
         IF_GUI(if (r_id == api.gui_render_pass) continue;) //: Skip gui render pass
         
-        auto subpasses = getAtoB<SubpassID>(r_id, Map::renderpass_subpass);
-        auto attachments = getAtoB_v(r_id, Map::renderpass_attachment, api.attachments);
+        auto subpass_list = getAtoB<SubpassID>(r_id, Map::renderpass_subpass);
+        auto attachment_list = getAtoB_v(r_id, Map::renderpass_attachment, attachments);
         
         //: Clear values
         std::vector<VkClearValue> clear_values;
-        for (auto &[idx, a] : attachments) {
+        for (auto &[idx, a] : attachment_list) {
             VkClearValue clear;
             if (a.type & ATTACHMENT_COLOR)
                 clear.color = {0.f, 0.f, 0.f, 1.0f};
@@ -841,9 +841,9 @@ void VK::recordRenderCommandBuffer() {
         //: Set viewport and scissor
         setViewport(cmd, render.attachment_extent);
         
-        for (const auto &s_id : subpasses) {
+        for (const auto &s_id : subpass_list) {
             //: Next subpass
-            if (s_id != subpasses.at(0))
+            if (s_id != subpass_list.at(0))
                 vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
             
             //: Get all shaders associated with this subpass
@@ -875,7 +875,7 @@ void VK::recordRenderCommandBuffer() {
                         vkCmdBindIndexBuffer(cmd, meshes.index_buffer.buffer, index_offset, index_type);
                         
                         //: Draw indirect
-                        vkCmdDrawIndexedIndirect(cmd, api.draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
+                        vkCmdDrawIndexedIndirect(cmd, draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
                                                  description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
                                                  1, sizeof(VkDrawIndexedIndirectCommand));
                         // - See how multi draw indirect could be implemented, probably you have to squash all the vertex buffers
@@ -933,10 +933,10 @@ void VK::setViewport(const VkCommandBuffer &cmd, VkExtent2D extent) {
 IndirectBufferID Graphics::registerIndirectCommandBuffer() {
     static IndirectBufferID id = 0;
     do id++;
-    while (api.draw_indirect_buffers.find(id) != api.draw_indirect_buffers.end() or id == no_indirect_buffer);
+    while (draw_indirect_buffers.find(id) != draw_indirect_buffers.end() or id == no_indirect_buffer);
     
-    api.draw_indirect_buffers[id] = IndirectCommandBuffer{};
-    IndirectCommandBuffer &icmd = api.draw_indirect_buffers[id];
+    draw_indirect_buffers[id] = IndirectCommandBuffer{};
+    IndirectCommandBuffer &icmd = draw_indirect_buffers[id];
     
     ui32 size = MAX_INDIRECT_COMMANDS * sizeof(VkDrawIndexedIndirectCommand);
     icmd.buffer = Common::allocateBuffer(size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
@@ -956,7 +956,7 @@ void Graphics::addIndirectDrawCommand(DrawDescription &description) {
     cmd.at(0).indexCount = meshes.paddings.at(description.mesh).index_size / meshes.paddings.at(description.mesh).index_bytes;
     
     //: Find available offset
-    for (auto &[id, icmd] : api.draw_indirect_buffers) {
+    for (auto &[id, icmd] : draw_indirect_buffers) {
         if (icmd.free_positions.size() > 0) {
             description.indirect_buffer = id;
             description.indirect_offset = icmd.free_positions.at(0);
@@ -970,11 +970,11 @@ void Graphics::addIndirectDrawCommand(DrawDescription &description) {
     }
     if (description.indirect_buffer == no_indirect_buffer) {
         description.indirect_buffer = registerIndirectCommandBuffer();
-        description.indirect_offset = api.draw_indirect_buffers.at(description.indirect_buffer).current_offset++;
+        description.indirect_offset = draw_indirect_buffers.at(description.indirect_buffer).current_offset++;
     }
     
     //: Update command buffer
-    VK::updateGPUBuffer(api.draw_indirect_buffers.at(description.indirect_buffer).buffer, cmd, description.indirect_offset);
+    VK::updateGPUBuffer(draw_indirect_buffers.at(description.indirect_buffer).buffer, cmd, description.indirect_offset);
 }
 
 VkCommandBuffer VK::beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool) {
@@ -1126,11 +1126,11 @@ VkAttachmentDescription VK::createAttachmentDescription(const AttachmentData &at
 
 AttachmentID Graphics::registerAttachment(AttachmentType type, Vec2<ui16> size) {
     static AttachmentID id = 0;
-    while (api.attachments.find(id) != api.attachments.end())
+    while (attachments.find(id) != attachments.end())
         id++;
     
-    api.attachments[id] = AttachmentData{};
-    AttachmentData &attachment = api.attachments.at(id);
+    attachments[id] = AttachmentData{};
+    AttachmentData &attachment = attachments.at(id);
     
     attachment.type = type;
     attachment.size = size;
@@ -1203,7 +1203,7 @@ AttachmentID Graphics::registerAttachment(AttachmentType type, Vec2<ui16> size) 
 }
 
 void Graphics::recreateAttachments() {
-    for (auto &[idx, attachment] : api.attachments) {
+    for (auto &[idx, attachment] : attachments) {
         if (attachment.type & ATTACHMENT_WINDOW) {
             attachment.size = to_vec(api.swapchain.extent);
         }
@@ -1220,13 +1220,13 @@ void Graphics::recreateAttachments() {
             
             attachment.description = VK::createAttachmentDescription(attachment, samples);
             
-            AttachmentData &attachment_ref = api.attachments.at(idx);
+            AttachmentData &attachment_ref = attachments.at(idx);
             VK::deletion_queue_swapchain.push_back([attachment_ref](){ vkDestroyImageView(api.device, attachment_ref.image_view, nullptr); });
         }
     }
 }
 
-VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent) {
+VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachment_list, VkExtent2D extent) {
     //---Framebuffer---
     VkFramebuffer framebuffer;
     
@@ -1237,8 +1237,8 @@ VkFramebuffer VK::createFramebuffer(VkDevice device, VkRenderPass render_pass, s
     create_info.renderPass = render_pass;
     
     //: The image view it will be rendering to
-    create_info.attachmentCount = (ui32)attachments.size();
-    create_info.pAttachments = attachments.data();
+    create_info.attachmentCount = (ui32)attachment_list.size();
+    create_info.pAttachments = attachment_list.data();
     
     //: Size and layers
     create_info.width = extent.width;
@@ -1257,15 +1257,15 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, RenderPassID 
     std::vector<VkFramebuffer> framebuffers;
     framebuffers.resize(swapchain.size);
     
-    auto attachments = getAtoB_v(r_id, Map::renderpass_attachment, api.attachments);
-    RenderPassData &render = api.render_passes.at(r_id);
+    auto a = getAtoB_v(r_id, Map::renderpass_attachment, attachments);
+    RenderPassData &render = render_passes.at(r_id);
     
     for (int i = 0; i < swapchain.size; i++) {
         std::vector<VkImageView> fb_attachments{};
-        for (auto &[id, data] : attachments) {
+        for (auto &[id, data] : a) {
             fb_attachments.push_back(data.type & ATTACHMENT_SWAPCHAIN ? swapchain.image_views[i] : data.image_view);
             if (hasMultisampling(id, false))
-                fb_attachments.push_back(api.attachments.at(id + 1).image_view);
+                fb_attachments.push_back(attachments.at(id + 1).image_view);
         }
         framebuffers[i] = VK::createFramebuffer(device, render.render_pass, fb_attachments, extent);
     }
@@ -1287,12 +1287,12 @@ std::vector<VkFramebuffer> VK::createFramebuffers(VkDevice device, RenderPassID 
 
 SubpassID Graphics::registerSubpass(std::vector<AttachmentID> attachment_list, std::vector<AttachmentID> external_attachment_list) {
     static SubpassID id = 0;
-    while (api.subpasses.find(id) != api.subpasses.end())
+    while (subpasses.find(id) != subpasses.end())
         id++;
     
     log::graphics("Registering subpass %d:", id);
-    api.subpasses[id] = SubpassData{};
-    SubpassData &subpass = api.subpasses[id];
+    subpasses[id] = SubpassData{};
+    SubpassData &subpass = subpasses[id];
     
     subpass.external_attachments = external_attachment_list;
     
@@ -1300,7 +1300,7 @@ SubpassID Graphics::registerSubpass(std::vector<AttachmentID> attachment_list, s
         Map::subpass_attachment.add(id, a_id);
     
     for (auto &a_id : attachment_list) {
-        const AttachmentData &data = api.attachments.at(a_id);
+        const AttachmentData &data = attachments.at(a_id);
         bool first_in_chain = true;
         
         if (data.type & ATTACHMENT_INPUT) {
@@ -1341,20 +1341,20 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
     VkRenderPassHelperData render_pass_helper{};
     
     //---Subpass list---
-    auto subpasses = getAtoB_v(r_id, Map::renderpass_subpass, api.subpasses);
+    auto s = getAtoB_v(r_id, Map::renderpass_subpass, subpasses);
     std::map<SubpassID, ui8> relative_subpasses{}; ui8 i = 0;
-    for (auto &[s_id, data] : subpasses)
+    for (auto &[s_id, data] : s)
         relative_subpasses[s_id] = i++;
     
     //---Attachment list---
-    auto attachments = getAtoB_v(r_id, Map::renderpass_attachment, api.attachments);
+    auto a = getAtoB_v(r_id, Map::renderpass_attachment, attachments);
     std::map<AttachmentID, ui32> relative_att_map{}; ui32 j = 0;
-    for (auto &[a_id, data] : attachments) {
+    for (auto &[a_id, data] : a) {
         relative_att_map[a_id] = j++;
         render_pass_helper.attachments.push_back(data.description);
         if (hasMultisampling(a_id, false)) {
             relative_att_map[a_id + 1] = j++;
-            render_pass_helper.attachments.push_back(api.attachments.at(a_id + 1).description);
+            render_pass_helper.attachments.push_back(attachments.at(a_id + 1).description);
         }
     }
     
@@ -1369,7 +1369,7 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
     
     //---Subpass descriptions---
     render.attachment_extent = VkExtent2D{0, 0};
-    for (auto &[s_id, data] : subpasses) {
+    for (auto &[s_id, data] : s) {
         ui8 relative_subpass = relative_subpasses.at(s_id);
         
         //: Description
@@ -1380,7 +1380,7 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
         //: Attachments
         int depth_count = 0; bool has_swapchain_attachment = false;
         for (auto &[a_id, a_type] : data.attachment_descriptions) {
-            auto &a_data = api.attachments.at(a_id);
+            auto &a_data = attachments.at(a_id);
             
             VkExtent2D attachment_extent = to_extent(a_data.size);
             if (render.attachment_extent.width == 0 or render.attachment_extent.height == 0)
@@ -1498,28 +1498,28 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
     return render;
 }
 
-RenderPassID Graphics::registerRenderPass(std::vector<SubpassID> subpasses) {
+RenderPassID Graphics::registerRenderPass(std::vector<SubpassID> subpass_list) {
     static RenderPassID id = 0;
-    while (api.render_passes.find(id) != api.render_passes.end())
+    while (render_passes.find(id) != render_passes.end())
         id++;
     
     log::graphics("Registering render pass %d:", id);
-    str s_list = std::accumulate(subpasses.begin(), subpasses.end(), str{""}, [](str s, SubpassID subpass){ return s + " " + std::to_string(subpass); });
+    str s_list = std::accumulate(subpass_list.begin(), subpass_list.end(), str{""}, [](str s, SubpassID subpass){ return s + " " + std::to_string(subpass); });
     log::graphics("It contains subpasses %s", s_list.c_str());
-    for (auto &s : subpasses)
+    for (auto &s : subpass_list)
         Map::renderpass_subpass.add(id, s);
     
     //---Create render pass---
-    api.render_passes[id] = VK::createRenderPass(api, id);
+    render_passes[id] = VK::createRenderPass(api, id);
     
     //---Create framebuffers---
-    api.render_passes[id].framebuffers = VK::createFramebuffers(api.device, id, api.render_passes[id].attachment_extent, api.swapchain);
+    render_passes[id].framebuffers = VK::createFramebuffers(api.device, id, render_passes[id].attachment_extent, api.swapchain);
     
     return id;
 }
 
 void VK::recreateRenderPasses(Vulkan &vk) {
-    for (auto &[id, render] : api.render_passes) {
+    for (auto &[id, render] : render_passes) {
         render = VK::createRenderPass(vk, id);
         render.framebuffers = VK::createFramebuffers(api.device, id, render.attachment_extent, vk.swapchain);
     }
@@ -1806,10 +1806,10 @@ PipelineCreateData VK::Pipeline::getCreateData(ConfigData config, ShaderID shade
     
     //: Multisampling
     data.multisampling = getMultisampling();
-    auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
-    auto attachments = getAtoB_v(subpass.first, Map::subpass_attachment, api.attachments);
+    auto subpass = getBtoA_v(shader, Map::subpass_shader, subpasses);
+    auto attachment_list = getAtoB_v(subpass.first, Map::subpass_attachment, attachments);
     std::optional<VkSampleCountFlagBits> samples;
-    for (auto &[id, a] : attachments) {
+    for (auto &[id, a] : attachment_list) {
         if (std::count(subpass.second.external_attachments.begin(), subpass.second.external_attachments.end(), id)) //: Skip external attachments
             continue;
         if (subpass.second.attachment_descriptions.at(id) == ATTACHMENT_INPUT) //: Skip input attachments when they are used as input (already resolved)
@@ -1909,9 +1909,9 @@ VkPipeline VK::buildGraphicsPipeline(const PipelineCreateData &data, ShaderID sh
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages = getShaderStageInfo(Shader::getShader(shader));
     
     //: Render pass
-    auto renderpass = getBtoA_v(shader, Map::renderpass_shader, api.render_passes);
+    auto renderpass = getBtoA_v(shader, Map::renderpass_shader, render_passes);
     auto subpass_list = getAtoB<SubpassID>(renderpass.first, Map::renderpass_subpass);
-    auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
+    auto subpass = getBtoA_v(shader, Map::subpass_shader, subpasses);
     
     auto it = std::find(subpass_list.begin(), subpass_list.end(), subpass.first);
     if (it == subpass_list.end())
@@ -2180,14 +2180,14 @@ void VK::linkPipelineDescriptors(ShaderID shader) {
     std::vector<VkImageView> image_views{};
     std::vector<VkImageView> input_views{};
     
-    auto subpass = getBtoA_v(shader, Map::subpass_shader, api.subpasses);
+    auto subpass = getBtoA_v(shader, Map::subpass_shader, subpasses);
     
     for (auto &a : subpass.second.external_attachments)
-        image_views.push_back(api.attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
+        image_views.push_back(attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
         
     for (auto &[a, type] : subpass.second.attachment_descriptions)
         if (type == ATTACHMENT_INPUT)
-            input_views.push_back(api.attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
+            input_views.push_back(attachments.at(hasMultisampling(a) ? a + 1 : a).image_view);
     
     VK::updateDescriptorSets(shader, {}, {}, image_views, input_views);
 }
@@ -2221,7 +2221,8 @@ void Common::linkDescriptorResources(ShaderID shader) {
 TextureID Graphics::registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels) {
     //---Create texture---
     static TextureID id = 0;
-    do id++;
+    log::warn("Textures not implemented yet");
+    /*do id++;
     while (api.texture_data.find(id) != api.texture_data.end() and id == no_texture);
     
     //: Format
@@ -2259,7 +2260,7 @@ TextureID Graphics::registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels) {
     VK::transitionImageLayoutCmd(api.device, api.cmd, api.texture_data[id], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     
     //: Delete staging buffer
-    vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
+    vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);*/
     
     return id;
 }
@@ -2760,7 +2761,7 @@ void VK::Gui::init(Vulkan &vk) {
     init_info.MinImageCount = vk.swapchain.min_image_count;
     init_info.ImageCount = vk.swapchain.size;
     init_info.Allocator = nullptr;
-    if (not ImGui_ImplVulkan_Init(&init_info, api.render_passes.at(vk.gui_render_pass).render_pass))
+    if (not ImGui_ImplVulkan_Init(&init_info, render_passes.at(vk.gui_render_pass).render_pass))
         log::error("Error initializing ImGui for Vulkan");
     
     //: Command buffers
@@ -2799,10 +2800,10 @@ void VK::Gui::recordGuiCommandBuffer() {
     //: Begin render pass
     VkRenderPassBeginInfo render_pass_info{};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = api.render_passes.at(api.gui_render_pass).render_pass;
-    render_pass_info.framebuffer = api.render_passes.at(api.gui_render_pass).framebuffers.at(api.cmd.current_image);
+    render_pass_info.renderPass = render_passes.at(api.gui_render_pass).render_pass;
+    render_pass_info.framebuffer = render_passes.at(api.gui_render_pass).framebuffers.at(api.cmd.current_image);
     render_pass_info.renderArea.offset = {0, 0};
-    render_pass_info.renderArea.extent = api.render_passes.at(api.gui_render_pass).attachment_extent;
+    render_pass_info.renderArea.extent = render_passes.at(api.gui_render_pass).attachment_extent;
     render_pass_info.clearValueCount = (ui32)clear_values.size();
     render_pass_info.pClearValues = clear_values.data();
     

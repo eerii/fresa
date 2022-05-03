@@ -91,7 +91,6 @@ namespace Fresa::Graphics
     struct ShaderResource {
         std::variant<UniformBufferID, StorageBufferID> id;
         ShaderDescriptor type;
-        ui32 count;
         str name;
     };
     

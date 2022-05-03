@@ -34,12 +34,15 @@ namespace Fresa::Graphics
     //---API---
     void configureAPI();
     void createAPI();
+    
+    inline std::map<RenderPassID, RenderPassData> render_passes;
+    inline std::map<SubpassID, SubpassData> subpasses;
+    inline std::map<AttachmentID, AttachmentData> attachments;
 
     //---Drawing---
     TextureID registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels);
     
     struct DrawDescription {
-        TextureID texture;
         MeshID mesh;
         IndirectBufferID indirect_buffer = no_indirect_buffer;
         ui32 indirect_offset = 0;
@@ -59,6 +62,8 @@ namespace Fresa::Graphics
     inline DrawIQueue draw_queue_instanced;
     
     inline std::vector<DrawDescription*> draw_descriptions;
+    
+    inline std::map<IndirectBufferID, IndirectCommandBuffer> draw_indirect_buffers;
     
     //---Indirect Drawing---
     IndirectBufferID registerIndirectCommandBuffer();

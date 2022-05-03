@@ -81,9 +81,6 @@ void Graphics::draw(DrawDescription &description, ShaderID shader) {
     if (shaders.types.at(shader) != SHADER_DRAW)
         log::error("The shader must be a draw shader");
     
-    if (description.texture != no_texture and not api.texture_data.count(description.texture))
-        log::error("The TextureID %d is not valid", description.texture);
-    
     draw_queue_instanced[shader][description.mesh] = &description;
     
     if(description.indirect_buffer == no_indirect_buffer)
