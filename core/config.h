@@ -17,7 +17,6 @@ namespace Fresa {
         static float game_speed;
         
         static str renderer_description_path;
-        static bool draw_indirect;
         static ui8 multisampling;
         
         static constexpr ui8 frames_in_flight = 2;

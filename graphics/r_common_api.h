@@ -10,7 +10,6 @@ namespace Fresa::Graphics
 {
     struct CommonAPI {
         //TODO: REFACTOR
-        std::map<InstancedBufferID, InstancedBufferData> instanced_buffer_data;
         std::map<TextureID, TextureData> texture_data;
         std::map<DrawUniformID, DrawUniformData> draw_uniform_data;
         

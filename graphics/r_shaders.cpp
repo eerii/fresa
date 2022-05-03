@@ -376,6 +376,7 @@ std::vector<ShaderResource> Shader::createDescriptorResources(const std::vector<
         
         ShaderResource res{};
         res.type = b.descriptor_type;
+        res.name = b.name;
         
         if (b.descriptor_type == DESCRIPTOR_UNIFORM) {
             res.count = Config::frames_in_flight;

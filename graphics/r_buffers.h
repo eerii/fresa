@@ -18,6 +18,8 @@ namespace Fresa::Graphics
     using MeshID = FresaType<ui16, struct MeshTag>;
     using UniformBufferID = FresaType<ui16, struct UniformTag>;
     using StorageBufferID = FresaType<ui16, struct StorageTag>;
+    
+    inline UniformBufferID no_uniform_buffer{USHRT_MAX};
     inline StorageBufferID no_storage_buffer{USHRT_MAX};
     
     //: Paddings of each mesh for each of the big vertex and index buffers

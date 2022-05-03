@@ -152,13 +152,6 @@ namespace Fresa::Graphics
     
     //Buffer
     //----------------------------------------
-
-    using InstancedBufferID = ui32;
-    inline InstancedBufferID no_instance = 0;
-    struct InstancedBufferData {
-        BufferData instance_buffer;
-        ui32 instance_count;
-    };
     
     struct UniformBufferObject {
         Members(UniformBufferObject, model, view, proj)

@@ -87,12 +87,9 @@ void Graphics::draw_(DrawDescription &description, ShaderID shader) {
     if (not api.draw_uniform_data.count(description.uniform))
         log::error("The DrawUniformID %d is not valid", description.uniform);
     
-    if (description.instance == no_instance or not api.instanced_buffer_data.count(description.instance))
-        log::error("The InstancedBufferID %d is not valid", description.instance);
+    draw_queue_instanced[shader][description.uniform][description.mesh] = &description;
     
-    draw_queue_instanced[shader][description.uniform][description.mesh][description.instance] = &description;
-    
-    if(Config::draw_indirect and description.indirect_buffer == no_indirect_buffer)
+    if(description.indirect_buffer == no_indirect_buffer)
         addIndirectDrawCommand(description);
     
     draw_descriptions.push_back(&description);

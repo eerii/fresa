@@ -32,35 +32,10 @@ namespace Fresa::Graphics
         
         updateDrawDescriptorSets(description, shader);
         
-        #if defined USE_VULKAN
-        description.instance = registerInstancedBuffer(instanced_data);
-        Common::updateBuffer(storage_buffers.begin()->second, (void*)instanced_data.data(), (ui32)(instanced_data.size() * sizeof(U)));
-        #elif defined USE_OPENGL
-        description.instance = registerInstancedBuffer(vertices, instanced_data, api.geometry_buffer_data.at(description.geometry).vao);
-        #endif
+        Common::updateBuffer(storage_buffers.at(key_storage_buffers.at("TransformBuffer")),
+                             (void*)instanced_data.data(), (ui32)(instanced_data.size() * sizeof(U)));
         
         return description;
-    }
-    
-    template <typename UBO, std::enable_if_t<Reflection::is_reflectable<UBO>, bool> = true>
-    struct GlobalUniforms {
-        inline static std::vector<str> members{};
-        inline static decltype(tuple_from_variant(Reflection::as_type_list<UBO>())) values{};
-    };
-    
-    template <typename UBO, Str name, typename T>
-    void setGlobalUniform(T t) {
-        if (not std::count(GlobalUniforms<UBO>::members.begin(), GlobalUniforms<UBO>::members.end(), str(name.sv())))
-            GlobalUniforms<UBO>::members.push_back(str(name.sv()));
-        constexpr size_t index = Reflection::get_index_c<name, UBO>();
-        std::get<index>(GlobalUniforms<UBO>::values) = t;
-    }
-    
-    template <typename UBO, Str name>
-    void unsetGlobalUniform() {
-        auto it = std::find(GlobalUniforms<UBO>::members.begin(), GlobalUniforms<UBO>::members.end(), str(name.sv()));
-        if (it != GlobalUniforms<UBO>::members.end())
-            GlobalUniforms<UBO>::members.erase(it);
     }
     
     void draw_(DrawDescription &description, ShaderID shader);
@@ -68,23 +43,6 @@ namespace Fresa::Graphics
     template <typename... UBO>
     void draw(DrawDescription &description, ShaderID shader, UBO& ...ubo) {
         draw_(description, shader);
-        
-        ([&](){
-        if constexpr (Reflection::is_reflectable<UBO>) {
-            for (str member : GlobalUniforms<UBO>::members) {
-                size_t index = Reflection::get_index<UBO>(member);
-                for_<Reflection::as_type_list<UBO>>([&](auto i){
-                    if (i.value == index) {
-                        using M = std::variant_alternative_t<i.value, Reflection::as_type_list<UBO>>;
-                        constexpr size_t offset = Reflection::get_offset_c<UBO, i.value>();
-                        M* m = (M*)((size_t*)&ubo + offset/8);
-                        *m = std::get<i.value>(GlobalUniforms<UBO>::values);
-                    }
-                });
-            }
-        }
-        }(), ...);
-        
         updateDrawUniformBuffer(description, ubo...);
     }
 

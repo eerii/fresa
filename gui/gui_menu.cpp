@@ -34,8 +34,6 @@ void Gui::win_menu() {
             ImGui::SetNextItemWidth(100.0f);
             if (slider<ui8>("multisampling", Config::multisampling, 1.0f, 0, 6)) Graphics::resize(); //TODO: Propper recreation of the pipeline
             
-            ImGui::Checkbox("draw indirect", &Config::draw_indirect);
-            
             ImGui::EndMenu();
         }
         

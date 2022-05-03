@@ -867,8 +867,7 @@ void VK::recordRenderCommandBuffer() {
                         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
                                                 &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
                         
-                        for (const auto &[mesh_id, queue_instance] : queue_mesh) {
-                            VkDeviceSize offsets[]{ 0 };
+                        for (const auto &[mesh_id, description] : queue_mesh) {
                             //: Vertex buffer
                             VkDeviceSize vertex_offset = meshes.paddings.at(mesh_id).vertex_offset;
                             vkCmdBindVertexBuffers(cmd, 0, 1, &meshes.vertex_buffer.buffer, &vertex_offset);
@@ -876,28 +875,14 @@ void VK::recordRenderCommandBuffer() {
                             //: Index buffer
                             VkDeviceSize index_offset = meshes.paddings.at(mesh_id).index_offset;
                             VkIndexType index_type = meshes.paddings.at(mesh_id).index_bytes == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
-                            ui32 index_count = meshes.paddings.at(mesh_id).index_size / meshes.paddings.at(mesh_id).index_bytes;
                             vkCmdBindIndexBuffer(cmd, meshes.index_buffer.buffer, index_offset, index_type);
                             
-                            for (const auto &[instance_id, description] : queue_instance) {
-                                InstancedBufferData &instance = api.instanced_buffer_data.at(instance_id);
-                                
-                                //: Vertex buffer per instance
-                                vkCmdBindVertexBuffers(cmd, 1, 1, &instance.instance_buffer.buffer, offsets);
-                                
-                                //: Draw indirect
-                                if (Config::draw_indirect) {
-                                    vkCmdDrawIndexedIndirect(cmd, api.draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
-                                                             description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
-                                                             1, sizeof(VkDrawIndexedIndirectCommand));
-                                    // - See how multi draw indirect could be implemented, probably you have to squash all the vertex buffers
-                                    //   and make use of the vertex offset in the indirect command
-                                }
-                                //: Draw direct
-                                else {
-                                    vkCmdDrawIndexed(cmd, index_count, instance.instance_count, 0, 0, 0);
-                                }
-                            }
+                            //: Draw indirect
+                            vkCmdDrawIndexedIndirect(cmd, api.draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
+                                                     description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
+                                                     1, sizeof(VkDrawIndexedIndirectCommand));
+                            // - See how multi draw indirect could be implemented, probably you have to squash all the vertex buffers
+                            //   and make use of the vertex offset in the indirect command
                         }
                     }
                 }
@@ -967,11 +952,9 @@ IndirectBufferID Graphics::registerIndirectCommandBuffer() {
 }
 
 void Graphics::addIndirectDrawCommand(DrawDescription &description) {
-    bool is_instanced = api.instanced_buffer_data.count(description.instance);
-    
     //: Draw indirect command
     std::vector<VkDrawIndexedIndirectCommand> cmd(1);
-    cmd.at(0).instanceCount = is_instanced ? api.instanced_buffer_data.at(description.instance).instance_count : 1;
+    cmd.at(0).instanceCount = 1000;
     cmd.at(0).firstInstance = 0; //instance.instance_count * i++;
     cmd.at(0).firstIndex = 0;
     cmd.at(0).indexCount = meshes.paddings.at(description.mesh).index_size / meshes.paddings.at(description.mesh).index_bytes;
@@ -2627,12 +2610,10 @@ void Graphics::render() {
     api.cmd.current_image = VK::startRender();
     
     //: Remove indirect buffers that are no longer in use
-    if (Config::draw_indirect) {
-        if (previous_draw_descriptions != draw_descriptions) {
-            for (auto description : previous_draw_descriptions) {
-                if (std::find(draw_descriptions.begin(), draw_descriptions.end(), description) == draw_descriptions.end())
-                    removeIndirectDrawCommand(*description);
-            }
+    if (previous_draw_descriptions != draw_descriptions) {
+        for (auto description : previous_draw_descriptions) {
+            if (std::find(draw_descriptions.begin(), draw_descriptions.end(), description) == draw_descriptions.end())
+                removeIndirectDrawCommand(*description);
         }
     }
     
@@ -2696,9 +2677,8 @@ void Graphics::resize() {
     //: Update scaled projection
     for (auto &[id, shader] : shaders.list.at(SHADER_POST)) {
         if (id.value.rfind("window", 0) == 0) {
-            auto &u = shader.descriptors.at(0).resources.at(0); //Hardcoded to be in set 0, descriptor 0
-            for (int i = 0; i < u.count; i++)
-                updateUniformBuffer(uniform_buffers.at(std::get<UniformBufferID>(u.id) + i), transform);
+            for (int i = 0; i < Config::frames_in_flight; i++)
+                Shader::updateGlobalUniform(id, "WindowTransform", transform);
         }
     }
 }

@@ -372,23 +372,6 @@ namespace Fresa::Graphics {
         }(), ...);*/
     }
     
-    template <typename V, std::enable_if_t<Reflection::is_reflectable<V>, bool> = true>
-    InstancedBufferID registerInstancedBuffer(const std::vector<V> &instanced_data) {
-        static InstancedBufferID id = 0;
-        do id++;
-        while (api.instanced_buffer_data.find(id) != api.instanced_buffer_data.end() or id == no_instance);
-        
-        api.instanced_buffer_data[id] = InstancedBufferData{};
-        InstancedBufferData &data = api.instanced_buffer_data.at(id);
-        
-        data.instance_buffer = Common::allocateBuffer(ui32(sizeof(V) * instanced_data.size()),
-                                                      BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_VERTEX | BUFFER_USAGE_STORAGE),
-                                                      BUFFER_MEMORY_GPU_ONLY, (void*)instanced_data.data());
-        data.instance_count = (ui32)instanced_data.size();
-        
-        return id;
-    }
-    
     template <typename V>
     void updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size,
                                  ShaderID shader, std::function<std::vector<V>()> fallback) {

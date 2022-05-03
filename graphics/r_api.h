@@ -42,11 +42,11 @@ namespace Fresa::Graphics
         TextureID texture;
         DrawUniformID uniform;
         MeshID mesh;
-        InstancedBufferID instance = no_instance;
         IndirectBufferID indirect_buffer = no_indirect_buffer;
         ui32 indirect_offset = 0;
     };
     
+    // TODO: REFACTOR
     //: This is a hierarchical map for rendering
     //  - Instanced rendedring
     //      1: Global uniforms                          DrawUniformData
@@ -54,8 +54,7 @@ namespace Fresa::Graphics
     //      3: Per instance buffer                      InstancedBufferID
     //      .: Textures not supported yet
     
-    using DrawIQueueInstance = std::map<InstancedBufferID, DrawDescription*>;
-    using DrawIQueueMesh = std::map<MeshID, DrawIQueueInstance>;
+    using DrawIQueueMesh = std::map<MeshID, DrawDescription*>;
     using DrawIQueueUniform = std::map<DrawUniformID, DrawIQueueMesh>;
     using DrawIQueue = std::map<ShaderID, DrawIQueueUniform>;
     
