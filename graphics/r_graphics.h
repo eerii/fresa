@@ -27,10 +27,7 @@ namespace Fresa::Graphics
                                        ShaderID shader, TextureID texture = no_texture) {
         DrawDescription description{};
         description.texture = texture;
-        description.uniform = registerDrawUniforms<UBO...>(shader);
         description.mesh = Buffer::registerMesh(vertices, indices);
-        
-        updateDrawDescriptorSets(description, shader);
         
         Common::updateBuffer(storage_buffers.at(key_storage_buffers.at("TransformBuffer")),
                              (void*)instanced_data.data(), (ui32)(instanced_data.size() * sizeof(U)));
@@ -38,13 +35,7 @@ namespace Fresa::Graphics
         return description;
     }
     
-    void draw_(DrawDescription &description, ShaderID shader);
-    
-    template <typename... UBO>
-    void draw(DrawDescription &description, ShaderID shader, UBO& ...ubo) {
-        draw_(description, shader);
-        updateDrawUniformBuffer(description, ubo...);
-    }
+    void draw(DrawDescription &description, ShaderID shader);
 
     TextureID getTextureID(str path, Channels ch = TEXTURE_CHANNELS_RGBA);
 

@@ -40,7 +40,6 @@ namespace Fresa::Graphics
     
     struct DrawDescription {
         TextureID texture;
-        DrawUniformID uniform;
         MeshID mesh;
         IndirectBufferID indirect_buffer = no_indirect_buffer;
         ui32 indirect_offset = 0;
@@ -55,8 +54,7 @@ namespace Fresa::Graphics
     //      .: Textures not supported yet
     
     using DrawIQueueMesh = std::map<MeshID, DrawDescription*>;
-    using DrawIQueueUniform = std::map<DrawUniformID, DrawIQueueMesh>;
-    using DrawIQueue = std::map<ShaderID, DrawIQueueUniform>;
+    using DrawIQueue = std::map<ShaderID, DrawIQueueMesh>;
     
     inline DrawIQueue draw_queue_instanced;
     
@@ -87,9 +85,6 @@ namespace Fresa::Graphics
         inline auto renderpass_attachment = map_chain(renderpass_subpass, subpass_attachment);
         inline auto renderpass_shader = map_chain(renderpass_subpass, subpass_shader);
     };
-
-    //---Shaders---
-    void updateDrawDescriptorSets(const DrawDescription& draw, ShaderID shader);
     
     //---Other---
     void resize();

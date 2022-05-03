@@ -859,31 +859,27 @@ void VK::recordRenderCommandBuffer() {
                     //: Bind pipeline
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline);
                     
-                    //---Instanced rendering queue---
-                    auto queue_uniform = draw_queue_instanced.at(shader_id);
-                    for (const auto &[uniform_id, queue_mesh] : queue_uniform) {
-                        DrawUniformData &uniform = api.draw_uniform_data.at(uniform_id);
-                        //: Descriptor set
-                        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
-                                                &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
+                    //: Descriptor set
+                    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
+                                            &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
+                    
+                    auto queue_mesh = draw_queue_instanced.at(shader_id);
+                    for (const auto &[mesh_id, description] : queue_mesh) {
+                        //: Vertex buffer
+                        VkDeviceSize vertex_offset = meshes.paddings.at(mesh_id).vertex_offset;
+                        vkCmdBindVertexBuffers(cmd, 0, 1, &meshes.vertex_buffer.buffer, &vertex_offset);
                         
-                        for (const auto &[mesh_id, description] : queue_mesh) {
-                            //: Vertex buffer
-                            VkDeviceSize vertex_offset = meshes.paddings.at(mesh_id).vertex_offset;
-                            vkCmdBindVertexBuffers(cmd, 0, 1, &meshes.vertex_buffer.buffer, &vertex_offset);
-                            
-                            //: Index buffer
-                            VkDeviceSize index_offset = meshes.paddings.at(mesh_id).index_offset;
-                            VkIndexType index_type = meshes.paddings.at(mesh_id).index_bytes == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
-                            vkCmdBindIndexBuffer(cmd, meshes.index_buffer.buffer, index_offset, index_type);
-                            
-                            //: Draw indirect
-                            vkCmdDrawIndexedIndirect(cmd, api.draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
-                                                     description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
-                                                     1, sizeof(VkDrawIndexedIndirectCommand));
-                            // - See how multi draw indirect could be implemented, probably you have to squash all the vertex buffers
-                            //   and make use of the vertex offset in the indirect command
-                        }
+                        //: Index buffer
+                        VkDeviceSize index_offset = meshes.paddings.at(mesh_id).index_offset;
+                        VkIndexType index_type = meshes.paddings.at(mesh_id).index_bytes == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+                        vkCmdBindIndexBuffer(cmd, meshes.index_buffer.buffer, index_offset, index_type);
+                        
+                        //: Draw indirect
+                        vkCmdDrawIndexedIndirect(cmd, api.draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
+                                                 description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
+                                                 1, sizeof(VkDrawIndexedIndirectCommand));
+                        // - See how multi draw indirect could be implemented, probably you have to squash all the vertex buffers
+                        //   and make use of the vertex offset in the indirect command
                     }
                 }
                 
@@ -2163,7 +2159,7 @@ std::vector<VkDescriptorSet> Common::allocateDescriptorSets(IDescriptorLayout la
     return {};
 }
 
-void VK::updateDescriptorSets(ShaderID shader, std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniforms, std::vector<VkBuffer> storage,
+void VK::updateDescriptorSets(ShaderID shader, std::vector<VkBuffer> uniforms, std::vector<VkBuffer> storage,
                               std::vector<VkImageView> image_views, std::vector<VkImageView> input_attachments) {
     WriteDescriptors descriptors{};
     ui32 count = 0;
@@ -2178,23 +2174,6 @@ void VK::updateDescriptorSets(ShaderID shader, std::vector<std::array<VkBuffer, 
     VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT>(descriptors, shader, count, input_attachments);
     
     vkUpdateDescriptorSets(api.device, count, descriptors.write.data(), 0, nullptr);
-}
-
-void Graphics::updateDrawDescriptorSets(const DrawDescription& draw, ShaderID shader) {
-    //: Uniforms
-    std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_list{};
-    for (auto &v : api.draw_uniform_data.at(draw.uniform).uniform_buffers) {
-        uniform_list.resize(uniform_list.size() + 1);
-        for (int i = 0; i < Config::frames_in_flight; i++)
-            uniform_list.back().at(i) = v.at(i).buffer;
-    }
-    
-    //: Images
-    std::vector<VkImageView> image_views{};
-    if (draw.texture != no_texture) image_views.push_back(api.texture_data.at(draw.texture).image_view);
-    
-    //: Update
-    VK::updateDescriptorSets(shader, uniform_list, {}, image_views, {});
 }
 
 void VK::linkPipelineDescriptors(ShaderID shader) {
@@ -2216,17 +2195,13 @@ void VK::linkPipelineDescriptors(ShaderID shader) {
 void Common::linkDescriptorResources(ShaderID shader) {
     auto &descriptors = Shader::getShader(shader).descriptors;
     
-    std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_list{};
+    std::vector<VkBuffer> uniform_list{};
     std::vector<VkBuffer> storage_list{};
     
     for (auto &d : descriptors) {
         for (auto &r : d.resources) {
-            if (r.type == DESCRIPTOR_UNIFORM) {
-                std::array<VkBuffer, Config::frames_in_flight> u{};
-                for (int i = 0; i < Config::frames_in_flight; i++)
-                    u.at(i) = uniform_buffers.at(std::get<UniformBufferID>(r.id) + i).buffer;
-                uniform_list.push_back(u);
-            }
+            if (r.type == DESCRIPTOR_UNIFORM)
+                uniform_list.push_back(uniform_buffers.at(std::get<UniformBufferID>(r.id)).buffer);
             
             if (r.type == DESCRIPTOR_STORAGE)
                 storage_list.push_back(storage_buffers.at(std::get<StorageBufferID>(r.id)).buffer);
@@ -2616,11 +2591,6 @@ void Graphics::render() {
                 removeIndirectDrawCommand(*description);
         }
     }
-    
-    //: Update uniform buffers
-    //      Keep an eye on how performant is this, another solution might be necessary
-    for (auto &f : VK::update_buffer_queue) f(api.sync.current_frame);
-    VK::update_buffer_queue.clear();
     
     //: Record command buffers
     VK::recordRenderCommandBuffer();

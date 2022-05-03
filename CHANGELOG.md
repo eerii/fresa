@@ -11,6 +11,7 @@
 - shader cleanup and tidying
 - imgui docking and multiviewports
 - unique typing aliases (fresatype)
+- global uniform buffers
 
 **changed**
 - core and graphics refactoring

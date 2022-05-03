@@ -185,7 +185,7 @@ namespace Fresa::Graphics
         
         //: Update uniform buffer
         template <typename UBO>
-        void updateGlobalUniform(ShaderID shader, str name, UBO ubo) {
+        void updateGlobalUniform(ShaderID shader, str name, UBO &ubo) {
             UniformBufferID uniform = no_uniform_buffer;
             for (auto &d : getShader(shader).descriptors)
                 for (auto &res : d.resources)
@@ -194,8 +194,7 @@ namespace Fresa::Graphics
             if (uniform == no_uniform_buffer)
                 log::error("The uniform name %s is invalid", name.c_str());
             
-            for (int i = 0; i < Config::frames_in_flight; i++)
-                Common::updateBuffer(uniform_buffers.at(uniform + i), (void*)&ubo, sizeof(ubo));
+            Common::updateBuffer(uniform_buffers.at(uniform), (void*)&ubo, sizeof(ubo));
         }
         
         //---------------------------------------------------

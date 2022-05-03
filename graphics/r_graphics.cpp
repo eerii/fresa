@@ -71,7 +71,7 @@ bool Graphics::stop() {
     return true;
 }
 
-void Graphics::draw_(DrawDescription &description, ShaderID shader) {
+void Graphics::draw(DrawDescription &description, ShaderID shader) {
     //---Draw---
     //      Checks if the description provided and all the data attached are valid, and adds it to the correct draw queue
     
@@ -84,10 +84,7 @@ void Graphics::draw_(DrawDescription &description, ShaderID shader) {
     if (description.texture != no_texture and not api.texture_data.count(description.texture))
         log::error("The TextureID %d is not valid", description.texture);
     
-    if (not api.draw_uniform_data.count(description.uniform))
-        log::error("The DrawUniformID %d is not valid", description.uniform);
-    
-    draw_queue_instanced[shader][description.uniform][description.mesh] = &description;
+    draw_queue_instanced[shader][description.mesh] = &description;
     
     if(description.indirect_buffer == no_indirect_buffer)
         addIndirectDrawCommand(description);

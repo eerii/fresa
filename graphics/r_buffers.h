@@ -70,6 +70,9 @@ namespace Fresa::Graphics
                                         (ui32)(vertices.size() * sizeof(V)), (ui32)(indices.size() * sizeof(I)), (ui8)sizeof(I));
         }
         
+        //: Register uniform buffer
+        //
+        
         //: Register storage buffer
         StorageBufferID registerStorageBuffer(str name, ui32 size);
     }

@@ -15,8 +15,6 @@ namespace Fresa::Graphics::VK
     inline std::vector<std::function<void()>> deletion_queue_program;
     inline std::vector<std::function<void()>> deletion_queue_swapchain;
     inline std::vector<std::function<void()>> deletion_queue_frame;
-    
-    inline std::vector<std::function<void(ui32)>> update_buffer_queue;
     //----------------------------------------
 
     //Device
@@ -109,16 +107,13 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
     VkDescriptorSetLayout createDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding> &bindings);
     
-    void updateDescriptorSets(ShaderID shader, std::vector<std::array<VkBuffer, Config::frames_in_flight>> uniform_buffers = {},
-                              std::vector<VkBuffer> storage_buffers = {}, std::vector<VkImageView> image_views = {},
-                              std::vector<VkImageView> input_attachments = {});
+    void updateDescriptorSets(ShaderID shader, std::vector<VkBuffer> uniform_buffers = {}, std::vector<VkBuffer> storage_buffers = {},
+                              std::vector<VkImageView> image_views = {}, std::vector<VkImageView> input_attachments = {});
     void linkPipelineDescriptors(ShaderID shader);
     
     template <VkDescriptorType type, typename T>
     void prepareWriteDescriptor(WriteDescriptors &descriptors, ShaderID shader, ui32 &count, std::vector<T> data, std::vector<ui32> bindings = {}) {
         if (data.size() == 0) return;
-        if constexpr (is_array<T>::value)
-            static_assert(std::tuple_size<T>::value == Config::frames_in_flight, "If an array is passed to write descriptors, it must be the size of frames in flight");
         
         constexpr bool is_buffer = type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER or type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         constexpr bool is_image = type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER or type == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
@@ -140,19 +135,13 @@ namespace Fresa::Graphics::VK
                 
                 for (int i = 0; i < Config::frames_in_flight; i++) {
                     if constexpr (is_buffer) {
-                        if constexpr (is_array<T>::value)
-                            descriptors.buffer[count].buffer = data.at(index).at(i);
-                        else
-                            descriptors.buffer[count].buffer = data.at(index);
+                        descriptors.buffer[count].buffer = data.at(index);
                         descriptors.buffer[count].offset = 0;
                         descriptors.buffer[count].range = VK_WHOLE_SIZE;
                     }
                     
                     if constexpr (is_image) {
-                        if constexpr (is_array<T>::value)
-                            descriptors.image[count].imageView = data.at(index).at(i);
-                        else
-                            descriptors.image[count].imageView = data.at(index);
+                        descriptors.image[count].imageView = data.at(index);
                         descriptors.image[count].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                         descriptors.image[count].sampler = type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ? api.sampler : VK_NULL_HANDLE;
                     }
@@ -322,44 +311,12 @@ namespace Fresa::Graphics {
         return a.width == b.x and a.height == b.y;
     }
     
-    template <typename... UBO>
-    DrawUniformID registerDrawUniforms(ShaderID shader) {
-        static DrawUniformID id = 0;
-        do id++;
-        while (api.draw_uniform_data.find(id) != api.draw_uniform_data.end());
-        
-        api.draw_uniform_data[id] = DrawUniformData{};
-        DrawUniformData &data = api.draw_uniform_data.at(id);
-        
-        ([&](){
-            data.uniform_buffers.resize(data.uniform_buffers.size() + 1);
-            for (int i = 0; i < Config::frames_in_flight; i++)
-                data.uniform_buffers.back()[i] = Common::allocateBuffer(sizeof(UBO), BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
-            data.size.push_back((ui16)sizeof(UBO));
-        }(), ...);
-        
-        return id;
-    }
-    
     template <typename UBO>
     void updateUniformBuffer(BufferData buffer, const UBO& ubo) {
         void* data;
         vmaMapMemory(api.allocator, buffer.allocation, &data);
         memcpy(data, &ubo, sizeof(ubo));
         vmaUnmapMemory(api.allocator, buffer.allocation);
-    }
-    
-    template <typename... UBO>
-    void updateDrawUniformBuffer(DrawDescription &description, const UBO& ...ubo) {
-        DrawUniformData &uniform = api.draw_uniform_data.at(description.uniform);
-        
-        //: Update the buffer
-        VK::update_buffer_queue.push_back([uniform, ubo...](ui32 current){
-            int i = 0;
-            ([&](){
-                updateUniformBuffer(uniform.uniform_buffers.at(i++).at(current), ubo);
-            }(), ...);
-        });
     }
     
     template <typename... UBO>

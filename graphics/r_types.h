@@ -256,14 +256,6 @@ namespace Fresa::Graphics
 
     //Draw
     //----------------------------------------
-    using DrawUniformID = ui32;
-    struct DrawUniformData {
-        std::vector<std::array<BufferData, Config::frames_in_flight>> uniform_buffers;
-        #ifdef USE_VULKAN
-        std::vector<ui16> size;
-        #endif
-    };
-    
     using IndirectBufferID = ui16;
     inline IndirectBufferID no_indirect_buffer = 0;
     struct IndirectCommandBuffer {

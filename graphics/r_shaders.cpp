@@ -379,13 +379,11 @@ std::vector<ShaderResource> Shader::createDescriptorResources(const std::vector<
         res.name = b.name;
         
         if (b.descriptor_type == DESCRIPTOR_UNIFORM) {
-            res.count = Config::frames_in_flight;
-            for (int i = 0; i < Config::frames_in_flight; i++) {
-                auto id = uniform_buffers.size() == 0 ? UniformBufferID{} : uniform_buffers.end()->first;
-                do { id.value++; } while (uniform_buffers.count(UniformBufferID{id}));
-                uniform_buffers[id] = Common::allocateBuffer(b.size, BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
-                if (i == 0) res.id = id;
-            }
+            res.count = 1;
+            auto id = uniform_buffers.size() == 0 ? UniformBufferID{} : uniform_buffers.end()->first;
+            do { id.value++; } while (uniform_buffers.count(UniformBufferID{id}));
+            uniform_buffers[id] = Common::allocateBuffer(b.size, BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
+            res.id = id;
         }
         
         if (b.descriptor_type == DESCRIPTOR_STORAGE) {
