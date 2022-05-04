@@ -137,9 +137,6 @@ namespace Fresa::Graphics
         //: Image sampler
         VkSampler sampler;
         
-        //: Window vertex buffer
-        BufferData window_vertex_buffer;
-        
         //: GUI
         IF_GUI(RenderPassID gui_render_pass;)
         

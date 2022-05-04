@@ -12,8 +12,6 @@ namespace Fresa::Graphics
     //: Definitions
     //---------------------------------------------------
     
-    //: TODO: MOVE BUFFER DATA HERE
-    
     //: Indexing IDs
     using MeshID = FresaType<ui16, struct MeshTag>;
     using UniformBufferID = FresaType<ui16, struct UniformTag>;
@@ -21,6 +19,26 @@ namespace Fresa::Graphics
     
     inline UniformBufferID no_uniform_buffer{USHRT_MAX};
     inline StorageBufferID no_storage_buffer{USHRT_MAX};
+    
+    //: Buffer memory type (CPU, GPU or both)
+    enum BufferMemory {
+        BUFFER_MEMORY_CPU_ONLY  =  IF_VULKAN(VMA_MEMORY_USAGE_CPU_ONLY)    IF_OPENGL(1 << 0),
+        BUFFER_MEMORY_GPU_ONLY  =  IF_VULKAN(VMA_MEMORY_USAGE_GPU_ONLY)    IF_OPENGL(1 << 1),
+        BUFFER_MEMORY_BOTH      =  IF_VULKAN(VMA_MEMORY_USAGE_CPU_TO_GPU)  IF_OPENGL(1 << 2),
+    };
+    using BufferMemoryT = IF_VULKAN(VmaMemoryUsage) IF_OPENGL(BufferMemory);
+    
+    //: Buffer usage
+    enum BufferUsage {
+        BUFFER_USAGE_UNIFORM       =  IF_VULKAN(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)  IF_OPENGL(1 << 0),
+        BUFFER_USAGE_STORAGE       =  IF_VULKAN(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)  IF_OPENGL(1 << 1),
+        BUFFER_USAGE_VERTEX        =  IF_VULKAN(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)   IF_OPENGL(1 << 2),
+        BUFFER_USAGE_INDEX         =  IF_VULKAN(VK_BUFFER_USAGE_INDEX_BUFFER_BIT)    IF_OPENGL(1 << 3),
+        BUFFER_USAGE_TRANSFER_SRC  =  IF_VULKAN(VK_BUFFER_USAGE_TRANSFER_SRC_BIT)    IF_OPENGL(1 << 4),
+        BUFFER_USAGE_TRANSFER_DST  =  IF_VULKAN(VK_BUFFER_USAGE_TRANSFER_DST_BIT)    IF_OPENGL(1 << 5),
+        BUFFER_USAGE_INDIRECT      =  IF_VULKAN(VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) IF_OPENGL(1 << 6),
+    };
+    using BufferUsageT = IF_VULKAN(VkBufferUsageFlags) IF_OPENGL(BufferUsage);
     
     //: Paddings of each mesh for each of the big vertex and index buffers
     struct MeshPadding {
@@ -35,6 +53,17 @@ namespace Fresa::Graphics
     //: Data
     //---------------------------------------------------
     
+    //: Buffer data
+    //      Contains the representation of a buffer for each API
+    struct BufferData {
+        IF_VULKAN(
+            VkBuffer buffer;
+            VmaAllocation allocation;
+        )
+        IF_OPENGL(ui32 buffer;)
+        BufferMemory memory;
+    };
+    
     //: Mesh buffer
     //      Contains two GPU buffers, one for all vertices and one for all indices
     //      They are indexed by using a MeshID that returns a padding for both
@@ -42,7 +71,7 @@ namespace Fresa::Graphics
         BufferData vertex_buffer;
         BufferData index_buffer;
         std::map<MeshID, MeshPadding> paddings;
-        ui32 pool_size{0};
+        ui32 pool_size = 0;
     } meshes;
     
     //: Uniform buffers
@@ -50,8 +79,8 @@ namespace Fresa::Graphics
     
     //: Storage buffers
     inline std::map<StorageBufferID, BufferData> storage_buffers;
-    inline std::map<str, StorageBufferID> key_storage_buffers = {
-        {"TransformBuffer", no_storage_buffer},
+    inline std::map<str, StorageBufferID> reserved_storage_buffers = {
+        {"InstanceBuffer", no_storage_buffer},
     };
     
     //---------------------------------------------------

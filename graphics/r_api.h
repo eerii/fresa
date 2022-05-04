@@ -9,13 +9,12 @@
 
 #include "r_shaders.h"
 #include "r_buffers.h"
+#include "r_draw.h"
 
 #include "events.h"
 #include "bidirectional_map.h"
 
 #include <set>
-
-#define MAX_INDIRECT_COMMANDS 64
 
 namespace Fresa::Graphics
 {
@@ -44,8 +43,7 @@ namespace Fresa::Graphics
     
     struct DrawDescription {
         MeshID mesh;
-        IndirectBufferID indirect_buffer = no_indirect_buffer;
-        ui32 indirect_offset = 0;
+        DrawCommandID indirect_buffer = no_draw_buffer;
     };
     
     // TODO: REFACTOR
@@ -63,12 +61,8 @@ namespace Fresa::Graphics
     
     inline std::vector<DrawDescription*> draw_descriptions;
     
-    inline std::map<IndirectBufferID, IndirectCommandBuffer> draw_indirect_buffers;
-    
-    //---Indirect Drawing---
-    IndirectBufferID registerIndirectCommandBuffer();
-    void addIndirectDrawCommand(DrawDescription &description);
-    void removeIndirectDrawCommand(DrawDescription &description);
+    //: Window vertex buffer
+    inline BufferData window_vertex_buffer;
     
     //---Render passes and attachments---
     void processRendererDescription();

@@ -95,7 +95,7 @@ void Graphics::createAPI() {
         api.compute_pipelines[shader] = VK::createComputePipeline(api, shader);*/
     
     //---Window vertex buffer---
-    api.window_vertex_buffer = VK::createVertexBuffer(Vertices::window);
+    window_vertex_buffer = VK::createVertexBuffer(Vertices::window);
 }
 
 //----------------------------------------
@@ -875,11 +875,7 @@ void VK::recordRenderCommandBuffer() {
                         vkCmdBindIndexBuffer(cmd, meshes.index_buffer.buffer, index_offset, index_type);
                         
                         //: Draw indirect
-                        vkCmdDrawIndexedIndirect(cmd, draw_indirect_buffers.at(description->indirect_buffer).buffer.buffer,
-                                                 description->indirect_offset * sizeof(VkDrawIndexedIndirectCommand),
-                                                 1, sizeof(VkDrawIndexedIndirectCommand));
-                        // - See how multi draw indirect could be implemented, probably you have to squash all the vertex buffers
-                        //   and make use of the vertex offset in the indirect command
+                        vkCmdDrawIndexedIndirect(cmd, draw_commands.buffer.buffer, description->indirect_buffer.value * draw_command_size, 1, draw_command_size);
                     }
                 }
                 
@@ -894,7 +890,7 @@ void VK::recordRenderCommandBuffer() {
                     
                     //: Vertex buffer (It has the 4 vertices of the window area)
                     VkDeviceSize offsets[]{ 0 };
-                    vkCmdBindVertexBuffers(cmd, 0, 1, &api.window_vertex_buffer.buffer, offsets);
+                    vkCmdBindVertexBuffers(cmd, 0, 1, &window_vertex_buffer.buffer, offsets);
                     
                     //: Draw
                     vkCmdDraw(cmd, 6, 1, 0, 0);
@@ -928,53 +924,6 @@ void VK::setViewport(const VkCommandBuffer &cmd, VkExtent2D extent) {
     vkCmdSetViewport(cmd, 0, 1, &viewport);
     vkCmdSetScissor(cmd, 0, 1, &scissor);
     vkCmdSetDepthBias(cmd, 0, 0, 0);
-}
-
-IndirectBufferID Graphics::registerIndirectCommandBuffer() {
-    static IndirectBufferID id = 0;
-    do id++;
-    while (draw_indirect_buffers.find(id) != draw_indirect_buffers.end() or id == no_indirect_buffer);
-    
-    draw_indirect_buffers[id] = IndirectCommandBuffer{};
-    IndirectCommandBuffer &icmd = draw_indirect_buffers[id];
-    
-    ui32 size = MAX_INDIRECT_COMMANDS * sizeof(VkDrawIndexedIndirectCommand);
-    icmd.buffer = Common::allocateBuffer(size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
-    
-    icmd.current_offset = 0;
-    icmd.free_positions = {};
-    
-    return id;
-}
-
-void Graphics::addIndirectDrawCommand(DrawDescription &description) {
-    //: Draw indirect command
-    std::vector<VkDrawIndexedIndirectCommand> cmd(1);
-    cmd.at(0).instanceCount = 1000;
-    cmd.at(0).firstInstance = 0; //instance.instance_count * i++;
-    cmd.at(0).firstIndex = 0;
-    cmd.at(0).indexCount = meshes.paddings.at(description.mesh).index_size / meshes.paddings.at(description.mesh).index_bytes;
-    
-    //: Find available offset
-    for (auto &[id, icmd] : draw_indirect_buffers) {
-        if (icmd.free_positions.size() > 0) {
-            description.indirect_buffer = id;
-            description.indirect_offset = icmd.free_positions.at(0);
-            icmd.free_positions.erase(icmd.free_positions.begin());
-            break;
-        }
-        if (icmd.current_offset + 1 == MAX_INDIRECT_COMMANDS)
-            continue;
-        description.indirect_buffer = id;
-        description.indirect_offset = icmd.current_offset++;
-    }
-    if (description.indirect_buffer == no_indirect_buffer) {
-        description.indirect_buffer = registerIndirectCommandBuffer();
-        description.indirect_offset = draw_indirect_buffers.at(description.indirect_buffer).current_offset++;
-    }
-    
-    //: Update command buffer
-    VK::updateGPUBuffer(draw_indirect_buffers.at(description.indirect_buffer).buffer, cmd, description.indirect_offset);
 }
 
 VkCommandBuffer VK::beginSingleUseCommandBuffer(VkDevice device, VkCommandPool pool) {
@@ -2584,14 +2533,6 @@ void Graphics::render() {
     
     //: Get the current image
     api.cmd.current_image = VK::startRender();
-    
-    //: Remove indirect buffers that are no longer in use
-    if (previous_draw_descriptions != draw_descriptions) {
-        for (auto description : previous_draw_descriptions) {
-            if (std::find(draw_descriptions.begin(), draw_descriptions.end(), description) == draw_descriptions.end())
-                removeIndirectDrawCommand(*description);
-        }
-    }
     
     //: Record command buffers
     VK::recordRenderCommandBuffer();

@@ -120,16 +120,16 @@ UniformBufferID Buffer::registerUniformBuffer(ui32 size) {
 //---------------------------------------------------
 StorageBufferID Buffer::registerStorageBuffer(str name, ui32 size) {
     //: If the name is part of the key list and it is already allocated, return the previous id
-    if (key_storage_buffers.count(name) and key_storage_buffers.at(name) != no_storage_buffer)
-        return key_storage_buffers.at(name);
+    if (reserved_storage_buffers.count(name) and reserved_storage_buffers.at(name) != no_storage_buffer)
+        return reserved_storage_buffers.at(name);
     
     //: Find new id
     StorageBufferID id = storage_buffers.size() == 0 ? StorageBufferID{} : storage_buffers.end()->first;
     do { id.value++; } while (id == no_storage_buffer or storage_buffers.count(StorageBufferID{id}));
     
     //: Save the id to the key list if it was part of it but not allocated
-    if (key_storage_buffers.count(name))
-        key_storage_buffers.at(name) = id;
+    if (reserved_storage_buffers.count(name))
+        reserved_storage_buffers.at(name) = id;
     
     //: Allocate new buffer
     storage_buffers[id] = Common::allocateBuffer(size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);

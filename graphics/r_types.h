@@ -100,38 +100,6 @@
 
 namespace Fresa::Graphics
 {
-    //TODO: MOVE TO BUFFERS
-    //---------------------------------------------------
-    //: Buffer data
-    //      Contains the representation of a buffer for each API
-    //---------------------------------------------------
-    enum BufferMemory {
-        BUFFER_MEMORY_CPU_ONLY  =  IF_VULKAN(VMA_MEMORY_USAGE_CPU_ONLY)    IF_OPENGL(1 << 0),
-        BUFFER_MEMORY_GPU_ONLY  =  IF_VULKAN(VMA_MEMORY_USAGE_GPU_ONLY)    IF_OPENGL(1 << 1),
-        BUFFER_MEMORY_BOTH      =  IF_VULKAN(VMA_MEMORY_USAGE_CPU_TO_GPU)  IF_OPENGL(1 << 2),
-    };
-    using BufferMemoryT = IF_VULKAN(VmaMemoryUsage) IF_OPENGL(BufferMemory);
-    
-    enum BufferUsage {
-        BUFFER_USAGE_UNIFORM       =  IF_VULKAN(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)  IF_OPENGL(1 << 0),
-        BUFFER_USAGE_STORAGE       =  IF_VULKAN(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)  IF_OPENGL(1 << 1),
-        BUFFER_USAGE_VERTEX        =  IF_VULKAN(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)   IF_OPENGL(1 << 2),
-        BUFFER_USAGE_INDEX         =  IF_VULKAN(VK_BUFFER_USAGE_INDEX_BUFFER_BIT)    IF_OPENGL(1 << 3),
-        BUFFER_USAGE_TRANSFER_SRC  =  IF_VULKAN(VK_BUFFER_USAGE_TRANSFER_SRC_BIT)    IF_OPENGL(1 << 4),
-        BUFFER_USAGE_TRANSFER_DST  =  IF_VULKAN(VK_BUFFER_USAGE_TRANSFER_DST_BIT)    IF_OPENGL(1 << 5),
-        BUFFER_USAGE_INDIRECT      =  IF_VULKAN(VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) IF_OPENGL(1 << 6),
-    };
-    using BufferUsageT = IF_VULKAN(VkBufferUsageFlags) IF_OPENGL(BufferUsage);
-    
-    struct BufferData {
-        IF_VULKAN(
-            VkBuffer buffer;
-            VmaAllocation allocation;
-        )
-        IF_OPENGL(ui32 buffer;)
-        BufferMemory memory;
-    };
-    
     //---------------------------------------------------
     //: Texture data
     //      Contains the representation of a texture for each API
@@ -252,18 +220,6 @@ namespace Fresa::Graphics
         VkExtent2D attachment_extent;
         #endif
     };
-    //----------------------------------------
-
-    //Draw
-    //----------------------------------------
-    using IndirectBufferID = ui16;
-    inline IndirectBufferID no_indirect_buffer = 0;
-    struct IndirectCommandBuffer {
-        BufferData buffer;
-        ui32 current_offset;
-        std::vector<ui32> free_positions;
-    };
-    
     //----------------------------------------
     
     //Vertex

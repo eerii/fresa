@@ -81,10 +81,10 @@ void Graphics::draw(DrawDescription &description, ShaderID shader) {
     if (shaders.types.at(shader) != SHADER_DRAW)
         log::error("The shader must be a draw shader");
     
-    draw_queue_instanced[shader][description.mesh] = &description;
+    if(description.indirect_buffer == no_draw_buffer)
+        description.indirect_buffer = Draw::registerDrawCommand();
     
-    if(description.indirect_buffer == no_indirect_buffer)
-        addIndirectDrawCommand(description);
+    draw_queue_instanced[shader][description.mesh] = &description;
     
     draw_descriptions.push_back(&description);
 }

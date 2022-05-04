@@ -23,13 +23,6 @@ using namespace Fresa;
 
 //---Common API calls for Vulkan and OpenGL---
 
-void Graphics::removeIndirectDrawCommand(DrawDescription &description) {
-    if (draw_indirect_buffers.count(description.indirect_buffer))
-        draw_indirect_buffers.at(description.indirect_buffer).free_positions.push_back(description.indirect_offset);
-    description.indirect_buffer = no_indirect_buffer;
-    description.indirect_offset = 0;
-}
-
 bool Graphics::hasMultisampling(AttachmentID a, bool check_samples) {
     if (not attachments.count(a))
         return false;

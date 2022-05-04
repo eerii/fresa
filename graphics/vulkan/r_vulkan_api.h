@@ -311,14 +311,6 @@ namespace Fresa::Graphics {
         return a.width == b.x and a.height == b.y;
     }
     
-    template <typename UBO>
-    void updateUniformBuffer(BufferData buffer, const UBO& ubo) {
-        void* data;
-        vmaMapMemory(api.allocator, buffer.allocation, &data);
-        memcpy(data, &ubo, sizeof(ubo));
-        vmaUnmapMemory(api.allocator, buffer.allocation);
-    }
-    
     template <typename... UBO>
     void updateComputeUniformBuffers(ShaderID shader, const UBO& ...ubo) {
         //TODO: ENABLE COMPUTE SHADERS
