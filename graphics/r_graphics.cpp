@@ -71,24 +71,6 @@ bool Graphics::stop() {
     return true;
 }
 
-void Graphics::draw(DrawDescription &description, ShaderID shader) {
-    //---Draw---
-    //      Checks if the description provided and all the data attached are valid, and adds it to the correct draw queue
-    
-    if (not shaders.types.count(shader))
-        log::error("The ShaderID %s is not valid", shader.value.c_str());
-    
-    if (shaders.types.at(shader) != SHADER_DRAW)
-        log::error("The shader must be a draw shader");
-    
-    if(description.indirect_buffer == no_draw_buffer)
-        description.indirect_buffer = Draw::registerDrawCommand();
-    
-    draw_queue_instanced[shader][description.mesh] = &description;
-    
-    draw_descriptions.push_back(&description);
-}
-
 TextureID Graphics::getTextureID(str path, Channels ch) {
     //---Create TextureID---
     

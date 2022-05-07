@@ -42,8 +42,12 @@ namespace Fresa::Graphics
     
     //: Paddings of each mesh for each of the big vertex and index buffers
     struct MeshPadding {
-        ui32 vertex_offset;
-        ui32 vertex_size;
+        ui32 vertex_last;   //: Number of the last vertex
+        ui32 vertex_offset; //: Offset in bytes of the first vertex
+        ui32 vertex_size;   //: Number of vertices in this block
+        ui8 vertex_bytes;   //: Bytes of one vertex
+        
+        ui32 index_last;
         ui32 index_offset;
         ui32 index_size;
         ui8 index_bytes;
@@ -79,9 +83,6 @@ namespace Fresa::Graphics
     
     //: Storage buffers
     inline std::map<StorageBufferID, BufferData> storage_buffers;
-    inline std::map<str, StorageBufferID> reserved_storage_buffers = {
-        {"InstanceBuffer", no_storage_buffer},
-    };
     
     //---------------------------------------------------
     //: Systems
@@ -92,11 +93,11 @@ namespace Fresa::Graphics
         MeshBuffers allocateMeshBuffer();
         
         //: Add mesh vertices and indices to the mesh buffers
-        MeshID registerMeshInternal(void* vertices, void* indices, ui32 vertices_size, ui32 indices_size, ui8 index_bytes);
+        MeshID registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex_bytes, void* indices, ui32 indices_size, ui8 index_bytes);
         template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
         MeshID registerMesh(const std::vector<V> &vertices, const std::vector<I> &indices) {
-            return registerMeshInternal((void*)vertices.data(), (void*)indices.data(),
-                                        (ui32)(vertices.size() * sizeof(V)), (ui32)(indices.size() * sizeof(I)), (ui8)sizeof(I));
+            return registerMeshInternal((void*)vertices.data(), (ui32)vertices.size(), (ui8)sizeof(V),
+                                        (void*)indices.data(), (ui32)indices.size(), (ui8)sizeof(I));
         }
         
         //: Register uniform buffer
@@ -113,6 +114,6 @@ namespace Fresa::Graphics
     namespace Common {
         BufferData allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data = nullptr, bool delete_with_program = true);
         void updateBuffer(BufferData &buffer, void* data, ui32 size, ui32 offset = 0);
-        void copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset = 0);
+        void copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset = 0, ui32 src_offset = 0);
     }
 }

@@ -21,20 +21,5 @@ namespace Fresa::Graphics
     bool update();
     bool stop();
     
-    template <typename... UBO, typename V, typename U, typename I,
-              std::enable_if_t<Reflection::is_reflectable<V> && Reflection::is_reflectable<U> && std::is_integral_v<I>, bool> = true>
-    DrawDescription getDrawDescription(const std::vector<V> &vertices, const std::vector<U> &instanced_data, const std::vector<I> &indices,
-                                       ShaderID shader) {
-        DrawDescription description{};
-        description.mesh = Buffer::registerMesh(vertices, indices);
-        
-        Common::updateBuffer(storage_buffers.at(reserved_storage_buffers.at("InstanceBuffer")),
-                             (void*)instanced_data.data(), (ui32)(instanced_data.size() * sizeof(U)));
-        
-        return description;
-    }
-    
-    void draw(DrawDescription &description, ShaderID shader);
-
     TextureID getTextureID(str path, Channels ch = TEXTURE_CHANNELS_RGBA);
 }

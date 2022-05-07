@@ -41,26 +41,6 @@ namespace Fresa::Graphics
     //---Drawing---
     TextureID registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels);
     
-    struct DrawDescription {
-        MeshID mesh;
-        DrawCommandID indirect_buffer = no_draw_buffer;
-    };
-    
-    // TODO: REFACTOR
-    //: This is a hierarchical map for rendering
-    //  - Instanced rendedring
-    //      1: Global uniforms                          DrawUniformData
-    //      2: Vertex buffer (geometry)                 GeometryBufferData
-    //      3: Per instance buffer                      InstancedBufferID
-    //      .: Textures not supported yet
-    
-    using DrawIQueueMesh = std::map<MeshID, DrawDescription*>;
-    using DrawIQueue = std::map<ShaderID, DrawIQueueMesh>;
-    
-    inline DrawIQueue draw_queue_instanced;
-    
-    inline std::vector<DrawDescription*> draw_descriptions;
-    
     //: Window vertex buffer
     inline BufferData window_vertex_buffer;
     

@@ -853,8 +853,9 @@ void VK::recordRenderCommandBuffer() {
                 const ShaderPass& shader = Shader::getShader(shader_id);
                 //---Draw shaders---
                 if (shaders.types.at(shader_id) == SHADER_DRAW) {
-                    if (not draw_queue_instanced.count(shader_id))
+                    if (not temp_draw_queue.count(shader_id))
                         continue;
+                    auto& draw_object = temp_draw_queue.at(shader_id);
                     
                     //: Bind pipeline
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline);
@@ -863,20 +864,16 @@ void VK::recordRenderCommandBuffer() {
                     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline_layout, 0, 1,
                                             &shader.descriptors.at(0).descriptors.at(api.sync.current_frame), 0, nullptr);
                     
-                    auto queue_mesh = draw_queue_instanced.at(shader_id);
-                    for (const auto &[mesh_id, description] : queue_mesh) {
-                        //: Vertex buffer
-                        VkDeviceSize vertex_offset = meshes.paddings.at(mesh_id).vertex_offset;
-                        vkCmdBindVertexBuffers(cmd, 0, 1, &meshes.vertex_buffer.buffer, &vertex_offset);
-                        
-                        //: Index buffer
-                        VkDeviceSize index_offset = meshes.paddings.at(mesh_id).index_offset;
-                        VkIndexType index_type = meshes.paddings.at(mesh_id).index_bytes == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
-                        vkCmdBindIndexBuffer(cmd, meshes.index_buffer.buffer, index_offset, index_type);
-                        
-                        //: Draw indirect
-                        vkCmdDrawIndexedIndirect(cmd, draw_commands.buffer.buffer, description->indirect_buffer.value * draw_command_size, 1, draw_command_size);
-                    }
+                    //: Vertex buffer
+                    VkDeviceSize vertex_offsets{0};
+                    vkCmdBindVertexBuffers(cmd, 0, 1, &meshes.vertex_buffer.buffer, &vertex_offsets);
+                    
+                    //: Index buffer
+                    VkIndexType index_type = meshes.paddings.at(draw_object.mesh).index_bytes == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+                    vkCmdBindIndexBuffer(cmd, meshes.index_buffer.buffer, VkDeviceSize{0}, index_type);
+                    
+                    //: Draw indirect
+                    vkCmdDrawIndexedIndirect(cmd, draw_commands.buffer.buffer, draw_object.indirect.value * draw_command_size, 1, draw_command_size);
                 }
                 
                 //---Post shaders---
@@ -1993,14 +1990,14 @@ void Common::updateBuffer(BufferData &buffer, void *data, ui32 size, ui32 offset
     }
 }
 
-void Common::copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset) {
+void Common::copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset, ui32 src_offset) {
     //---Copy buffer---
     //      Simple function that creates a command buffer to copy the memory from one buffer to another
     //      Very helpful when using staging buffers to move information from CPU to GPU only memory (can be done in reverse)
     VkCommandBuffer command_buffer = VK::beginSingleUseCommandBuffer(api.device, api.cmd.command_pools.at("transfer"));
     
     VkBufferCopy copy_region{};
-    copy_region.srcOffset = 0;
+    copy_region.srcOffset = src_offset;
     copy_region.dstOffset = offset;
     copy_region.size = size;
     vkCmdCopyBuffer(command_buffer, src.buffer, dst.buffer, 1, &copy_region);
@@ -2529,8 +2526,6 @@ void VK::renderFrame() {
 //----------------------------------------
 
 void Graphics::render() {
-    static std::vector<DrawDescription*> previous_draw_descriptions{};
-    
     //: Get the current image
     api.cmd.current_image = VK::startRender();
     
@@ -2542,9 +2537,7 @@ void Graphics::render() {
     VK::renderFrame();
     
     //: Clear draw queue
-    previous_draw_descriptions = draw_descriptions;
-    draw_queue_instanced.clear();
-    draw_descriptions.clear();
+    temp_draw_queue.clear();
 }
 
 void Graphics::present() {
