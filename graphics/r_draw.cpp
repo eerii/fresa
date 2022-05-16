@@ -197,6 +197,19 @@ void Draw::allocateSceneBatchBlock(DrawBatchID batch) {
             draw_scene.buffer = new_buffer;
             draw_scene.free_blocks.rbegin()->size += draw_batch_buffer_grow_amount;
             
+            //: Link new buffer to shaders that use it
+            for (auto &[id, shader] : shaders.list.at(SHADER_DRAW)) {
+                for (auto &d : shader.descriptors) {
+                    for (auto &res : d.resources) {
+                        if (res.type != DESCRIPTOR_STORAGE)
+                            continue;
+                        auto r_id = std::get<StorageBufferID>(res.id);
+                        if (reserved_buffers.count(r_id) and reserved_buffers.at(r_id) == "InstanceBuffer")
+                            Common::linkDescriptorResources(id);
+                    }
+                }
+            }
+            
             //: TODO: Delete previous buffer
         }
     }
@@ -241,20 +254,22 @@ void Draw::compileSceneBatches() {
         copy_list[batch.offset + object.batch_offset] = object.transform;
     }
     
-    //: Flatten copy list
-    std::map<ui32, std::vector<glm::mat4>> flat_copy_list = { {copy_list.begin()->first, {copy_list.begin()->second}} };
-    for (auto &[offset, transform] : copy_list) {
-        if (offset == copy_list.begin()->first)
-            continue;
-        if (offset == flat_copy_list.rbegin()->first + flat_copy_list.rbegin()->second.size() * sizeof(glm::mat4))
-            flat_copy_list.rbegin()->second.push_back(transform);
-        else
-            flat_copy_list[offset] = {transform};
+    if (copy_list.size() > 0) {
+        //: Flatten copy list
+        std::map<ui32, std::vector<glm::mat4>> flat_copy_list = { {copy_list.begin()->first, {copy_list.begin()->second}} };
+        for (auto &[offset, transform] : copy_list) {
+            if (offset == copy_list.begin()->first)
+                continue;
+            if (offset == flat_copy_list.rbegin()->first + flat_copy_list.rbegin()->second.size() * sizeof(glm::mat4))
+                flat_copy_list.rbegin()->second.push_back(transform);
+            else
+                flat_copy_list[offset] = {transform};
+        }
+        
+        //: Update buffer
+        for (auto &[offset, transforms] : flat_copy_list)
+            Common::updateBuffer(draw_scene.buffer, (void*)transforms.data(), (ui32)(transforms.size() * sizeof(glm::mat4)), offset);
     }
-    
-    //: Update buffer
-    for (auto &[offset, transforms] : flat_copy_list)
-        Common::updateBuffer(draw_scene.buffer, (void*)transforms.data(), (ui32)(transforms.size() * sizeof(glm::mat4)), offset);
     
     draw_scene.recreate_objects.clear();
 }

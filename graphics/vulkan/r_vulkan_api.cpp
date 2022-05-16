@@ -2149,8 +2149,21 @@ void Common::linkDescriptorResources(ShaderID shader) {
             if (r.type == DESCRIPTOR_UNIFORM)
                 uniform_list.push_back(uniform_buffers.at(std::get<UniformBufferID>(r.id)).buffer);
             
-            if (r.type == DESCRIPTOR_STORAGE)
-                storage_list.push_back(storage_buffers.at(std::get<StorageBufferID>(r.id)).buffer);
+            if (r.type == DESCRIPTOR_STORAGE) {
+                auto id = std::get<StorageBufferID>(r.id);
+                
+                //: Check for reserved buffers
+                if (reserved_buffers.count(id)) {
+                    str name = reserved_buffers.at(id);
+                    //: Instance buffer
+                    if (name == "InstanceBuffer" and draw_scene.buffer.buffer != VK_NULL_HANDLE)
+                        storage_list.push_back(draw_scene.buffer.buffer);
+                }
+                //: Regular storage buffers
+                else {
+                    storage_list.push_back(storage_buffers.at(id).buffer);
+                }
+            }
         }
     }
     

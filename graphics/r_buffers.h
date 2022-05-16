@@ -20,6 +20,10 @@ namespace Fresa::Graphics
     inline UniformBufferID no_uniform_buffer{USHRT_MAX};
     inline StorageBufferID no_storage_buffer{USHRT_MAX};
     
+    inline std::map<StorageBufferID, str> reserved_buffers {
+        {StorageBufferID{0}, "InstanceBuffer"},
+    };
+    
     //: Buffer memory type (CPU, GPU or both)
     enum BufferMemory {
         BUFFER_MEMORY_CPU_ONLY  =  IF_VULKAN(VMA_MEMORY_USAGE_CPU_ONLY)    IF_OPENGL(1 << 0),

@@ -129,6 +129,12 @@ UniformBufferID Buffer::registerUniformBuffer(ui32 size) {
 //      If the buffer name is part of the key list and the buffer is allocated, return the id
 //---------------------------------------------------
 StorageBufferID Buffer::registerStorageBuffer(str name, ui32 size) {
+    //: Find if the buffer is reserved
+    for (auto &[id, r_name] : reserved_buffers) {
+        if (r_name == name)
+            return id;
+    }
+    
     //: Find new id
     StorageBufferID id = storage_buffers.size() == 0 ? StorageBufferID{} : storage_buffers.end()->first;
     do { id.value++; } while (id == no_storage_buffer or storage_buffers.count(StorageBufferID{id}));
