@@ -17,15 +17,7 @@ namespace Fresa::Math
         return (T(0) < val) - (val < T(0));
     }
     
-    //---Linear Algebra---
-    /*
-     : Coordinate systems
-            Local/object space -(model)-> World space -(view)-> View/camera space -(projection)-> Clip space -(viewport)-> Screen space
-            Model matrix - scale, rotate and translate (in that order) an object to place it in world space
-            View matrix - move the entire scene to be referenced from the camera's point of view
-            Projection matrix - normalizes coordinates to be in the range [-1.0, 1.0]
-     : Projections
-            Orthographic
-            Perspective
-     */
+    constexpr ui32 hash(const char* s, std::size_t count) {
+        return ((count ? hash(s, count - 1) : 2166136261u) ^ s[count]) * 16777619u;
+    }
 }

@@ -3,12 +3,15 @@
 //licensed under GPLv3
 
 #include "r_draw.h"
+#include "f_math.h"
+#include <sstream>
 
 using namespace Fresa;
 using namespace Graphics;
 
 constexpr ui32 draw_command_pool_chunk = 256 * draw_command_size;
-constexpr ui32 draw_object_chunk = 64000;
+constexpr ui32 draw_batch_chunk = 1024 * sizeof(glm::mat4);
+constexpr ui32 draw_batch_buffer_grow_amount = 4 * draw_batch_chunk;
 
 //---------------------------------------------------
 //: Allocate draw indirect command buffer
@@ -91,140 +94,26 @@ void Draw::removeDrawCommand(DrawCommandID id) {
 //---------------------------------------------------
 //:
 //---------------------------------------------------
-DrawObjectBuffer Draw::allocateDrawObjectBuffer(std::vector<DrawBatchID> batches, ui32 object_size) {
-    DrawObjectBuffer new_draw_objects;
-    ui32 buffer_size = 0;
-    std::vector<std::pair<DrawObjectBlock, DrawObjectBlock>> copy_list{};
-    
-    //: Copy the free blocks
-    new_draw_objects.free_blocks = draw_objects.free_blocks;
-    
-    //: Save the stride of each object (for example, sizeof(glm::mat4))
-    if (object_size == 0) {
-        if (draw_objects.stride == 0)
-            log::error("You need to provide an object stride to the allocateDrawObjectBuffer at least the first time");
-        new_draw_objects.stride = draw_objects.stride;
-    } else {
-        new_draw_objects.stride = object_size;
-    }
-    
-    //: Iterate through all batches
-    for (auto &b : batches) {
-        new_draw_objects.batch_offsets[b] = DrawObjectBlock{};
-        
-        //: The batch already exists, add one chunk
-        if (draw_objects.batch_offsets.count(b)) {
-            //: Size
-            new_draw_objects.batch_offsets.at(b).size = draw_objects.batch_offsets.at(b).size + draw_object_chunk;
-            //: Offset
-            for (auto &fb : new_draw_objects.free_blocks)
-                if (fb.size >= new_draw_objects.batch_offsets.at(b).size)
-                    new_draw_objects.batch_offsets.at(b).offset = fb.offset;
-            if (new_draw_objects.batch_offsets.at(b).offset == 0)
-                new_draw_objects.batch_offsets.at(b).offset = new_draw_objects.free_blocks.rbegin()->offset;
-            //: Update free blocks
-            if (new_draw_objects.batch_offsets.at(b).offset == new_draw_objects.free_blocks.rbegin()->offset) {
-                new_draw_objects.free_blocks.rbegin()->offset += new_draw_objects.batch_offsets.at(b).size;
-                new_draw_objects.free_blocks.rbegin()->size = draw_object_chunk;
-            } else {
-                for (int i = 0; i < new_draw_objects.free_blocks.size(); i++) {
-                    if (new_draw_objects.free_blocks.at(i).offset != new_draw_objects.batch_offsets.at(b).offset)
-                        continue;
-                    if (new_draw_objects.free_blocks.at(i).size == new_draw_objects.batch_offsets.at(b).size) {
-                        new_draw_objects.free_blocks.erase(new_draw_objects.free_blocks.begin() + i);
-                        break;
-                    }
-                    new_draw_objects.free_blocks.at(i).size -= new_draw_objects.batch_offsets.at(b).size;
-                    new_draw_objects.free_blocks.at(i).offset += new_draw_objects.batch_offsets.at(b).size;
-                }
-            }
-            new_draw_objects.free_blocks.push_back(DrawObjectBlock{draw_objects.batch_offsets.at(b).offset, draw_objects.batch_offsets.at(b).size, {0}});
-            std::sort(new_draw_objects.free_blocks.begin(), new_draw_objects.free_blocks.end(), [](auto &a, auto &b){ return a.offset < b.offset; });
-            //: Copy list
-            copy_list.push_back({DrawObjectBlock{draw_objects.batch_offsets.at(b).offset, draw_objects.batch_offsets.at(b).size, {0}},
-                                 DrawObjectBlock{new_draw_objects.batch_offsets.at(b).offset, draw_objects.batch_offsets.at(b).size, {0}}});
-        }
-        
-        //: New batch
-        else {
-            //: Size
-            new_draw_objects.batch_offsets.at(b).size = draw_object_chunk;
-            //: Offset
-            new_draw_objects.batch_offsets.at(b).offset = new_draw_objects.free_blocks.begin()->offset;
-            //: Update free blocks
-            if (new_draw_objects.free_blocks.size() == 1) {
-                new_draw_objects.free_blocks.begin()->offset += draw_object_chunk;
-                new_draw_objects.free_blocks.begin()->size = draw_object_chunk;
-            } else {
-                new_draw_objects.free_blocks.erase(new_draw_objects.free_blocks.begin());
-            }
-        }
-        
-        //: Calculate the total size of the buffer
-        buffer_size += new_draw_objects.batch_offsets.at(b).size;
-    }
-    
-    //: Iterate through the original buffers that are not modified
-    for (auto &[b_id, b] : draw_objects.batch_offsets) {
-        if (not std::count(batches.begin(), batches.end(), b_id)) {
-            //: Batch offsets
-            new_draw_objects.batch_offsets[b_id] = b;
-            //: Copy list
-            copy_list.push_back({DrawObjectBlock{b.offset, b.size, {0}},
-                                 DrawObjectBlock{b.offset, b.size, {0}}});
-            
-            buffer_size += b.size;
-        }
-    }
-    
-    //: Allocate new buffer
-    new_draw_objects.buffer = Common::allocateBuffer(buffer_size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_GPU_ONLY);
-    
-    if (copy_list.size() > 0) {
-        //: Flatten copy list
-        std::vector<std::pair<DrawObjectBlock, DrawObjectBlock>> flat_copy_list = { *copy_list.begin() };
-        for (int i = 1; i < copy_list.size(); i++) {
-            if (copy_list.at(i).first.offset == flat_copy_list.rbegin()->first.offset + flat_copy_list.rbegin()->first.size and
-                copy_list.at(i).second.offset == flat_copy_list.rbegin()->second.offset + flat_copy_list.rbegin()->second.size) {
-                flat_copy_list.rbegin()->first.size += copy_list.at(i).first.size;
-                flat_copy_list.rbegin()->second.size += copy_list.at(i).second.size;
-            } else {
-                flat_copy_list.push_back(copy_list.at(i));
-            }
-        }
-        
-        //: Copy
-        for (auto &cl : flat_copy_list)
-            Common::copyBuffer(draw_objects.buffer, new_draw_objects.buffer, cl.second.size, cl.second.offset, cl.first.offset);
-    }
-    
-    return new_draw_objects;
-}
-
-//---------------------------------------------------
-//:
-//---------------------------------------------------
-DrawID Draw::registerDrawID(ShaderID shader, MeshID mesh, glm::mat4 initial_transform) {
-    //: Create draw scene if not present
-    if (not draw_scenes.count(shader))
-        draw_scenes[shader] = DrawScene{};
-    
-    //: Draw scene objects
-    auto& scene_objects = draw_scenes.at(shader).objects;
-    
+DrawID Draw::registerDrawID(MeshID mesh, glm::mat4 initial_transform) {
     //: Find new id
-    DrawID id = scene_objects.size() == 0 ? DrawID{} : scene_objects.end()->first;
-    do { id.value++; } while (scene_objects.count(id));
+    DrawID id = draw_scene.objects.size() == 0 ? DrawID{} : draw_scene.objects.end()->first;
+    do { id.value++; } while (draw_scene.objects.count(id));
     
     //: Create the draw object
     DrawDescription draw{};
-    draw.shader = shader;
     draw.mesh = mesh;
     draw.transform = initial_transform;
     
+    //: Calculate draw batch hash
+    //      For now it uses the mesh id, but in the future it can reference more properties
+    std::stringstream ss;
+    ss << draw.mesh.value;
+    auto s = ss.str();
+    draw.batch = DrawBatchID{Math::hash(s.c_str(), s.size())};
+    
     //: Add to scene objects and to the recreation queue
-    scene_objects[id] = draw;
-    draw_scenes.at(shader).recreate_objects[id] = draw;
+    draw_scene.objects[id] = draw;
+    draw_scene.recreate_objects[id] = draw;
     
     return id;
 }
@@ -233,42 +122,139 @@ DrawID Draw::registerDrawID(ShaderID shader, MeshID mesh, glm::mat4 initial_tran
 //---------------------------------------------------
 //:
 //---------------------------------------------------
-void Draw::draw(DrawID id, glm::mat4 transform) {
-    for (auto &[shader, scene] : draw_scenes) {
-        if (scene.objects.count(id))
-            temp_draw_queue[shader] = TempDrawObject{scene.objects.at(id).mesh, DrawCommandID{0}};
-    }
+void Draw::draw(DrawID id, ShaderID shader, glm::mat4 transform) {
+    if (not draw_scene.objects.count(id))
+        log::error("Using invalid DrawID (%d)", id.value);
+    temp_draw_queue[shader] = TempDrawObject{draw_scene.objects.at(id).mesh, DrawCommandID{0}};
 }
 
 //---------------------------------------------------
 //:
 //---------------------------------------------------
-void Draw::compileSceneBatches(DrawScene &scene) {
-    //: Iterate through all the objects that need reuploading
-    for (auto &[obj_id, object] : scene.recreate_objects) {
-        //: Find the appropiate draw batch for the object
-        //      Right now it only checks if the mesh is the same, but in the future more checks might be done, for example, a material check
-        std::optional<DrawBatchID> batch_id;
-        for (auto &[id, batch] : scene.batches) {
-            if (batch.mesh != object.mesh)
-                continue;
-            batch_id = id;
-            break;
+void Draw::allocateSceneBatchBlock(DrawBatchID batch) {
+    DrawBatchBlock new_block{};
+    DrawBatchBlock previous_block{};
+    new_block.offset = no_draw_batch_offset;
+    
+    //: There is no batch block, create a new one
+    if (not draw_scene.batches.count(batch)) {
+        new_block.size = draw_batch_chunk;
+        new_block.free_positions = { 0 };
+    }
+    //: There is a batch block, grow it
+    else {
+        previous_block = draw_scene.batches.at(batch);
+        new_block.size = previous_block.size + draw_batch_chunk;
+        new_block.free_positions = previous_block.free_positions;
+    }
+    
+    //: Add previous offset to free blocks, and flatten free blocks list
+    if (previous_block.size > 0)
+        draw_scene.free_blocks.push_back(DrawBatchBlock{previous_block.offset, previous_block.size, {0}});
+    std::sort(draw_scene.free_blocks.begin(), draw_scene.free_blocks.end(), [](auto &a, auto &b){ return a.offset < b.offset; });
+    std::vector<DrawBatchBlock> flat_free_blocks = { *draw_scene.free_blocks.begin() };
+    for (int i = 1; i < draw_scene.free_blocks.size(); i++) {
+        if (draw_scene.free_blocks.at(i).offset == flat_free_blocks.rbegin()->offset + flat_free_blocks.rbegin()->size)
+            flat_free_blocks.rbegin()->size += draw_scene.free_blocks.at(i).size;
+        else
+            flat_free_blocks.push_back(draw_scene.free_blocks.at(i));
+    }
+    draw_scene.free_blocks = flat_free_blocks;
+    
+    //: Find new offset
+    while (new_block.offset == no_draw_batch_offset) {
+        for (int i = 0; i < draw_scene.free_blocks.size(); i++) {
+            if (draw_scene.free_blocks.at(i).size >= new_block.size) {
+                new_block.offset = draw_scene.free_blocks.at(i).offset;
+                //: Update free block list
+                if (i == draw_scene.free_blocks.size() - 1 or draw_scene.free_blocks.at(i).size > new_block.size) {
+                    draw_scene.free_blocks.at(i).offset += new_block.size;
+                    draw_scene.free_blocks.at(i).size -= new_block.size;
+                } else {
+                    draw_scene.free_blocks.erase(draw_scene.free_blocks.begin() + i);
+                }
+                break;
+            }
         }
         
-        //: If no batch is found, create a new one
-        if (not batch_id.has_value()) {
-            //: Find id
-            DrawBatchID id = scene.batches.size() == 0 ? DrawBatchID{} : scene.batches.end()->first;
-            do { id.value++; } while (scene.batches.count(id));
-            batch_id = id;
+        //: Grow buffer if there is not enough space left
+        if (new_block.offset == no_draw_batch_offset) {
+            //: Calculate new size
+            auto last_block = std::max_element(draw_scene.free_blocks.begin(), draw_scene.free_blocks.end(),
+                                               [](auto &a, auto &b)->bool{ return a.offset + a.size < b.offset + b.size; } );
+            ui32 new_buffer_size = last_block->offset + last_block->size + draw_batch_buffer_grow_amount;
+            while (new_buffer_size - last_block->offset < new_block.size)
+                new_buffer_size += draw_batch_buffer_grow_amount;
             
-            //: Get 
+            //: Allocate new buffer
+            BufferData new_buffer = Common::allocateBuffer(new_buffer_size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_GPU_ONLY);
             
-            //: Add to list
-            scene.batches[id] = DrawBatch{object.mesh, 0, 1};
+            //: Copy from previous buffer
+            if (last_block->offset + last_block->size > 0)
+                Common::copyBuffer(draw_scene.buffer, new_buffer, last_block->offset + last_block->size, 0);
+            
+            //: Update scene buffer and free blocks
+            draw_scene.buffer = new_buffer;
+            draw_scene.free_blocks.rbegin()->size += draw_batch_buffer_grow_amount;
+            
+            //: TODO: Delete previous buffer
         }
     }
     
-    scene.recreate_objects.clear();
+    //: Copy block if growing
+    if (new_block.size > draw_batch_chunk)
+        Common::copyBuffer(draw_scene.buffer, draw_scene.buffer, previous_block.size, new_block.offset, previous_block.offset);
+    
+    //: Save to draw scene
+    draw_scene.batches[batch] = new_block;
+}
+
+//---------------------------------------------------
+//:
+//---------------------------------------------------
+void Draw::compileSceneBatches() {
+    std::map<ui32, glm::mat4> copy_list{};
+    
+    //: Iterate through all the objects that need reuploading
+    for (auto &[obj_id, object] : draw_scene.recreate_objects) {
+        //: If there is no matching batch id in the scene, create a new one
+        if (not draw_scene.batches.count(object.batch)) {
+            allocateSceneBatchBlock(object.batch);
+        }
+        auto &batch = draw_scene.batches.at(object.batch);
+        
+        //: If the object has no batch offset, find one
+        if (object.batch_offset == no_draw_batch_offset) {
+            //: Grow the batch block if there is no space left
+            if (batch.free_positions.size() == 1 and batch.free_positions.at(0) + sizeof(glm::mat4) >= batch.size)
+                allocateSceneBatchBlock(object.batch);
+            
+            //: Get the batch offset for this new object and update the free positions
+            object.batch_offset = draw_scene.batches.at(object.batch).free_positions.at(0);
+            if (batch.free_positions.size() == 1)
+                batch.free_positions.at(0) += sizeof(glm::mat4);
+            else
+                batch.free_positions.erase(batch.free_positions.begin());
+        }
+        
+        //: Add to copy list
+        copy_list[batch.offset + object.batch_offset] = object.transform;
+    }
+    
+    //: Flatten copy list
+    std::map<ui32, std::vector<glm::mat4>> flat_copy_list = { {copy_list.begin()->first, {copy_list.begin()->second}} };
+    for (auto &[offset, transform] : copy_list) {
+        if (offset == copy_list.begin()->first)
+            continue;
+        if (offset == flat_copy_list.rbegin()->first + flat_copy_list.rbegin()->second.size() * sizeof(glm::mat4))
+            flat_copy_list.rbegin()->second.push_back(transform);
+        else
+            flat_copy_list[offset] = {transform};
+    }
+    
+    //: Update buffer
+    for (auto &[offset, transforms] : flat_copy_list)
+        Common::updateBuffer(draw_scene.buffer, (void*)transforms.data(), (ui32)(transforms.size() * sizeof(glm::mat4)), offset);
+    
+    draw_scene.recreate_objects.clear();
 }

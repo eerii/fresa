@@ -12,6 +12,18 @@ namespace Fresa::Graphics
     //: Data
     //---------------------------------------------------
     
+    //---Linear Algebra---
+    /*
+     : Coordinate systems
+            Local/object space -(model)-> World space -(view)-> View/camera space -(projection)-> Clip space -(viewport)-> Screen space
+            Model matrix - scale, rotate and translate (in that order) an object to place it in world space
+            View matrix - move the entire scene to be referenced from the camera's point of view
+            Projection matrix - normalizes coordinates to be in the range [-1.0, 1.0]
+     : Projections
+            Orthographic
+            Perspective
+     */
+    
     //: Camera projections
     //      Can be either orthographic or perspective
     //      Optionally it can also be scaled, which means that it will be scaled pixel perfectly on the screen
