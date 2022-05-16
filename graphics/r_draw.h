@@ -41,12 +41,15 @@ namespace Fresa::Graphics
     } draw_commands;
     
     //:
-    constexpr ui32 no_draw_batch_offset = UINT_MAX;
     struct DrawDescription {
         DrawBatchID batch;
-        ui32 batch_offset = no_draw_batch_offset;
+        ui32 batch_offset;
         MeshID mesh;
-        glm::mat4 transform;
+    };
+    
+    //:
+    struct DrawInstanceData {
+        glm::mat4 model;
     };
     
     //:
@@ -57,11 +60,10 @@ namespace Fresa::Graphics
     };
     inline struct DrawScene {
         BufferData buffer;
+        void* buffer_data = nullptr;
         std::map<DrawID, DrawDescription> objects;
-        std::map<DrawID, DrawDescription> recreate_objects;
         std::map<DrawBatchID, DrawBatchBlock> batches;
         std::vector<DrawBatchBlock> free_blocks = { DrawBatchBlock{} };
-        ui32 stride; //
     } draw_scene;
     
     //TODO: TEMP
@@ -86,16 +88,17 @@ namespace Fresa::Graphics
         void removeDrawCommand(DrawCommandID id);
         
         //:
-        DrawID registerDrawID(MeshID mesh, glm::mat4 initial_transform);
+        DrawID registerDrawID(MeshID mesh);
         
         //:
-        void draw(DrawID id, ShaderID shader, glm::mat4 transform);
+        void draw(ShaderID shader, DrawID id);
+        //void draw_multiple(ShaderID shader, DrawID first, ui32 count);
         
         //:
         void allocateSceneBatchBlock(DrawBatchID batch);
         
         //:
-        void compileSceneBatches();
+        DrawInstanceData* getInstanceData(DrawID id, ui32 count = 1);
     }
     
     //---------------------------------------------------
