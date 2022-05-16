@@ -12,13 +12,13 @@ using namespace Fresa;
 using namespace Graphics;
 
 constexpr ui32 draw_command_pool_chunk = 256 * draw_command_size;
-constexpr ui32 draw_batch_chunk = 1024 * sizeof(DrawInstanceData); //TODO: Make it so you can specify the draw batch chunk when getting the drawIDs, individual vs instanced too, mesh type, group by update frequency and number of instances
+constexpr ui32 draw_batch_chunk = 1024 * sizeof(DrawInstanceData);
 constexpr ui32 draw_batch_buffer_grow_amount = 4 * draw_batch_chunk;
 constexpr ui32 no_draw_block_offset = UINT_MAX;
 
 //---------------------------------------------------
 //: Allocate draw indirect command buffer
-//      Create a new draw indirect buffer expanding the previous size and, if existent, copy the previous contents
+//      Creates a new draw indirect buffer expanding the previous size and, if existent, copy the previous contents
 //---------------------------------------------------
 DrawCommandBuffer Draw::allocateDrawCommandBuffer() {
     DrawCommandBuffer new_draw_commands;
@@ -95,7 +95,10 @@ void Draw::removeDrawCommand(DrawCommandID id) {
 }
 
 //---------------------------------------------------
-//:
+//: Register draw id
+//      Creates a new draw description using some parameters
+//      Also creates a draw batch by hashing those parameters to group compatible draws
+//      Adds it to the batches buffer and calculates the batch offset
 //---------------------------------------------------
 DrawID Draw::registerDrawID(MeshID mesh) {
     //: Find new id
@@ -137,7 +140,8 @@ DrawID Draw::registerDrawID(MeshID mesh) {
 
 
 //---------------------------------------------------
-//:
+//: Draw
+//      Adds a DrawID to the specified shader's render queue for draw indirect command creation
 //---------------------------------------------------
 void Draw::draw(ShaderID shader, DrawID id) {
     //: Check if the DrawID is valid
@@ -149,7 +153,10 @@ void Draw::draw(ShaderID shader, DrawID id) {
 }
 
 //---------------------------------------------------
-//:
+//: Allocate batch block
+//      Creates or expands batch block. Keeps the contents on expand and tightly packs the buffer
+//      TODO: Make it so you can specify the draw batch chunk when getting the drawIDs
+//      TODO: individual vs instanced too, mesh type, group by update frequency and number of instances
 //---------------------------------------------------
 void Draw::allocateSceneBatchBlock(DrawBatchID batch) {
     DrawBatchBlock new_block{};
@@ -249,7 +256,11 @@ void Draw::allocateSceneBatchBlock(DrawBatchID batch) {
 }
 
 //---------------------------------------------------
-//:
+//: Get instance data
+//      Returns a pointer to the draw scene buffer for the specified draw id data
+//      If count is specified, it will also check that there is sufficient draw ids specified for the query to be valid (using the pointer as an array)
+//      However, there is no guarantee that all intermediate objects are valid DrawIDs. In the future, it would be nice to make sure that
+//      when adding/removing draw descriptions, they are always tightly packed so this query can be always successful
 //---------------------------------------------------
 DrawInstanceData* Draw::getInstanceData(DrawID id, ui32 count) {
     //: Check that the DrawID is valid
