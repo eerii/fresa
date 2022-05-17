@@ -195,7 +195,7 @@ namespace Fresa::Graphics::VK
     void updateGPUBuffer(BufferData &buffer, const std::vector<T> &v, size_t offset = 0) {
         //: Create a staging buffer
         ui32 buffer_size = ui32(sizeof(T) * v.size());
-        BufferData staging_buffer = Common::allocateBuffer(buffer_size, BUFFER_USAGE_TRANSFER_SRC, BUFFER_MEMORY_CPU_ONLY, nullptr, false);
+        BufferData staging_buffer = Common::allocateBuffer(buffer_size, BUFFER_USAGE_TRANSFER_SRC, BUFFER_MEMORY_CPU_ONLY, nullptr);
         
         //: Copy data to the staging buffer
         void* data;
@@ -207,7 +207,8 @@ namespace Fresa::Graphics::VK
         Common::copyBuffer(staging_buffer, buffer, buffer_size, ui32(sizeof(T) * offset));
         
         //: Destroy the staging buffer
-        vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
+        Common::destroyBuffer(staging_buffer);
+        buffer_list.erase(staging_buffer);
     }
     
     void updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size, ShaderID shader);

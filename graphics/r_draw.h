@@ -71,12 +71,18 @@ namespace Fresa::Graphics
         std::vector<DrawBatchBlock> free_blocks = { DrawBatchBlock{} };
     } draw_scene;
     
-    //TODO: TEMP
-    struct TempDrawObject {
+    //: Draw queue
+    struct DrawQueueObject {
+        ShaderID shader;
+        DrawBatchID batch;
         MeshID mesh;
-        DrawCommandID indirect;
+        DrawCommandID command;
+        ui32 instance_count;
+        ui32 instance_offset;
     };
-    inline std::map<ShaderID, TempDrawObject> temp_draw_queue;
+    inline std::vector<DrawQueueObject> draw_queue;
+    inline std::vector<DrawQueueObject> previous_draw_queue = {};
+    inline std::map<ShaderID, std::vector<DrawCommandID>> built_draw_queue;
     
     //---------------------------------------------------
     //: Systems
@@ -88,8 +94,7 @@ namespace Fresa::Graphics
         DrawCommandBuffer allocateDrawCommandBuffer();
         
         //: Register draw command
-        //      TODO: WIP
-        DrawCommandID registerDrawCommand(MeshID mesh);
+        DrawCommandID registerDrawCommand(DrawQueueObject draw);
         
         //: Remove draw command
         void removeDrawCommand(DrawCommandID id);
@@ -99,14 +104,16 @@ namespace Fresa::Graphics
         DrawID registerDrawID(MeshID mesh);
         
         //: Draw, add a draw id to a shader draw queue
-        void draw(ShaderID shader, DrawID id);
-        //void draw_multiple(ShaderID shader, DrawID first, ui32 count);
+        void draw(ShaderID shader, DrawID id, ui32 count = 1);
         
         //: Allocate scene batch, create or expand a batch block
         void allocateSceneBatchBlock(DrawBatchID batch);
         
         //: Get instance data buffer pointer
         DrawInstanceData* getInstanceData(DrawID id, ui32 count = 1);
+        
+        //: Build draw queue and create the indirect commands
+        void buildDrawQueue();
     }
     
     //---------------------------------------------------

@@ -42,6 +42,12 @@ MeshBuffers Buffer::allocateMeshBuffer() {
         
         //: Copy mesh paddings
         new_meshes.paddings = meshes.paddings;
+        
+        //: Delete previous buffers
+        Common::destroyBuffer(meshes.vertex_buffer);
+        Common::destroyBuffer(meshes.index_buffer);
+        buffer_list.erase(meshes.vertex_buffer);
+        buffer_list.erase(meshes.index_buffer);
     }
     
     return new_meshes;
@@ -143,4 +149,25 @@ StorageBufferID Buffer::registerStorageBuffer(str name, ui32 size) {
     storage_buffers[id] = Common::allocateBuffer(size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);
     
     return id;
+}
+
+//---------------------------------------------------
+//: Create a block buffer
+//      All of the sizes are in items, they must all be multiplied by stride when talking about memory
+//---------------------------------------------------
+BlockBuffer Buffer::createBlockBuffer(ui32 initial_size, ui32 stride, BufferUsage usage, BufferMemory memory) {
+    BlockBuffer buffer{};
+    
+    //: Buffer parameters
+    buffer.stride = stride;
+    buffer.allocation_chunk = initial_size;
+    
+    //: Allocate buffer
+    buffer.buffer = Common::allocateBuffer(initial_size * stride, usage, memory);
+    
+    //: Blocks
+    buffer.blocks = {};
+    buffer.free_blocks = {{initial_size, 0}};
+    
+    return buffer;
 }

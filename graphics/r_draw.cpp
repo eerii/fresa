@@ -40,6 +40,10 @@ DrawCommandBuffer Draw::allocateDrawCommandBuffer() {
         //: Copy the previous command buffer
         Common::copyBuffer(draw_commands.buffer, new_draw_commands.buffer, draw_commands.free_positions.end()->value * draw_command_size);
         
+        //: Delete previous buffer
+        Common::destroyBuffer(draw_commands.buffer);
+        buffer_list.erase(draw_commands.buffer);
+        
         //: Copy free positions
         new_draw_commands.free_positions = draw_commands.free_positions;
     }
@@ -50,7 +54,7 @@ DrawCommandBuffer Draw::allocateDrawCommandBuffer() {
 //---------------------------------------------------
 //: Register draw command
 //---------------------------------------------------
-DrawCommandID Draw::registerDrawCommand(MeshID mesh) {
+DrawCommandID Draw::registerDrawCommand(DrawQueueObject draw) {
     //: Get id from free positions
     DrawCommandID id{draw_commands.free_positions.begin()->value};
     
@@ -69,13 +73,11 @@ DrawCommandID Draw::registerDrawCommand(MeshID mesh) {
     
     //: Create indirect draw command
     std::vector<VkDrawIndexedIndirectCommand> cmd(1);
-    cmd.at(0).indexCount = meshes.paddings.at(mesh).index_size;
-    cmd.at(0).instanceCount = 1000;
-    cmd.at(0).firstIndex = meshes.paddings.at(mesh).index_last - meshes.paddings.at(mesh).index_size;
-    cmd.at(0).vertexOffset = meshes.paddings.at(mesh).vertex_last - meshes.paddings.at(mesh).vertex_size;
-    cmd.at(0).firstInstance = 0; //instance.instance_count * i++;
-    
-    //TODO: HANDLE MULTIPLE VERTEX FORMATS
+    cmd.at(0).indexCount = meshes.paddings.at(draw.mesh).index_size;
+    cmd.at(0).instanceCount = draw.instance_count;
+    cmd.at(0).firstIndex = meshes.paddings.at(draw.mesh).index_last - meshes.paddings.at(draw.mesh).index_size;
+    cmd.at(0).vertexOffset = meshes.paddings.at(draw.mesh).vertex_last - meshes.paddings.at(draw.mesh).vertex_size;
+    cmd.at(0).firstInstance = draw.instance_offset;
     
     //: Add to buffer
     Common::updateBuffer(draw_commands.buffer, (void*)cmd.data(), draw_command_size, id.value * draw_command_size);
@@ -142,14 +144,31 @@ DrawID Draw::registerDrawID(MeshID mesh) {
 //---------------------------------------------------
 //: Draw
 //      Adds a DrawID to the specified shader's render queue for draw indirect command creation
+//      Count adds that number of contiguous draw calls to the instance count
 //---------------------------------------------------
-void Draw::draw(ShaderID shader, DrawID id) {
+void Draw::draw(ShaderID shader, DrawID id, ui32 count) {
     //: Check if the DrawID is valid
     if (not draw_scene.objects.count(id))
         log::error("Using invalid DrawID (%d)", id.value);
+    auto &object = draw_scene.objects.at(id);
     
-    //: TEMP TODO: NEXT, KEEP HERE THE INSTANCE COUNT, OFFSETS, ... WITH THE DRAW COMMAND
-    temp_draw_queue[shader] = TempDrawObject{draw_scene.objects.at(id).mesh, DrawCommandID{0}};
+    //: Add to draw queue (first item)
+    auto it = std::find_if(draw_queue.begin(), draw_queue.end(), [&](const auto &d){
+        return d.shader == shader and d.batch == object.batch;
+    });
+    if (it == draw_queue.end()) {
+        DrawQueueObject new_draw{};
+        new_draw.shader = shader;
+        new_draw.batch = object.batch;
+        new_draw.mesh = object.mesh;
+        new_draw.instance_count = count;
+        new_draw.instance_offset = draw_scene.batches.at(object.batch).offset;
+        draw_queue.push_back(new_draw);
+    }
+    //: Add to draw queue (next items)
+    else {
+        it->instance_count += count;
+    }
 }
 
 //---------------------------------------------------
@@ -218,9 +237,12 @@ void Draw::allocateSceneBatchBlock(DrawBatchID batch) {
             
             //: TODO: Move this to a GPU buffer and create a double buffer with staging
             
-            //: Copy from previous buffer
-            if (last_block->offset + last_block->size > 0)
+            //: Copy from previous buffer and delete previous one
+            if (last_block->offset + last_block->size > 0) {
                 Common::copyBuffer(draw_scene.buffer, new_buffer, last_block->offset + last_block->size, 0);
+                Common::destroyBuffer(draw_scene.buffer);
+                buffer_list.erase(draw_scene.buffer);
+            }
             
             //: Update scene buffer and free blocks
             draw_scene.buffer = new_buffer;
@@ -241,9 +263,6 @@ void Draw::allocateSceneBatchBlock(DrawBatchID batch) {
             
             //: Map the buffer to the cpu
             vmaMapMemory(api.allocator, draw_scene.buffer.allocation, &draw_scene.buffer_data);
-            VK::deletion_queue_program.push_back([](){ vmaUnmapMemory(api.allocator, draw_scene.buffer.allocation); });
-            
-            //: TODO: Delete previous buffer
         }
     }
     
@@ -277,4 +296,43 @@ DrawInstanceData* Draw::getInstanceData(DrawID id, ui32 count) {
     auto &object = draw_scene.objects.at(id);
     auto &batch = draw_scene.batches.at(object.batch);
     return (DrawInstanceData*)draw_scene.buffer_data + object.batch_offset + batch.offset / sizeof(DrawInstanceData);
+}
+
+//---------------------------------------------------
+//: Build draw queue
+//---------------------------------------------------
+void Draw::buildDrawQueue() {
+    //: New draws
+    ui32 new_draw_count = 0;
+    for (auto &d : draw_queue) {
+        auto it = std::find_if(previous_draw_queue.begin(), previous_draw_queue.end(), [&d](const auto &i){
+            return i.shader == d.shader and i.batch == d.batch and i.instance_count == d.instance_count;
+        });
+        if (it == previous_draw_queue.end()) {
+            d.command = registerDrawCommand(d);
+            built_draw_queue[d.shader].push_back(d.command);
+            new_draw_count++;
+        }
+    }
+    
+    //: Removed draws
+    if (previous_draw_queue.size() + new_draw_count > draw_queue.size()) {
+        for (auto &d : previous_draw_queue) {
+            auto it = std::find_if(draw_queue.begin(), draw_queue.end(), [&d](const auto &i){
+                return i.shader == d.shader and i.batch == d.batch and i.instance_count == d.instance_count;
+            });
+            if (it == draw_queue.end()) {
+                removeDrawCommand(d.command);
+                auto it_ = std::find_if(built_draw_queue.at(d.shader).begin(), built_draw_queue.at(d.shader).end(), [&d](const auto &i){
+                    return i.value == d.command.value;
+                });
+                built_draw_queue.at(d.shader).erase(it_);
+                if (built_draw_queue.at(d.shader).size() == 0)
+                    built_draw_queue.erase(d.shader);
+            }
+        }
+    }
+    
+    previous_draw_queue = draw_queue;
+    draw_queue.clear();
 }

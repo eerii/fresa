@@ -853,9 +853,9 @@ void VK::recordRenderCommandBuffer() {
                 const ShaderPass& shader = Shader::getShader(shader_id);
                 //---Draw shaders---
                 if (shaders.types.at(shader_id) == SHADER_DRAW) {
-                    if (not temp_draw_queue.count(shader_id))
+                    if (not built_draw_queue.count(shader_id))
                         continue;
-                    auto& draw_object = temp_draw_queue.at(shader_id);
+                    auto& draw_objects = built_draw_queue.at(shader_id);
                     
                     //: Bind pipeline
                     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.pipeline);
@@ -869,11 +869,12 @@ void VK::recordRenderCommandBuffer() {
                     vkCmdBindVertexBuffers(cmd, 0, 1, &meshes.vertex_buffer.buffer, &vertex_offsets);
                     
                     //: Index buffer
-                    VkIndexType index_type = meshes.paddings.at(draw_object.mesh).index_bytes == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
-                    vkCmdBindIndexBuffer(cmd, meshes.index_buffer.buffer, VkDeviceSize{0}, index_type);
+                    //VkIndexType index_type = meshes.paddings.at(draw_object.mesh).index_bytes == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+                    vkCmdBindIndexBuffer(cmd, meshes.index_buffer.buffer, VkDeviceSize{0}, VK_INDEX_TYPE_UINT16);
                     
                     //: Draw indirect
-                    vkCmdDrawIndexedIndirect(cmd, draw_commands.buffer.buffer, draw_object.indirect.value * draw_command_size, 1, draw_command_size);
+                    for (auto &d_cmd : draw_objects)
+                        vkCmdDrawIndexedIndirect(cmd, draw_commands.buffer.buffer, d_cmd.value * draw_command_size, 1, draw_command_size);
                 }
                 
                 //---Post shaders---
@@ -1920,7 +1921,7 @@ IPipeline Common::createGraphicsPipeline(ShaderID shader, std::vector<std::pair<
 //Buffers
 //----------------------------------------
 
-BufferData Common::allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data, bool delete_with_program) {
+BufferData Common::allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data) {
     //---Buffers---
     //      These are regions of memory that store arbitrary data that the CPU, GPU or both can read
     //      We are using Vulkan Memory Allocator for allocating their memory in a bigger pool
@@ -1941,9 +1942,7 @@ BufferData Common::allocateBuffer(ui32 size, BufferUsage usage, BufferMemory mem
     
     if (vmaCreateBuffer(api.allocator, &create_info, &allocate_info, &buffer.buffer, &buffer.allocation, nullptr) != VK_SUCCESS)
         log::error("Failed to create a vulkan buffer");
-    
-    if (delete_with_program)
-        VK::deletion_queue_program.push_back([buffer](){ vmaDestroyBuffer(api.allocator, buffer.buffer, buffer.allocation); });
+    buffer_list.insert(buffer);
     
     buffer.memory = memory;
     
@@ -1972,7 +1971,7 @@ void Common::updateBuffer(BufferData &buffer, void *data, ui32 size, ui32 offset
         //: Staging buffer
         //      We want to make the vertex buffer accessible to the GPU in the most efficient way, so we use a staging buffer
         //      This is created in CPU only memory, in which we can easily map the vertex data
-        BufferData staging_buffer = allocateBuffer(size, BUFFER_USAGE_TRANSFER_SRC, BUFFER_MEMORY_CPU_ONLY, nullptr, false);
+        BufferData staging_buffer = allocateBuffer(size, BUFFER_USAGE_TRANSFER_SRC, BUFFER_MEMORY_CPU_ONLY, nullptr);
         
         //: Map data to staging buffer
         void* b;
@@ -1985,8 +1984,9 @@ void Common::updateBuffer(BufferData &buffer, void *data, ui32 size, ui32 offset
         //      and move data between the staging and buffer
         copyBuffer(staging_buffer, buffer, size, offset);
         
-        //: Delete staging buffer
-        vmaDestroyBuffer(api.allocator, staging_buffer.buffer, staging_buffer.allocation);
+        //: Destroy the staging buffer
+        Common::destroyBuffer(staging_buffer);
+        buffer_list.erase(staging_buffer);
     }
 }
 
@@ -2003,6 +2003,20 @@ void Common::copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset
     vkCmdCopyBuffer(command_buffer, src.buffer, dst.buffer, 1, &copy_region);
     
     VK::endSingleUseCommandBuffer(api.device, command_buffer, api.cmd.command_pools.at("transfer"), api.cmd.queues.transfer);
+}
+
+void Common::destroyBuffer(const BufferData &buffer) {
+    if (buffer.buffer == VK_NULL_HANDLE) {
+        log::warn("The buffer you are trying to delete is not valid");
+        return;
+    }
+    
+    VmaAllocationInfo info;
+    vmaGetAllocationInfo(api.allocator, buffer.allocation, &info);
+    if (info.pMappedData != nullptr)
+        vmaUnmapMemory(api.allocator, buffer.allocation);
+    
+    vmaDestroyBuffer(api.allocator, buffer.buffer, buffer.allocation);
 }
 
 void VK::updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size, ShaderID shader) {
@@ -2548,9 +2562,6 @@ void Graphics::render() {
     
     //: Render the frame
     VK::renderFrame();
-    
-    //: Clear draw queue
-    temp_draw_queue.clear();
 }
 
 void Graphics::present() {
@@ -2615,6 +2626,10 @@ void Graphics::clean() {
     for (auto it = VK::deletion_queue_swapchain.rbegin(); it != VK::deletion_queue_swapchain.rend(); ++it)
         (*it)();
     VK::deletion_queue_swapchain.clear();
+    
+    //: Clean buffers
+    for (auto &b : buffer_list)
+        Common::destroyBuffer(b);
     
     //: Delete program resources
     for (auto it = VK::deletion_queue_program.rbegin(); it != VK::deletion_queue_program.rend(); ++it)

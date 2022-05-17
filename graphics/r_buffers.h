@@ -5,6 +5,7 @@
 #pragma once
 
 #include "r_types.h"
+#include <set>
 
 namespace Fresa::Graphics
 {
@@ -70,6 +71,20 @@ namespace Fresa::Graphics
         )
         IF_OPENGL(ui32 buffer;)
         BufferMemory memory;
+        bool operator < (const BufferData &b) const { return buffer < b.buffer; }
+    };
+    
+    //: Block buffers
+    struct BlockBufferPartition {
+        ui32 size; //: In items
+        ui32 offset;
+    };
+    struct BlockBuffer {
+        BufferData buffer;
+        ui32 stride;
+        ui32 allocation_chunk;
+        std::vector<BlockBufferPartition> blocks;
+        std::vector<BlockBufferPartition> free_blocks;
     };
     
     //: Mesh buffer
@@ -87,6 +102,9 @@ namespace Fresa::Graphics
     
     //: Storage buffers
     inline std::map<StorageBufferID, BufferData> storage_buffers;
+    
+    //: List of all buffers for deletion purposes
+    inline std::set<BufferData> buffer_list;
     
     //---------------------------------------------------
     //: Systems
@@ -109,6 +127,11 @@ namespace Fresa::Graphics
         
         //: Register storage buffer
         StorageBufferID registerStorageBuffer(str name, ui32 size);
+        
+        //:
+        BlockBuffer createBlockBuffer(ui32 initial_size, ui32 stride, BufferUsage usage, BufferMemory memory);
+        
+        //:
     }
     
     //---------------------------------------------------
@@ -116,8 +139,9 @@ namespace Fresa::Graphics
     //      They are not implemented in this file, instead you can find them in each API code
     //---------------------------------------------------
     namespace Common {
-        BufferData allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data = nullptr, bool delete_with_program = true);
+        BufferData allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data = nullptr);
         void updateBuffer(BufferData &buffer, void* data, ui32 size, ui32 offset = 0);
         void copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset = 0, ui32 src_offset = 0);
+        void destroyBuffer(const BufferData &buffer);
     }
 }
