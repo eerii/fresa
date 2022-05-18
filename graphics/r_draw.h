@@ -15,11 +15,16 @@ namespace Fresa::Graphics
     //---------------------------------------------------
     
     //: Indirect draw command buffer id
-    using DrawCommandID = FresaType<ui16, struct DrawCommandTag>;
-    constexpr DrawCommandID no_draw_buffer{USHRT_MAX};
+    using DrawCommandID = ui32;
     
     //: Size of the draw indirect commands
     constexpr ui32 draw_command_size = IF_VULKAN(sizeof(VkDrawIndexedIndirectCommand)) IF_OPENGL(1);
+    
+    //: Mesh id (vertex + index blocks)
+    struct MeshID {
+        ui32 vertex;
+        ui32 index;
+    };
     
     //: Draw object id
     using DrawID = FresaType<ui32, struct DrawTag>;
@@ -32,11 +37,15 @@ namespace Fresa::Graphics
     //---------------------------------------------------
     
     //: Buffer holding the indirect draw command information, as well as the offsets for each command id
-    inline struct DrawCommandBuffer {
-        BufferData buffer;
-        std::vector<DrawCommandID> free_positions = { DrawCommandID{0} };
-        ui32 pool_size = 0;
-    } draw_commands;
+    inline BlockBuffer draw_commands;
+    
+    //: Mesh buffer
+    //      Contains two GPU buffers, one for all vertices and one for all indices
+    //      They are indexed by using a MeshID
+    inline struct MeshBuffers {
+        BlockBuffer vertex;
+        BlockBuffer index;
+    } meshes;
     
     //: Draw description that holds references to everything needed to render an object
     //      Indexed by DrawID, is the main identifier of each renderable item
@@ -89,15 +98,16 @@ namespace Fresa::Graphics
     //---------------------------------------------------
     
     namespace Draw {
-        //: Allocate draw command buffer
-        //      Creates or expands the draw command buffer by one chunk
-        DrawCommandBuffer allocateDrawCommandBuffer();
-        
         //: Register draw command
         DrawCommandID registerDrawCommand(DrawQueueObject draw);
         
-        //: Remove draw command
-        void removeDrawCommand(DrawCommandID id);
+        //: Add mesh vertices and indices to the mesh buffers
+        MeshID registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex_bytes, void* indices, ui32 indices_size, ui8 index_bytes);
+        template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
+        MeshID registerMesh(const std::vector<V> &vertices, const std::vector<I> &indices) {
+            return registerMeshInternal((void*)vertices.data(), (ui32)vertices.size(), (ui8)sizeof(V),
+                                        (void*)indices.data(), (ui32)indices.size(), (ui8)sizeof(I));
+        }
         
         //: Register draw id
         //      Using some relevant information (mesh, ...) create a DrawID handle and add it to batches

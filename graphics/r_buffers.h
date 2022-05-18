@@ -14,7 +14,6 @@ namespace Fresa::Graphics
     //---------------------------------------------------
     
     //: Indexing IDs
-    using MeshID = FresaType<ui16, struct MeshTag>;
     using UniformBufferID = FresaType<ui16, struct UniformTag>;
     using StorageBufferID = FresaType<ui16, struct StorageTag>;
     
@@ -45,19 +44,6 @@ namespace Fresa::Graphics
     };
     using BufferUsageT = IF_VULKAN(VkBufferUsageFlags) IF_OPENGL(BufferUsage);
     
-    //: Paddings of each mesh for each of the big vertex and index buffers
-    struct MeshPadding {
-        ui32 vertex_last;   //: Number of the last vertex
-        ui32 vertex_offset; //: Offset in bytes of the first vertex
-        ui32 vertex_size;   //: Number of vertices in this block
-        ui8 vertex_bytes;   //: Bytes of one vertex
-        
-        ui32 index_last;
-        ui32 index_offset;
-        ui32 index_size;
-        ui8 index_bytes;
-    };
-    
     //---------------------------------------------------
     //: Data
     //---------------------------------------------------
@@ -76,26 +62,19 @@ namespace Fresa::Graphics
     
     //: Block buffers
     struct BlockBufferPartition {
-        ui32 size; //: In items
+        ui32 size;
         ui32 offset;
+        std::vector<ui32> free_positions;
     };
     struct BlockBuffer {
         BufferData buffer;
+        BufferUsage usage;
         ui32 stride;
         ui32 allocation_chunk;
-        std::vector<BlockBufferPartition> blocks;
+        std::map<ui32, BlockBufferPartition> blocks;
         std::vector<BlockBufferPartition> free_blocks;
+        std::function<void(BufferData &buffer)> grow_callback;
     };
-    
-    //: Mesh buffer
-    //      Contains two GPU buffers, one for all vertices and one for all indices
-    //      They are indexed by using a MeshID that returns a padding for both
-    inline struct MeshBuffers {
-        BufferData vertex_buffer;
-        BufferData index_buffer;
-        std::map<MeshID, MeshPadding> paddings;
-        ui32 pool_size = 0;
-    } meshes;
     
     //: Uniform buffers
     inline std::map<UniformBufferID, BufferData> uniform_buffers; //TODO: One buffer offset per frame in flight
@@ -111,17 +90,6 @@ namespace Fresa::Graphics
     //---------------------------------------------------
     
     namespace Buffer {
-        //: Allocate or grow vertex and index buffers
-        MeshBuffers allocateMeshBuffer();
-        
-        //: Add mesh vertices and indices to the mesh buffers
-        MeshID registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex_bytes, void* indices, ui32 indices_size, ui8 index_bytes);
-        template <typename V, typename I, std::enable_if_t<Reflection::is_reflectable<V> && std::is_integral_v<I>, bool> = true>
-        MeshID registerMesh(const std::vector<V> &vertices, const std::vector<I> &indices) {
-            return registerMeshInternal((void*)vertices.data(), (ui32)vertices.size(), (ui8)sizeof(V),
-                                        (void*)indices.data(), (ui32)indices.size(), (ui8)sizeof(I));
-        }
-        
         //: Register uniform buffer
         UniformBufferID registerUniformBuffer(ui32 size);
         
@@ -129,9 +97,14 @@ namespace Fresa::Graphics
         StorageBufferID registerStorageBuffer(str name, ui32 size);
         
         //:
-        BlockBuffer createBlockBuffer(ui32 initial_size, ui32 stride, BufferUsage usage, BufferMemory memory);
+        BlockBuffer createBlockBuffer(ui32 initial_size, ui32 stride, BufferUsage usage, BufferMemory memory,
+                                      std::function<void(BufferData &buffer)> grow_callback = [](BufferData &b){});
         
         //:
+        ui32 addToBlockBuffer(BlockBuffer &buffer, ui32 block, void* data = nullptr, ui32 count = 1, bool exact = false);
+        
+        //:
+        void growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size = 0, bool exact = false);
     }
     
     //---------------------------------------------------

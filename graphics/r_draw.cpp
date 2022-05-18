@@ -11,89 +11,60 @@
 using namespace Fresa;
 using namespace Graphics;
 
-constexpr ui32 draw_command_pool_chunk = 256 * draw_command_size;
 constexpr ui32 draw_batch_chunk = 1024 * sizeof(DrawInstanceData);
 constexpr ui32 draw_batch_buffer_grow_amount = 4 * draw_batch_chunk;
 constexpr ui32 no_draw_block_offset = UINT_MAX;
 
 //---------------------------------------------------
-//: Allocate draw indirect command buffer
-//      Creates a new draw indirect buffer expanding the previous size and, if existent, copy the previous contents
-//---------------------------------------------------
-DrawCommandBuffer Draw::allocateDrawCommandBuffer() {
-    DrawCommandBuffer new_draw_commands;
-    
-    //: Expand the buffer size by one chunk
-    ui32 previous_size = draw_commands.pool_size;
-    new_draw_commands.pool_size = previous_size + draw_command_pool_chunk;
-    
-    //: Allocate the draw command buffers
-    new_draw_commands.buffer = Common::allocateBuffer(new_draw_commands.pool_size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
-    
-    //: Sort the free positions
-    std::sort(draw_commands.free_positions.begin(), draw_commands.free_positions.end(), [](auto &a, auto &b)->bool{ return a.value < b.value; });
-    
-    //: If it has contents, copy them to the new buffers
-    //      Finds the last element (the one with the highest offset), then copies the buffer from the beginning to the offset + size of the last element
-    //      Should be reasonably efficient providing the elements are tightly packed
-    if (draw_commands.free_positions.rbegin()->value > 0) {
-        //: Copy the previous command buffer
-        Common::copyBuffer(draw_commands.buffer, new_draw_commands.buffer, draw_commands.free_positions.end()->value * draw_command_size);
-        
-        //: Delete previous buffer
-        Common::destroyBuffer(draw_commands.buffer);
-        buffer_list.erase(draw_commands.buffer);
-        
-        //: Copy free positions
-        new_draw_commands.free_positions = draw_commands.free_positions;
-    }
-    
-    return new_draw_commands;
-}
-
-//---------------------------------------------------
 //: Register draw command
 //---------------------------------------------------
 DrawCommandID Draw::registerDrawCommand(DrawQueueObject draw) {
-    //: Get id from free positions
-    DrawCommandID id{draw_commands.free_positions.begin()->value};
-    
-    //: Check if the id is out of bounds and recreate the command buffer
-    if ((id.value + 1) * draw_command_size > draw_commands.pool_size) {
-        draw_commands = allocateDrawCommandBuffer();
-        if (draw_commands.pool_size > draw_command_pool_chunk)
-            log::warn("Growing draw command buffer more than one pool chunk, consider increasing it for efficiency");
-    }
-    
-    //: Update free positions
-    if (id.value == draw_commands.free_positions.rbegin()->value)
-        draw_commands.free_positions.rbegin()->value++;
-    else
-        draw_commands.free_positions.erase(draw_commands.free_positions.begin());
+    //: Check if block buffer is available
+    if (draw_commands.buffer.buffer == VK_NULL_HANDLE)
+        draw_commands = Buffer::createBlockBuffer(256, draw_command_size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
     
     //: Create indirect draw command
     std::vector<VkDrawIndexedIndirectCommand> cmd(1);
-    cmd.at(0).indexCount = meshes.paddings.at(draw.mesh).index_size;
+    cmd.at(0).indexCount = meshes.index.blocks.at(draw.mesh.index).size;
     cmd.at(0).instanceCount = draw.instance_count;
-    cmd.at(0).firstIndex = meshes.paddings.at(draw.mesh).index_last - meshes.paddings.at(draw.mesh).index_size;
-    cmd.at(0).vertexOffset = meshes.paddings.at(draw.mesh).vertex_last - meshes.paddings.at(draw.mesh).vertex_size;
+    cmd.at(0).firstIndex = meshes.index.blocks.at(draw.mesh.index).offset;
+    cmd.at(0).vertexOffset = meshes.vertex.blocks.at(draw.mesh.vertex).offset;
     cmd.at(0).firstInstance = draw.instance_offset;
     
-    //: Add to buffer
-    Common::updateBuffer(draw_commands.buffer, (void*)cmd.data(), draw_command_size, id.value * draw_command_size);
-    
-    return id;
+    //: Add to block buffer
+    return Buffer::addToBlockBuffer(draw_commands, 0, (void*)cmd.data(), (ui32)cmd.size());
 }
 
 //---------------------------------------------------
-//: Remove draw command
+//: Register mesh
+//      Adds the mesh data to the mesh buffers with the appropiate offset and padding
+//      Also checks if the buffer is too small and extends it otherwise
+//      Returns a MeshID for referencing during draw
 //---------------------------------------------------
-void Draw::removeDrawCommand(DrawCommandID id) {
-    //: Add id to free positions
-    draw_commands.free_positions.push_back(id);
+MeshID Draw::registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex_bytes, void* indices, ui32 indices_size, ui8 index_bytes) {
+    MeshID id{};
     
-    //: Sort the draw commands
-    std::sort(draw_commands.free_positions.begin(), draw_commands.free_positions.end(), [](auto &a, auto &b)->bool{ return a.value < b.value; });
+    //: Check if block buffers are created, if not, allocate them
+    if (meshes.vertex.buffer.buffer == VK_NULL_HANDLE)
+        meshes.vertex = Buffer::createBlockBuffer(4092, vertex_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_VERTEX), BUFFER_MEMORY_GPU_ONLY);
+    if (meshes.index.buffer.buffer == VK_NULL_HANDLE)
+        meshes.index = Buffer::createBlockBuffer(4092, index_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDEX), BUFFER_MEMORY_GPU_ONLY);
+    
+    //: Check index bytes
+    if (not (index_bytes == 2 or index_bytes == 4))
+        log::error("Index buffers support ui16 (2 bytes) and ui32 (4 bytes) formats, but you loaded one index with %d bytes", index_bytes);
+    
+    //: Add data to buffers
+    id.vertex = (ui32)meshes.vertex.blocks.size();
+    if (Buffer::addToBlockBuffer(meshes.vertex, id.vertex, vertices, vertices_size, true) != 0)
+        log::error("You are allocating two meshes with the same id");
+    id.index = (ui32)meshes.index.blocks.size();
+    if (Buffer::addToBlockBuffer(meshes.index, id.index, indices, indices_size, true) != 0)
+        log::error("You are allocating two meshes with the same id");
+    
+    log::info("%d %d", meshes.vertex.blocks.at(id.vertex).size, meshes.vertex.blocks.at(id.vertex).offset);
+    
+    return id;
 }
 
 //---------------------------------------------------
@@ -114,7 +85,8 @@ DrawID Draw::registerDrawID(MeshID mesh) {
     //: Calculate draw batch hash
     //      For now it uses the mesh id, but in the future it can reference more properties
     std::stringstream ss;
-    ss << draw.mesh.value;
+    ss << draw.mesh.vertex;
+    ss << draw.mesh.index;
     auto s = ss.str();
     draw.batch = DrawBatchID{Math::hash(s.c_str(), s.size())};
     
@@ -316,7 +288,7 @@ void Draw::buildDrawQueue() {
     }
     
     //: Removed draws
-    if (previous_draw_queue.size() + new_draw_count > draw_queue.size()) {
+    /*if (previous_draw_queue.size() + new_draw_count > draw_queue.size()) {
         for (auto &d : previous_draw_queue) {
             auto it = std::find_if(draw_queue.begin(), draw_queue.end(), [&d](const auto &i){
                 return i.shader == d.shader and i.batch == d.batch and i.instance_count == d.instance_count;
@@ -331,7 +303,7 @@ void Draw::buildDrawQueue() {
                     built_draw_queue.erase(d.shader);
             }
         }
-    }
+    }*/
     
     previous_draw_queue = draw_queue;
     draw_queue.clear();

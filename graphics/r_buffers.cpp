@@ -7,114 +7,6 @@
 using namespace Fresa;
 using namespace Graphics;
 
-constexpr ui32 mesh_pool_chunk = 256000; // 256kb * 2
-
-//---------------------------------------------------
-//: Allocate mesh buffer
-//      Create a new mesh buffer expanding the previous size and, if existent, copy the previous contents
-//---------------------------------------------------
-MeshBuffers Buffer::allocateMeshBuffer() {
-    MeshBuffers new_meshes;
-    
-    //: Expand the buffer size by one chunk
-    new_meshes.pool_size = meshes.pool_size + mesh_pool_chunk;
-    
-    //: Allocate the vertex and index buffers
-    new_meshes.vertex_buffer = Common::allocateBuffer(new_meshes.pool_size, BufferUsage(BUFFER_USAGE_VERTEX | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT), BUFFER_MEMORY_GPU_ONLY);
-    new_meshes.index_buffer = Common::allocateBuffer(new_meshes.pool_size, BufferUsage(BUFFER_USAGE_INDEX | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT), BUFFER_MEMORY_GPU_ONLY);
-    
-    //: If it has contents, copy them to the new buffers
-    //      Finds the last element (the one with the highest offset) for the vertex and index buffers
-    //      Then copies the buffer from the beginning to the offset + size of the last element
-    //      Should be reasonably efficient providing the elements are tightly packed
-    if (meshes.paddings.size() > 0) {
-        //: Vertex buffer
-        auto last_vertex = std::max_element(meshes.paddings.begin(), meshes.paddings.end(),
-                                            [](auto &a, auto &b)->bool{ return a.second.vertex_offset < b.second.vertex_offset; } );
-        Common::copyBuffer(meshes.vertex_buffer, new_meshes.vertex_buffer,
-                           last_vertex->second.vertex_offset + last_vertex->second.vertex_size * last_vertex->second.vertex_bytes);
-        
-        //: Index buffer
-        auto last_index = std::max_element(meshes.paddings.begin(), meshes.paddings.end(),
-                                           [](auto &a, auto &b)->bool{ return a.second.index_offset < b.second.index_offset; } );
-        Common::copyBuffer(meshes.index_buffer, new_meshes.index_buffer,
-                           last_index->second.index_offset + last_index->second.index_size * last_index->second.index_bytes);
-        
-        //: Copy mesh paddings
-        new_meshes.paddings = meshes.paddings;
-        
-        //: Delete previous buffers
-        Common::destroyBuffer(meshes.vertex_buffer);
-        Common::destroyBuffer(meshes.index_buffer);
-        buffer_list.erase(meshes.vertex_buffer);
-        buffer_list.erase(meshes.index_buffer);
-    }
-    
-    return new_meshes;
-}
-
-//---------------------------------------------------
-//: Register mesh
-//      Adds the mesh data to the mesh buffers with the appropiate offset and padding
-//      Also checks if the buffer is too small and extends it otherwise
-//      Returns a MeshID for referencing during draw
-//---------------------------------------------------
-MeshID Buffer::registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex_bytes, void* indices, ui32 indices_size, ui8 index_bytes) {
-    MeshID id{0};
-    ui32 vertices_offset = 0;
-    ui32 indices_offset = 0;
-    ui32 vertex_count = vertices_size;
-    ui32 index_count = indices_size;
-    
-    //: Error checking
-    if (vertices_size * vertex_bytes > mesh_pool_chunk)
-        log::error("Adding vertices to the mesh buffer with a size of %d but the max pool chunk is %d", vertices_size, mesh_pool_chunk);
-    if (indices_size * index_bytes > mesh_pool_chunk)
-        log::error("Adding indices to the mesh buffer with a size of %d but the max pool chunk is %d", indices_size, mesh_pool_chunk);
-    
-    //: If there are more meshes
-    if (meshes.paddings.size() > 0) {
-        //: Find new mesh id
-        id = meshes.paddings.rbegin()->first;
-        do { id = id + 1; } while (meshes.paddings.count(id));
-        
-        //: Get last elements so we can use the offset
-        auto last_vertex = std::max_element(meshes.paddings.begin(), meshes.paddings.end(),
-                                            [](auto &a, auto &b)->bool{ return a.second.vertex_offset < b.second.vertex_offset; } );
-        auto last_index = std::max_element(meshes.paddings.begin(), meshes.paddings.end(),
-                                           [](auto &a, auto &b)->bool{ return a.second.index_offset < b.second.index_offset; } );
-        
-        //: Offset of the first vertex in bytes
-        vertices_offset = last_vertex->second.vertex_offset + last_vertex->second.vertex_size * last_vertex->second.vertex_bytes;
-        indices_offset = last_index->second.index_offset + last_index->second.index_size * last_index->second.index_bytes;
-        
-        //: Number of the last vertex
-        vertex_count += last_vertex->second.vertex_last;
-        index_count += last_index->second.index_last;
-    }
-    
-    //: Grow mesh buffer if it is full
-    if (vertices_offset + vertices_size * vertex_bytes > meshes.pool_size or indices_offset + indices_size * index_bytes > meshes.pool_size) {
-        meshes = allocateMeshBuffer();
-        if (meshes.pool_size > mesh_pool_chunk)
-            log::warn("Growing mesh buffer more than one pool chunk, consider increasing it for efficiency");
-    }
-    
-    //: Update buffers
-    Common::updateBuffer(meshes.vertex_buffer, vertices, vertices_size * vertex_bytes, vertices_offset);
-    Common::updateBuffer(meshes.index_buffer, indices, indices_size * index_bytes, indices_offset);
-    
-    //: Check index bytes
-    if (not (index_bytes == 2 or index_bytes == 4))
-        log::error("Index buffers support ui16 (2 bytes) and ui32 (4 bytes) formats, but you loaded one index with %d bytes", index_bytes);
-    
-    //: Update paddings
-    meshes.paddings[id] = MeshPadding{vertex_count, vertices_offset, vertices_size, vertex_bytes,
-                                      index_count, indices_offset, indices_size, index_bytes};
-    
-    return id;
-}
-
 //---------------------------------------------------
 //: Register uniform buffer
 //---------------------------------------------------
@@ -155,19 +47,145 @@ StorageBufferID Buffer::registerStorageBuffer(str name, ui32 size) {
 //: Create a block buffer
 //      All of the sizes are in items, they must all be multiplied by stride when talking about memory
 //---------------------------------------------------
-BlockBuffer Buffer::createBlockBuffer(ui32 initial_size, ui32 stride, BufferUsage usage, BufferMemory memory) {
+BlockBuffer Buffer::createBlockBuffer(ui32 initial_size, ui32 stride, BufferUsage usage, BufferMemory memory,
+                                      std::function<void(BufferData &buffer)> callback) {
     BlockBuffer buffer{};
     
     //: Buffer parameters
     buffer.stride = stride;
     buffer.allocation_chunk = initial_size;
+    buffer.usage = usage;
     
     //: Allocate buffer
     buffer.buffer = Common::allocateBuffer(initial_size * stride, usage, memory);
     
     //: Blocks
     buffer.blocks = {};
-    buffer.free_blocks = {{initial_size, 0}};
+    buffer.free_blocks = {{initial_size, 0, {}}};
+    
+    //: Callback
+    buffer.grow_callback = callback;
     
     return buffer;
+}
+
+//---------------------------------------------------
+//:
+//---------------------------------------------------
+ui32 Buffer::addToBlockBuffer(BlockBuffer &buffer, ui32 block, void* data, ui32 count, bool exact) {
+    //: There is no block, create a new one
+    if (not buffer.blocks.count(block)) {
+        buffer.blocks[block] = BlockBufferPartition{0, 0, {0}};
+        growBlockBuffer(buffer, block, count, exact);
+    }
+    
+    //: Get new index inside the block
+    auto &free_pos = buffer.blocks.at(block).free_positions;
+    ui32 index = free_pos.at(0);
+    
+    //: Update the free positions for this block
+    if (free_pos.size() == 1) {
+        free_pos.at(0) += count;
+        if (free_pos.at(0) >= buffer.blocks.at(block).size)
+            growBlockBuffer(buffer, block, count, exact);
+    } else {
+         free_pos.erase(free_pos.begin());
+    }
+    
+    //: Add value to buffer
+    if (data != nullptr)
+        Common::updateBuffer(buffer.buffer, data, count * buffer.stride, (buffer.blocks.at(block).offset + index) * buffer.stride);
+    
+    return index;
+}
+
+//---------------------------------------------------
+//:
+//---------------------------------------------------
+void flattenFreeBlocks(std::vector<BlockBufferPartition> &free_blocks) {
+    //: Sort
+    std::sort(free_blocks.begin(), free_blocks.end(), [](auto &a, auto &b){ return a.offset < b.offset; });
+    
+    //: New flat vector
+    std::vector<BlockBufferPartition> flat_blocks = { free_blocks.at(0) };
+    
+    //: Flatten
+    for (int i = 1; i < free_blocks.size(); i++) {
+        if (free_blocks.at(i).offset == flat_blocks.rbegin()->offset + flat_blocks.rbegin()->size)
+            flat_blocks.rbegin()->size += free_blocks.at(i).size;
+        else
+            flat_blocks.push_back(free_blocks.at(i));
+    }
+    
+    free_blocks = flat_blocks;
+}
+
+void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool exact) {
+    auto &b = buffer.blocks.at(block);
+    
+    //: Closest whole multiple of the allocation chunk that fits size
+    ui32 grow_size = exact ? size : std::ceil(std::max(buffer.allocation_chunk, size) / buffer.allocation_chunk) * buffer.allocation_chunk;
+    ui32 new_size = grow_size + b.size;
+    
+    //: Add previous offset to free blocks, and flatten free blocks list
+    if (b.size > 0)
+        buffer.free_blocks.push_back(BlockBufferPartition{b.size, b.offset, {0}});
+    flattenFreeBlocks(buffer.free_blocks);
+    
+    //: Find new position inside the buffer
+    std::optional<ui32> new_offset;
+    for (int i = (int)buffer.free_blocks.size() - 1; i >= 0; i--) {
+        if (buffer.free_blocks.at(i).size >= new_size) {
+            //: Found suitable offset
+            new_offset = buffer.free_blocks.at(i).offset;
+            //: Update free block list
+            if (i == buffer.free_blocks.size() - 1 or buffer.free_blocks.at(i).size > new_size) {
+                buffer.free_blocks.at(i).offset += new_size;
+                buffer.free_blocks.at(i).size -= new_size;
+            } else {
+                buffer.free_blocks.erase(buffer.free_blocks.begin() + i);
+            }
+            break;
+        }
+    }
+    
+    //: If there is no space left, grow buffer
+    if (not new_offset.has_value()) {
+        //: Calculate new size
+        auto last_block = std::max_element(buffer.free_blocks.begin(), buffer.free_blocks.end(),
+                                           [](auto &a, auto &b)->bool{ return a.offset + a.size < b.offset + b.size; } );
+        ui32 new_buffer_size = last_block->offset + last_block->size + grow_size;
+        
+        //: Allocate new buffer
+        BufferData new_buffer = Common::allocateBuffer(new_buffer_size * buffer.stride, buffer.usage, buffer.buffer.memory);
+        //TODO: Move this to a GPU buffer and create a double buffer with staging
+        
+        //: Copy from previous buffer and delete previous one
+        if (b.size > 0) {
+            Common::copyBuffer(buffer.buffer, new_buffer, (last_block->offset + last_block->size) * buffer.stride, 0);
+            Common::destroyBuffer(buffer.buffer);
+            buffer_list.erase(buffer.buffer);
+        }
+        
+        //: Update buffer data and free blocks
+        buffer.buffer = new_buffer;
+        new_offset = buffer.free_blocks.rbegin()->offset;
+        buffer.free_blocks.rbegin()->offset += size;
+        buffer.free_blocks.rbegin()->size += grow_size;
+        
+        //: Callback actions when the buffer is expanded and changes reference
+        buffer.grow_callback(buffer.buffer);
+        
+        //TODO: Link new buffer to shaders that use it (draw buffer, reserved buffers)
+        
+        //TODO: Map the buffer to the cpu
+    }
+    
+    //: Copy block if growing
+    if (b.size > 0)
+        Common::copyBuffer(buffer.buffer, buffer.buffer, b.size * buffer.stride, new_offset.value() * buffer.stride, b.offset * buffer.stride);
+    
+    //: Update block info
+    b.size = new_size;
+    b.offset = new_offset.value();
 }
