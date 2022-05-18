@@ -202,7 +202,7 @@ ShaderData GL::createShaderDataGL(ShaderID shader) {
     return data;
 }
 
-Common::InternalShaderModule Common::createInternalShaderModule(const std::vector<ui32> &code, ShaderStage stage) {
+Common::InternalShaderModule Shader::API::createInternalShaderModule(const std::vector<ui32> &code, ShaderStage stage) {
     //---SPIRV conversion---
     
     //: Variables where the GLSL converted code will be saved

@@ -20,7 +20,7 @@ constexpr ui32 no_draw_block_offset = UINT_MAX;
 //---------------------------------------------------
 DrawCommandID Draw::registerDrawCommand(DrawQueueObject draw) {
     //: Check if block buffer is available
-    if (draw_commands.buffer.buffer == VK_NULL_HANDLE)
+    if (draw_commands.buffer.buffer == no_buffer)
         draw_commands = Buffer::createBlockBuffer(256, draw_command_size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
     
     //: Create indirect draw command
@@ -45,9 +45,9 @@ MeshID Draw::registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex
     MeshID id{};
     
     //: Check if block buffers are created, if not, allocate them
-    if (meshes.vertex.buffer.buffer == VK_NULL_HANDLE)
+    if (meshes.vertex.buffer.buffer == no_buffer)
         meshes.vertex = Buffer::createBlockBuffer(4092, vertex_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_VERTEX), BUFFER_MEMORY_GPU_ONLY);
-    if (meshes.index.buffer.buffer == VK_NULL_HANDLE)
+    if (meshes.index.buffer.buffer == no_buffer)
         meshes.index = Buffer::createBlockBuffer(4092, index_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDEX), BUFFER_MEMORY_GPU_ONLY);
     
     //: Check index bytes
@@ -61,8 +61,6 @@ MeshID Draw::registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex
     id.index = (ui32)meshes.index.blocks.size();
     if (Buffer::addToBlockBuffer(meshes.index, id.index, indices, indices_size, true) != 0)
         log::error("You are allocating two meshes with the same id");
-    
-    log::info("%d %d", meshes.vertex.blocks.at(id.vertex).size, meshes.vertex.blocks.at(id.vertex).offset);
     
     return id;
 }
@@ -205,14 +203,14 @@ void Draw::allocateSceneBatchBlock(DrawBatchID batch) {
                 new_buffer_size += draw_batch_buffer_grow_amount;
             
             //: Allocate new buffer
-            BufferData new_buffer = Common::allocateBuffer(new_buffer_size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_BOTH);
+            BufferData new_buffer = Buffer::API::allocateBuffer(new_buffer_size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_BOTH);
             
             //: TODO: Move this to a GPU buffer and create a double buffer with staging
             
             //: Copy from previous buffer and delete previous one
             if (last_block->offset + last_block->size > 0) {
-                Common::copyBuffer(draw_scene.buffer, new_buffer, last_block->offset + last_block->size, 0);
-                Common::destroyBuffer(draw_scene.buffer);
+                Buffer::API::copyBuffer(draw_scene.buffer, new_buffer, last_block->offset + last_block->size, 0);
+                Buffer::API::destroyBuffer(draw_scene.buffer);
                 buffer_list.erase(draw_scene.buffer);
             }
             
@@ -228,7 +226,7 @@ void Draw::allocateSceneBatchBlock(DrawBatchID batch) {
                             continue;
                         auto r_id = std::get<StorageBufferID>(res.id);
                         if (reserved_buffers.count(r_id) and reserved_buffers.at(r_id) == "InstanceBuffer")
-                            Common::linkDescriptorResources(id);
+                            Shader::API::linkDescriptorResources(id);
                     }
                 }
             }
@@ -240,7 +238,7 @@ void Draw::allocateSceneBatchBlock(DrawBatchID batch) {
     
     //: Copy block if growing
     if (new_block.size > draw_batch_chunk)
-        Common::copyBuffer(draw_scene.buffer, draw_scene.buffer, previous_block.size, new_block.offset, previous_block.offset);
+        Buffer::API::copyBuffer(draw_scene.buffer, draw_scene.buffer, previous_block.size, new_block.offset, previous_block.offset);
     
     //: Save to draw scene
     draw_scene.batches[batch] = new_block;

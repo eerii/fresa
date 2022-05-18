@@ -16,7 +16,7 @@ UniformBufferID Buffer::registerUniformBuffer(ui32 size) {
     do { id.value++; } while (id == no_uniform_buffer or uniform_buffers.count(UniformBufferID{id}));
     
     //: Allocate new buffer
-    uniform_buffers[id] = Common::allocateBuffer(size, BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
+    uniform_buffers[id] = Buffer::API::allocateBuffer(size, BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
     
     return id;
 }
@@ -38,7 +38,7 @@ StorageBufferID Buffer::registerStorageBuffer(str name, ui32 size) {
     do { id.value++; } while (id == no_storage_buffer or storage_buffers.count(StorageBufferID{id}));
     
     //: Allocate new buffer
-    storage_buffers[id] = Common::allocateBuffer(size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);
+    storage_buffers[id] = Buffer::API::allocateBuffer(size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);
     
     return id;
 }
@@ -57,7 +57,7 @@ BlockBuffer Buffer::createBlockBuffer(ui32 initial_size, ui32 stride, BufferUsag
     buffer.usage = usage;
     
     //: Allocate buffer
-    buffer.buffer = Common::allocateBuffer(initial_size * stride, usage, memory);
+    buffer.buffer = Buffer::API::allocateBuffer(initial_size * stride, usage, memory);
     
     //: Blocks
     buffer.blocks = {};
@@ -94,7 +94,7 @@ ui32 Buffer::addToBlockBuffer(BlockBuffer &buffer, ui32 block, void* data, ui32 
     
     //: Add value to buffer
     if (data != nullptr)
-        Common::updateBuffer(buffer.buffer, data, count * buffer.stride, (buffer.blocks.at(block).offset + index) * buffer.stride);
+        Buffer::API::updateBuffer(buffer.buffer, data, count * buffer.stride, (buffer.blocks.at(block).offset + index) * buffer.stride);
     
     return index;
 }
@@ -157,13 +157,13 @@ void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool ex
         ui32 new_buffer_size = last_block->offset + last_block->size + grow_size;
         
         //: Allocate new buffer
-        BufferData new_buffer = Common::allocateBuffer(new_buffer_size * buffer.stride, buffer.usage, buffer.buffer.memory);
+        BufferData new_buffer = Buffer::API::allocateBuffer(new_buffer_size * buffer.stride, buffer.usage, buffer.buffer.memory);
         //TODO: Move this to a GPU buffer and create a double buffer with staging
         
         //: Copy from previous buffer and delete previous one
         if (b.size > 0) {
-            Common::copyBuffer(buffer.buffer, new_buffer, (last_block->offset + last_block->size) * buffer.stride, 0);
-            Common::destroyBuffer(buffer.buffer);
+            Buffer::API::copyBuffer(buffer.buffer, new_buffer, (last_block->offset + last_block->size) * buffer.stride, 0);
+            Buffer::API::destroyBuffer(buffer.buffer);
             buffer_list.erase(buffer.buffer);
         }
         
@@ -183,7 +183,7 @@ void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool ex
     
     //: Copy block if growing
     if (b.size > 0)
-        Common::copyBuffer(buffer.buffer, buffer.buffer, b.size * buffer.stride, new_offset.value() * buffer.stride, b.offset * buffer.stride);
+        Buffer::API::copyBuffer(buffer.buffer, buffer.buffer, b.size * buffer.stride, new_offset.value() * buffer.stride, b.offset * buffer.stride);
     
     //: Update block info
     b.size = new_size;

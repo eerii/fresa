@@ -176,7 +176,7 @@ void Graphics::processRendererDescription() {
             #if defined USE_VULKAN
                 //: TODO: REFACTOR
                 std::vector<std::pair<str, VertexInputRate>> vertex_descriptions = {{line.at(3), INPUT_RATE_VERTEX}};
-                shaders.list.at(type).at(shader).pipeline = Common::createGraphicsPipeline(shader, vertex_descriptions);
+                shaders.list.at(type).at(shader).pipeline = Shader::API::createGraphicsPipeline(shader, vertex_descriptions);
             #elif defined USE_OPENGL
                 api.shaders.at(shader).subpass = subpass;
             #endif

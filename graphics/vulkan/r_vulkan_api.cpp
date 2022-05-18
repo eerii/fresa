@@ -1479,7 +1479,7 @@ void VK::recreateRenderPasses(Vulkan &vk) {
 //Shaders
 //----------------------------------------
 
-IShaderModule Common::createInternalShaderModule(const std::vector<ui32> &code, ShaderStage stage) {
+IShaderModule Shader::API::createInternalShaderModule(const std::vector<ui32> &code, ShaderStage stage) {
     VkShaderModuleCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     create_info.codeSize = code.size() * sizeof(ui32);
@@ -1901,10 +1901,10 @@ VkPipeline VK::buildGraphicsPipeline(const PipelineCreateData &data, ShaderID sh
     return pipeline;
 }
 
-IPipeline Common::createGraphicsPipeline(ShaderID shader, std::vector<std::pair<str, VertexInputRate>> vertices) {
+IPipeline Shader::API::createGraphicsPipeline(ShaderID shader, std::vector<std::pair<str, VertexInputRate>> vertices) {
     log::graphics("Pipeline %s", shader.value.c_str());
     
-    Common::linkDescriptorResources(shader);
+    Shader::API::linkDescriptorResources(shader);
     VK::linkPipelineDescriptors(shader);
     
     VK::Pipeline::ConfigData config{};
@@ -1921,7 +1921,7 @@ IPipeline Common::createGraphicsPipeline(ShaderID shader, std::vector<std::pair<
 //Buffers
 //----------------------------------------
 
-BufferData Common::allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data) {
+BufferData Buffer::API::allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data) {
     //---Buffers---
     //      These are regions of memory that store arbitrary data that the CPU, GPU or both can read
     //      We are using Vulkan Memory Allocator for allocating their memory in a bigger pool
@@ -1953,7 +1953,7 @@ BufferData Common::allocateBuffer(ui32 size, BufferUsage usage, BufferMemory mem
     return buffer;
 }
 
-void Common::updateBuffer(BufferData &buffer, void *data, ui32 size, ui32 offset) {
+void Buffer::API::updateBuffer(BufferData &buffer, void *data, ui32 size, ui32 offset) {
     if (data == nullptr)
         log::error("You are trying to update a buffer with a nullptr");
     
@@ -1985,12 +1985,12 @@ void Common::updateBuffer(BufferData &buffer, void *data, ui32 size, ui32 offset
         copyBuffer(staging_buffer, buffer, size, offset);
         
         //: Destroy the staging buffer
-        Common::destroyBuffer(staging_buffer);
+        Buffer::API::destroyBuffer(staging_buffer);
         buffer_list.erase(staging_buffer);
     }
 }
 
-void Common::copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset, ui32 src_offset) {
+void Buffer::API::copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset, ui32 src_offset) {
     //---Copy buffer---
     //      Simple function that creates a command buffer to copy the memory from one buffer to another
     //      Very helpful when using staging buffers to move information from CPU to GPU only memory (can be done in reverse)
@@ -2005,7 +2005,7 @@ void Common::copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset
     VK::endSingleUseCommandBuffer(api.device, command_buffer, api.cmd.command_pools.at("transfer"), api.cmd.queues.transfer);
 }
 
-void Common::destroyBuffer(const BufferData &buffer) {
+void Buffer::API::destroyBuffer(const BufferData &buffer) {
     if (buffer.buffer == VK_NULL_HANDLE) {
         log::warn("The buffer you are trying to delete is not valid");
         return;
@@ -2073,7 +2073,7 @@ VkDescriptorSetLayout VK::createDescriptorSetLayout(const std::vector<VkDescript
     return layout;
 }
 
-IDescriptorPool Common::createDescriptorPool(const std::vector<IDescriptorPoolSize> &pool_sizes) {
+IDescriptorPool Shader::API::createDescriptorPool(const std::vector<IDescriptorPoolSize> &pool_sizes) {
     //---Descriptor pool---
     //      A descriptor pool will house descriptor sets of various kinds
     //      There are two types of usage for a descriptor pool:
@@ -2103,7 +2103,7 @@ IDescriptorPool Common::createDescriptorPool(const std::vector<IDescriptorPoolSi
     return descriptor_pool;
 }
 
-std::vector<VkDescriptorSet> Common::allocateDescriptorSets(IDescriptorLayout layout, IDescriptorPool *pool) {
+std::vector<VkDescriptorSet> Shader::API::allocateDescriptorSets(IDescriptorLayout layout, IDescriptorPool *pool) {
     //: Allocate information
     VkDescriptorSetAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -2152,7 +2152,7 @@ void VK::linkPipelineDescriptors(ShaderID shader) {
     VK::updateDescriptorSets(shader, {}, {}, image_views, input_views);
 }
 
-void Common::linkDescriptorResources(ShaderID shader) {
+void Shader::API::linkDescriptorResources(ShaderID shader) {
     auto &descriptors = Shader::getShader(shader).descriptors;
     
     std::vector<VkBuffer> uniform_list{};
@@ -2219,7 +2219,7 @@ TextureID Graphics::registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels) {
     
     //: Staging buffer
     ui32 buffer_size = size.x * size.y * (int)ch * sizeof(ui8);
-    BufferData staging_buffer = Common::allocateBuffer(buffer_size, BUFFER_USAGE_TRANSFER_SRC, BUFFER_MEMORY_CPU_ONLY, nullptr, false);
+    BufferData staging_buffer = Buffer::API::allocateBuffer(buffer_size, BUFFER_USAGE_TRANSFER_SRC, BUFFER_MEMORY_CPU_ONLY, nullptr, false);
     
     //: Map pixels to staging buffer
     void* data;
@@ -2629,7 +2629,7 @@ void Graphics::clean() {
     
     //: Clean buffers
     for (auto &b : buffer_list)
-        Common::destroyBuffer(b);
+        Buffer::API::destroyBuffer(b);
     
     //: Delete program resources
     for (auto it = VK::deletion_queue_program.rbegin(); it != VK::deletion_queue_program.rend(); ++it)
@@ -2705,7 +2705,7 @@ void VK::Gui::init(Vulkan &vk) {
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
         { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
     };
-    Gui::descriptor_pool = Common::createDescriptorPool(pool_sizes);
+    Gui::descriptor_pool = Shader::API::createDescriptorPool(pool_sizes);
     
     //: Render pass
     AttachmentID attachment_swapchain_gui = registerAttachment(ATTACHMENT_COLOR_SWAPCHAIN, window.size);

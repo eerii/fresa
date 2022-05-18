@@ -173,7 +173,7 @@ namespace Fresa::Graphics::VK
         //      Buffer that holds the vertex information for the shaders to use.
         //      It has a struct per vertex of the mesh, which can contain properties like position, color, uv, normals...
         //      The properties are described automatically using reflection in an attribute description in the pipeline
-        return Common::allocateBuffer(ui32(sizeof(V) * vertices.size()), BUFFER_USAGE_VERTEX, BUFFER_MEMORY_GPU_ONLY, (void*)vertices.data());
+        return Buffer::API::allocateBuffer(ui32(sizeof(V) * vertices.size()), BUFFER_USAGE_VERTEX, BUFFER_MEMORY_GPU_ONLY, (void*)vertices.data());
     }
     
     template <typename I, std::enable_if_t<std::is_integral_v<I>, bool> = true>
@@ -183,32 +183,7 @@ namespace Fresa::Graphics::VK
         //      A simple example, while a square only has 4 vertices, 6 vertices are needed for the 2 triangles, and it only gets worse from there
         //      An index buffer solves this by having a list of which vertices to use, avoiding vertex repetition
         //      The creating process is very similar to the above vertex buffer, using a staging buffer
-        return Common::allocateBuffer(ui32(sizeof(I) * indices.size()), BUFFER_USAGE_INDEX, BUFFER_MEMORY_GPU_ONLY, (void*)indices.data());
-    }
-    
-    template <typename T>
-    void updateBuffer(BufferData &buffer, const std::vector<T> &v, size_t offset = 0) {
-        
-    }
-    
-    template <typename T>
-    void updateGPUBuffer(BufferData &buffer, const std::vector<T> &v, size_t offset = 0) {
-        //: Create a staging buffer
-        ui32 buffer_size = ui32(sizeof(T) * v.size());
-        BufferData staging_buffer = Common::allocateBuffer(buffer_size, BUFFER_USAGE_TRANSFER_SRC, BUFFER_MEMORY_CPU_ONLY, nullptr);
-        
-        //: Copy data to the staging buffer
-        void* data;
-        vmaMapMemory(api.allocator, staging_buffer.allocation, &data);
-        memcpy(data, v.data(), (size_t)buffer_size);
-        vmaUnmapMemory(api.allocator, staging_buffer.allocation);
-        
-        //: Make the GPU copy from one buffer to another
-        Common::copyBuffer(staging_buffer, buffer, buffer_size, ui32(sizeof(T) * offset));
-        
-        //: Destroy the staging buffer
-        Common::destroyBuffer(staging_buffer);
-        buffer_list.erase(staging_buffer);
+        return Buffer::API::allocateBuffer(ui32(sizeof(I) * indices.size()), BUFFER_USAGE_INDEX, BUFFER_MEMORY_GPU_ONLY, (void*)indices.data());
     }
     
     void updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size, ShaderID shader);

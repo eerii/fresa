@@ -20,6 +20,8 @@ namespace Fresa::Graphics
     inline UniformBufferID no_uniform_buffer{USHRT_MAX};
     inline StorageBufferID no_storage_buffer{USHRT_MAX};
     
+    //: Reserved buffers
+    //      Buffers defined with this name in shaders will not be a part of the bufferlists and instead have a predefined location
     inline std::map<StorageBufferID, str> reserved_buffers {
         {StorageBufferID{0}, "InstanceBuffer"},
     };
@@ -43,6 +45,9 @@ namespace Fresa::Graphics
         BUFFER_USAGE_INDIRECT      =  IF_VULKAN(VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) IF_OPENGL(1 << 6),
     };
     using BufferUsageT = IF_VULKAN(VkBufferUsageFlags) IF_OPENGL(BufferUsage);
+    
+    //: Buffer is not created or invalid
+    constexpr auto no_buffer = IF_VULKAN(VK_NULL_HANDLE) IF_OPENGL(0);
     
     //---------------------------------------------------
     //: Data
@@ -85,11 +90,11 @@ namespace Fresa::Graphics
     //: List of all buffers for deletion purposes
     inline std::set<BufferData> buffer_list;
     
-    //---------------------------------------------------
-    //: Systems
-    //---------------------------------------------------
-    
     namespace Buffer {
+        //---------------------------------------------------
+        //: Systems
+        //---------------------------------------------------
+        
         //: Register uniform buffer
         UniformBufferID registerUniformBuffer(ui32 size);
         
@@ -105,16 +110,16 @@ namespace Fresa::Graphics
         
         //:
         void growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size = 0, bool exact = false);
-    }
-    
-    //---------------------------------------------------
-    //: API dependent systems
-    //      They are not implemented in this file, instead you can find them in each API code
-    //---------------------------------------------------
-    namespace Common {
-        BufferData allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data = nullptr);
-        void updateBuffer(BufferData &buffer, void* data, ui32 size, ui32 offset = 0);
-        void copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset = 0, ui32 src_offset = 0);
-        void destroyBuffer(const BufferData &buffer);
+        
+        //---------------------------------------------------
+        //: API dependent systems
+        //      They are not implemented in this file, instead you can find them in each API code
+        //---------------------------------------------------
+        namespace API {
+            BufferData allocateBuffer(ui32 size, BufferUsage usage, BufferMemory memory, void* data = nullptr);
+            void updateBuffer(BufferData &buffer, void* data, ui32 size, ui32 offset = 0);
+            void copyBuffer(BufferData &src, BufferData &dst, ui32 size, ui32 offset = 0, ui32 src_offset = 0);
+            void destroyBuffer(const BufferData &buffer);
+        }
     }
 }

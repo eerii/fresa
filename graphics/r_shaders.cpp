@@ -47,7 +47,7 @@ ShaderModule Shader::createModule(str name, ShaderStage stage) {
     module.code = readSPIRV(name, shader_extensions.at(stage));
     
     //: Module
-    module.module = Common::createInternalShaderModule(module.code, module.stage);
+    module.module = Shader::API::createInternalShaderModule(module.code, module.stage);
     
     return module;
 }
@@ -137,7 +137,7 @@ void Shader::registerShader(str name, ShaderType type) {
     //: Build pipeline (only for compute shaders)
     //TODO: COMPUTE SHADER
     /*if (type == SHADER_COMPUTE)
-        shader_list.shaders.at(type)(name).pipeline = Common::createComputePipeline(name);*/
+        shader_list.shaders.at(type)(name).pipeline = Shader::API::createComputePipeline(name);*/
 }
 
 //---------------------------------------------------
@@ -279,7 +279,7 @@ std::vector<DescriptorSet> Shader::createDescriptorSets(const std::vector<Shader
     
     //: Create a descriptor pool if there are none
     if (descriptor_pools.size() == 0)
-        descriptor_pools.push_back(Common::createDescriptorPool(descriptor_pool_sizes));
+        descriptor_pools.push_back(Shader::API::createDescriptorPool(descriptor_pool_sizes));
     
     //: Get bindings for all stages
     std::map<ui32, std::vector<IDescriptorLayoutBinding>> bindings{};
@@ -343,10 +343,10 @@ std::vector<DescriptorSet> Shader::createDescriptorSets(const std::vector<Shader
         IF_OPENGL(current_set.layout = current_set.bindings;)
         
         //: Allocate descriptor sets
-        std::vector<IDescriptorSet> descriptors = Common::allocateDescriptorSets(current_set.layout, &descriptor_pools.back());
+        std::vector<IDescriptorSet> descriptors = Shader::API::allocateDescriptorSets(current_set.layout, &descriptor_pools.back());
         if (descriptors.size() == 0) { //: Create new descriptor pool and retry allocation
-            descriptor_pools.push_back(Common::createDescriptorPool(descriptor_pool_sizes));
-            descriptors = Common::allocateDescriptorSets(current_set.layout, &descriptor_pools.back());
+            descriptor_pools.push_back(Shader::API::createDescriptorPool(descriptor_pool_sizes));
+            descriptors = Shader::API::allocateDescriptorSets(current_set.layout, &descriptor_pools.back());
             if (descriptors.size() == 0)
                 log::error("Couldn't allocate this descriptor set");
         }

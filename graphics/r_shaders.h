@@ -193,7 +193,23 @@ namespace Fresa::Graphics
             if (uniform == no_uniform_buffer)
                 log::error("The uniform name %s is invalid", name.c_str());
             
-            Common::updateBuffer(uniform_buffers.at(uniform), (void*)&ubo, sizeof(ubo));
+            Buffer::API::updateBuffer(uniform_buffers.at(uniform), (void*)&ubo, sizeof(ubo));
+        }
+        
+        //---------------------------------------------------
+        //: API dependent systems
+        //      They are not implemented in this file, instead you can find them in each API code
+        //---------------------------------------------------
+        
+        namespace API {
+            IShaderModule createInternalShaderModule(const std::vector<ui32> &code, ShaderStage stage);
+            IDescriptorPool createDescriptorPool(const std::vector<IDescriptorPoolSize> &sizes);
+            std::vector<IDescriptorSet> allocateDescriptorSets(IDescriptorLayout layout, IDescriptorPool* pool);
+            
+            IPipeline createGraphicsPipeline(ShaderID shader, std::vector<std::pair<str, VertexInputRate>> vertices);
+            //IPipeline createComputePipeline(ShaderID shader);
+            
+            void linkDescriptorResources(ShaderID shader);
         }
         
         //---------------------------------------------------
@@ -228,21 +244,5 @@ namespace Fresa::Graphics
             {(ShaderDescriptorT)DESCRIPTOR_IMAGE_SAMPLER,    descriptor_pool_max_sets * 1},
             {(ShaderDescriptorT)DESCRIPTOR_INPUT_ATTACHMENT, descriptor_pool_max_sets * 1},
         };
-    }
-    
-    //---------------------------------------------------
-    //: API dependent systems
-    //      They are not implemented in this file, instead you can find them in each API code
-    //---------------------------------------------------
-    
-    namespace Common {
-        IShaderModule createInternalShaderModule(const std::vector<ui32> &code, ShaderStage stage);
-        IDescriptorPool createDescriptorPool(const std::vector<IDescriptorPoolSize> &sizes);
-        std::vector<IDescriptorSet> allocateDescriptorSets(IDescriptorLayout layout, IDescriptorPool* pool);
-        
-        IPipeline createGraphicsPipeline(ShaderID shader, std::vector<std::pair<str, VertexInputRate>> vertices);
-        //IPipeline createComputePipeline(ShaderID shader);
-        
-        void linkDescriptorResources(ShaderID shader);
     }
 }

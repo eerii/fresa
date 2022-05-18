@@ -93,11 +93,11 @@ namespace Fresa::Graphics
     inline std::vector<DrawQueueObject> previous_draw_queue = {};
     inline std::map<ShaderID, std::vector<DrawCommandID>> built_draw_queue;
     
-    //---------------------------------------------------
-    //: Systems
-    //---------------------------------------------------
-    
     namespace Draw {
+        //---------------------------------------------------
+        //: Systems
+        //---------------------------------------------------
+        
         //: Register draw command
         DrawCommandID registerDrawCommand(DrawQueueObject draw);
         
@@ -124,14 +124,15 @@ namespace Fresa::Graphics
         
         //: Build draw queue and create the indirect commands
         void buildDrawQueue();
-    }
-    
-    //---------------------------------------------------
-    //: API dependent systems
-    //      They are not implemented in this file, instead you can find them in each API code
-    //---------------------------------------------------
-    
-    namespace Common {
         
+        //---------------------------------------------------
+        //: API dependent systems
+        //      They are not implemented in this file, instead you can find them in each API code
+        //---------------------------------------------------
+        namespace API {
+            
+        }
     }
+    
+    
 }
