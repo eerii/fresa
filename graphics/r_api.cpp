@@ -172,14 +172,28 @@ void Graphics::processRendererDescription() {
             SubpassID subpass = subpass_list.at(subpass_name);
             Map::subpass_shader.add(subpass, shader);
             
+            //: Add pipeline, TODO: REFACTOR
+            std::vector<std::pair<str, VertexInputRate>> vertex_descriptions = {{line.at(3), INPUT_RATE_VERTEX}};
+            shaders.list.at(type).at(shader).pipeline = Shader::API::createGraphicsPipeline(shader, vertex_descriptions);
+        }
+        
+        //---Compute shaders---
+        //:     c shader
+        if (line.at(0) == "c") {
+            if (line.size() != 2)
+                log::error("The description of the compute shader is invalid, it has to be 'c shader'");
+            
+            //: Shader name
+            ShaderID shader{line.at(1)};
+            
+            //: Shader type
+            ShaderType type = SHADER_COMPUTE;
+            
             //: Register shader
-            #if defined USE_VULKAN
-                //: TODO: REFACTOR
-                std::vector<std::pair<str, VertexInputRate>> vertex_descriptions = {{line.at(3), INPUT_RATE_VERTEX}};
-                shaders.list.at(type).at(shader).pipeline = Shader::API::createGraphicsPipeline(shader, vertex_descriptions);
-            #elif defined USE_OPENGL
-                api.shaders.at(shader).subpass = subpass;
-            #endif
+            Shader::registerShader(shader.value, type);
+            
+            //: Add pipeline
+            shaders.list.at(type).at(shader).pipeline = Shader::API::createComputePipeline(shader);
         }
     }
 }

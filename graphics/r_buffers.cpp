@@ -28,9 +28,9 @@ UniformBufferID Buffer::registerUniformBuffer(ui32 size) {
 //---------------------------------------------------
 StorageBufferID Buffer::registerStorageBuffer(str name, ui32 size) {
     //: Find if the buffer is reserved
-    for (auto &[id, r_name] : reserved_buffers) {
-        if (r_name == name)
-            return id;
+    for (auto &r : reserved_buffers) {
+        if (r.name == name)
+            return r.id;
     }
     
     //: Find new id
@@ -41,6 +41,20 @@ StorageBufferID Buffer::registerStorageBuffer(str name, ui32 size) {
     storage_buffers[id] = Buffer::API::allocateBuffer(size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);
     
     return id;
+}
+
+//---------------------------------------------------
+//: Link reserved buffer
+//      Creates a pointer to the relevant bufferdata in the reserved buffers list
+//---------------------------------------------------
+void Buffer::linkReservedBuffer(str name, const BufferData* buffer) {
+    for (auto &r : reserved_buffers) {
+        if (r.name == name) {
+            r.buffer = buffer;
+            return;
+        }
+    }
+    log::error("Invalid buffer name %s", name.c_str());
 }
 
 //---------------------------------------------------

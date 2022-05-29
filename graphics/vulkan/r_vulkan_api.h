@@ -185,8 +185,6 @@ namespace Fresa::Graphics::VK
         //      The creating process is very similar to the above vertex buffer, using a staging buffer
         return Buffer::API::allocateBuffer(ui32(sizeof(I) * indices.size()), BUFFER_USAGE_INDEX, BUFFER_MEMORY_GPU_ONLY, (void*)indices.data());
     }
-    
-    void updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size, ShaderID shader);
     //----------------------------------------
 
 
@@ -194,6 +192,7 @@ namespace Fresa::Graphics::VK
     //----------------------------------------
     VkPipelineLayout createPipelineLayout(const std::vector<VkDescriptorSetLayout> &set_layouts, const std::vector<VkPushConstantRange> &push_constants);
     VkPipeline buildGraphicsPipeline(const PipelineCreateData &data, ShaderID shader);
+    VkPipeline buildComputePipeline(ShaderID shader);
     
     namespace Pipeline {
         //: Helper functions
@@ -285,27 +284,6 @@ namespace Fresa::Graphics {
     }
     inline bool operator ==(const VkExtent2D &a, const Vec2<> &b) {
         return a.width == b.x and a.height == b.y;
-    }
-    
-    template <typename... UBO>
-    void updateComputeUniformBuffers(ShaderID shader, const UBO& ...ubo) {
-        //TODO: ENABLE COMPUTE SHADERS
-        log::warn("Enable compute shaders");
-        /*int i = 0;
-        ([&](){
-            updateUniformBuffer(api, api.compute_pipelines.at(shader).uniform_buffers.at(i++).at(0), ubo);
-        }(), ...);*/
-    }
-    
-    template <typename V>
-    void updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size,
-                                 ShaderID shader, std::function<std::vector<V>()> fallback) {
-        static_assert(sizeof(V) % sizeof(glm::vec4) == 0, "The buffer should be aligned to a vec4 (4 floats) for the compute shader padding to match");
-        #ifdef HAS_COMPUTE
-            VK::updateBufferFromCompute(buffer, buffer_size, shader);
-        #else
-            static_assert(false, "The Vulkan renderer should have compute capabilities, check if you are setting the correct macro");
-        #endif
     }
 }
 

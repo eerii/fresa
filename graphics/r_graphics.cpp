@@ -42,6 +42,9 @@ bool Graphics::init() {
     //: Initialize GUI
     IF_GUI(Gui::init());
     
+    //: Link reserved buffers
+    Buffer::linkReservedBuffer("InstanceBuffer", &draw_instances.buffer);
+    
     return true;
 }
 
@@ -54,6 +57,9 @@ bool Graphics::update() {
         Performance::render_system_time.push_back(0);
         TIME(Performance::render_system_time.back(), system.second);
     }
+    
+    //: Build draw queue
+    Draw::buildDrawQueue();
     
     //: Render
     render();

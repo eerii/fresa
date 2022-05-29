@@ -88,12 +88,6 @@ void Graphics::createAPI() {
     //---Render passes---
     processRendererDescription();
     
-    //---Compute pipelines---
-    //TODO: ENABLE COMPUTE SHADERS
-    log::warn("Enable compute shaders");
-    /*for (auto &[shader, data] : compute_shaders)
-        api.compute_pipelines[shader] = VK::createComputePipeline(api, shader);*/
-    
     //---Window vertex buffer---
     window_vertex_buffer = VK::createVertexBuffer(Vertices::window);
     resize();
@@ -1899,8 +1893,38 @@ VkPipeline VK::buildGraphicsPipeline(const PipelineCreateData &data, ShaderID sh
     
     //: Cleanup
     deletion_queue_program.push_back([pipeline](){ vkDestroyPipeline(api.device, pipeline, nullptr); });
+    
     return pipeline;
 }
+
+VkPipeline VK::buildComputePipeline(ShaderID shader) {
+    //: Pipeline
+    VkPipeline pipeline;
+    VkComputePipelineCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    
+    //: Shader
+    const auto &s = Shader::getShader(shader);
+    
+    //: Shader stage
+    std::vector<VkPipelineShaderStageCreateInfo> shader_stages = getShaderStageInfo(s);
+    if (shader_stages.size() != 1)
+        log::error("You are using an invalid compute shader");
+    create_info.stage = shader_stages.at(0);
+    
+    //: Layout
+    create_info.layout = s.pipeline_layout;
+    
+    //: Create pipeline
+    if (vkCreateComputePipelines(api.device, VK_NULL_HANDLE, 1, &create_info, nullptr, &pipeline) != VK_SUCCESS)
+        log::error("Error while creating a vulkan compute pipeline");
+    log::graphics("Created a vulkan compute pipeline");
+    
+    //: Cleanup
+    deletion_queue_program.push_back([pipeline](){ vkDestroyPipeline(api.device, pipeline, nullptr); });
+    
+    return pipeline;
+};
 
 IPipeline Shader::API::createGraphicsPipeline(ShaderID shader, std::vector<std::pair<str, VertexInputRate>> vertices) {
     log::graphics("Pipeline %s", shader.value.c_str());
@@ -1913,6 +1937,14 @@ IPipeline Shader::API::createGraphicsPipeline(ShaderID shader, std::vector<std::
     
     PipelineCreateData create_info = VK::Pipeline::getCreateData(config, shader);
     return VK::buildGraphicsPipeline(create_info, shader);
+}
+
+IPipeline Shader::API::createComputePipeline(ShaderID shader) {
+    log::graphics("Compute pipeline %s", shader.value.c_str());
+    
+    Shader::API::linkDescriptorResources(shader);
+    
+    return VK::buildComputePipeline(shader);
 }
 
 //----------------------------------------
@@ -2020,35 +2052,23 @@ void Buffer::API::destroyBuffer(const BufferData &buffer) {
     vmaDestroyBuffer(api.allocator, buffer.buffer, buffer.allocation);
 }
 
-void VK::updateBufferFromCompute(const BufferData &buffer, ui32 buffer_size, ShaderID shader) {
-    //TODO: ENABLE COMPUTE SHADERS
-    log::warn("Enable compute shaders");
-    /*const PipelineData &pipeline = api.compute_pipelines.at(shader);
-    
-    //: Update pipeline descriptor sets to add the buffer and pipeline uniforms. For now this only works with a single buffer.
-    std::vector<VkBuffer> uniforms{};
-    for (auto &b : pipeline.uniform_buffers)
-        uniforms.push_back(b.at(0).buffer);
-    
-    WriteDescriptors descriptors{};
-    ui32 count = 0;
-    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER>(descriptors, shader, count, uniforms);
-    VK::prepareWriteDescriptor<VK_DESCRIPTOR_TYPE_STORAGE_BUFFER>(descriptors, shader, count, std::vector<VkBuffer>{buffer.buffer});
-    vkUpdateDescriptorSets(api.device, count, descriptors.write.data(), 0, nullptr);
+void Buffer::API::updateBufferFromCompute(const BufferData &buffer, ui32 size, ShaderID shader) {
+    const auto &s = Shader::getShader(shader);
     
     //: Begin one time command buffer
     VkCommandBuffer cmd = VK::beginSingleUseCommandBuffer(api.device, api.cmd.command_pools.at("compute"));
     
-    //: Bind pipeline and descriptors
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline_layout, 0, 1, &compute_shaders.at(shader).descriptors.at(0).descriptors.at(0), 0, nullptr);
+    //: Bind pipeline and descriptors TODO: Get propper descriptor resource and set
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, s.pipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, s.pipeline_layout, 0, 1,
+                            &s.descriptors.at(0).descriptors.at(0), 0, nullptr);
     
-    //: Calculate group count and dispatch compute calls
-    ui32 group_count = (buffer_size / pipeline.group_size[0]) + 1;
+    //: Calculate group count and dispatch compute calls TODO: Get group count
+    ui32 group_count = (size / 256) + 1;
     vkCmdDispatch(cmd, group_count, 1, 1);
     
     //: End and submit command buffer
-    VK::endSingleUseCommandBuffer(api.device, cmd, api.cmd.command_pools.at("compute"), api.cmd.queues.compute);*/
+    VK::endSingleUseCommandBuffer(api.device, cmd, api.cmd.command_pools.at("compute"), api.cmd.queues.compute);
 }
 
 //----------------------------------------
@@ -2168,11 +2188,10 @@ void Shader::API::linkDescriptorResources(ShaderID shader) {
                 auto id = std::get<StorageBufferID>(r.id);
                 
                 //: Check for reserved buffers
-                if (reserved_buffers.count(id)) {
-                    str name = reserved_buffers.at(id);
-                    //: Instance buffer
-                    if (name == "InstanceBuffer" and draw_instances.buffer.buffer != VK_NULL_HANDLE)
-                        storage_list.push_back(draw_instances.buffer.buffer);
+                auto it = std::find_if(reserved_buffers.begin(), reserved_buffers.end(), [&id](auto &b){ return b.id == id; });
+                if (it != reserved_buffers.end()) {
+                    if (it->buffer != nullptr and it->buffer->buffer != VK_NULL_HANDLE)
+                        storage_list.push_back(it->buffer->buffer);
                 }
                 //: Regular storage buffers
                 else {

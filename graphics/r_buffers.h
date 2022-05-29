@@ -20,12 +20,6 @@ namespace Fresa::Graphics
     inline UniformBufferID no_uniform_buffer{USHRT_MAX};
     inline StorageBufferID no_storage_buffer{USHRT_MAX};
     
-    //: Reserved buffers
-    //      Buffers defined with this name in shaders will not be a part of the bufferlists and instead have a predefined location
-    inline std::map<StorageBufferID, str> reserved_buffers {
-        {StorageBufferID{0}, "InstanceBuffer"},
-    };
-    
     //: Buffer memory type (CPU, GPU or both)
     enum BufferMemory {
         BUFFER_MEMORY_CPU_ONLY  =  IF_VULKAN(VMA_MEMORY_USAGE_CPU_ONLY)    IF_OPENGL(1 << 0),
@@ -64,6 +58,17 @@ namespace Fresa::Graphics
         BufferMemory memory;
         bool operator < (const BufferData &b) const { return buffer < b.buffer; }
     };
+
+    //: Reserved buffers
+    //      Buffers defined with this name in shaders will not be a part of the bufferlists and instead have a predefined location
+    struct ReservedBuffer {
+        StorageBufferID id;
+        str name;
+        const BufferData* buffer;
+    };
+    inline std::vector<ReservedBuffer> reserved_buffers {
+        {StorageBufferID{0}, "InstanceBuffer", nullptr},
+    };
     
     //: Block buffers
     struct BlockBufferPartition {
@@ -100,6 +105,9 @@ namespace Fresa::Graphics
         
         //: Register storage buffer
         StorageBufferID registerStorageBuffer(str name, ui32 size);
+    
+        //:
+        void linkReservedBuffer(str name, const BufferData* buffer);
         
         //:
         BlockBuffer createBlockBuffer(ui32 initial_size, ui32 stride, BufferUsage usage, BufferMemory memory,

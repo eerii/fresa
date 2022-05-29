@@ -207,7 +207,7 @@ namespace Fresa::Graphics
             std::vector<IDescriptorSet> allocateDescriptorSets(IDescriptorLayout layout, IDescriptorPool* pool);
             
             IPipeline createGraphicsPipeline(ShaderID shader, std::vector<std::pair<str, VertexInputRate>> vertices);
-            //IPipeline createComputePipeline(ShaderID shader);
+            IPipeline createComputePipeline(ShaderID shader);
             
             void linkDescriptorResources(ShaderID shader);
         }
@@ -244,5 +244,27 @@ namespace Fresa::Graphics
             {(ShaderDescriptorT)DESCRIPTOR_IMAGE_SAMPLER,    descriptor_pool_max_sets * 1},
             {(ShaderDescriptorT)DESCRIPTOR_INPUT_ATTACHMENT, descriptor_pool_max_sets * 1},
         };
+    }
+
+    //---------------------------------------------------
+    //: Update GPU buffer using a compute shader (or an optional fallback if the api doesn't have compute capabilities)
+    //      Has to be defined here since r_buffers doesn't inherit shaderid, and it makes sense since compute is managed by this class
+    //---------------------------------------------------
+
+    namespace Buffer {
+        namespace API {
+            void updateBufferFromCompute(const BufferData &buffer, ui32 size, ShaderID shader);
+        }
+    
+        template <typename V>
+        void updateFromCompute(const BufferData &buffer, ui32 size, ShaderID shader, std::function<std::vector<V>()> fallback) {
+            static_assert(sizeof(V) % sizeof(glm::vec4) == 0, "The buffer should be aligned to a vec4 (4 floats) for the compute shader padding to match");
+            #ifdef HAS_COMPUTE
+                API::updateBufferFromCompute(buffer, size, shader);
+            #else
+                const std::vector<V> data = fallback();
+                updateBuffer(buffer, (void*)data.data(), size);
+            #endif
+        }
     }
 }

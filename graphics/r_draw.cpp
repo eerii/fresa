@@ -99,15 +99,22 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
     if (draw_instances.buffer.buffer == no_buffer)
         draw_instances = Buffer::createBlockBuffer(1024, sizeof(DrawInstanceData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_BOTH, [](BufferData &buffer){
             //: Link new buffer handle to shaders that use it
-            for (const auto &[id, shader] : shaders.list.at(SHADER_DRAW)) {
-                for (const auto &d : shader.descriptors) {
-                    for (const auto &res : d.resources) {
-                        if (res.type != DESCRIPTOR_STORAGE)
-                            continue;
-                        auto r_id = std::get<StorageBufferID>(res.id);
-                        if (reserved_buffers.count(r_id) and reserved_buffers.at(r_id) == "InstanceBuffer")
-                            Shader::API::linkDescriptorResources(id);
-                    }
+            for (const auto &list : shaders.list) {
+                for (const auto &[id, shader] : list) {
+                    [id=id, shader=shader](){
+                    for (const auto &d : shader.descriptors) {
+                        for (const auto &res : d.resources) {
+                            if (res.type != DESCRIPTOR_STORAGE)
+                                continue;
+                            auto r_id = std::get<StorageBufferID>(res.id);
+                            auto it = std::find_if(reserved_buffers.begin(), reserved_buffers.end(),
+                                                   [&r_id](auto &b){ return b.id == r_id; });
+                            if (it != reserved_buffers.end()) {
+                                Shader::API::linkDescriptorResources(id);
+                                return;
+                            }
+                        }
+                    }}();
                 }
             }
             

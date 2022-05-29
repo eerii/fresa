@@ -133,11 +133,6 @@ void Shader::registerShader(str name, ShaderType type) {
     shaders.types[id] = type;
     //: Add to shader list
     shaders.list[type][id] = Shader::createPass(name);
-    
-    //: Build pipeline (only for compute shaders)
-    //TODO: COMPUTE SHADER
-    /*if (type == SHADER_COMPUTE)
-        shader_list.shaders.at(type)(name).pipeline = Shader::API::createComputePipeline(name);*/
 }
 
 //---------------------------------------------------
@@ -228,7 +223,6 @@ std::map<ui32, std::vector<IDescriptorLayoutBinding>> Shader::getDescriptorLayou
                 if (data.size == 0) {
                     constexpr ui32 MAX_OBJECTS = 10000;
                     data.size = (ui32)compiler.get_declared_struct_size_runtime_array(type, MAX_OBJECTS);
-                    log::warn("Using a fixed size allocation for a dynamic storage buffer, (%d items)", MAX_OBJECTS);
                 }
             }
             
