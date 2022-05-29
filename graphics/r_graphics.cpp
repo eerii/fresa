@@ -36,14 +36,14 @@ bool Graphics::init() {
     //: Create camera
     camera = Camera::create();
     
+    //: Link reserved buffers
+    Buffer::linkReservedBuffer("InstanceBuffer", &draw_instances.buffer);
+    
     //: Create renderer api
     createAPI();
     
     //: Initialize GUI
     IF_GUI(Gui::init());
-    
-    //: Link reserved buffers
-    Buffer::linkReservedBuffer("InstanceBuffer", &draw_instances.buffer);
     
     return true;
 }

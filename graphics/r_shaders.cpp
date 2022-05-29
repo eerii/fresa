@@ -140,7 +140,7 @@ void Shader::registerShader(str name, ShaderType type) {
 //---------------------------------------------------
 const ShaderPass& Shader::getShader(ShaderID shader) {
     if (not shaders.types.count(shader))
-        log::error("The shader you specified is not valid (%s)", shader.value.c_str());
+        log::error("The shader you specified is not valid (%s)", shader.c_str());
     ShaderType type = shaders.types.at(shader);
     return shaders.list.at(type).at(shader);
 }
@@ -373,13 +373,13 @@ std::vector<ShaderResource> Shader::createDescriptorResources(const std::vector<
         res.name = b.name;
         
         if (b.descriptor_type == DESCRIPTOR_UNIFORM)
-            res.id = Buffer::registerUniformBuffer(b.size);
+            res.id = Buffer::registerUniformBuffer(b.name, b.size);
         
         if (b.descriptor_type == DESCRIPTOR_STORAGE)
             res.id = Buffer::registerStorageBuffer(b.name, b.size);
         
         if (b.descriptor_type == DESCRIPTOR_IMAGE_SAMPLER) {
-            log::info("Image descriptors not supported yet");
+            //log::info("Image descriptors not supported yet");
             continue;
         }
         

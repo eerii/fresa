@@ -14,11 +14,9 @@ namespace Fresa::Graphics
     //---------------------------------------------------
     
     //: Indexing IDs
-    using UniformBufferID = FresaType<ui16, struct UniformTag>;
-    using StorageBufferID = FresaType<ui16, struct StorageTag>;
-    
-    inline UniformBufferID no_uniform_buffer{USHRT_MAX};
-    inline StorageBufferID no_storage_buffer{USHRT_MAX};
+    using UniformBufferID = ui16;
+    using StorageBufferID = ui16;
+    inline ui16 no_buffer_id{USHRT_MAX};
     
     //: Buffer memory type (CPU, GPU or both)
     enum BufferMemory {
@@ -61,13 +59,14 @@ namespace Fresa::Graphics
 
     //: Reserved buffers
     //      Buffers defined with this name in shaders will not be a part of the bufferlists and instead have a predefined location
+    //      They need to be initialized with linkReservedBuffers()
     struct ReservedBuffer {
-        StorageBufferID id;
+        ui32 id;
         str name;
         const BufferData* buffer;
     };
     inline std::vector<ReservedBuffer> reserved_buffers {
-        {StorageBufferID{0}, "InstanceBuffer", nullptr},
+        {0, "InstanceBuffer", nullptr},
     };
     
     //: Block buffers
@@ -101,7 +100,7 @@ namespace Fresa::Graphics
         //---------------------------------------------------
         
         //: Register uniform buffer
-        UniformBufferID registerUniformBuffer(ui32 size);
+        UniformBufferID registerUniformBuffer(str name, ui32 size);
         
         //: Register storage buffer
         StorageBufferID registerStorageBuffer(str name, ui32 size);

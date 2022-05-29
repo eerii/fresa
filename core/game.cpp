@@ -155,6 +155,7 @@ void Game::stop() {
     //---Clean resources---
     log::debug("Closing the game...");
     
+    Audio::destroy();
     Graphics::stop();
     SDL_Quit();
 }

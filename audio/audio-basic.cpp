@@ -102,3 +102,8 @@ void Audio::stop(SoundID sound) {
     if (it != playlist.end())
         playlist.erase(it);
 }
+
+void Audio::destroy() {
+    Audio::pause();
+    SDL_CloseAudioDevice(audio_api.device);
+}

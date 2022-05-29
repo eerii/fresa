@@ -32,7 +32,7 @@ void Gui::init() {
     if (not ImGui_ImplOpenGL3_Init())
         log::error("Error initializing ImGui for OpenGL");
     #elif defined USE_VULKAN
-    Graphics::VK::Gui::init(Graphics::api);
+    Graphics::VK::Gui::init();
     #endif
     
     //---Fonts---
@@ -45,7 +45,7 @@ void Gui::init() {
     }
     
     #ifdef USE_VULKAN
-    Graphics::VK::Gui::transferFonts(Graphics::api);
+    Graphics::VK::Gui::transferFonts();
     #endif
     
     //---Style---

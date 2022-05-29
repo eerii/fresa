@@ -10,7 +10,6 @@
 - basic documentation framework using docsify
 - shader cleanup and tidying
 - imgui docking and multiviewports
-- unique typing aliases (fresatype)
 - global uniform buffers
 
 **changed**

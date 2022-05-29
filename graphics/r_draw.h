@@ -26,7 +26,7 @@ namespace Fresa::Graphics
     };
     
     //: Draw batch id
-    using DrawBatchID = FresaType<ui32, struct DrawBatchTag>;
+    using DrawBatchID = ui32;
     
     //: Different types of draw batches
     //      - Single / Instances: Either render one or a few objects or many
@@ -47,7 +47,7 @@ namespace Fresa::Graphics
         ui32 count;
         ui32 offset;
     };
-    using DrawID = FresaType<ui32, struct DrawTag>;
+    using DrawID = ui32;
     
     //---------------------------------------------------
     //: Data

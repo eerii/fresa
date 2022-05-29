@@ -718,7 +718,7 @@ void VK::recreateSwapchain() {
         VK::linkPipelineDescriptors(id);
     
     //: Render passes and framebuffers
-    VK::recreateRenderPasses(api);
+    VK::recreateRenderPasses();
 }
 
 //----------------------------------------
@@ -890,7 +890,7 @@ void VK::recordRenderCommandBuffer() {
                 }
                 
                 else {
-                    log::error("Shader type for %s is invalid", shader_id.value.c_str());
+                    log::error("Shader type for %s is invalid", shader_id.c_str());
                 }
             }
         }
@@ -1017,7 +1017,7 @@ std::vector<ui64> VK::getQueryResults(VkQueryPool query, ui32 offset, ui32 count
 //Attachments
 //----------------------------------------
 
-VkSampleCountFlagBits VK::getAttachmentSamples(const Vulkan &vk, const AttachmentData &attachment) {
+VkSampleCountFlagBits VK::getAttachmentSamples(const AttachmentData &attachment) {
     VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
     
     if (attachment.type & ATTACHMENT_MSAA) {
@@ -1033,8 +1033,8 @@ VkSampleCountFlagBits VK::getAttachmentSamples(const Vulkan &vk, const Attachmen
         
         samples = get_samples(Config::multisampling);
             
-        auto available_counts = vk.physical_device_properties.limits.framebufferColorSampleCounts &
-                                vk.physical_device_properties.limits.framebufferDepthSampleCounts;
+        auto available_counts = api.physical_device_properties.limits.framebufferColorSampleCounts &
+                                api.physical_device_properties.limits.framebufferDepthSampleCounts;
         
         if (not (available_counts & samples)) {
             for (ui8 i = Config::multisampling - 1; i >= 0; i--) {
@@ -1125,7 +1125,7 @@ AttachmentID Graphics::registerAttachment(AttachmentType type, Vec2<ui16> size) 
     if (hasMultisampling(id - 1)) //: Resolve
         attachment.load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
     
-    VkSampleCountFlagBits samples = VK::getAttachmentSamples(api, attachment);
+    VkSampleCountFlagBits samples = VK::getAttachmentSamples(attachment);
     
     //: Image and image view
     if (not (type & ATTACHMENT_SWAPCHAIN)) {
@@ -1150,7 +1150,7 @@ void Graphics::recreateAttachments() {
             attachment.size = to_vec(api.swapchain.extent);
         }
         
-        VkSampleCountFlagBits samples = VK::getAttachmentSamples(api, attachment);
+        VkSampleCountFlagBits samples = VK::getAttachmentSamples(attachment);
         
         if (not (attachment.type & ATTACHMENT_SWAPCHAIN)) {
             auto [i_, a_] = VK::createImage(api.device, api.allocator, VMA_MEMORY_USAGE_GPU_ONLY, attachment.size, samples, 1,
@@ -1274,7 +1274,7 @@ SubpassID Graphics::registerSubpass(std::vector<AttachmentID> attachment_list, s
     return id;
 }
 
-RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
+RenderPassData VK::createRenderPass(RenderPassID r_id) {
     //---Render pass---
     //      All rendering happens inside of a render pass
     //      It can have multiple subpasses and attachments
@@ -1433,7 +1433,7 @@ RenderPassData VK::createRenderPass(const Vulkan &vk, RenderPassID r_id) {
     if (vkCreateRenderPass(api.device, &create_info, nullptr, &render.render_pass) != VK_SUCCESS)
         log::error("Error creating a vulkan render pass");
     
-    VK::deletion_queue_swapchain.push_back([render, vk](){ vkDestroyRenderPass(api.device, render.render_pass, nullptr); });
+    VK::deletion_queue_swapchain.push_back([render](){ vkDestroyRenderPass(api.device, render.render_pass, nullptr); });
     log::graphics("Created a vulkan render pass with %d subpasses and %d attachments",
                   render_pass_helper.subpasses.size(), render_pass_helper.attachments.size());
     
@@ -1452,7 +1452,7 @@ RenderPassID Graphics::registerRenderPass(std::vector<SubpassID> subpass_list) {
         Map::renderpass_subpass.add(id, s);
     
     //---Create render pass---
-    render_passes[id] = VK::createRenderPass(api, id);
+    render_passes[id] = VK::createRenderPass(id);
     
     //---Create framebuffers---
     render_passes[id].framebuffers = VK::createFramebuffers(api.device, id, render_passes[id].attachment_extent, api.swapchain);
@@ -1460,10 +1460,10 @@ RenderPassID Graphics::registerRenderPass(std::vector<SubpassID> subpass_list) {
     return id;
 }
 
-void VK::recreateRenderPasses(Vulkan &vk) {
+void VK::recreateRenderPasses() {
     for (auto &[id, render] : render_passes) {
-        render = VK::createRenderPass(vk, id);
-        render.framebuffers = VK::createFramebuffers(api.device, id, render.attachment_extent, vk.swapchain);
+        render = VK::createRenderPass(id);
+        render.framebuffers = VK::createFramebuffers(api.device, id, render.attachment_extent, api.swapchain);
     }
 }
 
@@ -1927,7 +1927,7 @@ VkPipeline VK::buildComputePipeline(ShaderID shader) {
 };
 
 IPipeline Shader::API::createGraphicsPipeline(ShaderID shader, std::vector<std::pair<str, VertexInputRate>> vertices) {
-    log::graphics("Pipeline %s", shader.value.c_str());
+    log::graphics("Pipeline %s", shader.c_str());
     
     Shader::API::linkDescriptorResources(shader);
     VK::linkPipelineDescriptors(shader);
@@ -1940,7 +1940,7 @@ IPipeline Shader::API::createGraphicsPipeline(ShaderID shader, std::vector<std::
 }
 
 IPipeline Shader::API::createComputePipeline(ShaderID shader) {
-    log::graphics("Compute pipeline %s", shader.value.c_str());
+    log::graphics("Compute pipeline %s", shader.c_str());
     
     Shader::API::linkDescriptorResources(shader);
     
@@ -2181,22 +2181,24 @@ void Shader::API::linkDescriptorResources(ShaderID shader) {
     
     for (auto &d : descriptors) {
         for (auto &r : d.resources) {
-            if (r.type == DESCRIPTOR_UNIFORM)
-                uniform_list.push_back(uniform_buffers.at(std::get<UniformBufferID>(r.id)).buffer);
-            
-            if (r.type == DESCRIPTOR_STORAGE) {
-                auto id = std::get<StorageBufferID>(r.id);
-                
-                //: Check for reserved buffers
-                auto it = std::find_if(reserved_buffers.begin(), reserved_buffers.end(), [&id](auto &b){ return b.id == id; });
-                if (it != reserved_buffers.end()) {
-                    if (it->buffer != nullptr and it->buffer->buffer != VK_NULL_HANDLE)
+            //: Check for reserved buffers
+            auto it = std::find_if(reserved_buffers.begin(), reserved_buffers.end(), [&r](auto &b){ return b.id == r.id; });
+            if (it != reserved_buffers.end()) {
+                if (it->buffer == nullptr)
+                    log::error("Reserved buffer not propperly linked");
+                if (it->buffer->buffer != VK_NULL_HANDLE) {
+                    if (r.type == DESCRIPTOR_UNIFORM)
+                        uniform_list.push_back(it->buffer->buffer);
+                    if (r.type == DESCRIPTOR_STORAGE)
                         storage_list.push_back(it->buffer->buffer);
                 }
-                //: Regular storage buffers
-                else {
-                    storage_list.push_back(storage_buffers.at(id).buffer);
-                }
+            }
+            //: Regular buffers
+            else {
+                if (r.type == DESCRIPTOR_UNIFORM)
+                    uniform_list.push_back(uniform_buffers.at(r.id).buffer);
+                if (r.type == DESCRIPTOR_STORAGE)
+                    storage_list.push_back(storage_buffers.at(r.id).buffer);
             }
         }
     }
@@ -2472,7 +2474,7 @@ VkSampler VK::createSampler(VkDevice device) {
     
     //Enable for anisotropy, as well as device features in createDevice()
     /*VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(vk.physical_device, &properties);
+    vkGetPhysicalDeviceProperties(api.physical_device, &properties);
     create_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;*/
     
     create_info.unnormalizedCoordinates = VK_FALSE;
@@ -2625,7 +2627,7 @@ void Graphics::resize() {
     
     //: Update scaled projection
     for (auto &[id, shader] : shaders.list.at(SHADER_POST)) {
-        if (id.value.rfind("window", 0) == 0) {
+        if (id.rfind("window", 0) == 0) {
             for (int i = 0; i < Config::frames_in_flight; i++)
                 Shader::updateGlobalUniform(id, "WindowTransform", transform);
         }
@@ -2706,7 +2708,7 @@ VkDebugReportCallbackEXT VK::createDebug(VkInstance &instance) {
 //----------------------------------------
 
 #ifndef DISABLE_GUI
-void VK::Gui::init(Vulkan &vk) {
+void VK::Gui::init() {
     //: Init SDL implementation
     if (not ImGui_ImplSDL2_InitForVulkan(window.window))
         log::error("Error initializing ImGui for SDL");
@@ -2730,24 +2732,24 @@ void VK::Gui::init(Vulkan &vk) {
     //: Render pass
     AttachmentID attachment_swapchain_gui = registerAttachment(ATTACHMENT_COLOR_SWAPCHAIN, window.size);
     SubpassID subpass_gui = registerSubpass({attachment_swapchain_gui});
-    vk.gui_render_pass = registerRenderPass({subpass_gui});
+    api.gui_render_pass = registerRenderPass({subpass_gui});
     
     //: Init Vulkan implementation
     ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance = vk.instance;
-    init_info.PhysicalDevice = vk.physical_device;
+    init_info.Instance = api.instance;
+    init_info.PhysicalDevice = api.physical_device;
     init_info.Device = api.device;
-    init_info.QueueFamily = vk.cmd.queue_indices.graphics.value();
-    init_info.Queue = vk.cmd.queues.graphics;
+    init_info.QueueFamily = api.cmd.queue_indices.graphics.value();
+    init_info.Queue = api.cmd.queues.graphics;
     init_info.DescriptorPool = Gui::descriptor_pool;
-    init_info.MinImageCount = vk.swapchain.min_image_count;
-    init_info.ImageCount = vk.swapchain.size;
+    init_info.MinImageCount = api.swapchain.min_image_count;
+    init_info.ImageCount = api.swapchain.size;
     init_info.Allocator = nullptr;
-    if (not ImGui_ImplVulkan_Init(&init_info, render_passes.at(vk.gui_render_pass).render_pass))
+    if (not ImGui_ImplVulkan_Init(&init_info, render_passes.at(api.gui_render_pass).render_pass))
         log::error("Error initializing ImGui for Vulkan");
     
     //: Command buffers
-    vk.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers();
+    api.cmd.command_buffers["gui"] = VK::allocateDrawCommandBuffers();
     
     //: Cleanup
     deletion_queue_program.push_back([](){
@@ -2756,11 +2758,11 @@ void VK::Gui::init(Vulkan &vk) {
     });
 }
 
-void VK::Gui::transferFonts(const Vulkan &vk) {
+void VK::Gui::transferFonts() {
     //: Transfer fonts
-    VkCommandBuffer command_buffer = Graphics::VK::beginSingleUseCommandBuffer(api.device, vk.cmd.command_pools.at("transfer"));
+    VkCommandBuffer command_buffer = Graphics::VK::beginSingleUseCommandBuffer(api.device, api.cmd.command_pools.at("transfer"));
     ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-    Graphics::VK::endSingleUseCommandBuffer(api.device, command_buffer, vk.cmd.command_pools.at("transfer"), vk.cmd.queues.transfer);
+    Graphics::VK::endSingleUseCommandBuffer(api.device, command_buffer, api.cmd.command_pools.at("transfer"), api.cmd.queues.transfer);
     ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 

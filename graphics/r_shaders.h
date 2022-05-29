@@ -16,7 +16,7 @@ namespace Fresa::Graphics
     //---------------------------------------------------
     
     //: Shader ID (for indexing the shader list)
-    using ShaderID = FresaType<str, struct ShaderTag>;
+    using ShaderID = str;
     
     //: Shader stages, represnet the different parts of the rendering or compute pipelines
     enum ShaderStage {
@@ -89,7 +89,7 @@ namespace Fresa::Graphics
     //: Shader resource
     //      A binding for a specific descriptor resource item
     struct ShaderResource {
-        std::variant<UniformBufferID, StorageBufferID> id;
+        ui16 id;
         ShaderDescriptor type;
         str name;
     };
@@ -185,12 +185,12 @@ namespace Fresa::Graphics
         //: Update uniform buffer
         template <typename UBO>
         void updateGlobalUniform(ShaderID shader, str name, UBO &ubo) {
-            UniformBufferID uniform = no_uniform_buffer;
+            UniformBufferID uniform = no_buffer_id;
             for (auto &d : getShader(shader).descriptors)
                 for (auto &res : d.resources)
-                    if (res.name == name) uniform = std::get<UniformBufferID>(res.id);
+                    if (res.name == name) uniform = res.id;
             
-            if (uniform == no_uniform_buffer)
+            if (uniform == no_buffer_id)
                 log::error("The uniform name %s is invalid", name.c_str());
             
             Buffer::API::updateBuffer(uniform_buffers.at(uniform), (void*)&ubo, sizeof(ubo));

@@ -10,10 +10,16 @@ using namespace Graphics;
 //---------------------------------------------------
 //: Register uniform buffer
 //---------------------------------------------------
-UniformBufferID Buffer::registerUniformBuffer(ui32 size) {
+UniformBufferID Buffer::registerUniformBuffer(str name, ui32 size) {
+    //: Find if the buffer is reserved
+    for (auto &r : reserved_buffers) {
+        if (r.name == name)
+            return r.id;
+    }
+    
     //: Find new id
     UniformBufferID id = uniform_buffers.size() == 0 ? UniformBufferID{} : uniform_buffers.end()->first;
-    do { id.value++; } while (id == no_uniform_buffer or uniform_buffers.count(UniformBufferID{id}));
+    do { id++; } while (id == no_buffer_id or uniform_buffers.count(id));
     
     //: Allocate new buffer
     uniform_buffers[id] = Buffer::API::allocateBuffer(size, BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
@@ -35,7 +41,7 @@ StorageBufferID Buffer::registerStorageBuffer(str name, ui32 size) {
     
     //: Find new id
     StorageBufferID id = storage_buffers.size() == 0 ? StorageBufferID{} : storage_buffers.end()->first;
-    do { id.value++; } while (id == no_storage_buffer or storage_buffers.count(StorageBufferID{id}));
+    do { id++; } while (id == no_buffer_id or storage_buffers.count(id));
     
     //: Allocate new buffer
     storage_buffers[id] = Buffer::API::allocateBuffer(size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);

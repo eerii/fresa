@@ -74,19 +74,6 @@ constexpr auto type_name() { //: Remove fresa namespaces, keep std::, glm::, ...
     return name;
 }
 
-//: Unique alias types, used as
-//      using NewType = FresaType<ui32, struct NewTag>
-template<typename ValueType, typename Tag>
-struct FresaType {
-    ValueType value;
-    
-    bool operator ==(const FresaType<ValueType, Tag>& v) const { return value == v.value; };
-    bool operator <(const FresaType<ValueType, Tag>& v) const { return value < v.value; };
-    
-    FresaType<ValueType, Tag> operator +(const ValueType v) const { return FresaType<ValueType, Tag>{ValueType(value + v)}; };
-    FresaType<ValueType, Tag> operator +(const FresaType<ValueType, Tag> v) const { return FresaType<ValueType, Tag>{value + v.value}; };
-};
-
 //: Gui
 #ifndef DISABLE_GUI
 #define IF_GUI(x) x

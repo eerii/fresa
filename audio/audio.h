@@ -41,4 +41,6 @@ namespace Fresa::Audio
     
     void play(SoundID sound);
     void stop(SoundID sound);
+
+    void destroy();
 }

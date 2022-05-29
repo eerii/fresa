@@ -164,7 +164,7 @@ void Graphics::processRendererDescription() {
             ShaderType type = line.at(0) == "d" ? SHADER_DRAW : SHADER_POST;
             
             //: Register shader
-            Shader::registerShader(shader.value, type);
+            Shader::registerShader(shader, type);
             
             //: Subpass
             str subpass_name = line.at(2);
@@ -190,7 +190,7 @@ void Graphics::processRendererDescription() {
             ShaderType type = SHADER_COMPUTE;
             
             //: Register shader
-            Shader::registerShader(shader.value, type);
+            Shader::registerShader(shader, type);
             
             //: Add pipeline
             shaders.list.at(type).at(shader).pipeline = Shader::API::createComputePipeline(shader);

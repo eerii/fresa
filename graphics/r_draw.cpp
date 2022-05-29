@@ -70,7 +70,7 @@ MeshID Draw::registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex
 DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
     //: Find new id
     DrawID id = draw_descriptions.size() == 0 ? DrawID{} : draw_descriptions.end()->first;
-    do { id.value++; } while (draw_descriptions.count(id));
+    do { id++; } while (draw_descriptions.count(id));
     
     //: Create the draw object
     DrawDescription draw{};
@@ -93,7 +93,7 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
         ss << draw.mesh.index;
     }
     auto s = ss.str();
-    draw.batch = DrawBatchID{Math::hash(s.c_str(), s.size())};
+    draw.batch = Math::hash(s.c_str(), s.size());
     
     //: Make sure block buffer is created
     if (draw_instances.buffer.buffer == no_buffer)
@@ -104,11 +104,8 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
                     [id=id, shader=shader](){
                     for (const auto &d : shader.descriptors) {
                         for (const auto &res : d.resources) {
-                            if (res.type != DESCRIPTOR_STORAGE)
-                                continue;
-                            auto r_id = std::get<StorageBufferID>(res.id);
                             auto it = std::find_if(reserved_buffers.begin(), reserved_buffers.end(),
-                                                   [&r_id](auto &b){ return b.id == r_id; });
+                                                   [&res](auto &b){ return b.id == res.id; });
                             if (it != reserved_buffers.end()) {
                                 Shader::API::linkDescriptorResources(id);
                                 return;
@@ -123,7 +120,7 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
         });
     
     //: Add to block buffer
-    draw.offset = Buffer::addToBlockBuffer(draw_instances, draw.batch.value, nullptr, count, false);
+    draw.offset = Buffer::addToBlockBuffer(draw_instances, draw.batch, nullptr, count, false);
     
     //: Add to scene objects and to the recreation queue
     draw_descriptions[id] = draw;
@@ -140,7 +137,7 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
 void Draw::draw(ShaderID shader, DrawID id) {
     //: Check if the DrawID is valid
     if (not draw_descriptions.count(id))
-        log::error("Using invalid DrawID (%d)", id.value);
+        log::error("Using invalid DrawID (%d)", id);
     auto &object = draw_descriptions.at(id);
     
     //: Add to draw queue (first item)
@@ -154,7 +151,7 @@ void Draw::draw(ShaderID shader, DrawID id) {
         new_draw.command = no_draw_command;
         new_draw.mesh = object.mesh;
         new_draw.instance_count = object.count;
-        new_draw.instance_offset = draw_instances.blocks.at(object.batch.value).offset; //TODO: Check if they are tightly packed
+        new_draw.instance_offset = draw_instances.blocks.at(object.batch).offset; //TODO: Check if they are tightly packed
         draw_queue.push_back(new_draw);
     }
     //: Add to draw queue (next items)
@@ -170,7 +167,7 @@ void Draw::draw(ShaderID shader, DrawID id) {
 DrawInstanceData* Draw::getInstanceData(DrawID id) {
     //: Check that the DrawID is valid
     if (not draw_descriptions.count(id))
-        log::error("Invalid Draw ID %d", id.value);
+        log::error("Invalid Draw ID %d", id);
     
     //: Check if the buffer is mapped
     if (draw_instance_data == nullptr)
@@ -178,7 +175,7 @@ DrawInstanceData* Draw::getInstanceData(DrawID id) {
     
     //: Return a pointer to the correct offset to the mapped buffer data
     auto &object = draw_descriptions.at(id);
-    auto &batch = draw_instances.blocks.at(object.batch.value);
+    auto &batch = draw_instances.blocks.at(object.batch);
     return (DrawInstanceData*)draw_instance_data + object.offset + batch.offset;
 }
 

@@ -83,7 +83,7 @@ namespace Fresa::Graphics::VK
 
     //Attachments
     //----------------------------------------
-    VkSampleCountFlagBits getAttachmentSamples(const Vulkan &vk, const AttachmentData &attachment);
+    VkSampleCountFlagBits getAttachmentSamples(const AttachmentData &attachment);
     VkAttachmentDescription createAttachmentDescription(const AttachmentData &attachment, VkSampleCountFlagBits samples);
     VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass render_pass, std::vector<VkImageView> attachments, VkExtent2D extent);
     std::vector<VkFramebuffer> createFramebuffers(VkDevice device, RenderPassID render_pass, VkExtent2D extent, const SwapchainData &swapchain);
@@ -92,8 +92,8 @@ namespace Fresa::Graphics::VK
 
     //Render pass
     //----------------------------------------
-    RenderPassData createRenderPass(const Vulkan &vk, RenderPassID r_id);
-    void recreateRenderPasses(Vulkan &vk);
+    RenderPassData createRenderPass(RenderPassID r_id);
+    void recreateRenderPasses();
     //----------------------------------------
 
 
@@ -263,8 +263,8 @@ namespace Fresa::Graphics::VK
     namespace Gui
     {
         inline VkDescriptorPool descriptor_pool;
-        void init(Vulkan &vk);
-        void transferFonts(const Vulkan &vk);
+        void init();
+        void transferFonts();
         void recordGuiCommandBuffer();
     }
     #endif
