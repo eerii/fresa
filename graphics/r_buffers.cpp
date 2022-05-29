@@ -64,7 +64,7 @@ BlockBuffer Buffer::createBlockBuffer(ui32 initial_size, ui32 stride, BufferUsag
     buffer.free_blocks = {{initial_size, 0, {}}};
     
     //: Callback
-    buffer.grow_callback = callback;
+    buffer.callback = callback;
     
     return buffer;
 }
@@ -86,7 +86,7 @@ ui32 Buffer::addToBlockBuffer(BlockBuffer &buffer, ui32 block, void* data, ui32 
     //: Update the free positions for this block
     if (free_pos.size() == 1) {
         free_pos.at(0) += count;
-        if (free_pos.at(0) >= buffer.blocks.at(block).size)
+        if (free_pos.at(0) > buffer.blocks.at(block).size)
             growBlockBuffer(buffer, block, count, exact);
     } else {
          free_pos.erase(free_pos.begin());
@@ -97,6 +97,21 @@ ui32 Buffer::addToBlockBuffer(BlockBuffer &buffer, ui32 block, void* data, ui32 
         Buffer::API::updateBuffer(buffer.buffer, data, count * buffer.stride, (buffer.blocks.at(block).offset + index) * buffer.stride);
     
     return index;
+}
+
+//---------------------------------------------------
+//:
+//---------------------------------------------------
+void Buffer::removeFromBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 index) {
+    //: Check if block exists
+    if (not buffer.blocks.count(block))
+        log::error("Removing non existent block from buffer");
+    
+    //: Add the index to the free positions so it can be overwritter
+    buffer.blocks.at(block).free_positions.push_back(index);
+    
+    //: Sort the free positions
+    std::sort(buffer.blocks.at(block).free_positions.begin(), buffer.blocks.at(block).free_positions.end());
 }
 
 //---------------------------------------------------
@@ -129,7 +144,7 @@ void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool ex
     
     //: Add previous offset to free blocks, and flatten free blocks list
     if (b.size > 0)
-        buffer.free_blocks.push_back(BlockBufferPartition{b.size, b.offset, {0}});
+        buffer.free_blocks.push_back(BlockBufferPartition{b.size, b.offset, {}});
     flattenFreeBlocks(buffer.free_blocks);
     
     //: Find new position inside the buffer
@@ -139,9 +154,9 @@ void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool ex
             //: Found suitable offset
             new_offset = buffer.free_blocks.at(i).offset;
             //: Update free block list
-            if (i == buffer.free_blocks.size() - 1 or buffer.free_blocks.at(i).size > new_size) {
-                buffer.free_blocks.at(i).offset += new_size;
-                buffer.free_blocks.at(i).size -= new_size;
+            if (i == buffer.free_blocks.size() - 1 or buffer.free_blocks.at(i).size > grow_size) {
+                buffer.free_blocks.at(i).offset += grow_size;
+                buffer.free_blocks.at(i).size -= grow_size;
             } else {
                 buffer.free_blocks.erase(buffer.free_blocks.begin() + i);
             }
@@ -169,17 +184,12 @@ void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool ex
         
         //: Update buffer data and free blocks
         buffer.buffer = new_buffer;
-        new_offset = buffer.free_blocks.rbegin()->offset;
-        buffer.free_blocks.rbegin()->offset += size;
-        buffer.free_blocks.rbegin()->size += grow_size;
-        
-        //: Callback actions when the buffer is expanded and changes reference
-        buffer.grow_callback(buffer.buffer);
-        
-        //TODO: Link new buffer to shaders that use it (draw buffer, reserved buffers)
-        
-        //TODO: Map the buffer to the cpu
+        new_offset = last_block->offset;
+        last_block->offset += grow_size;
     }
+    
+    //: Callback actions when the buffer is expanded and changes reference
+    buffer.callback(buffer.buffer);
     
     //: Copy block if growing
     if (b.size > 0)

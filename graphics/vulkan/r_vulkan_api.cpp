@@ -96,6 +96,7 @@ void Graphics::createAPI() {
     
     //---Window vertex buffer---
     window_vertex_buffer = VK::createVertexBuffer(Vertices::window);
+    resize();
 }
 
 //----------------------------------------
@@ -2170,8 +2171,8 @@ void Shader::API::linkDescriptorResources(ShaderID shader) {
                 if (reserved_buffers.count(id)) {
                     str name = reserved_buffers.at(id);
                     //: Instance buffer
-                    if (name == "InstanceBuffer" and draw_scene.buffer.buffer != VK_NULL_HANDLE)
-                        storage_list.push_back(draw_scene.buffer.buffer);
+                    if (name == "InstanceBuffer" and draw_instances.buffer.buffer != VK_NULL_HANDLE)
+                        storage_list.push_back(draw_instances.buffer.buffer);
                 }
                 //: Regular storage buffers
                 else {

@@ -78,7 +78,7 @@ namespace Fresa::Graphics
         ui32 allocation_chunk;
         std::map<ui32, BlockBufferPartition> blocks;
         std::vector<BlockBufferPartition> free_blocks;
-        std::function<void(BufferData &buffer)> grow_callback;
+        std::function<void(BufferData &buffer)> callback;
     };
     
     //: Uniform buffers
@@ -103,10 +103,13 @@ namespace Fresa::Graphics
         
         //:
         BlockBuffer createBlockBuffer(ui32 initial_size, ui32 stride, BufferUsage usage, BufferMemory memory,
-                                      std::function<void(BufferData &buffer)> grow_callback = [](BufferData &b){});
+                                      std::function<void(BufferData &buffer)> callback = [](BufferData &b){});
         
         //:
         ui32 addToBlockBuffer(BlockBuffer &buffer, ui32 block, void* data = nullptr, ui32 count = 1, bool exact = false);
+    
+        //:
+        void removeFromBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 index);
         
         //:
         void growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size = 0, bool exact = false);

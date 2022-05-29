@@ -16,9 +16,8 @@ namespace Fresa::Graphics
     
     //: Indirect draw command buffer id
     using DrawCommandID = ui32;
-    
-    //: Size of the draw indirect commands
     constexpr ui32 draw_command_size = IF_VULKAN(sizeof(VkDrawIndexedIndirectCommand)) IF_OPENGL(1);
+    constexpr DrawCommandID no_draw_command = UINT_MAX;
     
     //: Mesh id (vertex + index blocks)
     struct MeshID {
@@ -26,11 +25,29 @@ namespace Fresa::Graphics
         ui32 index;
     };
     
-    //: Draw object id
-    using DrawID = FresaType<ui32, struct DrawTag>;
-    
     //: Draw batch id
     using DrawBatchID = FresaType<ui32, struct DrawBatchTag>;
+    
+    //: Different types of draw batches
+    //      - Single / Instances: Either render one or a few objects or many
+    //        When using instances, each mesh gets its own draw batch, but all the single objects are packed into one batch
+    //      - Static / Dynamic: Static objects are not updated every frame, not reuploaded to the GPU
+    enum DrawBatchType {
+        DRAW_SINGLE_OBJECT  =  1 << 0,
+        DRAW_INSTANCES      =  1 << 1,
+        DRAW_STATIC         =  1 << 2,
+        DRAW_DYNAMIC        =  1 << 3,
+    };
+    
+    //: Draw description that holds references to everything needed to render an object, indexed by DrawID
+    struct DrawDescription {
+        DrawBatchID batch;
+        DrawBatchType type;
+        MeshID mesh;
+        ui32 count;
+        ui32 offset;
+    };
+    using DrawID = FresaType<ui32, struct DrawTag>;
     
     //---------------------------------------------------
     //: Data
@@ -47,45 +64,23 @@ namespace Fresa::Graphics
         BlockBuffer index;
     } meshes;
     
-    //: Draw description that holds references to everything needed to render an object
-    //      Indexed by DrawID, is the main identifier of each renderable item
-    //      DrawBatchID is a hash of different properties and values that indexes a part of the DrawScene buffer
-    struct DrawDescription {
-        DrawBatchID batch;
-        ui32 batch_offset;
-        MeshID mesh;
-    };
+    //: Draw description list
+    inline std::map<DrawID, DrawDescription> draw_descriptions;
     
-    //: Data for each of the rendered instances, stored in the DrawScene buffer
+    //: Data for each of the rendered instances, stored in the draw_instances buffer
     //      Accessed using both the batch id and the batch offset
     struct DrawInstanceData {
         glm::mat4 model;
     };
-    
-    //: The draw scene holds all the objects that are rendered
-    //      The big buffer is divided into batch blocks, that are indexed with a DrawBatchID
-    //      These are bundled together for objects of the same mesh, so they can be rendered with just one draw indirect command
-    //      All draw descriptions are stored here as well, used when drawing
-    //: TODO: Clean this, rename to DrawBatchBuffer, and make allocateSceneBatchBlock return something (maybe?)
-    struct DrawBatchBlock {
-        ui32 offset;
-        ui32 size;
-        std::vector<ui32> free_positions = { 0 };
-    };
-    inline struct DrawScene {
-        BufferData buffer;
-        void* buffer_data = nullptr;
-        std::map<DrawID, DrawDescription> objects;
-        std::map<DrawBatchID, DrawBatchBlock> batches;
-        std::vector<DrawBatchBlock> free_blocks = { DrawBatchBlock{} };
-    } draw_scene;
+    inline BlockBuffer draw_instances;
+    inline void* draw_instance_data = nullptr;
     
     //: Draw queue
     struct DrawQueueObject {
         ShaderID shader;
         DrawBatchID batch;
-        MeshID mesh;
         DrawCommandID command;
+        MeshID mesh;
         ui32 instance_count;
         ui32 instance_offset;
     };
@@ -111,16 +106,13 @@ namespace Fresa::Graphics
         
         //: Register draw id
         //      Using some relevant information (mesh, ...) create a DrawID handle and add it to batches
-        DrawID registerDrawID(MeshID mesh);
+        DrawID registerDrawID(MeshID mesh, DrawBatchType type, ui32 count = 1);
         
         //: Draw, add a draw id to a shader draw queue
-        void draw(ShaderID shader, DrawID id, ui32 count = 1);
-        
-        //: Allocate scene batch, create or expand a batch block
-        void allocateSceneBatchBlock(DrawBatchID batch);
+        void draw(ShaderID shader, DrawID id);
         
         //: Get instance data buffer pointer
-        DrawInstanceData* getInstanceData(DrawID id, ui32 count = 1);
+        DrawInstanceData* getInstanceData(DrawID id);
         
         //: Build draw queue and create the indirect commands
         void buildDrawQueue();
