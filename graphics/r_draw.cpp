@@ -20,10 +20,10 @@ DrawCommandID Draw::registerDrawCommand(DrawQueueObject draw) {
     
     //: Create indirect draw command
     IDrawIndexedIndirectCommand cmd;
-    cmd.indexCount = meshes.index.blocks.at(draw.mesh.index).size;
+    cmd.indexCount = meshes.index.blocks.at(draw.mesh).size;
     cmd.instanceCount = draw.instance_count;
-    cmd.firstIndex = meshes.index.blocks.at(draw.mesh.index).offset;
-    cmd.vertexOffset = meshes.vertex.blocks.at(draw.mesh.vertex).offset;
+    cmd.firstIndex = meshes.index.blocks.at(draw.mesh).offset;
+    cmd.vertexOffset = meshes.vertex.blocks.at(draw.mesh).offset;
     cmd.firstInstance = draw.instance_offset;
     
     //: Add to block buffer
@@ -37,24 +37,25 @@ DrawCommandID Draw::registerDrawCommand(DrawQueueObject draw) {
 //      Returns a MeshID for referencing during draw
 //---------------------------------------------------
 MeshID Draw::registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex_bytes, void* indices, ui32 indices_size, ui8 index_bytes) {
-    MeshID id{};
+    MeshID id;
     
     //: Check if block buffers are created, if not, allocate them
     if (meshes.vertex.buffer.buffer == no_buffer)
-        meshes.vertex = Buffer::createBlockBuffer(10000, vertex_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_VERTEX), BUFFER_MEMORY_GPU_ONLY);
+        meshes.vertex = Buffer::createBlockBuffer(1024, vertex_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_VERTEX), BUFFER_MEMORY_GPU_ONLY);
     if (meshes.index.buffer.buffer == no_buffer)
-        meshes.index = Buffer::createBlockBuffer(10000, index_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDEX), BUFFER_MEMORY_GPU_ONLY);
+        meshes.index = Buffer::createBlockBuffer(1024, index_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDEX), BUFFER_MEMORY_GPU_ONLY);
     
     //: Check index bytes
     if (not (index_bytes == 2 or index_bytes == 4))
         log::error("Index buffers support ui16 (2 bytes) and ui32 (4 bytes) formats, but you loaded one index with %d bytes", index_bytes);
     
     //: Add data to buffers
-    id.vertex = (ui32)meshes.vertex.blocks.size();
-    if (Buffer::addToBlockBuffer(meshes.vertex, id.vertex, vertices, vertices_size, true) != 0)
+    if (meshes.vertex.blocks.size() != meshes.index.blocks.size())
+        log::error("There is a disparity between the vertex buffer (%d) and the index buffer (%d)", meshes.vertex.blocks.size(), meshes.index.blocks.size());
+    id = (ui32)meshes.vertex.blocks.size();
+    if (Buffer::addToBlockBuffer(meshes.vertex, id, vertices, vertices_size, true) != 0)
         log::error("You are allocating two meshes with the same id");
-    id.index = (ui32)meshes.index.blocks.size();
-    if (Buffer::addToBlockBuffer(meshes.index, id.index, indices, indices_size, true) != 0)
+    if (Buffer::addToBlockBuffer(meshes.index, id, indices, indices_size, true) != 0)
         log::error("You are allocating two meshes with the same id");
     
     return id;
@@ -88,8 +89,7 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
     if (type & DRAW_DYNAMIC)
         ss << DRAW_DYNAMIC;
     if (type & DRAW_INSTANCES) {
-        ss << draw.mesh.vertex;
-        ss << draw.mesh.index;
+        ss << draw.mesh;
     }
     auto s = ss.str();
     draw.batch = Math::hash(s.c_str(), s.size());

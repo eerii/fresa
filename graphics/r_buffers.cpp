@@ -193,10 +193,9 @@ void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool ex
         
         //: Allocate new buffer
         BufferData new_buffer = Buffer::API::allocateBuffer(new_buffer_size * buffer.stride, buffer.usage, buffer.buffer.memory);
-        //TODO: Move this to a GPU buffer and create a double buffer with staging
         
         //: Copy from previous buffer and delete previous one
-        if (b.size > 0) {
+        if (last_block->offset + last_block->size > 0) {
             Buffer::API::copyBuffer(buffer.buffer, new_buffer, (last_block->offset + last_block->size) * buffer.stride, 0);
             Buffer::API::destroyBuffer(buffer.buffer);
             buffer_list.erase(buffer.buffer);

@@ -20,10 +20,7 @@ namespace Fresa::Graphics
     using IDrawIndexedIndirectCommand = IF_VULKAN(VkDrawIndexedIndirectCommand) IF_OPENGL(GlDrawIndexedIndirectCommand);
     
     //: Mesh id (vertex + index blocks)
-    struct MeshID {
-        ui32 vertex;
-        ui32 index;
-    };
+    using MeshID = ui32;
     
     //: Draw batch id
     using DrawBatchID = ui32;

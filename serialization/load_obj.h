@@ -10,7 +10,7 @@ namespace Fresa::Serialization
 {
     struct VerticesOBJ {
         std::vector<Graphics::VertexOBJ> vertices;
-        std::vector<ui16> indices; //: ui16 supports up to 65.536 individual vertices, for up to 4.000 million use ui32
+        std::vector<ui32> indices; //: ui16 supports up to 65.536 individual vertices, for up to 4.000 million use ui32
     };
     
     VerticesOBJ loadOBJ(str file);

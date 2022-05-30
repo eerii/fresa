@@ -864,8 +864,8 @@ void VK::recordRenderCommandBuffer() {
                     vkCmdBindVertexBuffers(cmd, 0, 1, &meshes.vertex.buffer.buffer, &vertex_offsets);
                     
                     //: Index buffer
-                    //VkIndexType index_type = meshes.paddings.at(draw_object.mesh).index_bytes == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
-                    vkCmdBindIndexBuffer(cmd, meshes.index.buffer.buffer, VkDeviceSize{0}, VK_INDEX_TYPE_UINT16);
+                    VkIndexType index_type = meshes.index.stride == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+                    vkCmdBindIndexBuffer(cmd, meshes.index.buffer.buffer, VkDeviceSize{0}, index_type);
                     
                     //: Draw indirect
                     for (auto &d_cmd : draw_objects)
