@@ -3,9 +3,8 @@
 //licensed under GPLv3
 
 #include "r_draw.h"
-#include "f_math.h"
 #include "r_api.h"
-#include "r_vulkan_api.h" //: TODO: REMOVE THIS
+#include "f_math.h"
 #include <sstream>
 
 using namespace Fresa;
@@ -17,10 +16,10 @@ using namespace Graphics;
 DrawCommandID Draw::registerDrawCommand(DrawQueueObject draw) {
     //: Check if block buffer is available
     if (draw_commands.buffer.buffer == no_buffer)
-        draw_commands = Buffer::createBlockBuffer(256, draw_command_size, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
+        draw_commands = Buffer::createBlockBuffer(256, sizeof(IDrawIndexedIndirectCommand), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
     
     //: Create indirect draw command
-    VkDrawIndexedIndirectCommand cmd;
+    IDrawIndexedIndirectCommand cmd;
     cmd.indexCount = meshes.index.blocks.at(draw.mesh.index).size;
     cmd.instanceCount = draw.instance_count;
     cmd.firstIndex = meshes.index.blocks.at(draw.mesh.index).offset;
@@ -42,9 +41,9 @@ MeshID Draw::registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex
     
     //: Check if block buffers are created, if not, allocate them
     if (meshes.vertex.buffer.buffer == no_buffer)
-        meshes.vertex = Buffer::createBlockBuffer(4092, vertex_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_VERTEX), BUFFER_MEMORY_GPU_ONLY);
+        meshes.vertex = Buffer::createBlockBuffer(10000, vertex_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_VERTEX), BUFFER_MEMORY_GPU_ONLY);
     if (meshes.index.buffer.buffer == no_buffer)
-        meshes.index = Buffer::createBlockBuffer(4092, index_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDEX), BUFFER_MEMORY_GPU_ONLY);
+        meshes.index = Buffer::createBlockBuffer(10000, index_bytes, BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDEX), BUFFER_MEMORY_GPU_ONLY);
     
     //: Check index bytes
     if (not (index_bytes == 2 or index_bytes == 4))
@@ -96,8 +95,12 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
     draw.batch = Math::hash(s.c_str(), s.size());
     
     //: Make sure block buffer is created
-    if (draw_instances.buffer.buffer == no_buffer)
+    if (draw_instances.buffer.buffer == no_buffer) {
+        //: Create block buffer (CPU accessible)
         draw_instances = Buffer::createBlockBuffer(1024, sizeof(DrawInstanceData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_BOTH, [](BufferData &buffer){
+            //: Grow GPU buffer
+            draw_instances_gpu = Buffer::API::allocateBuffer((draw_instances.free_blocks.rbegin()->offset + draw_instances.free_blocks.rbegin()->size) * sizeof(DrawInstanceData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_GPU_ONLY);
+            
             //: Link new buffer handle to shaders that use it
             for (const auto &list : shaders.list) {
                 for (const auto &[id, shader] : list) {
@@ -118,6 +121,7 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
             //: Map the buffer to the cpu
             vmaMapMemory(api.allocator, buffer.allocation, &draw_instance_data);
         });
+    }
     
     //: Add to block buffer
     draw.offset = Buffer::addToBlockBuffer(draw_instances, draw.batch, nullptr, count, false);
@@ -214,6 +218,9 @@ void Draw::buildDrawQueue() {
             }
         }
     }
+
+    //TODO: VERY TEMPORARY, TEST
+    Buffer::API::copyBuffer(draw_instances.buffer, draw_instances_gpu, draw_instances.free_blocks.rbegin()->offset * sizeof(DrawInstanceData));
     
     previous_draw_queue = draw_queue;
     draw_queue.clear();

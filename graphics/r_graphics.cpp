@@ -37,7 +37,7 @@ bool Graphics::init() {
     camera = Camera::create();
     
     //: Link reserved buffers
-    Buffer::linkReservedBuffer("InstanceBuffer", &draw_instances.buffer);
+    Buffer::linkReservedBuffer("InstanceBuffer", &draw_instances_gpu);
     
     //: Create renderer api
     createAPI();

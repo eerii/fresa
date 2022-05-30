@@ -16,8 +16,8 @@ namespace Fresa::Graphics
     
     //: Indirect draw command buffer id
     using DrawCommandID = ui32;
-    constexpr ui32 draw_command_size = IF_VULKAN(sizeof(VkDrawIndexedIndirectCommand)) IF_OPENGL(1);
     constexpr DrawCommandID no_draw_command = UINT_MAX;
+    using IDrawIndexedIndirectCommand = IF_VULKAN(VkDrawIndexedIndirectCommand) IF_OPENGL(GlDrawIndexedIndirectCommand);
     
     //: Mesh id (vertex + index blocks)
     struct MeshID {
@@ -73,6 +73,7 @@ namespace Fresa::Graphics
         glm::mat4 model;
     };
     inline BlockBuffer draw_instances;
+    inline BufferData draw_instances_gpu;
     inline void* draw_instance_data = nullptr;
     
     //: Draw queue

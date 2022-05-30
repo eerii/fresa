@@ -869,7 +869,7 @@ void VK::recordRenderCommandBuffer() {
                     
                     //: Draw indirect
                     for (auto &d_cmd : draw_objects)
-                        vkCmdDrawIndexedIndirect(cmd, draw_commands.buffer.buffer, d_cmd * draw_command_size, 1, draw_command_size);
+                        vkCmdDrawIndexedIndirect(cmd, draw_commands.buffer.buffer, d_cmd * sizeof(IDrawIndexedIndirectCommand), 1, sizeof(IDrawIndexedIndirectCommand));
                 }
                 
                 //---Post shaders---
