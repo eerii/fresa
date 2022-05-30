@@ -49,7 +49,7 @@ namespace Fresa::Graphics
     //      Contains the representation of a buffer for each API
     struct BufferData {
         IF_VULKAN(
-            VkBuffer buffer;
+            VkBuffer buffer = no_buffer;
             VmaAllocation allocation;
         )
         IF_OPENGL(ui32 buffer;)
@@ -66,7 +66,9 @@ namespace Fresa::Graphics
         const BufferData* buffer;
     };
     inline std::vector<ReservedBuffer> reserved_buffers {
-        {0, "InstanceBuffer", nullptr},
+        {0, "TransformBuffer", nullptr},
+        {1, "MaterialBuffer", nullptr},
+        {2, "InstanceBuffer", nullptr},
     };
     
     //: Block buffers

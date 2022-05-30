@@ -62,12 +62,29 @@ MeshID Draw::registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex
 }
 
 //---------------------------------------------------
+//: Register material
+//      Adds the material data to the material buffer, returns a MaterialID for referencing during draw
+//---------------------------------------------------
+MaterialID Draw::registerMaterial(glm::vec4 color) {
+    //: Check if block buffer is available
+    if (draw_materials.buffer.buffer == no_buffer)
+        draw_materials = Buffer::createBlockBuffer(256, sizeof(DrawMaterialData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_GPU_ONLY);
+    
+    //: Create material
+    DrawMaterialData material{};
+    material.color = color;
+    
+    //: Add to block buffer
+    return Buffer::addToBlockBuffer(draw_materials, 0, (void*)&material, 1);
+}
+
+//---------------------------------------------------
 //: Register draw id
 //      Creates a new draw description using some parameters
 //      Also creates a draw batch by hashing those parameters to group compatible draws
 //      Adds it to the batches buffer and calculates the batch offset
 //---------------------------------------------------
-DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
+DrawID Draw::registerDrawID(MeshID mesh, MaterialID material, DrawBatchType type, ui32 count) {
     //: Find new id
     DrawID id = draw_descriptions.size() == 0 ? DrawID{} : draw_descriptions.end()->first;
     do { id++; } while (draw_descriptions.count(id));
@@ -75,6 +92,7 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
     //: Create the draw object
     DrawDescription draw{};
     draw.mesh = mesh;
+    draw.material = material;
     draw.type = type;
     draw.count = count;
     
@@ -94,14 +112,14 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
     auto s = ss.str();
     draw.batch = Math::hash(s.c_str(), s.size());
     
-    //: Make sure block buffer is created
-    if (draw_instances.buffer.buffer == no_buffer) {
+    //: Make sure the transform block buffer is created
+    if (draw_transform.buffer.buffer == no_buffer) {
         //: Create block buffer (CPU accessible)
-        draw_instances = Buffer::createBlockBuffer(1024, sizeof(DrawInstanceData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_BOTH, [](BufferData &buffer){
+        draw_transform = Buffer::createBlockBuffer(1024, sizeof(DrawTransformData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_BOTH, [](BufferData &buffer){
             //: Grow GPU buffer
-            draw_instances_gpu = Buffer::API::allocateBuffer((draw_instances.free_blocks.rbegin()->offset + draw_instances.free_blocks.rbegin()->size) * sizeof(DrawInstanceData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_GPU_ONLY);
+            draw_transform_gpu = Buffer::API::allocateBuffer((draw_transform.free_blocks.rbegin()->offset + draw_transform.free_blocks.rbegin()->size) * sizeof(DrawTransformData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_GPU_ONLY);
             
-            //: Link new buffer handle to shaders that use it
+            //: Link new buffer handle to shaders that use it TODO: Move to different function
             for (const auto &list : shaders.list) {
                 for (const auto &[id, shader] : list) {
                     [id=id, shader=shader](){
@@ -119,12 +137,43 @@ DrawID Draw::registerDrawID(MeshID mesh, DrawBatchType type, ui32 count) {
             }
             
             //: Map the buffer to the cpu
-            vmaMapMemory(api.allocator, buffer.allocation, &draw_instance_data);
+            vmaMapMemory(api.allocator, buffer.allocation, &draw_transform_data);
         });
     }
     
-    //: Add to block buffer
-    draw.offset = Buffer::addToBlockBuffer(draw_instances, draw.batch, nullptr, count, false);
+    //: Add transform
+    draw.offset = Buffer::addToBlockBuffer(draw_transform, draw.batch, nullptr, count, false);
+    
+    //: Make sure the instance block buffer is created
+    if (draw_instances.buffer.buffer == no_buffer) {
+        //: Create block buffer (CPU accessible)
+        draw_instances = Buffer::createBlockBuffer(1024, sizeof(DrawInstanceData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_GPU_ONLY, [](BufferData &buffer){
+            //: Link new buffer handle to shaders that use it TODO: Move to different function
+            for (const auto &list : shaders.list) {
+                for (const auto &[id, shader] : list) {
+                    [id=id, shader=shader](){
+                    for (const auto &d : shader.descriptors) {
+                        for (const auto &res : d.resources) {
+                            auto it = std::find_if(reserved_buffers.begin(), reserved_buffers.end(),
+                                                   [&res](auto &b){ return b.id == res.id; });
+                            if (it != reserved_buffers.end()) {
+                                Shader::API::linkDescriptorResources(id);
+                                return;
+                            }
+                        }
+                    }}();
+                }
+            }
+        });
+    }
+    
+    //: Add instance
+    std::vector<DrawInstanceData> instances(count);
+    for (int i = 0; i < instances.size(); i++) {
+        instances[i].transform_id = draw_transform.blocks.at(draw.batch).offset + draw.offset + i;
+        instances[i].material_id = material;
+    }
+    Buffer::addToBlockBuffer(draw_instances, draw.batch, (void*)instances.data(), count, false);
     
     //: Add to scene objects and to the recreation queue
     draw_descriptions[id] = draw;
@@ -155,7 +204,7 @@ void Draw::draw(ShaderID shader, DrawID id) {
         new_draw.command = no_draw_command;
         new_draw.mesh = object.mesh;
         new_draw.instance_count = object.count;
-        new_draw.instance_offset = draw_instances.blocks.at(object.batch).offset; //TODO: Check if they are tightly packed
+        new_draw.instance_offset = draw_transform.blocks.at(object.batch).offset; //TODO: Check if they are tightly packed
         draw_queue.push_back(new_draw);
     }
     //: Add to draw queue (next items)
@@ -168,19 +217,19 @@ void Draw::draw(ShaderID shader, DrawID id) {
 //: Get instance data
 //      Returns a pointer to the draw scene buffer for the specified draw id data
 //---------------------------------------------------
-DrawInstanceData* Draw::getInstanceData(DrawID id) {
+DrawTransformData* Draw::getInstanceData(DrawID id) {
     //: Check that the DrawID is valid
     if (not draw_descriptions.count(id))
         log::error("Invalid Draw ID %d", id);
     
     //: Check if the buffer is mapped
-    if (draw_instance_data == nullptr)
+    if (draw_transform_data == nullptr)
         log::error("The draw scene buffer is not mapped into memory");
     
     //: Return a pointer to the correct offset to the mapped buffer data
     auto &object = draw_descriptions.at(id);
-    auto &batch = draw_instances.blocks.at(object.batch);
-    return (DrawInstanceData*)draw_instance_data + object.offset + batch.offset;
+    auto &batch = draw_transform.blocks.at(object.batch);
+    return (DrawTransformData*)draw_transform_data + object.offset + batch.offset;
 }
 
 //---------------------------------------------------
@@ -220,7 +269,8 @@ void Draw::buildDrawQueue() {
     }
 
     //TODO: VERY TEMPORARY, TEST
-    Buffer::API::copyBuffer(draw_instances.buffer, draw_instances_gpu, draw_instances.free_blocks.rbegin()->offset * sizeof(DrawInstanceData));
+    //Only copy dynamic and changed buffers, move it to a separate thread, syncronization?
+    Buffer::API::copyBuffer(draw_transform.buffer, draw_transform_gpu, draw_transform.free_blocks.rbegin()->offset * sizeof(DrawTransformData));
     
     previous_draw_queue = draw_queue;
     draw_queue.clear();

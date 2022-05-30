@@ -133,6 +133,9 @@ namespace Fresa::Graphics::VK
                     index = (int)std::distance(bindings.begin(), it);
                 }
                 
+                if (data.at(index) == VK_NULL_HANDLE)
+                    continue;
+                
                 for (int i = 0; i < Config::frames_in_flight; i++) {
                     if constexpr (is_buffer) {
                         descriptors.buffer[count].buffer = data.at(index);

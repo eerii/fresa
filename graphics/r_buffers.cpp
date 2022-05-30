@@ -19,7 +19,8 @@ UniformBufferID Buffer::registerUniformBuffer(str name, ui32 size) {
     
     //: Find new id
     UniformBufferID id = uniform_buffers.size() == 0 ? UniformBufferID{} : uniform_buffers.end()->first;
-    do { id++; } while (id == no_buffer_id or uniform_buffers.count(id));
+    do { id++; } while (id == no_buffer_id or uniform_buffers.count(id) or
+                        std::find_if(reserved_buffers.begin(), reserved_buffers.end(), [&](auto &r){ return r.id == id; }) != reserved_buffers.end());
     
     //: Allocate new buffer
     uniform_buffers[id] = Buffer::API::allocateBuffer(size, BUFFER_USAGE_UNIFORM, BUFFER_MEMORY_BOTH);
@@ -41,7 +42,8 @@ StorageBufferID Buffer::registerStorageBuffer(str name, ui32 size) {
     
     //: Find new id
     StorageBufferID id = storage_buffers.size() == 0 ? StorageBufferID{} : storage_buffers.end()->first;
-    do { id++; } while (id == no_buffer_id or storage_buffers.count(id));
+    do { id++; } while (id == no_buffer_id or storage_buffers.count(id) or
+                        std::find_if(reserved_buffers.begin(), reserved_buffers.end(), [&](auto &r){ return r.id == id; }) != reserved_buffers.end());
     
     //: Allocate new buffer
     storage_buffers[id] = Buffer::API::allocateBuffer(size, BUFFER_USAGE_STORAGE, BUFFER_MEMORY_BOTH);

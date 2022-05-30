@@ -35,16 +35,47 @@ namespace Fresa::Graphics
         DRAW_STATIC         =  1 << 2,
         DRAW_DYNAMIC        =  1 << 3,
     };
-    
+
+    //: Transform matrix for each of the rendered instances, stored in the draw_transform buffer
+    //      Accessed using both the batch id and the batch offset
+    //      Also contains a GPU only buffer that is syncronized every frame with the new transforms
+    struct DrawTransformData {
+        glm::mat4 model;
+    };
+
+    //: Material data
+    struct DrawMaterialData {
+        glm::vec4 color;
+    };
+    using MaterialID = ui32;
+
+    //: Instance indices
+    //      TODO: WIP
+    struct DrawInstanceData {
+        ui32 transform_id;
+        MaterialID material_id;
+    };
+
     //: Draw description that holds references to everything needed to render an object, indexed by DrawID
     struct DrawDescription {
         DrawBatchID batch;
         DrawBatchType type;
         MeshID mesh;
+        MaterialID material;
         ui32 count;
         ui32 offset;
     };
     using DrawID = ui32;
+
+    //: Draw queue object
+    struct DrawQueueObject {
+        ShaderID shader;
+        DrawBatchID batch;
+        DrawCommandID command;
+        MeshID mesh;
+        ui32 instance_count;
+        ui32 instance_offset;
+    };
     
     //---------------------------------------------------
     //: Data
@@ -64,24 +95,18 @@ namespace Fresa::Graphics
     //: Draw description list
     inline std::map<DrawID, DrawDescription> draw_descriptions;
     
-    //: Data for each of the rendered instances, stored in the draw_instances buffer
-    //      Accessed using both the batch id and the batch offset
-    struct DrawInstanceData {
-        glm::mat4 model;
-    };
+    //: Transform buffer
+    inline BlockBuffer draw_transform;
+    inline BufferData draw_transform_gpu;
+    inline void* draw_transform_data = nullptr;
+
+    //: Material buffer
+    inline BlockBuffer draw_materials;
+
+    //: Instance buffer
     inline BlockBuffer draw_instances;
-    inline BufferData draw_instances_gpu;
-    inline void* draw_instance_data = nullptr;
     
-    //: Draw queue
-    struct DrawQueueObject {
-        ShaderID shader;
-        DrawBatchID batch;
-        DrawCommandID command;
-        MeshID mesh;
-        ui32 instance_count;
-        ui32 instance_offset;
-    };
+    //: Draw queues
     inline std::vector<DrawQueueObject> draw_queue;
     inline std::vector<DrawQueueObject> previous_draw_queue = {};
     inline std::map<ShaderID, std::vector<DrawCommandID>> built_draw_queue;
@@ -101,16 +126,19 @@ namespace Fresa::Graphics
             return registerMeshInternal((void*)vertices.data(), (ui32)vertices.size(), (ui8)sizeof(V),
                                         (void*)indices.data(), (ui32)indices.size(), (ui8)sizeof(I));
         }
+    
+        //: Register material
+        MaterialID registerMaterial(glm::vec4 color);
         
         //: Register draw id
         //      Using some relevant information (mesh, ...) create a DrawID handle and add it to batches
-        DrawID registerDrawID(MeshID mesh, DrawBatchType type, ui32 count = 1);
+        DrawID registerDrawID(MeshID mesh, MaterialID material, DrawBatchType type, ui32 count = 1);
         
         //: Draw, add a draw id to a shader draw queue
         void draw(ShaderID shader, DrawID id);
         
         //: Get instance data buffer pointer
-        DrawInstanceData* getInstanceData(DrawID id);
+        DrawTransformData* getInstanceData(DrawID id);
         
         //: Build draw queue and create the indirect commands
         void buildDrawQueue();

@@ -2181,24 +2181,21 @@ void Shader::API::linkDescriptorResources(ShaderID shader) {
     
     for (auto &d : descriptors) {
         for (auto &r : d.resources) {
+            if (r.type != DESCRIPTOR_UNIFORM and r.type != DESCRIPTOR_STORAGE)
+                continue;
+            auto &list = r.type == DESCRIPTOR_UNIFORM ? uniform_list : storage_list;
+            
             //: Check for reserved buffers
             auto it = std::find_if(reserved_buffers.begin(), reserved_buffers.end(), [&r](auto &b){ return b.id == r.id; });
             if (it != reserved_buffers.end()) {
                 if (it->buffer == nullptr)
                     log::error("Reserved buffer not propperly linked");
-                if (it->buffer->buffer != VK_NULL_HANDLE) {
-                    if (r.type == DESCRIPTOR_UNIFORM)
-                        uniform_list.push_back(it->buffer->buffer);
-                    if (r.type == DESCRIPTOR_STORAGE)
-                        storage_list.push_back(it->buffer->buffer);
-                }
+                list.push_back(it->buffer->buffer);
             }
             //: Regular buffers
             else {
-                if (r.type == DESCRIPTOR_UNIFORM)
-                    uniform_list.push_back(uniform_buffers.at(r.id).buffer);
-                if (r.type == DESCRIPTOR_STORAGE)
-                    storage_list.push_back(storage_buffers.at(r.id).buffer);
+                auto &buffers = r.type == DESCRIPTOR_UNIFORM ? uniform_buffers : storage_buffers;
+                list.push_back(buffers.at(r.id).buffer);
             }
         }
     }
@@ -2564,6 +2561,7 @@ void VK::renderFrame() {
     
     vkResetFences(api.device, 1, &api.sync.fences_in_flight.at(api.sync.current_frame));
     
+    //: Very demanding operation, it alone takes a big chunk of time
     if (vkQueueSubmit(api.cmd.queues.graphics, 1, &submit_info, api.sync.fences_in_flight.at(api.sync.current_frame)) != VK_SUCCESS)
         log::error("Failed to submit Draw Command Buffer");
 }
