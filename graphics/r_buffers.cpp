@@ -203,17 +203,17 @@ void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool ex
             buffer_list.erase(buffer.buffer);
         }
         
-        //: Update buffer data and free blocks
+        //: Update free blocks
         buffer.buffer = new_buffer;
         new_offset = last_block->offset;
         last_block->offset += new_size;
+        
+        //: Callback actions when the buffer is expanded and changes reference
+        buffer.callback(buffer.buffer);
     }
     
-    //: Callback actions when the buffer is expanded and changes reference
-    buffer.callback(buffer.buffer);
-    
     //: Copy block if growing
-    if (b.size > 0)
+    if (b.size > 0 and b.offset != new_offset.value())
         Buffer::API::copyBuffer(buffer.buffer, buffer.buffer, b.size * buffer.stride, new_offset.value() * buffer.stride, b.offset * buffer.stride);
     
     //: Update block info

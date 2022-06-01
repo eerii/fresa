@@ -18,9 +18,6 @@ void Draw::registerDrawCommand(ui32 hash, MeshID mesh, ui32 instance_count, ui32
     if (draw_commands.buffer.buffer == no_buffer)
         draw_commands = Buffer::createBlockBuffer(256, sizeof(IDrawIndexedIndirectCommand), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
     
-    //: Create indirect draw command
-    //TODO: (3) Pack multiple commands together
-    
     IDrawIndexedIndirectCommand cmd;
     cmd.indexCount = meshes.index.blocks.at(mesh).size;
     cmd.instanceCount = instance_count;
@@ -179,36 +176,13 @@ DrawID Draw::registerDrawID(MeshID mesh, MaterialID material, std::vector<Shader
         buffer_list.erase(staging_buffer);
     }
     
-    //: Find if there is a matching draw description (same shaders and batch id)
-    /*auto it = std::find_if(draw_descriptions.begin(), draw_descriptions.end(), [&](const auto &d){
-        return draw_shaders == d.second.shaders and batch == d.second.hash;
-    });
+    //: Find new id
+    DrawID id = draw_descriptions.size() == 0 ? 0 : draw_descriptions.rbegin()->first;
+    do { id++; } while (draw_descriptions.count(id));
     
-    
-    //: There is already draw matching the description
-    if (it != draw_descriptions.end()) {
-        auto &draw = it->second;
-        
-        //: Check if the descriptions are propperly packed
-        if (offset != draw.offset + draw.count)
-            log::error("These draw descriptions are not tightly packed");
-        
-        //: Add instance count
-        draw.count += count;
-        
-        return it->first;
-    }
-    
-    //: This needs a new description
-    else {*/
-        //: Find new id
-        DrawID id = draw_descriptions.size() == 0 ? 0 : draw_descriptions.rbegin()->first;
-        do { id++; } while (draw_descriptions.count(id));
-        
-        //: Create new draw description
-        draw_descriptions[id] = DrawDescription{batch, type, mesh, count, offset, draw_shaders};
-        return id;
-    //}
+    //: Create new draw description
+    draw_descriptions[id] = DrawDescription{batch, type, mesh, count, offset, draw_shaders};
+    return id;
 }
 
 
@@ -217,33 +191,7 @@ DrawID Draw::registerDrawID(MeshID mesh, MaterialID material, std::vector<Shader
 //      Adds a DrawID to the render queue for draw indirect command creation
 //---------------------------------------------------
 void Draw::draw(DrawID id) {
-    //TODO: (1) See how to organize draw ids and batches
     draw_queue.insert(id);
-    
-    //: Check if the DrawID is valid
-    /*if (not draw_descriptions.count(id))
-        log::error("Using invalid DrawID (%d)", id);
-    auto &object = draw_descriptions.at(id);
-    
-    for (auto &shader : object.shaders) {
-        auto it = std::find_if(draw_queue.begin(), draw_queue.end(), [&](const auto &d){
-            return d.shader == shader and d.hash == object.hash;
-        });
-        //: Add to draw queue (first item)
-        if (it == draw_queue.end()) {
-            DrawQueueObject new_draw{};
-            new_draw.shader = shader;
-            new_draw.hash = object.hash;
-            new_draw.mesh = object.mesh;
-            new_draw.instance_count = object.count;
-            new_draw.instance_offset = draw_transform.blocks.at(object.hash).offset + object.offset; //TODO: Check if they are tightly packed
-            draw_queue.push_back(new_draw);
-        }
-        //: Add to draw queue (next items)
-        else {
-            it->instance_count += object.count;
-        }
-    }*/
 }
 
 //---------------------------------------------------
@@ -278,10 +226,6 @@ ui32 calculateHash(ui32 count, ui32 offset, ui32 hash) {
 }
 
 void Draw::buildDrawQueue() {
-    //TODO: (2) Fix this once the draw queue is draw ids, also see how to transfer the draw queue to the GPU
-    //          It needs to take into account static and dynamic values, only reupload when changing, and tightly packing them
-    //          Also, the transform ids need to be changed from the instance buffer, maybe using a compute shader is a good idea
-    
     //: Calculate new and removed draws
     std::set<DrawID> new_draws;
     std::set<DrawID> removed_draws{};
@@ -364,6 +308,8 @@ void Draw::buildDrawQueue() {
 
     //TODO: VERY TEMPORARY, TEST
     //Only copy dynamic and changed buffers, move it to a separate thread, syncronization?
+    //It needs to take into account static and dynamic values, only reupload when changing, and tightly packing them
+    //Also, the transform ids need to be changed from the instance buffer, maybe using a compute shader is a good idea
     Buffer::API::copyBuffer(draw_transform.buffer, draw_transform_gpu, draw_transform.free_blocks.rbegin()->offset * sizeof(DrawTransformData));
     
     previous_draw_queue = draw_queue;
