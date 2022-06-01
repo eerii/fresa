@@ -19,6 +19,8 @@ DrawCommandID Draw::registerDrawCommand(DrawQueueObject draw) {
         draw_commands = Buffer::createBlockBuffer(256, sizeof(IDrawIndexedIndirectCommand), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
     
     //: Create indirect draw command
+    //TODO: (3) Pack multiple commands together
+    
     IDrawIndexedIndirectCommand cmd;
     cmd.indexCount = meshes.index.blocks.at(draw.mesh).size;
     cmd.instanceCount = draw.instance_count;
@@ -84,132 +86,157 @@ MaterialID Draw::registerMaterial(glm::vec4 color) {
 //      Also creates a draw batch by hashing those parameters to group compatible draws
 //      Adds it to the batches buffer and calculates the batch offset
 //---------------------------------------------------
-DrawID Draw::registerDrawID(MeshID mesh, MaterialID material, DrawBatchType type, ui32 count) {
-    //: Find new id
-    DrawID id = draw_descriptions.size() == 0 ? DrawID{} : draw_descriptions.end()->first;
-    do { id++; } while (draw_descriptions.count(id));
-    
-    //: Create the draw object
-    DrawDescription draw{};
-    draw.mesh = mesh;
-    draw.material = material;
-    draw.type = type;
-    draw.count = count;
-    
-    //: Calculate the draw batch hast
-    //      For single objects, the batch id is all the same. For instances it takes into account the mesh (and possible more things in the future)
-    //      They are also separated by static and dynamic objects
-    std::stringstream ss;
-    if (type & DRAW_SINGLE_OBJECT)
-        ss << DRAW_SINGLE_OBJECT;
-    if (type & DRAW_STATIC)
-        ss << DRAW_STATIC;
-    if (type & DRAW_DYNAMIC)
-        ss << DRAW_DYNAMIC;
-    if (type & DRAW_INSTANCES) {
-        ss << draw.mesh;
+void linkReservedBuffers() {
+    //: Link the new reserved buffer handles to the shaders that use them
+    for (const auto &list : shaders.list) {
+        for (const auto &[id, shader] : list) {
+            [id=id, shader=shader](){
+            for (const auto &d : shader.descriptors) {
+                for (const auto &res : d.resources) {
+                    auto it = std::find_if(reserved_buffers.begin(), reserved_buffers.end(), [&res](auto &b){ return b.id == res.id; });
+                    if (it != reserved_buffers.end()) {
+                        Shader::API::linkDescriptorResources(id);
+                        return;
+                    }
+                }
+            }}();
+        }
     }
-    auto s = ss.str();
-    draw.batch = Math::hash(s.c_str(), s.size());
-    
+};
+
+DrawID Draw::registerDrawID(MeshID mesh, MaterialID material, std::vector<ShaderID> draw_shaders, DrawBatchType type, ui32 count) {
     //: Make sure the transform block buffer is created
     if (draw_transform.buffer.buffer == no_buffer) {
-        //: Create block buffer (CPU accessible)
-        draw_transform = Buffer::createBlockBuffer(1024, sizeof(DrawTransformData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_BOTH, [](BufferData &buffer){
+        draw_transform = Buffer::createBlockBuffer(64, sizeof(DrawTransformData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_BOTH, [](BufferData &buffer){
             //: Grow GPU buffer
             draw_transform_gpu = Buffer::API::allocateBuffer((draw_transform.free_blocks.rbegin()->offset + draw_transform.free_blocks.rbegin()->size) * sizeof(DrawTransformData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_GPU_ONLY);
             
-            //: Link new buffer handle to shaders that use it TODO: Move to different function
-            for (const auto &list : shaders.list) {
-                for (const auto &[id, shader] : list) {
-                    [id=id, shader=shader](){
-                    for (const auto &d : shader.descriptors) {
-                        for (const auto &res : d.resources) {
-                            auto it = std::find_if(reserved_buffers.begin(), reserved_buffers.end(),
-                                                   [&res](auto &b){ return b.id == res.id; });
-                            if (it != reserved_buffers.end()) {
-                                Shader::API::linkDescriptorResources(id);
-                                return;
-                            }
-                        }
-                    }}();
-                }
-            }
+            //: Link new buffer handle to shaders that use it
+            linkReservedBuffers();
             
             //: Map the buffer to the cpu
             vmaMapMemory(api.allocator, buffer.allocation, &draw_transform_data);
         });
     }
-    
-    //: Add transform
-    draw.offset = Buffer::addToBlockBuffer(draw_transform, draw.batch, nullptr, count, false);
-    
+        
     //: Make sure the instance block buffer is created
     if (draw_instances.buffer.buffer == no_buffer) {
-        //: Create block buffer (CPU accessible)
-        draw_instances = Buffer::createBlockBuffer(1024, sizeof(DrawInstanceData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_GPU_ONLY, [](BufferData &buffer){
-            //: Link new buffer handle to shaders that use it TODO: Move to different function
-            for (const auto &list : shaders.list) {
-                for (const auto &[id, shader] : list) {
-                    [id=id, shader=shader](){
-                    for (const auto &d : shader.descriptors) {
-                        for (const auto &res : d.resources) {
-                            auto it = std::find_if(reserved_buffers.begin(), reserved_buffers.end(),
-                                                   [&res](auto &b){ return b.id == res.id; });
-                            if (it != reserved_buffers.end()) {
-                                Shader::API::linkDescriptorResources(id);
-                                return;
-                            }
-                        }
-                    }}();
-                }
-            }
-        });
+        draw_instances = Buffer::createBlockBuffer(64, sizeof(DrawInstanceData), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_STORAGE), BUFFER_MEMORY_GPU_ONLY, [](BufferData &buffer){ linkReservedBuffers(); });
     }
+    
+    //: Calculate the draw batch hash
+    //      Iit takes into account the mesh (and possible more things in the future), and separates static and dynamic objects
+    std::stringstream ss;
+    if (type & DRAW_STATIC)
+        ss << DRAW_STATIC;
+    if (type & DRAW_DYNAMIC)
+        ss << DRAW_DYNAMIC;
+    ss << mesh;
+    auto s = ss.str();
+    ui32 batch = Math::hash(s.c_str(), s.size());
+    
+    //: Add transform
+    ui32 offset = Buffer::addToBlockBuffer(draw_transform, batch, nullptr, count, false);
     
     //: Add instance
+    BlockBufferPartition previous_block = draw_instances.blocks.count(batch) ? draw_instances.blocks.at(batch) : BlockBufferPartition{0, 0, {}};
     std::vector<DrawInstanceData> instances(count);
-    for (int i = 0; i < instances.size(); i++) {
-        instances[i].transform_id = draw_transform.blocks.at(draw.batch).offset + draw.offset + i;
+    for (int i = 0; i < count; i++) {
+        instances[i].transform_id = draw_transform.blocks.at(batch).offset + offset + i;
         instances[i].material_id = material;
     }
-    Buffer::addToBlockBuffer(draw_instances, draw.batch, (void*)instances.data(), count, false);
+    Buffer::addToBlockBuffer(draw_instances, batch, (void*)instances.data(), count, false);
     
-    //: Add to scene objects and to the recreation queue
-    draw_descriptions[id] = draw;
+    //: If the block is relocated, the transform ids need to be updated
+    if (previous_block.size > 0 and previous_block.offset != draw_instances.blocks.at(batch).offset) {
+        //: Create staging buffer to modify the data
+        BufferData staging_buffer = Buffer::API::allocateBuffer(previous_block.size * sizeof(DrawInstanceData), BufferUsage(BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_TRANSFER_DST), BUFFER_MEMORY_CPU_ONLY, nullptr);
+        
+        //: Copy the previous block to the staging buffer
+        Buffer::API::copyBuffer(draw_instances.buffer, staging_buffer, previous_block.size * sizeof(DrawInstanceData), 0, previous_block.offset * sizeof(DrawInstanceData));
+        
+        //: Map data from staging buffer
+        void* data_;
+        vmaMapMemory(api.allocator, staging_buffer.allocation, &data_);
+        DrawInstanceData* data = (DrawInstanceData*)data_;
+        
+        //: Update values
+        for (int i = 0; i < previous_block.size; i++)
+            data[i].transform_id += draw_instances.blocks.at(batch).offset - previous_block.offset;
+        
+        //: Copy again to the GPU buffer
+        Buffer::API::copyBuffer(staging_buffer, draw_instances.buffer, previous_block.size * sizeof(DrawInstanceData), draw_instances.blocks.at(batch).offset * sizeof(DrawInstanceData));
+        
+        //: Destroy staging buffer
+        vmaUnmapMemory(api.allocator, staging_buffer.allocation);
+        Buffer::API::destroyBuffer(staging_buffer);
+        buffer_list.erase(staging_buffer);
+    }
     
-    return id;
+    //: Find if there is a matching draw description (same shaders and batch id)
+    /*auto it = std::find_if(draw_descriptions.begin(), draw_descriptions.end(), [&](const auto &d){
+        return draw_shaders == d.second.shaders and batch == d.second.hash;
+    });
+    
+    
+    //: There is already draw matching the description
+    if (it != draw_descriptions.end()) {
+        auto &draw = it->second;
+        
+        //: Check if the descriptions are propperly packed
+        if (offset != draw.offset + draw.count)
+            log::error("These draw descriptions are not tightly packed");
+        
+        //: Add instance count
+        draw.count += count;
+        
+        return it->first;
+    }
+    
+    //: This needs a new description
+    else {*/
+        //: Find new id
+        DrawID id = draw_descriptions.size() == 0 ? 0 : draw_descriptions.rbegin()->first;
+        do { id++; } while (draw_descriptions.count(id));
+        
+        //: Create new draw description
+        draw_descriptions[id] = DrawDescription{batch, type, mesh, material, count, offset, draw_shaders};
+        return id;
+    //}
 }
 
 
 //---------------------------------------------------
 //: Draw
-//      Adds a DrawID to the specified shader's render queue for draw indirect command creation
-//      Count adds that number of contiguous draw calls to the instance count
+//      Adds a DrawID to the render queue for draw indirect command creation
 //---------------------------------------------------
-void Draw::draw(ShaderID shader, DrawID id) {
+void Draw::draw(DrawID id) {
+    //TODO: (1) See how to organize draw ids and batches
+    
     //: Check if the DrawID is valid
     if (not draw_descriptions.count(id))
         log::error("Using invalid DrawID (%d)", id);
     auto &object = draw_descriptions.at(id);
     
-    //: Add to draw queue (first item)
-    auto it = std::find_if(draw_queue.begin(), draw_queue.end(), [&](const auto &d){
-        return d.shader == shader and d.batch == object.batch;
-    });
-    if (it == draw_queue.end()) {
-        DrawQueueObject new_draw{};
-        new_draw.shader = shader;
-        new_draw.batch = object.batch;
-        new_draw.command = no_draw_command;
-        new_draw.mesh = object.mesh;
-        new_draw.instance_count = object.count;
-        new_draw.instance_offset = draw_transform.blocks.at(object.batch).offset; //TODO: Check if they are tightly packed
-        draw_queue.push_back(new_draw);
-    }
-    //: Add to draw queue (next items)
-    else {
-        it->instance_count += object.count;
+    for (auto &shader : object.shaders) {
+        auto it = std::find_if(draw_queue.begin(), draw_queue.end(), [&](const auto &d){
+            return d.shader == shader and d.hash == object.hash;
+        });
+        //: Add to draw queue (first item)
+        if (it == draw_queue.end()) {
+            DrawQueueObject new_draw{};
+            new_draw.shader = shader;
+            new_draw.hash = object.hash;
+            new_draw.command = no_draw_command;
+            new_draw.mesh = object.mesh;
+            new_draw.instance_count = object.count;
+            new_draw.instance_offset = draw_transform.blocks.at(object.hash).offset + object.offset; //TODO: Check if they are tightly packed
+            draw_queue.push_back(new_draw);
+        }
+        //: Add to draw queue (next items)
+        else {
+            it->instance_count += object.count;
+        }
     }
 }
 
@@ -228,7 +255,7 @@ DrawTransformData* Draw::getInstanceData(DrawID id) {
     
     //: Return a pointer to the correct offset to the mapped buffer data
     auto &object = draw_descriptions.at(id);
-    auto &batch = draw_transform.blocks.at(object.batch);
+    auto &batch = draw_transform.blocks.at(object.hash);
     return (DrawTransformData*)draw_transform_data + object.offset + batch.offset;
 }
 
@@ -236,11 +263,15 @@ DrawTransformData* Draw::getInstanceData(DrawID id) {
 //: Build draw queue
 //---------------------------------------------------
 void Draw::buildDrawQueue() {
+    //TODO: (2) Fix this once the draw queue is draw ids, also see how to transfer the draw queue to the GPU
+    //          It needs to take into account static and dynamic values, only reupload when changing, and tightly packing them
+    //          Also, the transform ids need to be changed from the instance buffer, maybe using a compute shader is a good idea
+    
     //: New draws
     ui32 new_draw_count = 0;
     for (auto &d : draw_queue) {
         auto it = std::find_if(previous_draw_queue.begin(), previous_draw_queue.end(), [&d](const auto &i){
-            return i.shader == d.shader and i.batch == d.batch and i.instance_count == d.instance_count;
+            return i.shader == d.shader and i.hash == d.hash and i.instance_count == d.instance_count;
         });
         if (it == previous_draw_queue.end()) {
             if (d.command == no_draw_command)
@@ -254,7 +285,7 @@ void Draw::buildDrawQueue() {
     if (previous_draw_queue.size() + new_draw_count > draw_queue.size()) {
         for (auto &d : previous_draw_queue) {
             auto it = std::find_if(draw_queue.begin(), draw_queue.end(), [&d](const auto &i){
-                return i.shader == d.shader and i.batch == d.batch and i.instance_count == d.instance_count;
+                return i.shader == d.shader and i.hash == d.hash and i.instance_count == d.instance_count;
             });
             if (it == draw_queue.end()) {
                 Buffer::removeFromBlockBuffer(draw_commands, 0, d.command);

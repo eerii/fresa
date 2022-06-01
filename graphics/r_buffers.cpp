@@ -176,9 +176,9 @@ void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool ex
             //: Found suitable offset
             new_offset = buffer.free_blocks.at(i).offset;
             //: Update free block list
-            if (i == buffer.free_blocks.size() - 1 or buffer.free_blocks.at(i).size > grow_size) {
-                buffer.free_blocks.at(i).offset += grow_size;
-                buffer.free_blocks.at(i).size -= grow_size;
+            if (i == buffer.free_blocks.size() - 1 or buffer.free_blocks.at(i).size > new_size) {
+                buffer.free_blocks.at(i).offset += new_size;
+                buffer.free_blocks.at(i).size -= new_size;
             } else {
                 buffer.free_blocks.erase(buffer.free_blocks.begin() + i);
             }
@@ -191,7 +191,7 @@ void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool ex
         //: Calculate new size
         auto last_block = std::max_element(buffer.free_blocks.begin(), buffer.free_blocks.end(),
                                            [](auto &a, auto &b)->bool{ return a.offset + a.size < b.offset + b.size; } );
-        ui32 new_buffer_size = last_block->offset + last_block->size + grow_size;
+        ui32 new_buffer_size = last_block->offset + last_block->size + new_size;
         
         //: Allocate new buffer
         BufferData new_buffer = Buffer::API::allocateBuffer(new_buffer_size * buffer.stride, buffer.usage, buffer.buffer.memory);
@@ -206,7 +206,7 @@ void Buffer::growBlockBuffer(BlockBuffer &buffer, ui32 block, ui32 size, bool ex
         //: Update buffer data and free blocks
         buffer.buffer = new_buffer;
         new_offset = last_block->offset;
-        last_block->offset += grow_size;
+        last_block->offset += new_size;
     }
     
     //: Callback actions when the buffer is expanded and changes reference

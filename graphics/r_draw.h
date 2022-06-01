@@ -7,6 +7,7 @@
 #include "r_types.h"
 #include "r_buffers.h"
 #include "r_shaders.h"
+#include <set>
 
 namespace Fresa::Graphics
 {
@@ -22,18 +23,11 @@ namespace Fresa::Graphics
     //: Mesh id (vertex + index blocks)
     using MeshID = ui32;
     
-    //: Draw batch id
-    using DrawBatchID = ui32;
-    
     //: Different types of draw batches
-    //      - Single / Instances: Either render one or a few objects or many
-    //        When using instances, each mesh gets its own draw batch, but all the single objects are packed into one batch
-    //      - Static / Dynamic: Static objects are not updated every frame, not reuploaded to the GPU
+    //      Static objects are not updated every frame, not reuploaded to the GPU
     enum DrawBatchType {
-        DRAW_SINGLE_OBJECT  =  1 << 0,
-        DRAW_INSTANCES      =  1 << 1,
-        DRAW_STATIC         =  1 << 2,
-        DRAW_DYNAMIC        =  1 << 3,
+        DRAW_STATIC         =  1 << 0,
+        DRAW_DYNAMIC        =  1 << 1,
     };
 
     //: Transform matrix for each of the rendered instances, stored in the draw_transform buffer
@@ -58,19 +52,20 @@ namespace Fresa::Graphics
 
     //: Draw description that holds references to everything needed to render an object, indexed by DrawID
     struct DrawDescription {
-        DrawBatchID batch;
+        ui32 hash;
         DrawBatchType type;
         MeshID mesh;
         MaterialID material;
         ui32 count;
         ui32 offset;
+        std::vector<ShaderID> shaders;
     };
     using DrawID = ui32;
 
     //: Draw queue object
     struct DrawQueueObject {
         ShaderID shader;
-        DrawBatchID batch;
+        ui32 hash;
         DrawCommandID command;
         MeshID mesh;
         ui32 instance_count;
@@ -132,10 +127,10 @@ namespace Fresa::Graphics
         
         //: Register draw id
         //      Using some relevant information (mesh, ...) create a DrawID handle and add it to batches
-        DrawID registerDrawID(MeshID mesh, MaterialID material, DrawBatchType type, ui32 count = 1);
+        DrawID registerDrawID(MeshID mesh, MaterialID material, std::vector<ShaderID> shaders, DrawBatchType type, ui32 count = 1);
         
         //: Draw, add a draw id to a shader draw queue
-        void draw(ShaderID shader, DrawID id);
+        void draw(DrawID id);
         
         //: Get instance data buffer pointer
         DrawTransformData* getInstanceData(DrawID id);
