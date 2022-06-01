@@ -16,8 +16,6 @@ namespace Fresa::Graphics
     //---------------------------------------------------
     
     //: Indirect draw command buffer id
-    using DrawCommandID = ui32;
-    constexpr DrawCommandID no_draw_command = UINT_MAX;
     using IDrawIndexedIndirectCommand = IF_VULKAN(VkDrawIndexedIndirectCommand) IF_OPENGL(GlDrawIndexedIndirectCommand);
     
     //: Mesh id (vertex + index blocks)
@@ -44,10 +42,9 @@ namespace Fresa::Graphics
     using MaterialID = ui32;
 
     //: Instance indices
-    //      TODO: WIP
     struct DrawInstanceData {
         ui32 transform_id;
-        MaterialID material_id;
+        ui32 material_id;
     };
 
     //: Draw description that holds references to everything needed to render an object, indexed by DrawID
@@ -55,21 +52,16 @@ namespace Fresa::Graphics
         ui32 hash;
         DrawBatchType type;
         MeshID mesh;
-        MaterialID material;
         ui32 count;
         ui32 offset;
         std::vector<ShaderID> shaders;
     };
     using DrawID = ui32;
 
-    //: Draw queue object
-    struct DrawQueueObject {
-        ShaderID shader;
-        ui32 hash;
-        DrawCommandID command;
-        MeshID mesh;
-        ui32 instance_count;
-        ui32 instance_offset;
+    struct DrawBatch {
+        ui32 count;
+        ui32 offset;
+        ui32 command_hash;
     };
     
     //---------------------------------------------------
@@ -102,9 +94,10 @@ namespace Fresa::Graphics
     inline BlockBuffer draw_instances;
     
     //: Draw queues
-    inline std::vector<DrawQueueObject> draw_queue;
-    inline std::vector<DrawQueueObject> previous_draw_queue = {};
-    inline std::map<ShaderID, std::vector<DrawCommandID>> built_draw_queue;
+    inline std::set<DrawID> draw_queue;
+    inline std::set<DrawID> previous_draw_queue = {};
+    inline std::map<ui32, std::vector<DrawBatch>> draw_batches;
+    inline std::map<ShaderID, std::set<ui32>> built_draw_queue;
     
     namespace Draw {
         //---------------------------------------------------
@@ -112,7 +105,7 @@ namespace Fresa::Graphics
         //---------------------------------------------------
         
         //: Register draw command
-        DrawCommandID registerDrawCommand(DrawQueueObject draw);
+        void registerDrawCommand(ui32 hash, MeshID mesh, ui32 instance_count, ui32 instance_offset);
         
         //: Add mesh vertices and indices to the mesh buffers
         MeshID registerMeshInternal(void* vertices, ui32 vertices_size, ui8 vertex_bytes, void* indices, ui32 indices_size, ui8 index_bytes);
@@ -146,6 +139,4 @@ namespace Fresa::Graphics
             
         }
     }
-    
-    
 }

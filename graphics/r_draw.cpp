@@ -13,7 +13,7 @@ using namespace Graphics;
 //---------------------------------------------------
 //: Register draw command
 //---------------------------------------------------
-DrawCommandID Draw::registerDrawCommand(DrawQueueObject draw) {
+void Draw::registerDrawCommand(ui32 hash, MeshID mesh, ui32 instance_count, ui32 instance_offset) {
     //: Check if block buffer is available
     if (draw_commands.buffer.buffer == no_buffer)
         draw_commands = Buffer::createBlockBuffer(256, sizeof(IDrawIndexedIndirectCommand), BufferUsage(BUFFER_USAGE_TRANSFER_DST | BUFFER_USAGE_TRANSFER_SRC | BUFFER_USAGE_INDIRECT), BUFFER_MEMORY_GPU_ONLY);
@@ -22,14 +22,18 @@ DrawCommandID Draw::registerDrawCommand(DrawQueueObject draw) {
     //TODO: (3) Pack multiple commands together
     
     IDrawIndexedIndirectCommand cmd;
-    cmd.indexCount = meshes.index.blocks.at(draw.mesh).size;
-    cmd.instanceCount = draw.instance_count;
-    cmd.firstIndex = meshes.index.blocks.at(draw.mesh).offset;
-    cmd.vertexOffset = meshes.vertex.blocks.at(draw.mesh).offset;
-    cmd.firstInstance = draw.instance_offset;
+    cmd.indexCount = meshes.index.blocks.at(mesh).size;
+    cmd.instanceCount = instance_count;
+    cmd.firstIndex = meshes.index.blocks.at(mesh).offset;
+    cmd.vertexOffset = meshes.vertex.blocks.at(mesh).offset;
+    cmd.firstInstance = instance_offset;
     
-    //: Add to block buffer
-    return Buffer::addToBlockBuffer(draw_commands, 0, (void*)&cmd, 1);
+    //: Update buffer
+    if (draw_commands.blocks.count(hash))
+        Buffer::API::updateBuffer(draw_commands.buffer, (void*)&cmd, sizeof(IDrawIndexedIndirectCommand), draw_commands.blocks.at(hash).offset * sizeof(IDrawIndexedIndirectCommand));
+    //: Add new command to buffer
+    else
+        Buffer::addToBlockBuffer(draw_commands, hash, (void*)&cmd, 1, true);
 }
 
 //---------------------------------------------------
@@ -125,13 +129,15 @@ DrawID Draw::registerDrawID(MeshID mesh, MaterialID material, std::vector<Shader
     }
     
     //: Calculate the draw batch hash
-    //      Iit takes into account the mesh (and possible more things in the future), and separates static and dynamic objects
+    //      It takes into account the mesh (and possible more things in the future), separates static and dynamic objects and takes into account shaders
     std::stringstream ss;
     if (type & DRAW_STATIC)
         ss << DRAW_STATIC;
     if (type & DRAW_DYNAMIC)
         ss << DRAW_DYNAMIC;
     ss << mesh;
+    for (auto &sh : draw_shaders)
+        ss << sh;
     auto s = ss.str();
     ui32 batch = Math::hash(s.c_str(), s.size());
     
@@ -200,7 +206,7 @@ DrawID Draw::registerDrawID(MeshID mesh, MaterialID material, std::vector<Shader
         do { id++; } while (draw_descriptions.count(id));
         
         //: Create new draw description
-        draw_descriptions[id] = DrawDescription{batch, type, mesh, material, count, offset, draw_shaders};
+        draw_descriptions[id] = DrawDescription{batch, type, mesh, count, offset, draw_shaders};
         return id;
     //}
 }
@@ -212,9 +218,10 @@ DrawID Draw::registerDrawID(MeshID mesh, MaterialID material, std::vector<Shader
 //---------------------------------------------------
 void Draw::draw(DrawID id) {
     //TODO: (1) See how to organize draw ids and batches
+    draw_queue.insert(id);
     
     //: Check if the DrawID is valid
-    if (not draw_descriptions.count(id))
+    /*if (not draw_descriptions.count(id))
         log::error("Using invalid DrawID (%d)", id);
     auto &object = draw_descriptions.at(id);
     
@@ -227,7 +234,6 @@ void Draw::draw(DrawID id) {
             DrawQueueObject new_draw{};
             new_draw.shader = shader;
             new_draw.hash = object.hash;
-            new_draw.command = no_draw_command;
             new_draw.mesh = object.mesh;
             new_draw.instance_count = object.count;
             new_draw.instance_offset = draw_transform.blocks.at(object.hash).offset + object.offset; //TODO: Check if they are tightly packed
@@ -237,7 +243,7 @@ void Draw::draw(DrawID id) {
         else {
             it->instance_count += object.count;
         }
-    }
+    }*/
 }
 
 //---------------------------------------------------
@@ -262,42 +268,99 @@ DrawTransformData* Draw::getInstanceData(DrawID id) {
 //---------------------------------------------------
 //: Build draw queue
 //---------------------------------------------------
+ui32 calculateHash(ui32 count, ui32 offset, ui32 hash) {
+    std::stringstream ss;
+    ss << count;
+    ss << offset;
+    ss << hash;
+    auto s = ss.str();
+    return Math::hash(s.c_str(), s.size());
+}
+
 void Draw::buildDrawQueue() {
     //TODO: (2) Fix this once the draw queue is draw ids, also see how to transfer the draw queue to the GPU
     //          It needs to take into account static and dynamic values, only reupload when changing, and tightly packing them
     //          Also, the transform ids need to be changed from the instance buffer, maybe using a compute shader is a good idea
     
+    //: Calculate new and removed draws
+    std::set<DrawID> new_draws;
+    std::set<DrawID> removed_draws{};
+    std::set_difference(draw_queue.begin(), draw_queue.end(),
+                        previous_draw_queue.begin(), previous_draw_queue.end(),
+                        std::inserter(new_draws, new_draws.end()));
+    std::set_difference(previous_draw_queue.begin(), previous_draw_queue.end(),
+                        draw_queue.begin(), draw_queue.end(),
+                        std::inserter(removed_draws, removed_draws.end()));
+    
+    std::map<ui32, DrawID> modified_batches{};
+    std::set<ui32> outdated_commands{};
+    
     //: New draws
-    ui32 new_draw_count = 0;
-    for (auto &d : draw_queue) {
-        auto it = std::find_if(previous_draw_queue.begin(), previous_draw_queue.end(), [&d](const auto &i){
-            return i.shader == d.shader and i.hash == d.hash and i.instance_count == d.instance_count;
-        });
-        if (it == previous_draw_queue.end()) {
-            if (d.command == no_draw_command)
-                d.command = registerDrawCommand(d);
-            built_draw_queue[d.shader].push_back(d.command);
-            new_draw_count++;
+    for (auto &d_id : new_draws) {
+        const auto &draw = draw_descriptions.at(d_id);
+        
+        //: Add the new draw
+        draw_batches[draw.hash].push_back({draw.count, draw.offset, 0});
+
+        //: If this hash has not been added to the modified batches, add it
+        if (not modified_batches.count(draw.hash))
+            modified_batches[draw.hash] = d_id;
+    }
+    
+    //: Modified batches
+    for (auto &[hash, d_id] : modified_batches) {
+        auto &batches = draw_batches.at(hash);
+        
+        //: Sort
+        std::sort(batches.begin(), batches.end(), [](auto &a, auto &b){ return a.offset < b.offset; });
+        
+        //: New flat vector
+        std::vector<DrawBatch> flat_batches = { batches.at(0) };
+        std::set<ui32> batches_to_reupload{};
+        if (batches.at(0).command_hash == 0)
+            batches_to_reupload.insert(0);
+        
+        //: Flatten
+        for (int i = 1; i < batches.size(); i++) {
+            if (batches.at(i).offset == flat_batches.rbegin()->count + flat_batches.rbegin()->offset) {
+                flat_batches.rbegin()->count += batches.at(i).count;
+                batches_to_reupload.insert((ui32)(flat_batches.size() - 1));
+                if (batches.at(i).command_hash != 0)
+                    outdated_commands.insert(batches.at(i).command_hash);
+            } else {
+                flat_batches.push_back(batches.at(i));
+                if (batches.at(i).command_hash == 0)
+                    batches_to_reupload.insert((ui32)(flat_batches.size() - 1));
+            }
+        }
+        batches = flat_batches;
+        
+        //: Draw commands for batches
+        const auto &draw = draw_descriptions.at(d_id);
+        for (auto i : batches_to_reupload) {
+            auto &batch = batches.at(i);
+            
+            //: Calculate hashes
+            batch.command_hash = calculateHash(batch.count, batch.offset, hash);
+            
+            //: Add draw commands
+            registerDrawCommand(batch.command_hash, draw.mesh, batch.count, draw_transform.blocks.at(hash).offset + batch.offset);
+            for (auto &shader : draw.shaders)
+                built_draw_queue[shader].insert(batch.command_hash);
         }
     }
     
-    //: Removed draws
-    if (previous_draw_queue.size() + new_draw_count > draw_queue.size()) {
-        for (auto &d : previous_draw_queue) {
-            auto it = std::find_if(draw_queue.begin(), draw_queue.end(), [&d](const auto &i){
-                return i.shader == d.shader and i.hash == d.hash and i.instance_count == d.instance_count;
-            });
-            if (it == draw_queue.end()) {
-                Buffer::removeFromBlockBuffer(draw_commands, 0, d.command);
-                auto it_ = std::find_if(built_draw_queue.at(d.shader).begin(), built_draw_queue.at(d.shader).end(),
-                                        [&d](const auto &i){ return i == d.command; });
-                built_draw_queue.at(d.shader).erase(it_);
-                d.command = no_draw_command;
-                if (built_draw_queue.at(d.shader).size() == 0)
-                    built_draw_queue.erase(d.shader);
-            }
-        }
+    //: Remove outdated commands
+    for (auto &hash : outdated_commands) {
+        draw_commands.free_blocks.push_back(draw_commands.blocks.at(hash));
+        draw_commands.blocks.erase(hash);
+        for (auto &[shader, queue] : built_draw_queue)
+            queue.erase(hash);
     }
+    if (outdated_commands.size() > 1)
+        std::sort(draw_commands.free_blocks.begin(), draw_commands.free_blocks.end(), [](auto &a, auto &b){ return a.offset < b.offset; });
+    
+    //: TODO: Remove draws
 
     //TODO: VERY TEMPORARY, TEST
     //Only copy dynamic and changed buffers, move it to a separate thread, syncronization?
