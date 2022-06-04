@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3 uwu
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #pragma once
 
 #include "r_opengl.h"
@@ -39,7 +36,7 @@ namespace Fresa::Graphics
     inline std::map<AttachmentID, AttachmentData> attachments;
 
     //---Drawing---
-    TextureID registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels);
+    TextureID registerTexture(Vec2<ui16> size, TextureChannels ch, ui8* pixels);
     
     //: Window vertex buffer
     inline BufferData window_vertex_buffer;

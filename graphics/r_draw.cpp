@@ -307,6 +307,7 @@ void Draw::buildDrawQueue() {
     //: TODO: Remove draws
 
     //TODO: VERY TEMPORARY, TEST
+    log::info("TODO: NEXT");
     //Only copy dynamic and changed buffers, move it to a separate thread, syncronization?
     //It needs to take into account static and dynamic values, only reupload when changing, and tightly packing them
     //Also, the transform ids need to be changed from the instance buffer, maybe using a compute shader is a good idea

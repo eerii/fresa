@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3 uwu
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #pragma once
 
 #include "r_vulkan_api.h"
@@ -21,5 +18,5 @@ namespace Fresa::Graphics
     bool update();
     bool stop();
     
-    TextureID getTextureID(str path, Channels ch = TEXTURE_CHANNELS_RGBA);
+    TextureID getTextureID(str path, TextureChannels ch = TEXTURE_CHANNELS_RGBA);
 }

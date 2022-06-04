@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3 uwu
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #include "r_api.h"
 #include "r_window.h"
 #include "r_shaders.h"

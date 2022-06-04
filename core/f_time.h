@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3 uwu
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #pragma once
 
 #include "types.h"
@@ -13,7 +10,7 @@ namespace Fresa
     using Clock = std::chrono::steady_clock;
     using Duration = std::chrono::nanoseconds;
     using TimerID = ui32;
-
+    
     struct Timer {
         Clock::time_point start;
         Duration duration;
@@ -46,6 +43,7 @@ namespace Fresa
     Clock::time_point time();
     
     TimerID setTimer(ui32 ms);
+    
     bool checkTimer(TimerID timer, float game_speed = 1.0f);
     Duration getTimerRemainder(TimerID timer);
     void stopTimer(TimerID timer);

@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3 uwu
-
+//: fresa by jose pazos perez, licensed under GPLv3
 //  Reflection in C++ is (as of now) pretty much absent, however, I wanted to implemented it to use with automatic serialization and other things.
 //  It took a lot of trial and error and many failed attempts, and it definitely has more room to grow, but I'm happy with the current result.
 //  I read many articles and source code while working on this, and I'd like to list the most useful ones here. Thank you so much!

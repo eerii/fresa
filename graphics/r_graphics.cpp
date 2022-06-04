@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3 uwu
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #include "r_graphics.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -79,7 +76,7 @@ bool Graphics::stop() {
     return true;
 }
 
-TextureID Graphics::getTextureID(str path, Channels ch) {
+TextureID Graphics::getTextureID(str path, TextureChannels ch) {
     //---Create TextureID---
     
     //: Check if path exists

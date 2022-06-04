@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3 uwu
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #pragma once
 
 #ifdef USE_VULKAN
@@ -228,7 +225,7 @@ namespace Fresa::Graphics::VK
     //Images
     //----------------------------------------
     TextureData createTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                              VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<ui16> size, VkFormat format, Channels ch);
+                              VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<ui16> size, VkFormat format, TextureChannels ch);
     std::pair<VkImage, VmaAllocation> createImage(VkDevice device, VmaAllocator allocator, VmaMemoryUsage memory, Vec2<ui16> size,
                                                   VkSampleCountFlagBits samples, ui32 mip_levels, VkFormat format,
                                                   VkImageLayout layout, VkImageUsageFlags usage);

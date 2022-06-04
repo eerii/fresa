@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3 uwu
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #ifdef USE_VULKAN
 
 #define VMA_IMPLEMENTATION
@@ -89,7 +86,7 @@ void Graphics::createAPI() {
     processRendererDescription();
     
     //---Window vertex buffer---
-    window_vertex_buffer = VK::createVertexBuffer(Vertices::window);
+    window_vertex_buffer = VK::createVertexBuffer(window_vertices);
     resize();
 }
 
@@ -2210,7 +2207,7 @@ void Shader::API::linkDescriptorResources(ShaderID shader) {
 //Images
 //----------------------------------------
 
-TextureID Graphics::registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels) {
+TextureID Graphics::registerTexture(Vec2<ui16> size, TextureChannels ch, ui8* pixels) {
     //---Create texture---
     static TextureID id = 0;
     log::warn("Textures not implemented yet");
@@ -2258,7 +2255,7 @@ TextureID Graphics::registerTexture(Vec2<ui16> size, Channels ch, ui8* pixels) {
 }
 
 TextureData VK::createTexture(VkDevice device, VmaAllocator allocator, VkPhysicalDevice physical_device,
-                              VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<ui16> size, VkFormat format, Channels ch) {
+                              VkImageUsageFlagBits usage, VkImageAspectFlagBits aspect, Vec2<ui16> size, VkFormat format, TextureChannels ch) {
     //---Texture---
     TextureData data{};
     

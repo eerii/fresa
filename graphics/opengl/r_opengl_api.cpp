@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3 uwu
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #ifdef USE_OPENGL
 
 #include "r_opengl_api.h"
@@ -51,7 +48,7 @@ void Graphics::createAPI() {
     deletion_queue.push_back([temp_vao](){glDeleteVertexArrays(1, &temp_vao);});
     GL::validateShaderData(temp_vao);
     
-    api.window_vertex_buffer = GL::createVertexBuffer(api, Vertices::window);
+    api.window_vertex_buffer = GL::createVertexBuffer(api, window_vertices);
     api.scaled_window_uniform = GL::createBuffer(sizeof(UniformBufferObject), GL_UNIFORM_BUFFER, GL_STREAM_DRAW);
 }
 

@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3 uwu
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #pragma once
 
 #include "types.h"
@@ -101,9 +98,10 @@
 namespace Fresa::Graphics
 {
     //---------------------------------------------------
-    //: Texture data
-    //      Contains the representation of a texture for each API
+    //: Textures (TODO: Move to its own module, r_textures)
     //---------------------------------------------------
+
+    //: Texture data
     struct TextureData {
         int w, h, ch;
         IF_VULKAN(
@@ -115,37 +113,18 @@ namespace Fresa::Graphics
         )
         IF_OPENGL(ui32 image;)
     };
-    
-    //TODO: REFACTOR
-    
-    //Buffer
-    //----------------------------------------
-    
-    struct UniformBufferObject {
-        Members(UniformBufferObject, model, view, proj)
-        glm::mat4 model;
-        glm::mat4 view;
-        glm::mat4 proj;
-    };
-    //----------------------------------------
-
-    //Texture
-    //----------------------------------------
     using TextureID = ui32;
     inline TextureID no_texture = 0;
-    
-    enum Channels {
+
+    //: Texture channels
+    enum TextureChannels {
         TEXTURE_CHANNELS_G = 1,
         TEXTURE_CHANNELS_GA = 2,
         TEXTURE_CHANNELS_RGB = 3,
         TEXTURE_CHANNELS_RGBA = 4
     };
-    //----------------------------------------
 
-    //Attachments
-    //----------------------------------------
-    using AttachmentID = ui8;
-
+    //: Attachment types
     enum AttachmentType {
         ATTACHMENT_COLOR = 1 << 0,
         ATTACHMENT_DEPTH = 1 << 1,
@@ -159,7 +138,7 @@ namespace Fresa::Graphics
         ATTACHMENT_COLOR_SWAPCHAIN = ATTACHMENT_COLOR | ATTACHMENT_SWAPCHAIN | ATTACHMENT_WINDOW,
         ATTACHMENT_COLOR_EXTERNAL = ATTACHMENT_COLOR | ATTACHMENT_EXTERNAL,
     };
-    
+
     inline std::map<str, AttachmentType> attachment_type_names = {
         {"color", ATTACHMENT_COLOR},
         {"depth", ATTACHMENT_DEPTH},
@@ -169,60 +148,63 @@ namespace Fresa::Graphics
         {"external", ATTACHMENT_EXTERNAL},
         {"msaa", ATTACHMENT_MSAA},
     };
-    
+
+    //: Attachments (TODO: Change from separate components to have a texture data + extra componets)
     struct AttachmentData {
         AttachmentType type;
         Vec2<ui16> size;
         
-        #if defined USE_VULKAN
-        VkImage image;
-        VmaAllocation allocation;
-        
-        VkImageView image_view;
-        
-        VkFormat format;
-        
-        VkImageUsageFlagBits usage;
-        VkImageAspectFlagBits aspect;
-        
-        VkImageLayout initial_layout;
-        VkImageLayout final_layout;
-        
-        VkAttachmentLoadOp load_op;
-        VkAttachmentStoreOp store_op;
-        
-        VkAttachmentDescription description;
-        #elif defined USE_OPENGL
-        ui32 tex;
-        #endif
+        IF_VULKAN(
+            VkImage image;
+            VmaAllocation allocation;
+            
+            VkImageView image_view;
+            
+            VkFormat format;
+            
+            VkImageUsageFlagBits usage;
+            VkImageAspectFlagBits aspect;
+            
+            VkImageLayout initial_layout;
+            VkImageLayout final_layout;
+            
+            VkAttachmentLoadOp load_op;
+            VkAttachmentStoreOp store_op;
+            
+            VkAttachmentDescription description;
+        )
+        IF_OPENGL(ui32 image;)
     };
+    using AttachmentID = ui8;
+
     //----------------------------------------
-    
-    //Subpasses
+    //: Subpasses (TODO: Check where to move this)
     //----------------------------------------
     using SubpassID = ui8;
     using RenderPassID = ui8;
     
+    //: Subpass
     struct SubpassData {
         std::vector<AttachmentID> external_attachments;
         std::map<AttachmentID, AttachmentType> attachment_descriptions;
         std::map<AttachmentID, SubpassID> previous_subpass_dependencies;
-        #if defined USE_OPENGL
-        ui32 framebuffer;
-        bool has_depth;
-        #endif
+        IF_OPENGL(
+            ui32 framebuffer;
+            bool has_depth;
+        )
     };
     
+    //: Renderpass
     struct RenderPassData {
-        #if defined USE_VULKAN
-        VkRenderPass render_pass;
-        std::vector<VkFramebuffer> framebuffers;
-        VkExtent2D attachment_extent;
-        #endif
+        IF_VULKAN(
+            VkRenderPass render_pass;
+            std::vector<VkFramebuffer> framebuffers;
+            VkExtent2D attachment_extent;
+        )
     };
-    //----------------------------------------
     
-    //Vertex
+    //----------------------------------------
+    //: Vertex (TODO: Check where to move this)
     //----------------------------------------
     //Needs to be ordered the same way as the shader
     
@@ -237,6 +219,7 @@ namespace Fresa::Graphics
     //      using CustomVertexType = std::variant<VertexExample, ...>
     //: To specify it in the renderer_description, the name will be everything except for Vertex, so in this case, it is "example" (a-A is the same)
     
+    //: Vertex formats
     enum VertexFormat {
         VERTEX_FORMAT_R_F = 1,
         VERTEX_FORMAT_RG_F = 2,
@@ -244,6 +227,7 @@ namespace Fresa::Graphics
         VERTEX_FORMAT_RGBA_F = 4,
     };
     
+    //: Vertex attribute descriptions
     struct VertexAttributeDescription {
         ui32 binding;
         ui32 location;
@@ -251,40 +235,7 @@ namespace Fresa::Graphics
         ui32 offset;
     };
     
-    struct VertexPos2 {
-        Members(VertexPos2, pos);
-        glm::vec2 pos;
-    };
-    
-    struct VertexPos2Color {
-        Members(VertexPos2Color, pos, color);
-        glm::vec2 pos;
-        glm::vec3 color;
-    };
-    
-    struct VertexPos2UV {
-        Members(VertexPos2UV, pos, uv);
-        glm::vec2 pos;
-        glm::vec2 uv;
-    };
-    
-    struct VertexPos3 {
-        Members(VertexPos3, pos);
-        glm::vec3 pos;
-    };
-    
-    struct VertexPos3Color {
-        Members(VertexPos3Color, pos, color);
-        glm::vec3 pos;
-        glm::vec3 color;
-    };
-    
-    struct VertexPos3UV {
-        Members(VertexPos3UV, pos, uv);
-        glm::vec3 pos;
-        glm::vec2 uv;
-    };
-    
+    //: Vertex description for OBJ-like objects
     struct VertexOBJ {
         Members(VertexOBJ, pos, uv, normal);
         glm::vec3 pos;
@@ -292,94 +243,21 @@ namespace Fresa::Graphics
         glm::vec3 normal;
     };
     
-    namespace Vertices {
-        inline const std::vector<VertexPos2> rect2 = {
-            {{0.f, 0.f}},
-            {{1.f, 0.f}},
-            {{1.f, 1.f}},
-            {{0.f, 1.f}},
-        };
-        
-        inline const std::vector<VertexPos2UV> rect2_tex = {
-            {{0.f, 0.f}, {0.0f, 0.0f}},
-            {{1.f, 0.f}, {1.0f, 0.0f}},
-            {{1.f, 1.f}, {1.0f, 1.0f}},
-            {{0.f, 1.f}, {0.0f, 1.0f}},
-        };
-        
-        inline const std::vector<VertexPos2Color> rect2_color = {
-            {{0.f, 0.f}, {1.0f, 0.0f, 0.0f}},
-            {{1.f, 0.f}, {0.0f, 1.0f, 0.0f}},
-            {{1.f, 1.f}, {0.0f, 0.0f, 1.0f}},
-            {{0.f, 1.f}, {1.0f, 1.0f, 1.0f}},
-        };
-        
-        inline const std::vector<VertexPos3> rect3 = {
-            {{0.f, 0.f, 0.0f}},
-            {{1.f, 0.f, 0.0f}},
-            {{1.f, 1.f, 0.0f}},
-            {{0.f, 1.f, 0.0f}},
-        };
-        
-        inline const std::vector<VertexPos3UV> rect3_tex = {
-            {{0.f, 0.f, 0.f}, {0.0f, 0.0f}},
-            {{1.f, 0.f, 0.f}, {1.0f, 0.0f}},
-            {{1.f, 1.f, 0.f}, {1.0f, 1.0f}},
-            {{0.f, 1.f, 0.f}, {0.0f, 1.0f}},
-        };
-        
-        inline const std::vector<VertexPos3Color> rect3_color = {
-            {{0.f, 0.f, 0.f}, {1.0f, 0.0f, 0.0f}},
-            {{1.f, 0.f, 0.f}, {0.0f, 1.0f, 0.0f}},
-            {{1.f, 1.f, 0.f}, {0.0f, 0.0f, 1.0f}},
-            {{0.f, 1.f, 0.f}, {1.0f, 1.0f, 1.0f}},
-        };
-        
-        inline const std::vector<VertexPos3> cube = {
-            {{-1.f, -1.f, -1.f}},
-            {{ 1.f, -1.f, -1.f}},
-            {{ 1.f,  1.f, -1.f}},
-            {{-1.f,  1.f, -1.f}},
-            {{-1.f, -1.f,  1.f}},
-            {{ 1.f, -1.f,  1.f}},
-            {{ 1.f,  1.f,  1.f}},
-            {{-1.f,  1.f,  1.f}},
-        };
-        
-        inline const std::vector<VertexPos3Color> cube_color = {
-            {{-1.f, -1.f, -1.f}, {0.701f, 0.839f, 0.976f}}, //Light
-            {{ 1.f, -1.f, -1.f}, {0.117f, 0.784f, 0.596f}}, //Teal
-            {{ 1.f,  1.f, -1.f}, {1.000f, 0.815f, 0.019f}}, //Yellow
-            {{-1.f,  1.f, -1.f}, {0.988f, 0.521f, 0.113f}}, //Orange
-            {{-1.f, -1.f,  1.f}, {0.925f, 0.254f, 0.345f}}, //Red
-            {{ 1.f, -1.f,  1.f}, {0.925f, 0.235f, 0.647f}}, //Pink
-            {{ 1.f,  1.f,  1.f}, {0.658f, 0.180f, 0.898f}}, //Purple
-            {{-1.f,  1.f,  1.f}, {0.258f, 0.376f, 0.941f}}, //Blue
-        };
-        
-        inline const std::vector<VertexPos2> window = {
-            {{-1.f, -1.f}}, {{-1.f, 1.f}},
-            {{ 1.f, -1.f}}, {{ 1.f, 1.f}},
-            {{ 1.f, -1.f}}, {{-1.f, 1.f}},
-        };
-    }
+    //: Vertex description for rect-like objects in 2 dimensions
+    struct VertexPos2 {
+        Members(VertexPos2, pos);
+        glm::vec2 pos;
+    };
     
-    namespace Indices {
-        inline const std::vector<ui16> rect = {
-            0, 2, 1, 0, 3, 2
-        };
-        
-        inline const std::vector<ui16> cube = {
-            0, 1, 3, 3, 1, 2,
-            1, 5, 2, 2, 5, 6,
-            4, 0, 7, 7, 0, 3,
-            3, 2, 7, 7, 2, 6,
-            4, 5, 0, 0, 5, 1,
-            5, 4, 6, 6, 4, 7,
-        };
-    }
+    //: Vertices of a window rect with propper scaling
+    inline const std::vector<VertexPos2> window_vertices = {
+        {{-1.f, -1.f}}, {{-1.f, 1.f}},
+        {{ 1.f, -1.f}}, {{ 1.f, 1.f}},
+        {{ 1.f, -1.f}}, {{-1.f, 1.f}},
+    };
     
-    using FresaVertexType = std::variant<VertexPos2, VertexPos2Color, VertexPos2UV, VertexPos3, VertexPos3Color, VertexPos3UV, VertexOBJ>;
+    //: Vertex type variant, including custom vertex objects
+    using FresaVertexType = std::variant<VertexPos2, VertexOBJ>;
     
     #if __has_include("vertex_list.h")
         #include "vertex_list.h"
@@ -388,5 +266,4 @@ namespace Fresa::Graphics
     #endif
     
     using VertexType = concatenate_<FresaVertexType, CustomVertexType>::type;
-    //----------------------------------------
 }
