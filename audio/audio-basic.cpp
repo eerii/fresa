@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #include "audio.h"
 #include "log.h"
 #include "file.h"

@@ -1,7 +1,4 @@
-//project fresa, 2017-2022
-//by jose pazos perez
-//licensed under GPLv3
-
+//: fresa by jose pazos perez, licensed under GPLv3
 #include "serialization.h"
 #include "file.h"
 #include "log.h"
