@@ -1,2 +1,2 @@
-- Rendering
-  - [Window](rendering/window.md)
+- Engine
+  - [Structure](engine/structure.md)
