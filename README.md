@@ -9,7 +9,7 @@ A tiny game engine made in C++20.
   <img src="https://user-images.githubusercontent.com/22449369/156197502-0e555a4a-8a71-4920-bb01-b29cefcf4a25.gif" width="24%" />
 </p>
 
-_Development branch: Currently working on version 0.4 with a redesigned graphics API. Refer to the main branch for a working version, this will see breaking changes._
+_Experimental graphics branch: This branch contains an experimental GPU based renderer. However, while working on it, I decided that it was best to start anew and migrate all code, but this time, working on clarity and documentation so it is readable and useful. Most of this code will get ported once the new engine is up and running, but it is here for reference. Only the Vulkan renderer is working, OpenGL is broken. It should also be considered experimental since some features are missing. However, the performance gains are really promising._
 
 ## features :sparkles:
 
