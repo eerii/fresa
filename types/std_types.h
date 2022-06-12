@@ -39,7 +39,7 @@ namespace fresa
 #endif
 
 //* ranges
-#ifdef __cpp_lib_ranges
+#ifdef __cpp_ranges
     #include <ranges>
     namespace fresa
     {
@@ -53,5 +53,5 @@ namespace fresa
         namespace rv = ranges::views;
     }
 #else
-    #warning "ranges not supported"
+    #error "ranges not supported"
 #endif
