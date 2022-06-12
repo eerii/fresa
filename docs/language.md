@@ -13,8 +13,18 @@ Keeping performance in mind, a key feature of any game engine on a tight per-fra
 
 ### containers
 
-- std::vector
+**common:**
+
+- std::array as the main container, use wherever possible
+- std::vector only for containers that must be variable, preallocation is recommended
+- std::unordered_map for key-value pairs
+- std::map only when ordered access is required
 - ranges (`c++20`)
+
+**specific:**
+
+- std::deque for lists where a lot of elements are added to or removed at the back
+- std::set for unique identifier lists, useful mathematical properties
 
 ### metaprograming
 
