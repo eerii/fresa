@@ -6,13 +6,22 @@
 //* standard types
 #include "std_types.h"
 
-//* type name implementation
-//      this function provides a constexpr string view with the name of a type
-//      type_name_n returns the name of the type including all namespaces
-//      type_name returns the name of the type excluding fresa namespaces
-//      relevant discussion in https://stackoverflow.com/questions/81870/is-it-possible-to-print-a-variables-type-in-standard-c
 namespace fresa
 {
+    //* string literals for templates
+    template <auto N>
+    struct str_literal {
+        constexpr str_literal(const char (&s)[N]) { std::copy(s, s + N, value); }
+        char value[N];
+    };
+
+
+    //* type name implementation
+    //      this function provides a constexpr string view with the name of a type
+    //      type_name_n returns the name of the type including all namespaces
+    //      type_name returns the name of the type excluding fresa namespaces
+    //      relevant discussion in https://stackoverflow.com/questions/81870/is-it-possible-to-print-a-variables-type-in-standard-c
+
     //: forward declaration of type_name_t to allow overloading
     template <typename T> constexpr str_view type_name_n();
 
