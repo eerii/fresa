@@ -24,6 +24,34 @@ namespace fresa
 //-  create custom string id with hash, implement in another file
 
 //* containers
+#include <array>
 #include <vector>
-//? think about which containers to use, vector is a must, but what about map and set?
-//? functional, memory
+#include <map>
+#include <unordered_map>
+//- directed graph implementation
+//- binary tree implementation
+
+//* concepts
+#ifdef __cpp_concepts
+    #include <concepts>
+#else
+    #error "concepts not supported"
+#endif
+
+//* ranges
+#ifdef __cpp_lib_ranges
+    #include <ranges>
+    namespace fresa
+    {
+        namespace rv = std::ranges::views;
+        namespace ranges = std::ranges;
+    }
+#elif __has_include(<range/v3/all.hpp>)
+    #include <range/v3/all.hpp>
+    namespace fresa
+    {
+        namespace rv = ranges::views;
+    }
+#else
+    #warning "ranges not supported"
+#endif

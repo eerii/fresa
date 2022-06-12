@@ -2,6 +2,7 @@
 
 A tiny game engine made in C++20.
 
+<<<<<<< HEAD
 <p float="left">
   <img src="https://user-images.githubusercontent.com/22449369/145628926-ca734a35-6a0e-4193-872b-4be45b886a48.gif" width="24%" />
   <img src="https://user-images.githubusercontent.com/22449369/145629231-f2f51bd6-330a-4533-9b1a-021ce0859508.gif" width="24%" />
@@ -120,3 +121,10 @@ Here is a brief explanation of the license:
 ```
 
 For reference, please read the full license [here](https://github.com/josekoalas/fresa/blob/main/LICENSE.md).
+=======
+***Development branch: New engine implementation, v0.4.0***
+
+Refer to the [docs](docs) for an overview of the new design approach or to the [main](https://github.com/josekoalas/fresa) branch for a the previous version of the engine.
+
+_Work in progress..._ :turtle:
+>>>>>>> 4975e39 ([0.4.0] Standard Imports 🦋)
