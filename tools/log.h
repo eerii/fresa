@@ -3,6 +3,7 @@
 //      includes different levels configurable by LOG_LEVEL
 #pragma once
 
+#include <iostream>
 #include "fresa_types.h"
 #include "fmt/core.h"
 
@@ -11,11 +12,12 @@
 //      1 << 1 - warnings
 //      1 << 2 - info
 //      1 << 3 - graphics
-//      1 << 4 - test
-//      1 << 5 - debug
+//      1 << 4 - test errors
+//      1 << 5 - test info and results
+//      1 << 6 - debug
 
 #ifndef LOG_LEVEL
-#define LOG_LEVEL 0b010111
+#define LOG_LEVEL 0b0110111
 #endif
 
 namespace fresa
@@ -47,9 +49,15 @@ namespace fresa
         void graphics(const T& ...t) { detail::log<"GRAPHICS", 1 << 3>(t...); }
 
         template <typename ...T>
-        void test(const T& ...t) { detail::log<"TEST", 1 << 4>(t...); }
+        void test_error(const T& ...t) { detail::log<"TEST FAILED", 1 << 4>(t...); }
 
         template <typename ...T>
-        void debug(const T& ...t) { detail::log<"DEBUG", 1 << 5>(t...); }
+        void test_passed(const T& ...t) { detail::log<"TEST PASSED", 1 << 5>(t...); }
+
+        template <typename ...T>
+        void test(const T& ...t) { detail::log<"TEST", 1 << 5>(t...); }
+
+        template <typename ...T>
+        void debug(const T& ...t) { detail::log<"DEBUG", 1 << 6>(t...); }
     }
 }
