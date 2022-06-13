@@ -11,10 +11,11 @@
 //      1 << 1 - warnings
 //      1 << 2 - info
 //      1 << 3 - graphics
-//      1 << 4 - debug
+//      1 << 4 - test
+//      1 << 5 - debug
 
 #ifndef LOG_LEVEL
-#define LOG_LEVEL 0b00111
+#define LOG_LEVEL 0b010111
 #endif
 
 namespace fresa
@@ -46,6 +47,9 @@ namespace fresa
         void graphics(const T& ...t) { detail::log<"GRAPHICS", 1 << 3>(t...); }
 
         template <typename ...T>
-        void debug(const T& ...t) { detail::log<"DEBUG", 1 << 4>(t...); }
+        void test(const T& ...t) { detail::log<"TEST", 1 << 4>(t...); }
+
+        template <typename ...T>
+        void debug(const T& ...t) { detail::log<"DEBUG", 1 << 5>(t...); }
     }
 }

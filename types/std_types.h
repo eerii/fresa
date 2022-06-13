@@ -32,14 +32,14 @@ namespace fresa
 //- binary tree implementation
 
 //* concepts
-#ifdef __cpp_concepts
+#ifdef __cpp_lib_concepts
     #include <concepts>
 #else
     #error "concepts not supported"
 #endif
 
 //* ranges
-#ifdef __cpp_ranges
+#ifdef __cpp_lib_ranges
     #include <ranges>
     namespace fresa
     {
