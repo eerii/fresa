@@ -32,3 +32,7 @@ Keeping performance in mind, a key feature of any game engine on a tight per-fra
 - lambdas
 - concepts (`c++20`)
 
+### compiler
+
+- feature testing (`c++20`)
+- std::source_location (`c++20`) for unit testing
