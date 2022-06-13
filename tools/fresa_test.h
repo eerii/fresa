@@ -33,7 +33,7 @@ namespace fresa
                     return source_location{file, line};
                 }
 
-                constexpr auto file_name() const noexcept { return file_; }
+                constexpr auto file_name() const noexcept { return file_; } //- trim system path
                 constexpr auto line() const noexcept { return line_; }
 
                 const char* file_;
@@ -43,16 +43,20 @@ namespace fresa
 
         //* printable concept
         template <typename T>
-        concept Printable = requires(std::ostream &os, T t) {
+        concept Printable = requires (std::ostream &os, T t) {
             { os << t } -> std::same_as<std::ostream&>;
         };
 
-        //* test concept (printable and assignable)
+        //* test concept
         template <typename T, auto expression = []{}>
         concept Test = requires(T t) {
             { t.name } -> Printable;
             { t = expression } -> std::same_as<void>;
         };
+
+        //* expression concept
+        template <typename T>
+        concept Expression = std::convertible_to<T, bool> and Printable<T>;
     }
 
     //* test
@@ -60,13 +64,39 @@ namespace fresa
         str_view name;
         
         void operator=(std::invocable auto test) {
-            log::test("Running {}", name);
-            test();
+            auto t = test();
+            if (t.size() > 0)
+                log::test_error("{} ({})", name, t);
+            else
+                log::test_passed("{}", name);
         }
     };
 
     //* test literal operator
     constexpr detail::Test auto operator""_test(const char* name, std::size_t size) {
         return Test{.name = str_view{name, size}};
+    }
+
+    //* expect
+    constexpr auto expect(detail::Expression auto expression, const detail::source_location &location = detail::source_location::current()) {
+        if (not expression) {
+            return fmt::format("{}:{}", location.file_name(), location.line());
+        }
+        return fmt::format("");
+    }
+
+    //* test suite
+    struct TestSuite {
+        str_view name;
+
+        void operator=(std::invocable auto suite) {
+            log::test("Running suite '{}'", name);
+            suite();
+        }
+    };
+
+    //* test suite literal operator
+    constexpr detail::Test auto operator""_suite(const char* name, std::size_t size) {
+        return TestSuite{.name = str_view{name, size}};
     }
 }
