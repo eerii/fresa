@@ -14,6 +14,7 @@ _general description_
 - **added** - unit test framework without macros
 - **added** - time clock implementation
 - **added** - engine base and fixed update loop
+- **added** - system manager
 
 ---
 

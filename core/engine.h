@@ -14,6 +14,7 @@ namespace fresa
         void init();
         bool update();
         void stop();
+        std::unordered_map<str, str> handle_arguments(int argv, char** args);
     }
 }
 
