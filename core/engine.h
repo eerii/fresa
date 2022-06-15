@@ -7,7 +7,7 @@
 namespace fresa
 {
     //* call from main.cpp
-    void run();
+    void run(int argv, char** args);
 
     //* different stages of the engine, referenced from run()
     namespace detail {

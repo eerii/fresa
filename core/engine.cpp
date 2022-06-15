@@ -11,8 +11,8 @@ constexpr std::array<ui8, 3> version = {0, 4, 0};
 
 //* main entry point
 //      called from main, it creates the engine, runs it and closes it when finished
-void fresa::run() {
-    log::debug("{} {}.{}.{}", fmt::format(fmt::emphasis::bold, "fresa"), version[0], version[1], version[2]);
+void fresa::run(int argv, char** args) {
+    log::info("{} {}.{}.{}", fmt::format(fmt::emphasis::bold, "fresa"), version[0], version[1], version[2]);
 
     //: initialization
     fresa::detail::init();
@@ -25,7 +25,7 @@ void fresa::run() {
 
     //: cleanup
     fresa::detail::stop();
-    log::debug("bye! c:");
+    log::info("bye! c:");
 }
 
 //------------------------------------------------------------------------------
