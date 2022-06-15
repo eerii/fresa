@@ -2,7 +2,7 @@
 
 #include "engine.h"
 #include "log.h"
-#include "fresa_test.h"
+#include "unit_test.h"
 #include "fresa_time.h"
 
 using namespace fresa;
