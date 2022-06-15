@@ -36,3 +36,7 @@ Keeping performance in mind, a key feature of any game engine on a tight per-fra
 
 - feature testing (`c++20`)
 - std::source_location (`c++20`) for unit testing
+
+### time
+
+- std::chrono for system independent timers
