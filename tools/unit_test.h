@@ -52,22 +52,22 @@ namespace fresa
         //* printable concept
         //      can be printed to the console with a << operator
         template <typename T>
-        concept CPrintable = requires (std::ostream &os, T t) {
+        concept TPrintable = requires (std::ostream &os, T t) {
             os << t;
         };
 
         //* test concept
         //      needs to have a printable name and to be assignable to an expression
         template <typename T, auto expression = []{}>
-        concept CTest = requires(T t) {
-            { t.name } -> CPrintable;
+        concept TTest = requires(T t) {
+            { t.name } -> TPrintable;
             t = expression;
         };
 
         //* expression concept
         //      can be evaluated to a boolean
         template <typename T>
-        concept CExpression = std::convertible_to<T, bool>;
+        concept TExpression = std::convertible_to<T, bool>;
 
         //* test objects
         //      useful structures to store data for the test system
@@ -136,13 +136,13 @@ namespace fresa
     };
 
     //* test literal operator
-    constexpr detail::CTest auto operator""_test(const char* name, std::size_t size) {
+    constexpr detail::TTest auto operator""_test(const char* name, std::size_t size) {
         return Test{.name = str_view{name, size}};
     }
 
     //* expect
     //      evaluates an expression from a test and returns the result as well as the code location
-    constexpr auto expect(detail::CExpression auto expression, const detail::source_location &location = detail::source_location::current()) {
+    constexpr auto expect(detail::TExpression auto expression, const detail::source_location &location = detail::source_location::current()) {
         return detail::test_objects::Expect{.location = location, .passed = expression};
     }
 

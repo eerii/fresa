@@ -25,6 +25,7 @@ Keeping performance in mind, a key feature of any game engine on a tight per-fra
 
 - std::deque for lists where a lot of elements are added to or removed at the back
 - std::set for unique identifier lists, useful mathematical properties
+- std::stack for LIFO containers, for example, system initialization/destruction
 
 ### metaprograming
 

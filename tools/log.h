@@ -51,6 +51,6 @@ namespace fresa
         void graphics(const T& ...t) { detail::log<"GRAPHICS", LOG_GRAPHICS, fmt::color::dark_turquoise>(t...); }
 
         template <typename ...T>
-        void debug(const T& ...t) { detail::log<"DEBUG", LOG_DEBUG, fmt::color::lime_green>(t...); }
+        void debug(const T& ...t) { detail::log<"DEBUG", LOG_DEBUG, fmt::color::light_sky_blue>(t...); }
     }
 }
