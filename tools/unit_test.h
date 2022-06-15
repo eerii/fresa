@@ -74,13 +74,9 @@ namespace fresa
         namespace test_objects
         {
             //: suite
-            template <std::invocable T>
             struct Suite {
-                T run;
+                void (*run)();
                 str_view name;
-
-                constexpr auto operator()() { run(); }
-                constexpr auto operator()() const { run(); }
             };
 
             //: expect result
@@ -94,21 +90,36 @@ namespace fresa
         //      bundles all the test suites and runs them on command
         //      improvement: add tags and filtering to have more granular control over running tests
         struct TestRunner {
-            std::vector<void (*)()> suites{};
+            std::vector<test_objects::Suite> suites{};
 
             //: add suite
-            template <typename T>
-            auto add(test_objects::Suite<T> suite) {
-                suites.push_back(suite.run);
+            auto add(test_objects::Suite suite) {
+                suites.push_back(suite);
+            }
+
+            //: run selected suites
+            void run (const std::vector<test_objects::Suite> &suites) {
+                for (auto suite : suites) {
+                    detail::log<"TEST", LOG_TEST | LOG_DEBUG, fmt::color::slate_gray>("Running suite '{}'", suite.name);
+                    suite.run();
+                }
             }
             
             //: run all
             void run() {
-                for (auto suite : suites) {
-                    detail::log<"TEST", LOG_TEST | LOG_DEBUG, fmt::color::slate_gray>("Running suite...");
-                    suite();
-                }
+                run(suites);
                 suites.clear();
+            }
+
+            //: run only some tests
+            void run(std::vector<str_view> tests) {
+                auto run_suites = suites | rv::filter([&](auto suite) {
+                    return ranges::contains(tests, suite.name);
+                }) | ranges::to_vector;
+
+                suites = suites | rv::set_difference(run_suites, [](auto a, auto b){ return a.name < b.name; }) | ranges::to_vector;
+
+                run(run_suites);
             }
         };
     }
@@ -152,7 +163,7 @@ namespace fresa
         str_view name;
 
         TestSuite (str_view name, std::invocable auto suite) : name(name) {
-            test_runner.add(detail::test_objects::Suite<decltype(suite)>{suite, name});
+            test_runner.add(detail::test_objects::Suite{suite, name});
         }
     };
 }

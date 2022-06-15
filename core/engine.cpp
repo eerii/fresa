@@ -14,6 +14,13 @@ constexpr std::array<ui8, 3> version = {0, 4, 0};
 void fresa::run(int argv, char** args) {
     log::info("{} {}.{}.{}", fmt::format(fmt::emphasis::bold, "fresa"), version[0], version[1], version[2]);
 
+    //: command line arguments
+    auto arguments = detail::handle_arguments(argv, args);
+
+    //: run tests if requested
+    auto test_it = arguments.find("t");
+    test_it == arguments.end() ? test_runner.run({""}) : test_runner.run({ test_it->second }); //- string split function
+
     //: initialization
     fresa::detail::init();
 
@@ -33,9 +40,6 @@ void fresa::run(int argv, char** args) {
 //* initialization
 void fresa::detail::init() {
     log::debug("setting up the engine");
-
-    //: run tests if requested
-    test_runner.run();
 }
 
 //* update
@@ -87,4 +91,27 @@ bool fresa::detail::update() {
 //* stop and cleanup
 void fresa::detail::stop() {
     log::debug("closing all systems");
+}
+
+//* create argument list
+//      parses the command line arguments and creates a list of key-value pairs
+//      arguments are passed in the form of "-k value"
+std::unordered_map<str, str> fresa::detail::handle_arguments(int argv, char** args) {
+    std::unordered_map<str, str> arguments;
+    for (int i = 1; i < argv; i++) {
+        auto a = str(args[i]);
+        auto len = a.size();
+        if (a[0] == '-') {
+            str key = a.substr(1, 1);
+            arguments[key] = len > 2 ? a.substr(2, len - 2) : "";
+            continue;
+        }
+        if (args[i-1][0] == '-') {
+            str key = str(args[i-1]).substr(1, 1);
+            arguments[key] = a;
+            continue;
+        };
+        log::error("Invalid argument '{}'", a);
+    }
+    return arguments;
 }
