@@ -1,4 +1,4 @@
-//* fresa_test
+//* unit_test
 //      basic unit testing framework with no macros
 //      key idea from kris jusiak (https://www.youtube.com/watch?v=-qAXShy1xiE)
 
