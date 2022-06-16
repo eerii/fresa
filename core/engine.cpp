@@ -19,8 +19,9 @@ void fresa::run(int argv, char** args) {
     auto arguments = detail::handle_arguments(argv, args);
 
     //: run tests if requested
+    //      tests can be specified using command line arguments as "-t test_a,test_b"
     auto test_it = arguments.find("t");
-    test_it == arguments.end() ? test_runner.run({""}) : test_runner.run({ test_it->second }); //- string split function
+    test_it == arguments.end() ? test_runner.run({""}) : test_runner.run(split(test_it->second, ',') | ranges::to_vector);
 
     //: initialization
     fresa::detail::init();

@@ -21,7 +21,6 @@ namespace fresa
     using str = std::string;
     using str_view = std::string_view;
 }
-//-  create custom string id with hash, implement in another file
 
 //* containers
 #include <array>
@@ -39,18 +38,18 @@ namespace fresa
 #endif
 
 //* ranges
-#ifdef __cpp_lib_ranges
+#if __has_include(<range/v3/all.hpp>)
+    #include <range/v3/all.hpp>
+    namespace fresa
+    {
+        namespace rv = ranges::views;
+    }
+#elif defined __cpp_lib_ranges
     #include <ranges>
     namespace fresa
     {
         namespace rv = std::ranges::views;
         namespace ranges = std::ranges;
-    }
-#elif __has_include(<range/v3/all.hpp>)
-    #include <range/v3/all.hpp>
-    namespace fresa
-    {
-        namespace rv = ranges::views;
     }
 #else
     #error "ranges not supported"
