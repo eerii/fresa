@@ -6,7 +6,12 @@
 
 _general description_
 
-#### [0.4.0] core features (_13 jun 22_)
+#### [0.4.1] name (_00 jun 22_)
+
+- **added** - string utilities (lowercase)
+- **changed** - tests are now in standalone files in the tests/ directory
+
+#### [0.4.0] core features (_16 jun 22_)
 
 - **added** - constexpr type name string view
 - **added** - `<concepts>` and `<ranges>` check and import

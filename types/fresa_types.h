@@ -6,16 +6,11 @@
 //* standard types
 #include "std_types.h"
 
+//* string utilities
+#include "strings.h"
+
 namespace fresa
 {
-    //* string literals for templates
-    template <auto N>
-    struct str_literal {
-        constexpr str_literal(const char (&s)[N]) { std::copy(s, s + N, value); }
-        char value[N];
-    };
-
-
     //* type name implementation
     //      this function provides a constexpr string view with the name of a type
     //      type_name_n returns the name of the type including all namespaces
