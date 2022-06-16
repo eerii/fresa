@@ -3,11 +3,12 @@
 #include "engine.h"
 #include "log.h"
 #include "fresa_time.h"
+#include "unit_test.h"
 #include "system.h"
 
 using namespace fresa;
 
-constexpr std::array<ui8, 3> version = {0, 4, 0};
+constexpr std::array<ui8, 3> version = {0, 4, 1};
 
 //* main entry point
 //      called from main, it creates the engine, runs it and closes it when finished
