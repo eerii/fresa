@@ -2,8 +2,8 @@
 
 #include "engine.h"
 #include "log.h"
-#include "unit_test.h"
 #include "fresa_time.h"
+#include "system.h"
 
 using namespace fresa;
 
@@ -40,6 +40,8 @@ void fresa::run(int argv, char** args) {
 //* initialization
 void fresa::detail::init() {
     log::debug("setting up the engine");
+
+    //- register systems ...
 }
 
 //* update
@@ -91,6 +93,7 @@ bool fresa::detail::update() {
 //* stop and cleanup
 void fresa::detail::stop() {
     log::debug("closing all systems");
+    system::stop();
 }
 
 //* create argument list
