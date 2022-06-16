@@ -3,7 +3,6 @@
 //      includes different levels configurable by LOG_LEVEL
 #pragma once
 
-#include <iostream>
 #include "fresa_types.h"
 #include "fmt/core.h"
 #include "fmt/color.h"

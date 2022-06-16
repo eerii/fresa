@@ -19,5 +19,13 @@ namespace test
             str s = "AguACAtE!";
             return expect(lower(s) == "aguacate!");
         };
+        "split string with commas"_test = []{
+            auto s = split("a,b,c,d", ',') | ranges::to_vector;
+            return expect(s == std::vector<str_view>{"a", "b", "c", "d"});
+        };
+        "split string with extra spaces"_test = []{
+            auto s = split("hey   hi hello    !", ' ') | ranges::to_vector;
+            return expect(s == std::vector<str_view>{"hey", "hi", "hello", "!"});
+        };
     });
 }

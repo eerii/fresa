@@ -22,4 +22,13 @@ namespace fresa
     constexpr str_view operator""_lower(const char* text, std::size_t size) {
         return lower(str_view{text, size});
     }
+
+    //* split
+    constexpr auto split(str_view s, char del = ' ') {
+        return s | rv::split(del)
+                 | rv::transform([](auto &&r) { return str_view(&*r.begin(), ranges::distance(r)); })
+                 | rv::filter([](auto &&s) { return !s.empty(); });
+    }
+
+    //- string hash
 }
