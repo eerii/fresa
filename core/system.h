@@ -8,7 +8,7 @@
 
 namespace fresa::system
 {
-    namespace detail
+    namespace concepts
     {
         //* system concept, requires an initialacion and stop function
         template <typename T>
@@ -22,7 +22,10 @@ namespace fresa::system
         concept TSystemUpdate = TSystem<T> and requires(T s) {
             T::update();
         };
+    }
 
+    namespace detail
+    {
         //* objects for the system update and stop lists
         //      a lower number means higher priority, so a system with priority 2 comes before a system with priority 4
         struct SystemUpdateObject {
@@ -51,7 +54,7 @@ namespace fresa::system
     } manager;
 
     //* register and initialize system
-    void add(detail::TSystem auto s, ui8 priority = SYSTEM_PRIORITY_DEFAULT) {
+    void add(concepts::TSystem auto s, ui8 priority = SYSTEM_PRIORITY_DEFAULT) {
         constexpr auto name = type_name<decltype(s)>();
         log::debug("registering system '{}'", name);
 
@@ -59,7 +62,7 @@ namespace fresa::system
         s.init();
         
         //* add to update list
-        if constexpr (detail::TSystemUpdate<decltype(s)>)
+        if constexpr (concepts::TSystemUpdate<decltype(s)>)
             manager.update.push({priority, name, s.update});
 
         //* add to destructor list
