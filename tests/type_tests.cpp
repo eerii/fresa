@@ -35,7 +35,7 @@ namespace test
         using namespace coroutines;
 
         Future<Promise, int> counter_await() {
-            auto p = co_await AwaitablePromise<Promise<int>>{};
+            auto p = co_await AwaitablePromise<Promise, int>{};
             for (int i = 0 ;; i++) {
                 p->value = i;
                 co_await std_::suspend_always{};
