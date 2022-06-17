@@ -1,3 +1,5 @@
+//! temporary archive of coroutine implementation
+
 //* coroutines
 //      implementation of c++20 coroutine support
 
