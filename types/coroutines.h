@@ -1,10 +1,42 @@
 //* coroutines
-//      ...
+//      implementation of c++20 coroutine support
 
 #include "std_types.h"
 
 namespace fresa::coroutines
 {
+    namespace concepts
+    {
+        //* awaitable concept
+        template <typename T>
+        concept TAwaitSuspend = std::same_as<T, bool> || std::same_as<T, void> || std::same_as<T, std_::coroutine_handle<>>;
+        template <typename T, typename P>
+        concept TAwaitResume = std::same_as<T, void> || std::same_as<T, P*>;
+        template <typename A, typename P>
+        concept TAwaitable = requires(A a) {
+            { a.await_ready() } -> std::same_as<bool>;
+            { a.await_suspend(std::declval<std_::coroutine_handle<P>>()) } -> TAwaitSuspend;
+            { a.await_resume() } -> TAwaitResume<P>;
+        };
+
+        //* promise concept
+        template <typename P, typename T>
+        concept TPromise = requires(P p) {
+            { p.initial_suspend() } -> TAwaitable<P>;
+            { p.final_suspend() } -> TAwaitable<P>;
+            { p.unhandled_exception() } -> std::same_as<void>;
+            p.get_return_object();
+        };
+
+        //* future concept
+        template <typename F, typename P>
+        concept TFuture = requires(F f) {
+            typename F::promise_type;
+            std::same_as<typename F::promise_type, P>;
+            std::same_as<decltype(f.handle), std_::coroutine_handle<P>>;
+        };
+    }
+
     //* future forward declaration
     template <template <typename> typename P, typename T>
     struct Future;
@@ -36,15 +68,15 @@ namespace fresa::coroutines
     //          await_resume void, returns nothing
 
     //* awaitable with promise
-    template <typename P> 
+    template <template <typename> typename P, typename T> requires concepts::TPromise<P<T>, T>
     struct AwaitablePromise {
-        P* p;
+        P<T>* p;
         //: await_ready (false), always suspends
         bool await_ready() { return false; }
         //: await_suspend (false), saves the coroutine handle promise and then the coroutine is resumed
-        bool await_suspend(std_::coroutine_handle<P> h) { p = &h.promise(); return false; }
+        bool await_suspend(std_::coroutine_handle<P<T>> h) { p = &h.promise(); return false; }
         //: await_resume (pointer), makes co_await return the promise pointer
-        P* await_resume() { return p; }
+        P<T>* await_resume() { return p; }
     };
 
     //---
@@ -109,4 +141,19 @@ namespace fresa::coroutines
         using handle_type = std_::coroutine_handle<promise_type>;
         handle_type handle;
     };
+
+    //---
+
+    //* assertions
+
+    //: promises
+    static_assert(concepts::TPromise<Promise<int>, int>, "Promise<int> is not a promise");
+
+    //: futures
+    static_assert(concepts::TFuture<Future<Promise, int>, Promise<int>>, "Future<Promise, int> is not a future");
+
+    //: awaitables
+    static_assert(concepts::TAwaitable<AwaitablePromise<Promise, int>, Promise<int>>, "AwaitablePromise<Promise, int> is not an awaitable");
+    static_assert(concepts::TAwaitable<std_::suspend_always, void>, "std_::suspend_always is not an awaitable");
+    static_assert(concepts::TAwaitable<std_::suspend_never, void>, "std_::suspend_never is not an awaitable");
 }
