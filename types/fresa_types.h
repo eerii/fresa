@@ -9,6 +9,9 @@
 //* string utilities
 #include "strings.h"
 
+//* coroutine utilities
+#include "coroutines.h"
+
 namespace fresa
 {
     //* type name implementation

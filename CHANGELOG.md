@@ -10,6 +10,7 @@ _general description_
 
 - **added** - string utilities (lowercase and split)
 - **changed** - tests are now in standalone files in the tests/ directory and can be run using arguments "-t test1,test2"
+- **added** - coroutines
 
 #### [0.4.0] core features (_16 jun 22_)
 

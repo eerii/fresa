@@ -80,8 +80,8 @@ bool fresa::detail::update() {
         accumulator -= dt;
         simulation_time += dt;
 
-        //: temporary fake exit after 1s for testing
-        if (simulation_time.time_since_epoch().count() * 1.0e-6 > 1000)
+        //: temporary fake exit after 0.1s for testing
+        if (simulation_time.time_since_epoch().count() * 1.0e-6 > 100)
             return false;
     }
 
