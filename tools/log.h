@@ -6,6 +6,7 @@
 #include "fresa_types.h"
 #include "fmt/core.h"
 #include "fmt/color.h"
+#include "fmt/ranges.h"
 
 namespace fresa
 {
