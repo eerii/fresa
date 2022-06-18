@@ -34,14 +34,13 @@ void fresa::run(int argv, char** args) {
 
     //: cleanup
     fresa::detail::stop();
-    log::info("bye! c:");
 }
 
 //------------------------------------------------------------------------------
 
 //* initialization
 void fresa::detail::init() {
-    log::debug("setting up the engine");
+    // log::debug("setting up the engine");
 
     //- register systems ...
 }
@@ -94,7 +93,7 @@ bool fresa::detail::update() {
 
 //* stop and cleanup
 void fresa::detail::stop() {
-    log::debug("closing all systems");
+    // log::debug("closing all systems");
     system::stop();
 }
 
