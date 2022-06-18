@@ -8,8 +8,9 @@ _general description_
 
 #### [0.4.1] name (_00 jun 22_)
 
-- **added** - string utilities (lowercase and split)
+- **added** - string utilities (lowercase, split)
 - **changed** - tests are now in standalone files in the tests/ directory and can be run using arguments "-t test1,test2"
+- **added** - coroutine implementation (future, promise)
 
 #### [0.4.0] core features (_16 jun 22_)
 
