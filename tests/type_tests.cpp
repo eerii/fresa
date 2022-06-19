@@ -2,6 +2,7 @@
 
 #include "unit_test.h"
 #include "fresa_types.h"
+#include "atomic_queue.h"
 
 namespace test
 {
@@ -92,6 +93,49 @@ namespace test
             c.handle.resume();
             c.handle.destroy();
             return expect(detail::name == "amy");
+        };
+    });
+
+    //* atomic queue
+    inline TestSuite atomic_queue_test("atomic_queue", []{
+        "atomic queue push"_test = []{
+            auto q = AtomicQueue<int>();
+
+            bool before = q.size() == 0;
+
+            std::jthread t1([&]{ q.push(1); });
+            std::jthread t2([&]{ q.push(2); });
+            t1.join();
+            t2.join();
+
+            return expect(before and q.size() == 2);
+        };
+
+        "atomic queue pop"_test = []{
+            auto q = AtomicQueue<int>();
+            q.push(1);
+
+            std::atomic<int> value = 0;
+            std::jthread t([&]{
+                auto v = q.pop(); 
+                if (v.has_value())
+                    value = v.value();
+            });
+            t.join();
+
+            return expect(value == 1 and q.size() == 0);
+        };
+
+        "atomic queue clear"_test = []{
+            auto q = AtomicQueue<int>();
+            q.push(1);
+            q.push(2);
+            q.push(3);
+
+            std::jthread t([&]{ q.clear(); });
+            t.join();
+
+            return expect(q.size() == 0);
         };
     });
 }
