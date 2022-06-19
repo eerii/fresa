@@ -1,5 +1,6 @@
 //* fresa_time
 //      time management system, based on std::chrono
+#pragma once
 
 #include "fresa_types.h"
 #include <chrono>

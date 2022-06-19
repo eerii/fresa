@@ -5,6 +5,7 @@
 #include "fresa_time.h"
 #include "unit_test.h"
 #include "system.h"
+#include "jobs.h"
 
 using namespace fresa;
 
@@ -41,6 +42,9 @@ void fresa::run(int argv, char** args) {
 //* initialization
 void fresa::detail::init() {
     // log::debug("setting up the engine");
+
+    //: job system
+    system::add(jobs::JobSystem(), system::SystemPriorities::SYSTEM_PRIORITY_FIRST);
 
     //- register systems ...
 }

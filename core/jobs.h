@@ -1,9 +1,14 @@
 //* jobs
 //      ...
+#pragma once
 
 #include "fresa_types.h"
 #include <atomic>
 #include <thread>
+
+//!
+#include "log.h"
+#include "fresa_time.h"
 
 namespace fresa::jobs
 {
@@ -30,7 +35,7 @@ namespace fresa::jobs
         template <typename P>
         struct FinalAwaitable : std_::suspend_always {
             //: constructor
-            FinalAwaitable() noexcept { static_assert(concepts::TPromise<P>, "P must be a promise"); };
+            FinalAwaitable() noexcept { static_assert(coroutines::concepts::TPromise<P>, "P must be a promise"); };
 
             //: await_suspend
             void await_suspend(std_::coroutine_handle<P> h) noexcept {
@@ -111,19 +116,61 @@ namespace fresa::jobs
         //---
 
         //* concept checks
-        static_assert(concepts::TPromise<JobPromise<int>>, "JobPromise<int> is not a promise");
-        static_assert(concepts::TPromise<JobPromise<void>>, "JobPromise<void> is not a promise");
-        static_assert(concepts::TFuture<JobFuture<int>, JobPromise<int>>, "JobFuture<int> is not a future");
+        static_assert(coroutines::concepts::TPromise<JobPromise<int>>, "JobPromise<int> is not a promise");
+        static_assert(coroutines::concepts::TPromise<JobPromise<void>>, "JobPromise<void> is not a promise");
+        static_assert(coroutines::concepts::TFuture<JobFuture<int>, JobPromise<int>>, "JobFuture<int> is not a future");
     }
 
+    //* job system
     struct JobSystem {
-        std::atomic<ui32> thread_count; //: number of threads in the job system's pool
+        //: global parameters
+        static inline std::atomic<ui32> thread_count = 0;       // number of threads in the job system's pool
+        static inline std::vector<std::jthread> thread_pool;    // thread pool
+        static inline std::atomic<bool> running = false;         // flag to stop the job system
+
+        //: thread local parameters
+        static inline thread_local ui32 thread_index = 0;                               // thread index in the pool
+        static inline thread_local coroutines::JobPromiseBase* current_job = nullptr;   // current job
+
+        //: initialize job system
+        static void init() noexcept {
+            //: check if the job system is already running
+            if (running) return;
+            running = true;
+
+            //: get thread count
+            thread_count = std::thread::hardware_concurrency();
+            if (thread_count == 0)
+                thread_count = 1;
+
+            //: create threads
+            thread_pool.reserve(thread_count);
+            for (ui32 i = 0; i < thread_count; i++)
+                thread_pool.push_back(std::jthread(JobSystem::thread_run, i));
+        }
+
+        //: run function for each thread
+        static void thread_run(ui32 index) noexcept {
+            //: save thread local index
+            thread_index = index;
+            
+            //: wait for all threads to be available
+            static std::atomic<ui32> thread_counter = thread_count.load();
+            thread_counter--;
+            while (thread_counter.load() > 0) {}
+
+            detail::log<"JOB SYSTEM", LOG_JOBS, fmt::color::light_green>("worker thread {} ready", thread_index);
+
+            while (running) {
+                std::this_thread::sleep_for(100ms);
+            }
+        }
+
+        //: stop the job system
+        static void stop() noexcept {
+            running = false;
+        }
     };
 
     //- job queue
-
-    //- fiber pool
-
-    //- worker threads
-
 }

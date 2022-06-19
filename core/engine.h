@@ -1,6 +1,7 @@
 //* engine
 //      handles initialization, update and stop
 //      central point of the engine, calls all the other subsystems
+#pragma once
 
 #include "fresa_types.h"
 
