@@ -17,11 +17,12 @@ namespace fresa
         LOG_INFO = 1 << 2,
         LOG_GRAPHICS = 1 << 3,
         LOG_TEST = 1 << 4,
-        LOG_DEBUG = 1 << 5
+        LOG_DEBUG = 1 << 5,
+        LOG_JOBS = 1 << 6,
     };
 
     #ifndef LOG_LEVEL
-    #define LOG_LEVEL 0b111111
+    #define LOG_LEVEL 0b1111111
     #endif
 
     namespace detail
@@ -29,9 +30,8 @@ namespace fresa
         template<str_literal name, std::size_t level, fmt::color color = fmt::color::white, typename ...T>
         void log(const T& ...t) {
             if constexpr((LOG_LEVEL & level) == level) {
-                fmt::print(fg(color), "[{}]: ", name.value);
-                fmt::print(t...);
-                fmt::print("\n");
+                auto s = fmt::format(fg(color), "[{}]: ", name.value) + fmt::format(t ...) + "\n";
+                fmt::print(s);
             }
         }
     }

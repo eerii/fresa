@@ -1,5 +1,6 @@
 //* system
 //      manages the engine's subsystems, allowing for creation, iteration with priority, and destruction in order
+#pragma once
 
 #include "fresa_types.h"
 #include "log.h"

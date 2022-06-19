@@ -1,5 +1,6 @@
 //* coroutines
 //      implementation of c++20 coroutine support
+#pragma once
 
 #include "std_types.h"
 #include <optional>

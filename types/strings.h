@@ -1,5 +1,6 @@
 //* strings
 //      helper functions for strings and string views
+#pragma once
 
 #include "std_types.h"
 
