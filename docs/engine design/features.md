@@ -47,3 +47,4 @@ Keeping performance in mind, a key feature of any game engine on a tight per-fra
 ### concurrency
 
 - coroutines (`c++20`), using experimental branch for clang compilers
+- std::jthread (`c++20`)

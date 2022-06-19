@@ -3,7 +3,6 @@
 
 #include "std_types.h"
 #include <optional>
-#include <atomic>
 
 namespace fresa::coroutines
 {
@@ -30,7 +29,7 @@ namespace fresa::coroutines
         };
 
         //* promise concept
-        template <typename P, typename T>
+        template <typename P>
         concept TPromise = requires(P p) {
             { p.initial_suspend() } -> TAwaitable<P>;
             { p.final_suspend() } -> TAwaitable<P>;
@@ -90,11 +89,6 @@ namespace fresa::coroutines
 
         //: coroutine handle (untyped)
         std_::coroutine_handle<> handle;
-
-        //: parent and children
-        PromiseBase* parent = nullptr;
-        std::atomic<ui32> children = 0;
-        ui32 thread_index = 0;
 
         //: coroutine promise_type default implementation
         std_::suspend_always initial_suspend() noexcept { return {}; }
@@ -188,7 +182,9 @@ namespace fresa::coroutines
         using handle_type = std_::coroutine_handle<promise_type>;
 
         //: constructor
-        Future(handle_type h) noexcept : FutureBase(&h.promise()), handle{h} {}
+        Future(handle_type h) noexcept : FutureBase(&h.promise()), handle{h} {
+            static_assert(concepts::TPromise<P>, "P must be a promise");
+        }
 
         //: coroutine handle (typed)
         handle_type handle;
@@ -243,8 +239,8 @@ namespace fresa::coroutines
     //* concept checks
 
     //: promise
-    static_assert(concepts::TPromise<Promise<int>, int>, "Promise<int> is not a promise");
-    static_assert(concepts::TPromise<Promise<void>, void>, "Promise<void> is not a promise");
+    static_assert(concepts::TPromise<Promise<int>>, "Promise<int> is not a promise");
+    static_assert(concepts::TPromise<Promise<void>>, "Promise<void> is not a promise");
 
     //: future
     static_assert(concepts::TFuture<Future<Promise<int>, int>, Promise<int>>, "Future<Promise<int>, int> is not a future");

@@ -2,23 +2,67 @@
 //      ...
 
 #include "fresa_types.h"
+#include <atomic>
+#include <thread>
 
 namespace fresa::jobs
 {
+    struct JobSystem;
+
+    //* job coroutines implementation
     namespace coroutines
     {
         using namespace fresa::coroutines;
 
+        //* job specific coroutine elements
+        struct JobPromiseBase;
         template <typename T> struct JobPromise;
         template <> struct JobPromise<void>;
 
         template <typename T>
         using JobFuture = Future<JobPromise<T>, T>;
 
-        template<typename T>
-        struct JobPromise : PromiseBase {
+        //---
+
+        //* final await
+        //      called when the job is finished, makes it suspend one last time
+        //      - control is returned to the parent coroutine
+        template <typename P>
+        struct FinalAwaitable : std_::suspend_always {
             //: constructor
-            JobPromise() noexcept : PromiseBase(JobFuture<T>::handle_type::from_promise(*this)) {};
+            FinalAwaitable() noexcept { static_assert(concepts::TPromise<P>, "P must be a promise"); };
+
+            //: await_suspend
+            void await_suspend(std_::coroutine_handle<P> h) noexcept {
+                auto& promise = h.promise();
+                if (promise.parent != nullptr) {
+                    ui32 n = promise.parent->children.fetch_sub(1);
+                    if (n == 1)
+                        promise.parent->resume(); //- schedule parent coroutine using job system
+                }
+            }
+        };
+
+        //---
+
+        //* job promise base
+        struct JobPromiseBase : PromiseBase {
+            //: constructor
+            JobPromiseBase(std_::coroutine_handle<> h) noexcept : PromiseBase(h) {};
+
+            //: parent and children
+            JobPromiseBase* parent = nullptr;
+            std::atomic<ui32> children = 0;
+
+            //: multithreading information
+            ui32 thread_index;
+        };
+
+        //* job promise
+        template<typename T>
+        struct JobPromise : JobPromiseBase {
+            //: constructor
+            JobPromise() noexcept : JobPromiseBase(JobFuture<T>::handle_type::from_promise(*this)) {};
 
             //: promise value
             std::optional<T> value;
@@ -27,33 +71,35 @@ namespace fresa::jobs
             JobFuture<T> get_return_object() noexcept;
 
             //: final suspend
-            std_::suspend_always final_suspend() noexcept { return {}; };
+            FinalAwaitable<JobPromise<T>> final_suspend() noexcept { return {}; };
 
             //: yield value
-            std_::suspend_always yield_value(T v) noexcept { value = v; return {}; }
+            FinalAwaitable<JobPromise<T>> yield_value(T v) noexcept { value = v; return {}; }
 
             //: return value
             void return_value(T v) noexcept { value = v; }
         };
 
+        //* job promise (return void)
         template<>
-        struct JobPromise<void> : PromiseBase {
+        struct JobPromise<void> : JobPromiseBase {
             //: constructor
-            JobPromise() noexcept : PromiseBase(JobFuture<void>::handle_type::from_promise(*this)) {};
+            JobPromise() noexcept : JobPromiseBase(JobFuture<void>::handle_type::from_promise(*this)) {};
 
             //: return object
             JobFuture<void> get_return_object() noexcept;
 
             //: final suspend
-            std_::suspend_always final_suspend() noexcept { return {}; };
+            FinalAwaitable<JobPromise<void>> final_suspend() noexcept { return {}; };
 
             //: yield value
-            std_::suspend_always yield_value() noexcept { return {}; }
+            FinalAwaitable<JobPromise<void>> yield_value() noexcept { return {}; }
 
             //: return void
             void return_void() noexcept { }
         };
 
+        //* get return objects
         template <typename T>
         inline JobFuture<T> JobPromise<T>::get_return_object() noexcept {
             return JobFuture<T>(JobFuture<T>::handle_type::from_promise(*this));
@@ -62,10 +108,17 @@ namespace fresa::jobs
             return JobFuture<void>(JobFuture<void>::handle_type::from_promise(*this));
         }
 
-        static_assert(concepts::TPromise<JobPromise<int>, int>, "JobPromise<int> is not a promise");
-        static_assert(concepts::TPromise<JobPromise<void>, void>, "JobPromise<void> is not a promise");
+        //---
+
+        //* concept checks
+        static_assert(concepts::TPromise<JobPromise<int>>, "JobPromise<int> is not a promise");
+        static_assert(concepts::TPromise<JobPromise<void>>, "JobPromise<void> is not a promise");
         static_assert(concepts::TFuture<JobFuture<int>, JobPromise<int>>, "JobFuture<int> is not a future");
     }
+
+    struct JobSystem {
+        std::atomic<ui32> thread_count; //: number of threads in the job system's pool
+    };
 
     //- job queue
 
