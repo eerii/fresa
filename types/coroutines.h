@@ -14,7 +14,6 @@ namespace fresa::coroutines
     //* coroutine futures
     struct FutureBase;
     template<typename T> struct Future;
-    template<> struct Future<void>;
 
     //* coroutine concept
     template <typename T>
@@ -56,7 +55,7 @@ namespace fresa::coroutines
     //          resume, uses the handle to continue execution of the coroutine
     struct PromiseBase {
         //: constructor
-        PromiseBase(std_::coroutine_handle<> h) : handle(h) {};
+        PromiseBase(std_::coroutine_handle<> h) noexcept : handle(h) {};
 
         //: coroutine handle (untyped)
         std_::coroutine_handle<> handle;
@@ -77,36 +76,52 @@ namespace fresa::coroutines
     //      inherits behaviour from the base promise type, and extends it adding typing
     //      this is the implementation for all types except void (using return_value)
     //      implements:
-    //          get_return_object, returns a future object initialized with a handle of this promise type
+    //          get_return_object, returns a future object initialized with a handle of this promise type (defined later)
     //          - final_suspend ...
-    //          return_value, stores the value from co_return
     //          yield_value, stores the value from co_yield
+    //          return_void
     template<typename T>
     struct Promise : PromiseBase {
         //: constructor
         //      calls the base constructor with this handle, it is automatically saved there as typeless handle
-        Promise() : PromiseBase(Future<T>::handle_type::from_promise(*this)) {};
+        Promise() noexcept : PromiseBase(Future<T>::handle_type::from_promise(*this)) {};
 
         //: promise value
         std::optional<T> value;
 
         //: return object
         //      creates a future object and adds this handle (still typed) to it
-        Future<T> get_return_object() noexcept { return Future<T>(Future<T>::handle_type::from_promise(*this)); }
+        Future<T> get_return_object() noexcept {  return Future<T>(Future<T>::handle_type::from_promise(*this)); }
 
         //- final suspend
         std_::suspend_always final_suspend() noexcept { return {}; }
 
-        //: return value
-        void return_value(T v) noexcept {
-            value = v;
-        }
+        //- yield value
+        std_::suspend_always yield_value(T v) noexcept { value = v; return {}; }
 
-        //: yield value
-        std_::suspend_always yield_value(T v) noexcept {
-            value = v;
-            return {};
-        }
+        //- return value
+        void return_value(T v) noexcept { value = v; }
+    };
+
+    //* void promise type
+    template<>
+    struct Promise<void> : PromiseBase {
+        //: constructor
+        //      calls the base constructor with this handle, it is automatically saved there as typeless handle
+        Promise() noexcept : PromiseBase(std_::coroutine_handle<Promise<void>>::from_promise(*this)) {};
+
+        //: return object
+        //      creates a future object and adds this handle (still typed) to it
+        Future<void> get_return_object() noexcept;
+
+        //- final suspend
+        std_::suspend_always final_suspend() noexcept { return {}; }
+
+        //- yield value
+        std_::suspend_always yield_value() noexcept { return {}; }
+
+        //: return void
+        void return_void() noexcept { }
     };
 
     //---
@@ -120,7 +135,7 @@ namespace fresa::coroutines
     //      has a pointer to the base promise type, which allows access to the untyped handle
     struct FutureBase {
         //: constructor
-        FutureBase(PromiseBase* p) : promise(p) {};
+        FutureBase(PromiseBase* p) noexcept : promise(p) {};
 
         //: promise pointer
         PromiseBase* promise = nullptr;
@@ -137,7 +152,7 @@ namespace fresa::coroutines
         using handle_type = std_::coroutine_handle<promise_type>;
 
         //: constructor
-        Future(handle_type h) : FutureBase(&h.promise()), handle{h} {}
+        Future(handle_type h) noexcept : FutureBase(&h.promise()), handle{h} {}
 
         //: coroutine handle (typed)
         handle_type handle;
@@ -147,4 +162,9 @@ namespace fresa::coroutines
         //: get - returns the promise value
         T get() noexcept { return handle.promise().value.value(); }
     };
+
+    //* definition of get_return_object for void specification
+    inline Future<void> Promise<void>::get_return_object() noexcept {
+        return Future<void>(Future<void>::handle_type::from_promise(*this));
+    }
 }
