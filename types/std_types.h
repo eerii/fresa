@@ -65,3 +65,14 @@ namespace fresa
 #else
     #error "coroutines not supported"
 #endif
+
+//* new jthread
+#include <thread>
+#if defined __cpp_lib_jthread
+    //: jthread is supported
+#elif __has_include("jthread.hpp") and __has_include("stop_token.hpp")
+    #include "jthread.hpp"
+    #include "stop_token.hpp"
+#else
+    #error "jthread not supported"
+#endif
