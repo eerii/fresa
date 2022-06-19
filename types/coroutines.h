@@ -3,21 +3,52 @@
 
 #include "std_types.h"
 #include <optional>
+#include <atomic>
 
 namespace fresa::coroutines
 {
+    namespace concepts
+    {
+        //* awaitable concept
+        template <typename T>
+        concept TAwaitSuspend = std::same_as<T, bool> || std::same_as<T, void> || std::same_as<T, std_::coroutine_handle<>>;
+        template <typename T, typename P>
+        concept TAwaitResume = std::same_as<T, void> || std::same_as<T, P*>;
+        template <typename A, typename P>
+        concept TAwaitable = requires(A a) {
+            { a.await_ready() } -> std::same_as<bool>;
+            { a.await_suspend(std::declval<std_::coroutine_handle<P>>()) } -> TAwaitSuspend;
+            { a.await_resume() } -> TAwaitResume<P>;
+        };
+
+        //* future concept
+        template <typename F, typename P>
+        concept TFuture = requires(F f) {
+            typename F::promise_type;
+            std::same_as<typename F::promise_type, P>;
+            std::same_as<decltype(f.handle), std_::coroutine_handle<P>>;
+        };
+
+        //* promise concept
+        template <typename P, typename T>
+        concept TPromise = requires(P p) {
+            { p.initial_suspend() } -> TAwaitable<P>;
+            { p.final_suspend() } -> TAwaitable<P>;
+            { p.unhandled_exception() } -> std::same_as<void>;
+            { p.get_return_object() } -> TFuture<P>;
+        };
+    }
+    
     //* coroutine promises
     struct PromiseBase;
-    template<typename T> struct Promise;
-    template<> struct Promise<void>;
+    template <typename T> struct Promise;
+    template <> struct Promise<void>;
 
     //* coroutine futures
     struct FutureBase;
-    template<typename T> struct Future;
+    template <typename P, typename T> struct Future;
 
-    //* coroutine concept
-    template <typename T>
-    concept Coroutine =  std::is_base_of_v<FutureBase, T>;
+    //- deallocator
 
     //---
 
@@ -60,6 +91,11 @@ namespace fresa::coroutines
         //: coroutine handle (untyped)
         std_::coroutine_handle<> handle;
 
+        //: parent and children
+        PromiseBase* parent = nullptr;
+        std::atomic<ui32> children = 0;
+        ui32 thread_index = 0;
+
         //: coroutine promise_type default implementation
         std_::suspend_always initial_suspend() noexcept { return {}; }
         void unhandled_exception() noexcept {}
@@ -77,29 +113,29 @@ namespace fresa::coroutines
     //      this is the implementation for all types except void (using return_value)
     //      implements:
     //          get_return_object, returns a future object initialized with a handle of this promise type (defined later)
-    //          - final_suspend ...
+    //          final_suspend, resumes parent coroutine if it exists
     //          yield_value, stores the value from co_yield
     //          return_void
     template<typename T>
     struct Promise : PromiseBase {
         //: constructor
         //      calls the base constructor with this handle, it is automatically saved there as typeless handle
-        Promise() noexcept : PromiseBase(Future<T>::handle_type::from_promise(*this)) {};
+        Promise() noexcept : PromiseBase(Future<Promise<T>, T>::handle_type::from_promise(*this)) {};
 
         //: promise value
         std::optional<T> value;
 
         //: return object
         //      creates a future object and adds this handle (still typed) to it
-        Future<T> get_return_object() noexcept {  return Future<T>(Future<T>::handle_type::from_promise(*this)); }
+        Future<Promise<T>, T> get_return_object() noexcept;
 
-        //- final suspend
-        std_::suspend_always final_suspend() noexcept { return {}; }
+        //: final suspend
+        std_::suspend_always final_suspend() noexcept { return {}; };
 
-        //- yield value
+        //: yield value
         std_::suspend_always yield_value(T v) noexcept { value = v; return {}; }
 
-        //- return value
+        //: return value
         void return_value(T v) noexcept { value = v; }
     };
 
@@ -112,12 +148,12 @@ namespace fresa::coroutines
 
         //: return object
         //      creates a future object and adds this handle (still typed) to it
-        Future<void> get_return_object() noexcept;
+        Future<Promise<void>, void> get_return_object() noexcept;
 
-        //- final suspend
-        std_::suspend_always final_suspend() noexcept { return {}; }
+        //: final suspend
+        std_::suspend_always final_suspend() noexcept { return {}; };
 
-        //- yield value
+        //: yield value
         std_::suspend_always yield_value() noexcept { return {}; }
 
         //: return void
@@ -145,10 +181,10 @@ namespace fresa::coroutines
     //      inherits behaviour from the base future type, and extends it adding typing
     //      defines promise_type, required by the coroutine specification, as the relevant typed promise
     //      also stores a typed handled to the coroutine, which is created using promise::get_return_object
-    template <typename T> 
+    template <typename P, typename T> 
     struct Future : FutureBase {
         //: type aliases
-        using promise_type = Promise<T>;
+        using promise_type = P;
         using handle_type = std_::coroutine_handle<promise_type>;
 
         //: constructor
@@ -163,8 +199,54 @@ namespace fresa::coroutines
         T get() noexcept { return handle.promise().value.value(); }
     };
 
+    //* alias for the default promise type
+    template <typename T>
+    using FuturePromise = Future<Promise<T>, T>;
+
     //* definition of get_return_object for void specification
-    inline Future<void> Promise<void>::get_return_object() noexcept {
-        return Future<void>(Future<void>::handle_type::from_promise(*this));
+    template <typename T>
+    inline FuturePromise<T> Promise<T>::get_return_object() noexcept {
+        return FuturePromise<T>(FuturePromise<T>::handle_type::from_promise(*this));
     }
+    inline FuturePromise<void> Promise<void>::get_return_object() noexcept {
+        return FuturePromise<void>(FuturePromise<void>::handle_type::from_promise(*this));
+    }
+
+    //---
+
+    //* awaitables
+    //      control the flow of the coroutine execution
+    //
+    //: await_ready
+    //      true: the coroutine is ready to be resumed
+    //      false: the coroutine is suspended (goes to await_suspend)
+    //: await_suspend
+    //      void / true: the coroutine remains suspended, control goes to the caller
+    //      false: the coroutine is resumed
+    //      handle for another coroutine: that coroutine is resumed by calling handle.resume()
+    //: await_resume
+    //      called whether the coroutine is suspended or resumed
+    //      it is the result of the co_await expression
+    //
+    //: trivial awaitables
+    //      suspend_never
+    //          await_ready true, never suspends
+    //          await_suspend void, does nothing
+    //          await_resume void, returns nothing
+    //      suspend_always
+    //          await_ready false, always suspends
+    //          await_suspend void, does nothing
+    //          await_resume void, returns nothing
+
+    //---
+
+    //* concept checks
+
+    //: promise
+    static_assert(concepts::TPromise<Promise<int>, int>, "Promise<int> is not a promise");
+    static_assert(concepts::TPromise<Promise<void>, void>, "Promise<void> is not a promise");
+
+    //: future
+    static_assert(concepts::TFuture<Future<Promise<int>, int>, Promise<int>>, "Future<Promise<int>, int> is not a future");
+    static_assert(concepts::TFuture<FuturePromise<int>, Promise<int>>, "FuturePromise<int> is not a future");
 }

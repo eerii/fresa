@@ -34,23 +34,23 @@ namespace test
     {
         using namespace coroutines;
 
-        Future<int> counter_yield() {
+        FuturePromise<int> counter_yield() {
             for (int i = 0 ;; i++)
                 co_yield i;
         }
 
-        Future<int> counter_yield_with_return() {
+        FuturePromise<int> counter_yield_with_return() {
             for (int i = 0; i < 5; i++)
                 co_yield i;
             co_return 0;
         }
 
-        Future<int> coroutine_return() {
+        FuturePromise<int> coroutine_return() {
             co_return 256;
         }
 
         str name = "bob";
-        Future<void> coroutine_void() {
+        FuturePromise<void> coroutine_void() {
             name = "amy";
             co_return;
         }
