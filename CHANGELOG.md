@@ -1,12 +1,10 @@
 # changelog :sparkles:
 
----
-
 ### 0.4 milestone
 
 _general description_
 
-#### [0.4.1] name (_00 jun 22_)
+#### [0.4.1] job system (_21 jun 22_)
 
 - **added** - string utilities (lowercase, split)
 - **changed** - tests are now in standalone files in the tests/ directory and can be run using arguments "-t test1,test2"
@@ -24,11 +22,3 @@ _general description_
 - **added** - time clock implementation
 - **added** - engine base and fixed update loop
 - **added** - system manager
-
----
-
-- **added** - 
-- **changed** - 
-- **fixed** -
-- **deprecated** -
-- **removed** -

@@ -121,17 +121,19 @@ namespace fresa::jobs
     //* job system
     struct JobSystem {
         //: global parameters
-        static inline std::atomic<ui32> thread_count = 0;       // number of threads in the job system's pool
-        static inline std::vector<std::jthread> thread_pool;    // thread pool
-        static inline std::atomic<bool> running = false;        // flag to stop the job system
+        static inline std::atomic<bool> running = false;                                // flag to stop the job system
+        static inline std::atomic<ui32> thread_count = 0;                               // number of threads in the job system's pool
+        static inline std::vector<std::jthread> thread_pool;                            // thread pool
+        static inline std::vector<std::unique_ptr<std::condition_variable>> thread_cv;  // thread condition variables
+        static inline std::vector<std::unique_ptr<std::mutex>> thread_mutex;            // thread mutexes
 
         //: thread local parameters
-        static inline thread_local ui32 thread_index = 0;                       // thread index in the pool
-        static inline thread_local JobPromiseBase* current_job = nullptr;       // current job
+        static inline thread_local ui32 thread_index = 0;                               // thread index in the pool
+        static inline thread_local std::optional<JobPromiseBase*> current_job;          // current job
 
         //: queues
-        static inline std::vector<AtomicQueue<JobPromiseBase*>> global_queues;  // global queues
-        static inline std::vector<AtomicQueue<JobPromiseBase*>> local_queues;   // local queues
+        static inline std::vector<AtomicQueue<JobPromiseBase*>> global_queues;          // global queues
+        static inline std::vector<AtomicQueue<JobPromiseBase*>> local_queues;           // local queues
 
         //: initialize job system
         static void init() noexcept {
@@ -145,9 +147,25 @@ namespace fresa::jobs
                 thread_count = 1;
 
             //: create threads
-            thread_pool.reserve(thread_count);
-            for (ui32 i = 0; i < thread_count; i++)
+            for (ui32 i = 0; i < thread_count; i++) {
                 thread_pool.push_back(std::jthread(JobSystem::thread_run, i));
+
+                global_queues.push_back(AtomicQueue<JobPromiseBase*>());
+                local_queues.push_back(AtomicQueue<JobPromiseBase*>());
+
+                thread_cv.push_back(std::make_unique<std::condition_variable>());
+                thread_mutex.push_back(std::make_unique<std::mutex>());
+            }
+        }
+
+        //: schedule job
+        static void schedule(JobPromiseBase* job) noexcept {
+            if (job == nullptr) { log::error("invalid job to schedule"); return; }
+
+            thread_local static ui32 t_id(rand() % thread_count); //- random utilities in fresa_math.h
+
+            global_queues[t_id].push(job); //- global/local queues, also job can specify thread
+            thread_cv[t_id]->notify_all();
         }
 
         //: run function for each thread
@@ -159,11 +177,50 @@ namespace fresa::jobs
             static std::atomic<ui32> thread_counter = thread_count.load();
             thread_counter--;
             while (thread_counter.load() > 0) {}
-
             detail::log<"JOB SYSTEM", LOG_JOBS, fmt::color::light_green>("worker thread {} ready", thread_index);
 
+            //: random index for job stealing
+            ui32 steal_next = rand() % thread_count; //- random utilities in fresa_math.h
+
+            //: number of empty loops before sleeping
+            constexpr ui32 max_empty_loops = 256;
+            thread_local static ui32 empty_loops = 0;
+
+            //: mutex lock to use with condition variables to wake the thread if there is a job
+            std::unique_lock<std::mutex> lock(*thread_mutex[thread_index]);
+
             while (running) {
-                std::this_thread::sleep_for(100ms);
+                //: get job
+                current_job = local_queues[thread_index].pop();
+                if (not current_job.has_value())
+                    current_job = global_queues[thread_index].pop();
+
+                //: if there is no job, try to steal one from another thread
+                ui32 n = thread_count - 1;
+                while (not current_job.has_value() and --n > 0) {
+                    steal_next = (steal_next + 1) % thread_count;
+                    current_job = global_queues[steal_next].pop();
+                }
+
+                //: there is a job
+                if (current_job.has_value()) {
+                    if (current_job.value() == nullptr) {
+                        log::error("The job you are trying to add is null, this should not happen");
+                        continue;
+                    }
+
+                    //: run the job
+                    log::info("Thread {} is running job {}", thread_index, current_job.value()->handle.address());
+                    current_job.value()->resume();
+
+                    //: reset empty loops
+                    empty_loops = 0;
+                }
+                //: if there is no job still, sleep
+                else if (empty_loops++ > max_empty_loops) {
+                    thread_cv.at(thread_index)->wait_for(lock, 1ms); //! maybe this is too long of a wait
+                    empty_loops = max_empty_loops / 2;
+                }
             }
         }
 
@@ -173,5 +230,14 @@ namespace fresa::jobs
         }
     };
 
-    //- job queue
+    //---
+
+    //* schedule jobs
+    template <typename T>
+    void schedule(JobFuture<T>&& job) {
+        auto& promise = job.handle.promise();
+        JobSystem::schedule(&promise);
+
+        //- parent and children
+    }
 }
