@@ -18,6 +18,9 @@ struct AtomicQueue {
     std::queue<T> queue;
     SpinLock lock;
 
+    AtomicQueue() noexcept {};
+    AtomicQueue(const AtomicQueue<T>& queue) noexcept {};
+
     void push(const T& value) {
         std::lock_guard<SpinLock> guard(lock);
         queue.push(value);

@@ -37,7 +37,7 @@ void fresa::run(int argv, char** args) {
     fresa::detail::stop();
 }
 
-//------------------------------------------------------------------------------
+//---
 
 //* initialization
 void fresa::detail::init() {
