@@ -7,6 +7,7 @@
 #include "fresa_time.h"
 #include <atomic>
 #include <thread>
+#include <condition_variable>
 
 //!
 #include "log.h"
@@ -150,11 +151,11 @@ namespace fresa::jobs
             for (ui32 i = 0; i < thread_count; i++) {
                 thread_pool.push_back(std::jthread(JobSystem::thread_run, i));
 
-                global_queues.push_back(AtomicQueue<JobPromiseBase*>());
-                local_queues.push_back(AtomicQueue<JobPromiseBase*>());
+                global_queues.emplace_back(AtomicQueue<JobPromiseBase*>());
+                local_queues.emplace_back(AtomicQueue<JobPromiseBase*>());
 
-                thread_cv.push_back(std::make_unique<std::condition_variable>());
-                thread_mutex.push_back(std::make_unique<std::mutex>());
+                thread_cv.emplace_back(std::make_unique<std::condition_variable>());
+                thread_mutex.emplace_back(std::make_unique<std::mutex>());
             }
         }
 
