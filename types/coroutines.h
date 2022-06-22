@@ -189,11 +189,6 @@ namespace fresa::coroutines
 
         //: coroutine handle (typed)
         handle_type handle;
-
-        //: ready - returns true if the promise value is set
-        bool ready() noexcept { return handle.promise().value.has_value(); }
-        //: get - returns the promise value
-        T get() noexcept { return handle.promise().value.value(); }
     };
 
     //* alias for the default promise type

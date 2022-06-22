@@ -63,7 +63,7 @@ namespace test
             auto c = detail::counter_yield();
             c.handle.resume();
             for (int i = 0; i < 5; i++)  {
-                a[i] = c.get();
+                a[i] = c.handle.promise().value.value();
                 c.handle();
             }
             c.handle.destroy();
@@ -75,7 +75,7 @@ namespace test
             c.handle.resume();
             int i = 0;
             while (not c.handle.done()) {
-                a[i++] = c.get();
+                a[i++] = c.handle.promise().value.value();
                 c.handle();
             }
             c.handle.destroy();
@@ -84,7 +84,7 @@ namespace test
         "coroutine with return"_test = []{
             auto c = detail::coroutine_return();
             c.handle.resume();
-            int result = c.get();
+            int result = c.handle.promise().value.value();
             c.handle.destroy();
             return expect(result == 256);
         };

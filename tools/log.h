@@ -22,7 +22,7 @@ namespace fresa
     };
 
     #ifndef LOG_LEVEL
-    #define LOG_LEVEL 0b1111111
+    #define LOG_LEVEL 0b0111111
     #endif
 
     namespace detail

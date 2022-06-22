@@ -5,42 +5,74 @@
 #include "fresa_types.h"
 #include "atomic_queue.h"
 #include "fresa_time.h"
+#include "log.h"
+
 #include <atomic>
 #include <thread>
 #include <condition_variable>
 
-//!
-#include "log.h"
-
 namespace fresa::jobs
 {
+    //* job system
     struct JobSystem;
 
     //* job specific coroutine elements
     struct JobPromiseBase;
     template <typename T> struct JobPromise;
     template <> struct JobPromise<void>;
-
-    template <typename T>
-    using JobFuture = coroutines::Future<JobPromise<T>, T>;
+    template <typename T> struct JobFuture;
 
     //---
 
     //* final await
     //      called when the job is finished, makes it suspend one last time
-    //      - control is returned to the parent coroutine
+    //      control is returned to the parent coroutine
     template <typename P>
     struct FinalAwaitable : std_::suspend_always {
         //: constructor
         FinalAwaitable() noexcept { static_assert(coroutines::concepts::TPromise<P>, "P must be a promise"); };
 
-        //: await_suspend
+        //: await suspend, if there is a parent and this is the last children, resume it
         void await_suspend(std_::coroutine_handle<P> h) noexcept {
             auto& promise = h.promise();
             if (promise.parent != nullptr) {
                 ui32 n = promise.parent->children.fetch_sub(1);
                 if (n == 1)
-                    promise.parent->resume(); //- schedule parent coroutine using job system
+                    promise.parent->resume(); //! !!! schedule parent coroutine using job system
+            }
+        }
+    };
+
+    //* coroutine await
+    //      called when using 'co_await some_coroutine()'
+    template <typename C, typename P>
+    struct CoroutineAwaitable {
+        //: constructor
+        CoroutineAwaitable(C&& c) noexcept : children(std::forward<C&&>(c)) {
+            static_assert(coroutines::concepts::TFuture<C, typename C::promise_type>, "C must be a future");
+            static_assert(coroutines::concepts::TPromise<P>, "P must be a promise");
+        };
+
+        //: coroutine called on co_await
+        C&& children;
+
+        //: await ready, always suspend
+        bool await_ready() noexcept { return false; }
+
+        //: await suspend, schedule children and suspend
+        bool await_suspend(std_::coroutine_handle<P> h) noexcept {
+            auto parent = &h.promise();
+            parent->children.fetch_add(1);
+            schedule(children, parent);
+            return true;
+        }
+
+        //: await resume (called after the children resumes the parent), returns child value
+        auto await_resume() noexcept {
+            if constexpr (std::is_void_v<typename C::promise_type::value_type>) {
+                return;
+            } else {
+                return children.get();
             }
         }
     };
@@ -52,7 +84,7 @@ namespace fresa::jobs
         //: constructor
         JobPromiseBase(std_::coroutine_handle<> h) noexcept : PromiseBase(h) {};
 
-        //: parent and children
+        //: parent
         JobPromiseBase* parent = nullptr;
         std::atomic<ui32> children = 0;
 
@@ -63,8 +95,10 @@ namespace fresa::jobs
     //* job promise
     template<typename T>
     struct JobPromise : JobPromiseBase {
+        using value_type = T;
+
         //: constructor
-        JobPromise() noexcept : JobPromiseBase(JobFuture<T>::handle_type::from_promise(*this)) {};
+        JobPromise() noexcept : JobPromiseBase(std_::coroutine_handle<JobPromise<T>>::from_promise(*this)) {};
 
         //: promise value
         std::optional<T> value;
@@ -80,13 +114,19 @@ namespace fresa::jobs
 
         //: return value
         void return_value(T v) noexcept { value = v; }
+
+        //: co_await
+        template <typename C>
+        CoroutineAwaitable<C, JobPromise<T>> await_transform(C&& c) noexcept { return {std::forward<C>(c)}; };
     };
 
     //* job promise (return void)
     template<>
     struct JobPromise<void> : JobPromiseBase {
+        using value_type = void;
+
         //: constructor
-        JobPromise() noexcept : JobPromiseBase(JobFuture<void>::handle_type::from_promise(*this)) {};
+        JobPromise() noexcept : JobPromiseBase(std_::coroutine_handle<JobPromise<void>>::from_promise(*this)) {};
 
         //: return object
         JobFuture<void> get_return_object() noexcept;
@@ -99,6 +139,41 @@ namespace fresa::jobs
 
         //: return void
         void return_void() noexcept { }
+
+        //: co_await
+        template <typename C>
+        CoroutineAwaitable<C, JobPromise<void>> await_transform(C&& c) noexcept { return {std::forward<C>(c)}; };
+    };
+
+    //* job future
+    template <typename T>
+    struct JobFuture : coroutines::Future<JobPromise<T>, T> {
+        //: constructor
+        JobFuture(std_::coroutine_handle<JobPromise<T>> h) noexcept : coroutines::Future<JobPromise<T>, T>(h) {};
+
+        //: destructor
+        ~JobFuture() noexcept {
+            if (this->handle) {
+                this->handle.destroy();
+            }
+        }
+
+        //: ready - returns true if the promise value is set
+        bool ready() noexcept {
+            static_assert(not std::is_void_v<T>, "ready() requires a coroutine with a return value, not void");
+            return this->handle.promise().value.has_value();
+        }
+        
+        //: get - returns the promise value
+        T get() noexcept {
+            static_assert(not std::is_void_v<T>, "get() requires a coroutine with a return value, not void");
+            return this->handle.promise().value.value();
+        }
+
+        //: done - checks if the coroutine finished execution
+        bool done() noexcept {
+            return this->handle.done();
+        }
     };
 
     //* get return objects
@@ -123,6 +198,7 @@ namespace fresa::jobs
     struct JobSystem {
         //: global parameters
         static inline std::atomic<bool> running = false;                                // flag to stop the job system
+        static inline std::atomic<bool> is_stopped = true;                              // set to true when all threads are stopped
         static inline std::atomic<ui32> thread_count = 0;                               // number of threads in the job system's pool
         static inline std::vector<std::jthread> thread_pool;                            // thread pool
         static inline std::vector<std::unique_ptr<std::condition_variable>> thread_cv;  // thread condition variables
@@ -139,15 +215,16 @@ namespace fresa::jobs
         //: initialize job system
         static void init() noexcept {
             //: check if the job system is already running
-            if (running) return;
+            if (not is_stopped) return;
             running = true;
+            is_stopped = false;
 
             //: get thread count
             thread_count = std::thread::hardware_concurrency();
             if (thread_count == 0)
                 thread_count = 1;
 
-            //: create threads
+            //: create threads and queues
             for (ui32 i = 0; i < thread_count; i++) {
                 thread_pool.push_back(std::jthread(JobSystem::thread_run, i));
 
@@ -174,8 +251,12 @@ namespace fresa::jobs
             //: save thread local index
             thread_index = index;
             
+            //: counter for the number of threads initialized
+            //      it is written like this to allow for system recreation (stop and init again)
+            static std::atomic<ui32> thread_counter = 0;
+            if (thread_counter == 0) thread_counter = thread_count.load();
+
             //: wait for all threads to be available
-            static std::atomic<ui32> thread_counter = thread_count.load();
             thread_counter--;
             while (thread_counter.load() > 0) {}
             detail::log<"JOB SYSTEM", LOG_JOBS, fmt::color::light_green>("worker thread {} ready", thread_index);
@@ -206,12 +287,12 @@ namespace fresa::jobs
                 //: there is a job
                 if (current_job.has_value()) {
                     if (current_job.value() == nullptr) {
-                        log::error("The job you are trying to add is null, this should not happen");
+                        log::error("the job you are trying to add is null, this should not happen");
                         continue;
                     }
 
                     //: run the job
-                    log::info("Thread {} is running job {}", thread_index, current_job.value()->handle.address());
+                    detail::log<"JOB RUNNING", LOG_JOBS, fmt::color::gold>("thread {} is running job {}", thread_index, current_job.value()->handle.address());
                     current_job.value()->resume();
 
                     //: reset empty loops
@@ -223,11 +304,29 @@ namespace fresa::jobs
                     empty_loops = max_empty_loops / 2;
                 }
             }
+
+            //: clean queues
+            global_queues[thread_index].clear();
+            local_queues[thread_index].clear();
+
+            //: check if it is the last thread alive
+            uint32_t threads_left = thread_count.fetch_sub(1);
+            if (threads_left == 1)
+                is_stopped = true;
         }
 
         //: stop the job system
         static void stop() noexcept {
             running = false;
+            while (not is_stopped)
+                std::this_thread::sleep_for(0.1ms);
+
+            //: clear lists
+            thread_pool.clear();
+            global_queues.clear();
+            local_queues.clear();
+            thread_cv.clear();
+            thread_mutex.clear();
         }
     };
 
@@ -235,10 +334,15 @@ namespace fresa::jobs
 
     //* schedule jobs
     template <typename T>
-    void schedule(JobFuture<T>&& job) {
+    void schedule(const JobFuture<T>& job, JobPromiseBase* parent = nullptr) {
         auto& promise = job.handle.promise();
         JobSystem::schedule(&promise);
+        promise.parent = parent;
+    }
 
-        //- parent and children
+    //* wait for a job to complete
+    template <typename T> requires (not std::is_void<T>())
+    void waitFor(JobFuture<T>& job) {
+        while (not job.ready());
     }
 }
