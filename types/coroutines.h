@@ -115,7 +115,7 @@ namespace fresa::coroutines
     struct Promise : PromiseBase {
         //: constructor
         //      calls the base constructor with this handle, it is automatically saved there as typeless handle
-        Promise() noexcept : PromiseBase(Future<Promise<T>, T>::handle_type::from_promise(*this)) {};
+        Promise() noexcept : PromiseBase(std_::coroutine_handle<Promise<T>>::from_promise(*this)) {};
 
         //: promise value
         std::optional<T> value;

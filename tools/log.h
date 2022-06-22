@@ -28,9 +28,9 @@ namespace fresa
     namespace detail
     {
         template<str_literal name, std::size_t level, fmt::color color = fmt::color::white, typename ...T>
-        void log(const T& ...t) {
+        void log(fmt::format_string<T...> fs, T&& ...t) {
             if constexpr((LOG_LEVEL & level) == level) {
-                auto s = fmt::format(fg(color), "[{}]: ", name.value) + fmt::format(t ...) + "\n";
+                auto s = fmt::format(fg(color), "[{}]: ", name.value) + fmt::format(fs, std::forward<T>(t)...) + "\n";
                 fmt::print(s);
             }
         }
@@ -39,18 +39,18 @@ namespace fresa
     namespace log
     {
         template <typename ...T>
-        void error(const T& ...t) { detail::log<"ERROR", LOG_ERROR, fmt::color::red>(t...); }
+        void error(fmt::format_string<T...> fs, T&& ...t) { detail::log<"ERROR", LOG_ERROR, fmt::color::red>(fs, t...); }
 
         template <typename ...T>
-        void warn(const T& ...t) { detail::log<"WARN", LOG_WARNING, fmt::color::gold>(t...); }
+        void warn(fmt::format_string<T...> fs, T&& ...t) { detail::log<"WARN", LOG_WARNING, fmt::color::gold>(fs, t...); }
 
         template <typename ...T>
-        void info(const T& ...t) { detail::log<"INFO", LOG_INFO, fmt::color::cornflower_blue>(t...); }
+        void info(fmt::format_string<T...> fs, T&& ...t) { detail::log<"INFO", LOG_INFO, fmt::color::cornflower_blue>(fs, t...); }
 
         template <typename ...T>
-        void graphics(const T& ...t) { detail::log<"GRAPHICS", LOG_GRAPHICS, fmt::color::dark_turquoise>(t...); }
+        void graphics(fmt::format_string<T...> fs, T&& ...t) { detail::log<"GRAPHICS", LOG_GRAPHICS, fmt::color::dark_turquoise>(fs, t...); }
 
         template <typename ...T>
-        void debug(const T& ...t) { detail::log<"DEBUG", LOG_DEBUG, fmt::color::light_sky_blue>(t...); }
+        void debug(fmt::format_string<T...> fs, T&& ...t) { detail::log<"DEBUG", LOG_DEBUG, fmt::color::light_sky_blue>(fs, t...); }
     }
 }
