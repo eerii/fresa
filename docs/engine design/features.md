@@ -49,3 +49,7 @@ Keeping performance in mind, a key feature of any game engine on a tight per-fra
 - coroutines (`c++20`), using experimental branch for clang compilers
 - std::jthread (`c++20`) for multithreading
 - std::atomic, std::mutex and std::condition_variable for thread syncronization
+
+### math
+
+- random library

@@ -27,8 +27,6 @@ namespace fresa
 #include <vector>
 #include <map>
 #include <unordered_map>
-//- directed graph implementation
-//- binary tree implementation
 
 //* concepts
 #ifdef __cpp_lib_concepts

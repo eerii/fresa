@@ -48,8 +48,6 @@ namespace fresa::coroutines
     struct FutureBase;
     template <typename P, typename T> struct Future;
 
-    //- deallocator
-
     //---
 
     //* promises

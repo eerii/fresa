@@ -2,6 +2,7 @@
 
 #include "unit_test.h"
 #include "fresa_types.h"
+#include "coroutines.h"
 #include "atomic_queue.h"
 
 namespace test
