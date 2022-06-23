@@ -1,8 +1,10 @@
 //* jobs
-//      ...
+//      multithreaded job system based on coroutines
+//      uses worker threads where jobs are submitted
 #pragma once
 
 #include "fresa_types.h"
+#include "coroutines.h"
 #include "atomic_queue.h"
 #include "fresa_time.h"
 #include "log.h"
@@ -240,7 +242,7 @@ namespace fresa::jobs
         static void schedule(JobPromiseBase* job) noexcept {
             if (job == nullptr) { log::error("invalid job to schedule"); return; }
 
-            thread_local static ui32 t_id(rand() % thread_count); //- random utilities in fresa_math.h
+            thread_local static ui32 t_id(random<ui32>(0, thread_count-1));
 
             global_queues[t_id].push(job); //- global/local queues, also job can specify thread
             thread_cv[t_id]->notify_all();
@@ -262,7 +264,7 @@ namespace fresa::jobs
             detail::log<"JOB SYSTEM", LOG_JOBS, fmt::color::light_green>("worker thread {} ready", thread_index);
 
             //: random index for job stealing
-            ui32 steal_next = rand() % thread_count; //- random utilities in fresa_math.h
+            ui32 steal_next = random<ui32>(0, thread_count-1);
 
             //: number of empty loops before sleeping
             constexpr ui32 max_empty_loops = 256;

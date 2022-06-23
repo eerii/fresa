@@ -9,8 +9,8 @@
 //* string utilities
 #include "strings.h"
 
-//* coroutines
-#include "coroutines.h"
+//* math library
+#include "fresa_math.h"
 
 namespace fresa
 {
