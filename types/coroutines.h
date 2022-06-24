@@ -11,19 +11,17 @@ namespace fresa::coroutines
     {
         //* awaitable concept
         template <typename T>
-        concept TAwaitSuspend = std::same_as<T, bool> || std::same_as<T, void> || std::same_as<T, std_::coroutine_handle<>>;
-        template <typename T, typename P>
-        concept TAwaitResume = std::same_as<T, void> || std::same_as<T, P*>;
+        concept AwaitSuspend = std::same_as<T, bool> or std::same_as<T, void> or std::same_as<T, std_::coroutine_handle<>>;
         template <typename A, typename P>
-        concept TAwaitable = requires(A a) {
+        concept Awaitable = requires(A a) {
             { a.await_ready() } -> std::same_as<bool>;
-            { a.await_suspend(std::declval<std_::coroutine_handle<P>>()) } -> TAwaitSuspend;
-            { a.await_resume() } -> TAwaitResume<P>;
+            { a.await_suspend(std::declval<std_::coroutine_handle<P>>()) } -> AwaitSuspend;
+            a.await_resume();
         };
 
         //* future concept
         template <typename F, typename P>
-        concept TFuture = requires(F f) {
+        concept Future = requires(F f) {
             typename F::promise_type;
             std::same_as<typename F::promise_type, P>;
             std::same_as<decltype(f.handle), std_::coroutine_handle<P>>;
@@ -31,11 +29,11 @@ namespace fresa::coroutines
 
         //* promise concept
         template <typename P>
-        concept TPromise = requires(P p) {
-            { p.initial_suspend() } -> TAwaitable<P>;
-            { p.final_suspend() } -> TAwaitable<P>;
+        concept Promise = requires(P p) {
+            { p.initial_suspend() } -> Awaitable<P>;
+            { p.final_suspend() } -> Awaitable<P>;
             { p.unhandled_exception() } -> std::same_as<void>;
-            { p.get_return_object() } -> TFuture<P>;
+            { p.get_return_object() } -> Future<P>;
         };
     }
     
@@ -182,7 +180,7 @@ namespace fresa::coroutines
 
         //: constructor
         Future(handle_type h) noexcept : FutureBase(&h.promise()), handle{h} {
-            static_assert(concepts::TPromise<P>, "P must be a promise");
+            static_assert(concepts::Promise<P>, "P must be a promise");
         }
 
         //: coroutine handle (typed)
@@ -233,10 +231,10 @@ namespace fresa::coroutines
     //* concept checks
 
     //: promise
-    static_assert(concepts::TPromise<Promise<int>>, "Promise<int> is not a promise");
-    static_assert(concepts::TPromise<Promise<void>>, "Promise<void> is not a promise");
+    static_assert(concepts::Promise<Promise<int>>, "Promise<int> is not a promise");
+    static_assert(concepts::Promise<Promise<void>>, "Promise<void> is not a promise");
 
     //: future
-    static_assert(concepts::TFuture<Future<Promise<int>, int>, Promise<int>>, "Future<Promise<int>, int> is not a future");
-    static_assert(concepts::TFuture<FuturePromise<int>, Promise<int>>, "FuturePromise<int> is not a future");
+    static_assert(concepts::Future<Future<Promise<int>, int>, Promise<int>>, "Future<Promise<int>, int> is not a future");
+    static_assert(concepts::Future<FuturePromise<int>, Promise<int>>, "FuturePromise<int> is not a future");
 }

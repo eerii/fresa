@@ -32,7 +32,9 @@ namespace fresa::jobs
     template <typename P>
     struct FinalAwaitable : std_::suspend_always {
         //: constructor
-        FinalAwaitable() noexcept { static_assert(coroutines::concepts::TPromise<P>, "P must be a promise"); };
+        FinalAwaitable() noexcept {
+            static_assert(coroutines::concepts::Promise<P>, "P must be a promise");
+        };
 
         //: await suspend, if there is a parent and this is the last children, resume it
         void await_suspend(std_::coroutine_handle<P> h) noexcept {
@@ -51,8 +53,8 @@ namespace fresa::jobs
     struct CoroutineAwaitable {
         //: constructor
         CoroutineAwaitable(C&& c) noexcept : children(std::forward<C&&>(c)) {
-            static_assert(coroutines::concepts::TFuture<C, typename C::promise_type>, "C must be a future");
-            static_assert(coroutines::concepts::TPromise<P>, "P must be a promise");
+            static_assert(coroutines::concepts::Future<C, typename C::promise_type>, "C must be a future");
+            static_assert(coroutines::concepts::Promise<P>, "P must be a promise");
         };
 
         //: coroutine called on co_await
@@ -190,9 +192,14 @@ namespace fresa::jobs
     //---
 
     //* concept checks
-    static_assert(coroutines::concepts::TPromise<JobPromise<int>>, "JobPromise<int> is not a promise");
-    static_assert(coroutines::concepts::TPromise<JobPromise<void>>, "JobPromise<void> is not a promise");
-    static_assert(coroutines::concepts::TFuture<JobFuture<int>, JobPromise<int>>, "JobFuture<int> is not a future");
+    static_assert(coroutines::concepts::Promise<JobPromise<int>>, "JobPromise<int> is not a promise");
+    static_assert(coroutines::concepts::Promise<JobPromise<void>>, "JobPromise<void> is not a promise");
+
+    static_assert(coroutines::concepts::Future<JobFuture<int>, JobPromise<int>>, "JobFuture<int> is not a future");
+    static_assert(coroutines::concepts::Future<JobFuture<void>, JobPromise<void>>, "JobFuture<void> is not a future");
+
+    static_assert(coroutines::concepts::Awaitable<FinalAwaitable<JobPromise<int>>, JobPromise<int>>, "FinalAwaitable is not an awaitable");
+    static_assert(coroutines::concepts::Awaitable<CoroutineAwaitable<JobFuture<int>, JobPromise<int>>, JobPromise<int>>, "CoroutineAwaitable is not an awaitable");
     
     //---
 

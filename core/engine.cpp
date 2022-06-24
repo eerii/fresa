@@ -9,7 +9,7 @@
 
 using namespace fresa;
 
-constexpr std::array<ui8, 3> version = {0, 4, 1};
+constexpr std::array<ui8, 3> version = {0, 4, 2};
 
 //* main entry point
 //      called from main, it creates the engine, runs it and closes it when finished

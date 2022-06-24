@@ -7,14 +7,17 @@
 
 namespace fresa
 {
-    //* concept that defines a number
-    template <typename T>
-    concept TNumeric = std::integral<T> or std::floating_point<T>;
+    namespace concepts
+    {
+        //* concept that defines a number
+        template <typename T>
+        concept Numeric = std::integral<T> or std::floating_point<T>;
+    }
 
     //* random number generator
     //      returns a random number between min and max using the mt19937 generator and an uniform distribution
     //      the interval is clossed [min, max], so both are included
-    template <TNumeric T = int>
+    template <concepts::Numeric T = int>
     T random(T min, T max) {
         static std::random_device r;
 
