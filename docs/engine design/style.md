@@ -27,7 +27,7 @@ namespace fresa {
 }
 ```
 
-Namespaces will always try to be only one word. Interfaces will start with a capital "I" and concepts will start with "T". These conventions might be broken when working with elements defined in external libraries, such as `vulkan`.
+Namespaces will always try to be only one word. Interfaces will start with a capital "I". These conventions might be broken when working with elements defined in external libraries, such as `vulkan`.
 
 We will also denote the engine name in fully lowercase letters and accompanied by the strawberry emoji, **fresa :strawberry:**. All titles of documentation sections will be similarly written in lowercase.
 

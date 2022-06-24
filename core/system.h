@@ -13,14 +13,14 @@ namespace fresa::system
     {
         //* system concept, requires an initialacion and stop function
         template <typename T>
-        concept TSystem = requires(T s) {
+        concept System = requires(T s) {
             T::init();
             T::stop();
         };
 
         //* system with simulation update
         template <typename T>
-        concept TSystemUpdate = TSystem<T> and requires(T s) {
+        concept SystemWithUpdate = System<T> and requires(T s) {
             T::update();
         };
     }
@@ -55,7 +55,7 @@ namespace fresa::system
     } manager;
 
     //* register and initialize system
-    void add(concepts::TSystem auto s, ui8 priority = SYSTEM_PRIORITY_DEFAULT) {
+    void add(concepts::System auto s, ui8 priority = SYSTEM_PRIORITY_DEFAULT) {
         constexpr auto name = type_name<decltype(s)>();
         log::debug("registering system '{}'", name);
 
@@ -63,7 +63,7 @@ namespace fresa::system
         s.init();
         
         //* add to update list
-        if constexpr (concepts::TSystemUpdate<decltype(s)>)
+        if constexpr (concepts::SystemWithUpdate<decltype(s)>)
             manager.update.push({priority, name, s.update});
 
         //* add to destructor list

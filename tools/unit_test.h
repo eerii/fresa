@@ -21,25 +21,10 @@ namespace fresa
 {
     namespace concepts
     {
-        //* printable concept
-        //      can be printed to the console with a << operator
-        template <typename T>
-        concept TPrintable = requires (std::ostream &os, T t) {
-            os << t;
-        };
-
-        //* test concept
-        //      needs to have a printable name and to be assignable to an expression
-        template <typename T, auto expression = []{}>
-        concept TTest = requires(T t) {
-            { t.name } -> TPrintable;
-            t = expression;
-        };
-
         //* expression concept
         //      can be evaluated to a boolean
         template <typename T>
-        concept TExpression = std::convertible_to<T, bool>;
+        concept BooleanExpression = std::convertible_to<T, bool>;
     }
 
     namespace detail
@@ -156,7 +141,7 @@ namespace fresa
 
     //* expect
     //      evaluates an expression from a test and returns the result as well as the code location
-    constexpr auto expect(concepts::TExpression auto expression, const detail::source_location &location = detail::source_location::current()) {
+    constexpr auto expect(concepts::BooleanExpression auto expression, const detail::source_location &location = detail::source_location::current()) {
         return detail::test_objects::Expect{.location = location, .passed = expression};
     }
 

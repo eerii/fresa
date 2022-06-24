@@ -7,6 +7,7 @@ _general description_
 #### [0.4.2] job system (_23 jun 22_)
 
 - **added** - random number generator
+- **changed** - better concept names and organization
 
 #### [0.4.1] job system (_21 jun 22_)
 
