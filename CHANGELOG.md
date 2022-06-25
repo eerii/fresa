@@ -8,9 +8,9 @@ _general description_
 
 - **added** - random number generator
 - **changed** - better concept names and organization
-- **added** - constexpr for implementations
-- **added** - vector algebra
-- **added** - matrix algebra
+- **added** - constexpr for
+- **added** - vector linear algebra
+- **added** - matrix linear algebra
 - **todo** - global/local job queues
 
 #### [0.4.1] job system (_21 jun 22_)
