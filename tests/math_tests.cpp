@@ -111,6 +111,33 @@ namespace test
             Vec2<float> b{0.0f, 1.0f};
             return expect(angle_x(a) == 0.0f and angle_x(b) == pi / 2.0f);
         };
+        //: transformations
+        "to convertible type (same structure)"_test = []{
+            Vec2<int> a{1, 2};
+            Vec2<float> b{1.0f, 2.0f};
+            return expect(to<Vec2<float>>(a) == b);
+        };
+        "to convertible type (different structure)"_test = []{
+            Mat<3, 1, int> a({1, 2, 3});
+            Vec3<int> b{1, 2, 3};
+            return expect(to<Vec3<int>>(a) == b);
+        };
+        "to row vector"_test = []{
+            Vec3<int> a{1, 2, 3};
+            auto b = to_row<Mat<1, 3, int>>(a);
+            return expect(b.get<0, 0>() == 1 and b.get<0, 1>() == 2 and b.get<0, 2>() == 3);
+        };
+        "to column vector"_test = []{
+            Mat<1, 3, int> a({1, 2, 3});
+            auto b = to_column<Vec3<int>>(a);
+            return expect(b.x == 1 and b.y == 2 and b.z == 3);
+        };
+        //: row by column vector
+        "row vector by column vector"_test = []{
+            RVec3<int> a({1, 2, 3});
+            Vec3<int> b(1, 2, 3);
+            return expect(dot(a, b) == 14 and a * b == 14);
+        };
     });
 
     //* matrices
@@ -193,8 +220,60 @@ namespace test
             return expect(a == Mat2<int>({2, 4, 8, 16}));
         };
         //: matrix specific operations
+        "matrix 2x2 multiplication"_test = []{
+            Mat2<int> a({1, 2, 3, 4});
+            Mat2<int> b({1, 0, 0, 1});
+            return expect(dot(a, b) == Mat2<int>({1, 2, 3, 4}) and a * b == Mat2<int>({1, 2, 3, 4}));
+        };
+        "matrix 3x3 multiplication"_test = []{
+            Mat3<int> a({1, 2, 3, 4, 5, 6, 7, 8, 9});
+            Mat3<int> b({0, 0, 1, 1, 0, 0, 0, 1, 0});
+            return expect(a * b == Mat3<int>({2, 3, 1, 5, 6, 4, 8, 9, 7}));
+        };
+        "matrix 4x4 multiplication"_test = []{
+            Mat4<int> a({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+            Mat4<int> b({1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, -1, -1, 1, -1, 1});
+            return expect(a * b == Mat4<int>({-2, 2, -2, 2, -2, 2, -2, 2, -2, 2, -2, 2, -2, 2, -2, 2}));
+        };
+        "matrix 2x3 by 3x2 multiplication"_test = []{
+            Mat<2, 3, int> a({1, 2, 3, 4, 5, 6});
+            Mat<3, 2, int> b({6, 5, 4, 3, 2, 1});
+            return expect(dot<Mat2<int>>(a, b) == Mat2<int>({20, 14, 56, 41}));
+        };
+        "transposed matrix"_test = []{
+            Mat2<int> a({1, 2, 3, 4});
+            Mat3<int> b({1, 2, 3, 4, 5, 6, 7, 8, 9});
+            return expect(transpose(a) == Mat2<int>({1, 3, 2, 4}) and transpose(b) == Mat3<int>({1, 4, 7, 2, 5, 8, 3, 6, 9}));
+        };
+
+        //- determinant
+
+
+
+
+        //- inverse
+
+
+
 
         //: matrix-vector operations
+        "matrix by column vector multiplication"_test = []{
+            Mat2<int> a({0, 1, 1, 0});
+            Vec2<int> b(1, 2);
+            return expect(dot(a, b) == Vec2<int>({2, 1}) and a * b == Vec2<int>({2, 1}));
+        };
+        "matrix by row vector multiplication"_test = []{
+            RVec2<int> a({1, 2});
+            Mat2<int> b({0, 1, 1, 0});
+            return expect(dot(a, b) == RVec2<int>({2, 1}) and a * b == RVec2<int>({2, 1}));
+        };
+
+        //: column by row vector
+        "column vector by row vector"_test = []{
+            Vec3<int> a(1, 2, 3);
+            RVec3<int> b({1, 2, 3});
+            return expect(dot<Mat3<int>>(a, b) == Mat3<int>({1, 2, 3, 2, 4, 6, 3, 6, 9}));
+        };
     });
 
     //* random
