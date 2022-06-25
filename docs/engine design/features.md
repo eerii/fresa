@@ -53,3 +53,4 @@ Keeping performance in mind, a key feature of any game engine on a tight per-fra
 ### math
 
 - random library
+- numbers for several constants, including pi
