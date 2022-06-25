@@ -11,11 +11,11 @@ namespace test
     inline TestSuite vector_tests("vectors", []{
         "2D vector"_test = []{
             Vec2<int> a{1, 2};
-            return expect(a.size() == 2 and a.get<0>() == 1 and a.get<1>() == 2);
+            return expect(a.size().first == 2 and a.x == 1 and a.y == 2);
         };
         "3D vector"_test = []{
             Vec3<int> a{1, 2, 3};
-            return expect(a.size() == 3 and a.get<0>() == 1 and a.get<1>() == 2 and a.get<2>() == 3);
+            return expect(a.size().first == 3 and a.x == 1 and a.y == 2 and a.z == 3);
         };
         "equality"_test = []{
             Vec2<int> a{1, 2};
