@@ -2,7 +2,7 @@
 //      linear algebra and other math utilities
 #pragma once
 
-#include "std_types.h"
+#include "fresa_types.h"
 #include <numbers>
 #include <random>
 
@@ -17,15 +17,20 @@ namespace fresa
         template <typename T>
         concept Numeric = std::integral<T> or std::floating_point<T>;
 
+        //* concept that defines a matrix
+        template <typename M>
+        concept Matrix = requires(M m) {
+            typename M::value_type; //: type of the matrix
+            { std::remove_reference_t<decltype(M::size().first)>() } -> std::integral; //: number of rows
+            { std::remove_reference_t<decltype(M::size().second)>() } -> std::integral; //: number of columns
+            { std::remove_reference_t<decltype(m.template get<0, 0>())>() } -> Numeric; //: reference get
+        } and requires(const M m) {
+            { m.template get<0, 0>() } -> Numeric; //: const get
+        };
+
         //* concept that defines a vector
         template <typename V>
-        concept Vector = requires(V v) {
-            typename V::value_type; //: type of the vector
-            { V::size() } -> std::integral; //: size
-            { std::remove_reference_t<decltype(v.template get<0>())>() } -> Numeric; //: reference get
-        } and requires(const V v) {
-            { v.template get<0>() } -> Numeric; //: const get
-        };
+        concept Vector = Matrix<V> and V::size().second == 1; //: vector is one dimensional
     }
 
     //---
@@ -38,9 +43,11 @@ namespace fresa
         template <concepts::Vector V, typename Op>
         constexpr V scalar_op(const V& a, const typename V::value_type& b, Op op) {
             V result;
-            [&] <std::size_t ... Is> (std::index_sequence<Is...>) {
-                ((result.template get<Is>() = op(a.template get<Is>(), b)), ...);
-            } (std::make_index_sequence<V::size()>{});
+            for_<0, V::size().first>([&](auto i) {
+                for_<0, V::size().second>([&](auto j) {
+                    result.template get<i, j>() = op(a.template get<i, j>(), b);
+                });
+            });
             return result;
         }
     }
@@ -60,9 +67,11 @@ namespace fresa
         template <concepts::Vector V, typename Op>
         constexpr V binary_op(const V& a, const V& b, Op op) {
             V result;
-            [&] <std::size_t ... Is> (std::index_sequence<Is...>) {
-                ((result.template get<Is>() = op(a.template get<Is>(), b.template get<Is>())), ...);
-            } (std::make_index_sequence<V::size()>{});
+            for_<0, V::size().first>([&](auto i) {
+                for_<0, V::size().second>([&](auto j) {
+                    result.template get<i, j>() = op(a.template get<i, j>(), b.template get<i, j>());
+                });
+            });
             return result;
         }
     }
@@ -86,9 +95,11 @@ namespace fresa
         template <concepts::Vector V, typename Op>
         constexpr bool compare_op(const V& a, const V& b, Op op) {
             bool result = true;
-            [&] <std::size_t ... Is> (std::index_sequence<Is...>) {
-                ((result = result and op(a.template get<Is>(), b.template get<Is>())), ...);
-            } (std::make_index_sequence<V::size()>{});
+            for_<0, V::size().first>([&](auto i) {
+                for_<0, V::size().second>([&](auto j) {
+                    result = result and op(a.template get<i, j>(), b.template get<i, j>());
+                });
+            });
             return result;
         }
     }
@@ -102,18 +113,20 @@ namespace fresa
     //: dot product
     template <concepts::Vector V> constexpr auto dot(const V& a, const V& b) {
         typename V::value_type result{};
-        [&] <std::size_t ... Is> (std::index_sequence<Is...>) {
-            ((result += a.template get<Is>() * b.template get<Is>()), ...);
-        } (std::make_index_sequence<V::size()>{});
+        for_<0, V::size().first>([&](auto i) {
+            for_<0, V::size().second>([&](auto j) {
+                 result += a.template get<i, j>() * b.template get<i, j>();
+            });
+        });
         return result;
     }
 
     //: cross product (3D)
-    template <concepts::Vector V> requires (V::size() == 3)
+    template <concepts::Vector V> requires (V::size().first == 3)
     constexpr V cross(const V& a, const V& b) {
-        return V{a.template get<1>() * b.template get<2>() - a.template get<2>() * b.template get<1>(),
-                 a.template get<2>() * b.template get<0>() - a.template get<0>() * b.template get<2>(),
-                 a.template get<0>() * b.template get<1>() - a.template get<1>() * b.template get<0>()};
+        return V{a.template get<1, 0>() * b.template get<2, 0>() - a.template get<2, 0>() * b.template get<1, 0>(),
+                 a.template get<2, 0>() * b.template get<0, 0>() - a.template get<0, 0>() * b.template get<2, 0>(),
+                 a.template get<0, 0>() * b.template get<1, 0>() - a.template get<1, 0>() * b.template get<0, 0>()};
     }
 
     //: norm
@@ -126,9 +139,9 @@ namespace fresa
     template <concepts::Vector V> constexpr auto angle(const V& a, const V& b) { return std::acos(dot(a, b) / (norm(a) * norm(b))); }
 
     //: angle with respect to the coordinate axis
-    template <concepts::Vector V> constexpr auto angle_x(const V& a) { V vx{}; vx.template get<0>() = 1; return angle(a, vx); }
-    template <concepts::Vector V> requires (V::size() >= 2) constexpr auto angle_y(const V& a) { V vy{}; vy.template get<1>() = 1; return angle(a, vy); }
-    template <concepts::Vector V> requires (V::size() >= 3) constexpr auto angle_z(const V& a) { V vz{}; vz.template get<2>() = 1; return angle(a, vz); }
+    template <concepts::Vector V> constexpr auto angle_x(const V& a) { V vx{}; vx.template get<0, 0>() = 1; return angle(a, vx); }
+    template <concepts::Vector V> requires (V::size().first >= 2) constexpr auto angle_y(const V& a) { V vy{}; vy.template get<1, 0>() = 1; return angle(a, vy); }
+    template <concepts::Vector V> requires (V::size().first >= 3) constexpr auto angle_z(const V& a) { V vz{}; vz.template get<2, 0>() = 1; return angle(a, vz); }
 
     //---
 
@@ -151,14 +164,13 @@ namespace fresa
         Vec2& operator= (Vec2&& v) noexcept = default;
 
         //: vector concept requirements
-        constexpr static std::size_t size() { return 2; }
-        template <std::size_t I> requires (I < 2)
+        constexpr static std::pair<std::size_t, std::size_t> size() { return {2, 1}; }
+        template <std::size_t I, std::size_t J> requires (I < size().first and J == 0)
         constexpr T& get() {
-            static_assert(I < 2, "index for Vec2 out of bounds");
             if constexpr (I == 0) return x;
             if constexpr (I == 1) return y;
         }
-        template <std::size_t I> requires (I < 2)
+        template <std::size_t I, std::size_t J> requires (I < size().first and J == 0)
         constexpr T get() const {
             if constexpr (I == 0) return x;
             if constexpr (I == 1) return y;
@@ -184,14 +196,14 @@ namespace fresa
         Vec3& operator= (Vec3&& v) noexcept = default;
 
         //: vector concept requirements
-        constexpr static std::size_t size() { return 3; }
-        template <std::size_t I> requires (I < 3)
+        constexpr static std::pair<std::size_t, std::size_t> size() { return {3, 1}; }
+        template <std::size_t I, std::size_t J> requires (I < size().first and J == 0)
         constexpr T& get() {
             if constexpr (I == 0) return x;
             if constexpr (I == 1) return y;
             if constexpr (I == 2) return z;
         }
-        template <std::size_t I> requires (I < 3)
+        template <std::size_t I, std::size_t J> requires (I < size().first and J == 0)
         constexpr T get() const {
             if constexpr (I == 0) return x;
             if constexpr (I == 1) return y;

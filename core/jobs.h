@@ -4,6 +4,7 @@
 #pragma once
 
 #include "fresa_types.h"
+#include "fresa_math.h"
 #include "coroutines.h"
 #include "atomic_queue.h"
 #include "fresa_time.h"

@@ -139,4 +139,23 @@ namespace test
             return expect(q.size() == 0);
         };
     });
+
+    //* constexpr for
+    inline TestSuite constexpr_for_test("constexpr_for", []{
+        "constexpr integral for"_test = []{
+            int sum = 0;
+            for_<0, 10>([&](int i){ sum += i; });
+            return expect(sum == 45);
+        };
+        "constexpr parameter pack for"_test = []{
+            int sum = 0;
+            for_([&](int i){ sum += i; }, 2, 4, 8, 16);
+            return expect(sum == 30);
+        };
+        "constexpr tuple-like for"_test = []{
+            bool result = true;
+            for_([&](auto const& v){ result = result and v; }, std::make_tuple(true, 1, "hello"));
+            return expect(result);
+        };
+    });
 }

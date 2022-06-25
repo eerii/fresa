@@ -9,6 +9,7 @@ _general description_
 - **added** - random number generator
 - **changed** - better concept names and organization
 - **added** - vector algebra
+- **added** - constexpr for implementations
 - **todo** - global/local job queues
 
 #### [0.4.1] job system (_21 jun 22_)
