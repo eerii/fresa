@@ -30,21 +30,21 @@ namespace fresa
 
         //* concept that defines a vector
         template <typename V>
-        concept Vector = Matrix<V> and V::size().second == 1; //: vector is one dimensional
+        concept Vector = Matrix<V> and V::size().second == 1; //: a vector is a one dimensional matrix
     }
 
     //---
     //* linear algebra utilities
 
-    //* scalar operations on vectors
+    //* scalar operations on vectors/matrices
     namespace detail
     {
         //: scalar operation
-        template <concepts::Vector V, typename Op>
-        constexpr V scalar_op(const V& a, const typename V::value_type& b, Op op) {
-            V result;
-            for_<0, V::size().first>([&](auto i) {
-                for_<0, V::size().second>([&](auto j) {
+        template <concepts::Matrix M, typename Op>
+        constexpr M scalar_op(const M& a, const typename M::value_type& b, Op op) {
+            M result;
+            for_<0, M::size().first>([&](auto i) {
+                for_<0, M::size().second>([&](auto j) {
                     result.template get<i, j>() = op(a.template get<i, j>(), b);
                 });
             });
@@ -52,23 +52,22 @@ namespace fresa
         }
     }
     //: scalar product
-    template <concepts::Vector V> constexpr V operator* (const V& a, const typename V::value_type& b) { return detail::scalar_op(a, b, std::multiplies()); }
-    template <concepts::Vector V> constexpr V operator* (const typename V::value_type& b, const V& a) { return a * b; }
-    template <concepts::Vector V> constexpr V& operator*= (V& a, const typename V::value_type& b) { return a = a * b; }
+    template <concepts::Matrix M> constexpr M operator* (const M& a, const typename M::value_type& b) { return detail::scalar_op(a, b, std::multiplies()); }
+    template <concepts::Matrix M> constexpr M operator* (const typename M::value_type& b, const M& a) { return a * b; }
+    template <concepts::Matrix M> constexpr M& operator*= (M& a, const typename M::value_type& b) { return a = a * b; }
     //: scalar quotient
-    template <concepts::Vector V> constexpr V operator/ (const V& a, const typename V::value_type& b) { return detail::scalar_op(a, b, std::divides()); }
-    template <concepts::Vector V> constexpr V operator/ (const typename V::value_type& b, const V& a) { return a / b; }
-    template <concepts::Vector V> constexpr V& operator/= (V& a, const typename V::value_type& b) { return a = a / b; }
+    template <concepts::Matrix M> constexpr M operator/ (const M& a, const typename M::value_type& b) { return detail::scalar_op(a, b, std::divides()); }
+    template <concepts::Matrix M> constexpr M& operator/= (M& a, const typename M::value_type& b) { return a = a / b; }
 
-    //* vector operations on vectors
+    //* arithmetic operations on vectors/matrices
     namespace detail
     {
         //: binary operation
-        template <concepts::Vector V, typename Op>
-        constexpr V binary_op(const V& a, const V& b, Op op) {
-            V result;
-            for_<0, V::size().first>([&](auto i) {
-                for_<0, V::size().second>([&](auto j) {
+        template <concepts::Matrix M, typename Op>
+        constexpr M binary_op(const M& a, const M& b, Op op) {
+            M result;
+            for_<0, M::size().first>([&](auto i) {
+                for_<0, M::size().second>([&](auto j) {
                     result.template get<i, j>() = op(a.template get<i, j>(), b.template get<i, j>());
                 });
             });
@@ -76,27 +75,21 @@ namespace fresa
         }
     }
     //: sum
-    template <concepts::Vector V> constexpr V operator+ (const V& a, const V& b) {  return detail::binary_op(a, b, std::plus()); }
-    template <concepts::Vector V> constexpr V& operator+= (V& a, const V& b) { return a = a + b; }
+    template <concepts::Matrix M> constexpr M operator+ (const M& a, const M& b) {  return detail::binary_op(a, b, std::plus()); }
+    template <concepts::Matrix M> constexpr M& operator+= (M& a, const M& b) { return a = a + b; }
     //: difference
-    template <concepts::Vector V> constexpr V operator- (const V& a, const V& b) { return detail::binary_op(a, b, std::minus()); }
-    template <concepts::Vector V> constexpr V& operator-= (V& a, const V& b) { return a = a - b; }
-    //: (hadamard) product
-    template <concepts::Vector V> constexpr V operator* (const V& a, const V& b) { return detail::binary_op(a, b, std::multiplies()); }
-    template <concepts::Vector V> constexpr V& operator*= (V& a, const V& b) { return a = a * b; }
-    //: (hadamard) quotient
-    template <concepts::Vector V> constexpr V operator/ (const V& a, const V& b) { return detail::binary_op(a, b, std::divides()); }
-    template <concepts::Vector V> constexpr V& operator/= (V& a, const V& b) { return a = a / b; }
+    template <concepts::Matrix M> constexpr M operator- (const M& a, const M& b) { return detail::binary_op(a, b, std::minus()); }
+    template <concepts::Matrix M> constexpr M& operator-= (M& a, const M& b) { return a = a - b; }
 
-    //* comparison operations on vectors
+    //* comparison operations on vectors/matrices
     namespace detail
     {
         //: comparison operation
-        template <concepts::Vector V, typename Op>
-        constexpr bool compare_op(const V& a, const V& b, Op op) {
+        template <concepts::Matrix M, typename Op>
+        constexpr bool compare_op(const M& a, const M& b, Op op) {
             bool result = true;
-            for_<0, V::size().first>([&](auto i) {
-                for_<0, V::size().second>([&](auto j) {
+            for_<0, M::size().first>([&](auto i) {
+                for_<0, M::size().second>([&](auto j) {
                     result = result and op(a.template get<i, j>(), b.template get<i, j>());
                 });
             });
@@ -104,9 +97,9 @@ namespace fresa
         }
     }
     //: equality
-    template <concepts::Vector V> constexpr bool operator== (const V& a, const V& b) { return detail::compare_op(a, b, std::equal_to()); }
+    template <concepts::Matrix M> constexpr bool operator== (const M& a, const M& b) { return detail::compare_op(a, b, std::equal_to()); }
     //: inequality
-    template <concepts::Vector V> constexpr bool operator!= (const V& a, const V& b) { return not (a == b); }
+    template <concepts::Matrix M> constexpr bool operator!= (const M& a, const M& b) { return not (a == b); }
 
     //* vector operations
 
@@ -120,6 +113,7 @@ namespace fresa
         });
         return result;
     }
+    template <concepts::Vector V> constexpr auto operator* (const V& a, const V& b) { return dot(a, b); }
 
     //: cross product (3D)
     template <concepts::Vector V> requires (V::size().first == 3)
@@ -156,20 +150,18 @@ namespace fresa
         //: constructors
         Vec2() : x(0), y(0) {}
         Vec2(T x, T y) : x(x), y(y) {}
-        //: copy
-        Vec2(const Vec2& v) noexcept = default;
-        Vec2& operator= (const Vec2& v) noexcept = default;
-        //: move
-        Vec2(Vec2&& v) noexcept = default;
-        Vec2& operator= (Vec2&& v) noexcept = default;
 
-        //: vector concept requirements
+        //: size
         constexpr static std::pair<std::size_t, std::size_t> size() { return {2, 1}; }
+
+        //: reference get
         template <std::size_t I, std::size_t J> requires (I < size().first and J == 0)
         constexpr T& get() {
             if constexpr (I == 0) return x;
             if constexpr (I == 1) return y;
         }
+
+        //: const get
         template <std::size_t I, std::size_t J> requires (I < size().first and J == 0)
         constexpr T get() const {
             if constexpr (I == 0) return x;
@@ -188,21 +180,19 @@ namespace fresa
         //: constructors
         Vec3() : x(0), y(0), z(0) {}
         Vec3(T x, T y, T z) : x(x), y(y), z(z) {}
-        //: copy
-        Vec3(const Vec3& v) noexcept = default;
-        Vec3& operator= (const Vec3& v) noexcept = default;
-        //: move
-        Vec3(Vec3&& v) noexcept = default;
-        Vec3& operator= (Vec3&& v) noexcept = default;
 
         //: vector concept requirements
         constexpr static std::pair<std::size_t, std::size_t> size() { return {3, 1}; }
+
+        //: reference get
         template <std::size_t I, std::size_t J> requires (I < size().first and J == 0)
         constexpr T& get() {
             if constexpr (I == 0) return x;
             if constexpr (I == 1) return y;
             if constexpr (I == 2) return z;
         }
+
+        //: const get
         template <std::size_t I, std::size_t J> requires (I < size().first and J == 0)
         constexpr T get() const {
             if constexpr (I == 0) return x;
@@ -210,6 +200,36 @@ namespace fresa
             if constexpr (I == 2) return z;
         }
     };
+
+    //: Matrices
+    template <std::size_t N, std::size_t M, concepts::Numeric T>
+    struct Mat {
+        using value_type = T;
+
+        //: members
+        std::array<T, N*M> data;
+
+        //: constructors
+        Mat() : data{} {}
+        Mat(std::array<T, N*M>&& d) : data(std::move(d)) {}
+
+        //: size
+        constexpr static std::pair<std::size_t, std::size_t> size() { return {N, M}; }
+
+        //: reference get
+        template <std::size_t I, std::size_t J> requires (I < N and J < M)
+        constexpr T& get() { return data[I * N + J]; }
+
+        //: const get
+        template <std::size_t I, std::size_t J> requires (I < N and J < M)
+        constexpr T get() const { return data[I * N + J]; }
+    };
+    template <concepts::Numeric T>
+    using Mat2 = Mat<2, 2, T>;
+    template <concepts::Numeric T>
+    using Mat3 = Mat<3, 3, T>;
+    template <concepts::Numeric T>
+    using Mat4 = Mat<4, 4, T>;
 
     //---
 
