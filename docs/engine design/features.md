@@ -34,6 +34,7 @@ Keeping performance in mind, a key feature of any game engine on a tight per-fra
 - lambdas
 - concepts (`c++20`)
 - std::optional
+- tuples
 
 ### compiler
 

@@ -6,6 +6,9 @@
 #include <numbers>
 #include <random>
 
+//!!!!!!
+#include "log.h"
+
 namespace fresa
 {
     //* mathematical constants
@@ -152,6 +155,7 @@ namespace fresa
     //: to convertible type
     template <concepts::Matrix B, concepts::Matrix A> requires (A::size().first == A::size().first and A::size().second == B::size().second)
     constexpr B to(const A& a) {
+        if constexpr (std::is_same_v<A, B>) return a;
         B result;
         for_<0, A::size().first>([&](auto i) {
             for_<0, A::size().second>([&](auto j) {
@@ -234,6 +238,105 @@ namespace fresa
     constexpr V dot(const V& v, const M& m) { return dot<V, V, M>(v, m); }
     template <concepts::SquareMatrix M, concepts::RowVector V> requires (M::size().first == V::size().second)
     constexpr V operator* (const V& v, const M& m) { return dot<V, V, M>(v, m); }
+
+    //: identity
+    template <concepts::SquareMatrix M>
+    constexpr M identity() {
+        M result;
+        for_<0, M::size().first>([&](auto i) {
+            result.template get<i, i>() = 1;
+        });
+        return result;
+    }
+
+    namespace detail
+    {
+        //: pivot rows
+        template <std::size_t From, std::size_t To, concepts::SquareMatrix M>
+        requires (From < To and To < M::size().first)
+        constexpr void pivot_rows(M& m) {
+            if constexpr (From == To) return;
+            constexpr auto N = M::size().first;
+            for_<0, N>([&](auto j) {
+                std::swap(m.template get<From, j>(), m.template get<To, j>());
+            });
+        }
+
+        //: max index of an initializer list
+        template <typename T>
+        constexpr auto max_i(std::initializer_list<T> ilist) {
+            return std::distance( ilist.begin(), std::max_element( ilist.begin(), ilist.end() ) );
+        }
+    }
+
+    //: lu decomposition
+    template <concepts::SquareMatrix M, concepts::SquareMatrix MR = M>
+    requires (std::is_floating_point_v<typename MR::value_type>)
+    constexpr std::tuple<bool, M, MR> lu(const M& m) {
+        constexpr auto N = M::size().first;
+        using T = typename M::value_type;
+        bool singular = false;
+        MR result = to<MR>(m);
+
+        //: pivot rows
+        M p = identity<M>();
+        for_<0, N>([&](auto j){
+            //: find max element in column j
+            auto max = [&] <std::size_t ... I> (std::index_sequence<I...>) {
+                return detail::max_i({ result.template get<I + j, j>()... });
+            } (std::make_index_sequence<M::size().first - j>{}) + j;
+            for_<j.value, N>([&](auto i){
+                if (max == i.value) {
+                    //: if max element is 0, matrix is singular
+                    if (m.template get<i, j>() < 1e-10) {
+                        singular = true;
+                        return false;
+                    }
+                    //: swap rows
+                    if constexpr (j != i) {
+                        detail::pivot_rows<j.value, i.value>(result);
+                        detail::pivot_rows<j.value, i.value>(p);
+                        return false;
+                    }
+                }
+                return true;
+            });
+        });
+
+        //: lu decomposition
+        if (not singular) {
+            for_<0, N>([&](auto j){
+                for_<j.value + 1, N>([&](auto i){
+                    result.template get<i, j>() /= result.template get<j, j>();
+                    for_<j.value + 1, N>([&](auto k){
+                        result.template get<i, k>() -= result.template get<i, j>() * result.template get<j, k>();
+                    });
+                });
+            });
+        }
+
+        return std::make_tuple(singular, p, result);
+    }
+
+    //: get lu components
+    template <concepts::SquareMatrix M>
+    constexpr std::tuple<M, M> lu_components(const M& m) {
+        constexpr auto N = M::size().first;
+        M l, u;
+        for_<0, N>([&](auto j){
+            for_<0, N>([&](auto i){
+                if constexpr (i == j) {
+                    l.template get<i, j>() = 1;
+                    u.template get<i, j>() = m.template get<i, j>();
+                } else if constexpr (i > j) {
+                    l.template get<i, j>() = m.template get<i, j>();
+                } else {
+                    u.template get<i, j>() = m.template get<i, j>();
+                }
+            });
+        });
+        return std::make_tuple(l, u);
+    }
 
     //---
 

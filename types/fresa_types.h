@@ -79,7 +79,13 @@ namespace fresa
     template <auto From, auto To, auto Increment = 1, typename F>
     constexpr void for_(F&& f) {
         if constexpr (From < To) {
-            f(std::integral_constant<decltype(From), From>());
+            using T = decltype(f(std::integral_constant<decltype(From), From>()));
+            if constexpr (std::same_as<T, void>) {
+                f(std::integral_constant<decltype(From), From>());
+            } else if constexpr (std::convertible_to<T, bool>) {
+                if (not f(std::integral_constant<decltype(From), From>()))
+                    return;
+            }
             for_<From + Increment, To, Increment>(f);
         }
     }
