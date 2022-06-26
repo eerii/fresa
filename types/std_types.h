@@ -28,6 +28,9 @@ namespace fresa
 #include <map>
 #include <unordered_map>
 
+//* tuples
+#include <tuple>
+
 //* concepts
 #ifdef __cpp_lib_concepts
     #include <concepts>

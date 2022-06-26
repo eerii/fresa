@@ -245,6 +245,27 @@ namespace test
             Mat3<int> b({1, 2, 3, 4, 5, 6, 7, 8, 9});
             return expect(transpose(a) == Mat2<int>({1, 3, 2, 4}) and transpose(b) == Mat3<int>({1, 4, 7, 2, 5, 8, 3, 6, 9}));
         };
+        "identity"_test = []{
+            return expect(identity<Mat3<int>>() == Mat3<int>({1, 0, 0, 0, 1, 0, 0, 0, 1}));
+        };
+        //: lu decomposition
+        "lu decomposition"_test = []{
+            Mat3<float> a({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
+            auto [singular, p, l_u] = lu(a);
+            auto [l, u] = lu_components(l_u);
+            return expect(p * a == l * u and not singular);
+        };
+        "singular matrix"_test = []{
+            Mat3<float> a({1.f, 0.f, 3.f, 4.f, 0.f, 6.f, 7.f, 0.f, 9.f});;
+            auto [singular, p, l_u] = lu(a);
+            return expect(singular);
+        };
+        "decomposition of integer matrix"_test = []{
+            Mat3<int> a({1, 2, 3, 4, 5, 6, 7, 8, 9});
+            auto [singular, p, l_u] = lu<Mat3<int>, Mat3<float>>(a);
+            auto [l, u] = lu_components(l_u);
+            return expect(p * a == to<Mat3<int>>(l * u) and not singular);
+        };
 
         //- determinant
 
