@@ -28,10 +28,11 @@ namespace fresa
     namespace detail
     {
         template<str_literal name, std::size_t level, fmt::color color = fmt::color::white, typename ... T>
-        void log(fmt::format_string<T...> fs, T&& ...t) {
+        constexpr void log(fmt::format_string<T...> fs, T&& ...t) {
             if constexpr((LOG_LEVEL & level) == level) {
-                auto s = fmt::format(fg(color), "[{}]: ", name.value) + fmt::format(fs, std::forward<T>(t)...) + "\n";
-                fmt::print(s);
+                fmt::print("{} {}\n",
+                           fmt::format(fg(color), "[{}]:", name.value),
+                           fmt::format(fs, std::forward<T>(t)...));
             }
         }
     }
@@ -39,18 +40,18 @@ namespace fresa
     namespace log
     {
         template <typename ... T>
-        void error(fmt::format_string<T...> fs, T&& ...t) { detail::log<"ERROR", LOG_ERROR, fmt::color::red>(fs, t...); }
+        constexpr void error(fmt::format_string<T...> fs, T&& ...t) { detail::log<"ERROR", LOG_ERROR, fmt::color::red>(fs, std::forward<T>(t)...); }
 
         template <typename ... T>
-        void warn(fmt::format_string<T...> fs, T&& ...t) { detail::log<"WARN", LOG_WARNING, fmt::color::gold>(fs, t...); }
+        constexpr void warn(fmt::format_string<T...> fs, T&& ...t) { detail::log<"WARN", LOG_WARNING, fmt::color::gold>(fs, std::forward<T>(t)...); }
 
         template <typename ... T>
-        void info(fmt::format_string<T...> fs, T&& ...t) { detail::log<"INFO", LOG_INFO, fmt::color::cornflower_blue>(fs, t...); }
+        constexpr void info(fmt::format_string<T...> fs, T&& ...t) { detail::log<"INFO", LOG_INFO, fmt::color::cornflower_blue>(fs, std::forward<T>(t)...); }
 
         template <typename ... T>
-        void graphics(fmt::format_string<T...> fs, T&& ...t) { detail::log<"GRAPHICS", LOG_GRAPHICS, fmt::color::dark_turquoise>(fs, t...); }
+        constexpr void graphics(fmt::format_string<T...> fs, T&& ...t) { detail::log<"GRAPHICS", LOG_GRAPHICS, fmt::color::dark_turquoise>(fs, std::forward<T>(t)...); }
 
         template <typename ... T>
-        void debug(fmt::format_string<T...> fs, T&& ...t) { detail::log<"DEBUG", LOG_DEBUG, fmt::color::light_sky_blue>(fs, t...); }
+        constexpr void debug(fmt::format_string<T...> fs, T&& ...t) { detail::log<"DEBUG", LOG_DEBUG, fmt::color::light_sky_blue>(fs, std::forward<T>(t)...); }
     }
 }
