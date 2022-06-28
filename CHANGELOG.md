@@ -4,7 +4,7 @@
 
 _general description_
 
-#### [0.4.2] name (_23 jun 22_)
+#### [0.4.2] numbers and letters (_29 jun 22_)
 
 - **added** - random number generator
 - **changed** - better concept names and organization
@@ -13,6 +13,7 @@ _general description_
 - **added** - matrix linear algebra
 - **changed** - included test guard for production
 - **fixed** - constexpression logging with fmt
+- **added** - mkbuild documentation system
 - **todo** - global/local job queues
 
 #### [0.4.1] job system (_21 jun 22_)
