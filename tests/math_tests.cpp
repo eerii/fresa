@@ -11,42 +11,42 @@ namespace test
     inline TestSuite vector_tests("vectors", []{
         //: creation
         "2D vector"_test = []{
-            Vec2<int> a{1, 2};
+            Vec2<> a{1, 2};
             return expect(a.size().first == 2 and a.x == 1 and a.y == 2);
         };
         "3D vector"_test = []{
-            Vec3<int> a{1, 2, 3};
+            Vec3<> a{1, 2, 3};
             return expect(a.size().first == 3 and a.x == 1 and a.y == 2 and a.z == 3);
         };
         //: comparison
         "equality"_test = []{
-            Vec2<int> a{1, 2};
-            Vec2<int> b{1, 2};
+            Vec2<> a{1, 2};
+            Vec2<> b{1, 2};
             return expect(a == b);
         };
         "inequality"_test = []{
-            Vec2<int> a{1, 2};
-            Vec2<int> b{1, 3};
+            Vec2<> a{1, 2};
+            Vec2<> b{1, 3};
             return expect(a != b);
         };
         //: arithmetic
         "scalar product"_test = []{
-            Vec2<int> a{1, 2};
-            return expect(a * 2 == Vec2<int>{2, 4} and 2 * a == Vec2<int>{2, 4});
+            Vec2<> a{1, 2};
+            return expect(a * 2 == Vec2<>{2, 4} and 2 * a == Vec2<>{2, 4});
         };
         "scalar division"_test = []{
-            Vec2<int> a{4, 8};
-            return expect(a / 2 == Vec2<int>{2, 4});
+            Vec2<> a{4, 8};
+            return expect(a / 2 == Vec2<>{2, 4});
         };
         "sum of vectors"_test = []{
-            Vec2<int> a{1, 2};
-            Vec2<int> b{3, 4};
-            return expect(a + b == Vec2<int>{4, 6});
+            Vec2<> a{1, 2};
+            Vec2<> b{3, 4};
+            return expect(a + b == Vec2<>{4, 6});
         };
         "difference of vectors"_test = []{
-            Vec2<int> a{3, 4};
-            Vec2<int> b{1, 2};
-            return expect(a - b == Vec2<int>{2, 2});
+            Vec2<> a{3, 4};
+            Vec2<> b{1, 2};
+            return expect(a - b == Vec2<>{2, 2});
         };
         "operations on float vectors"_test = []{
             Vec2<float> a{1.5f, 2.5f};
@@ -55,46 +55,46 @@ namespace test
         };
         //: assignment
         "assignment"_test = []{
-            Vec2<int> a{1, 2};
-            Vec2<int> b{3, 4};
+            Vec2<> a{1, 2};
+            Vec2<> b{3, 4};
             a = b;
             return expect(a == b);
         };
         "sum assignment"_test = []{
-            Vec2<int> a{1, 2};
-            Vec2<int> b{3, 4};
+            Vec2<> a{1, 2};
+            Vec2<> b{3, 4};
             a += b;
-            return expect(a == Vec2<int>{4, 6});
+            return expect(a == Vec2<>{4, 6});
         };
         "difference assignment"_test = []{
-            Vec2<int> a{3, 4};
-            Vec2<int> b{1, 2};
+            Vec2<> a{3, 4};
+            Vec2<> b{1, 2};
             a -= b;
-            return expect(a == Vec2<int>{2, 2});
+            return expect(a == Vec2<>{2, 2});
         };
         "scalar product assignment"_test = []{
-            Vec2<int> a{1, 2};
+            Vec2<> a{1, 2};
             a *= 2;
-            return expect(a == Vec2<int>{2, 4});
+            return expect(a == Vec2<>{2, 4});
         };
         "scalar division assignment"_test = []{
-            Vec2<int> a{4, 8};
+            Vec2<> a{4, 8};
             a /= 2;
-            return expect(a == Vec2<int>{2, 4});
+            return expect(a == Vec2<>{2, 4});
         };
         //: vector specific operations
         "dot product"_test = []{
-            Vec2<int> a{1, 2};
-            Vec2<int> b{3, 4};
+            Vec2<> a{1, 2};
+            Vec2<> b{3, 4};
             return expect(dot(a, b) == 11 and a * b == 11);
         };
         "cross product"_test = []{
-            Vec3<int> a{1, 2, 3};
-            Vec3<int> b{4, 5, 6};
-            return expect(cross(a, b) == Vec3<int>{-3, 6, -3});
+            Vec3<> a{1, 2, 3};
+            Vec3<> b{4, 5, 6};
+            return expect(cross(a, b) == Vec3<>{-3, 6, -3});
         };
         "norm of a vector"_test = []{
-            Vec2<int> a{3, 4};
+            Vec2<> a{3, 4};
             return expect(norm(a) == 5);
         };
         "normalized unit vector"_test = []{
@@ -114,8 +114,7 @@ namespace test
         //: transformations
         "to convertible type (same structure)"_test = []{
             Vec2<int> a{1, 2};
-            Vec2<float> b{1.0f, 2.0f};
-            return expect(to<Vec2<float>>(a) == b);
+            return expect(to<float>(a) == Vec2<float>{1.0f, 2.0f});
         };
         "to convertible type (different structure)"_test = []{
             Mat<3, 1, int> a({1, 2, 3});
@@ -124,11 +123,11 @@ namespace test
         };
         "to row vector"_test = []{
             Vec3<int> a{1, 2, 3};
-            auto b = to_row<Mat<1, 3, int>>(a);
+            auto b = to_row<RVec3<int>>(a);
             return expect(b.get<0, 0>() == 1 and b.get<0, 1>() == 2 and b.get<0, 2>() == 3);
         };
         "to column vector"_test = []{
-            Mat<1, 3, int> a({1, 2, 3});
+            RVec3<int> a({1, 2, 3});
             auto b = to_column<Vec3<int>>(a);
             return expect(b.x == 1 and b.y == 2 and b.z == 3);
         };
@@ -238,7 +237,7 @@ namespace test
         "matrix 2x3 by 3x2 multiplication"_test = []{
             Mat<2, 3, int> a({1, 2, 3, 4, 5, 6});
             Mat<3, 2, int> b({6, 5, 4, 3, 2, 1});
-            return expect(dot<Mat2<int>>(a, b) == Mat2<int>({20, 14, 56, 41}));
+            return expect(a * b == Mat2<int>({20, 14, 56, 41}));
         };
         "transposed matrix"_test = []{
             Mat2<int> a({1, 2, 3, 4});
@@ -246,37 +245,8 @@ namespace test
             return expect(transpose(a) == Mat2<int>({1, 3, 2, 4}) and transpose(b) == Mat3<int>({1, 4, 7, 2, 5, 8, 3, 6, 9}));
         };
         "identity"_test = []{
-            return expect(identity<Mat3<int>>() == Mat3<int>({1, 0, 0, 0, 1, 0, 0, 0, 1}));
+            return expect(identity<int, 3>() == Mat3<int>({1, 0, 0, 0, 1, 0, 0, 0, 1}));
         };
-        //: lu decomposition
-        "lu decomposition"_test = []{
-            Mat3<float> a({1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f});
-            auto [singular, p, l_u] = lu(a);
-            auto [l, u] = lu_components(l_u);
-            return expect(p * a == l * u and not singular);
-        };
-        "singular matrix"_test = []{
-            Mat3<float> a({1.f, 0.f, 3.f, 4.f, 0.f, 6.f, 7.f, 0.f, 9.f});;
-            auto [singular, p, l_u] = lu(a);
-            return expect(singular);
-        };
-        "decomposition of integer matrix"_test = []{
-            Mat3<int> a({1, 2, 3, 4, 5, 6, 7, 8, 9});
-            auto [singular, p, l_u] = lu<Mat3<int>, Mat3<float>>(a);
-            auto [l, u] = lu_components(l_u);
-            return expect(p * a == to<Mat3<int>>(l * u) and not singular);
-        };
-
-        //- determinant
-
-
-
-
-        //- inverse
-
-
-
-
         //: matrix-vector operations
         "matrix by column vector multiplication"_test = []{
             Mat2<int> a({0, 1, 1, 0});
@@ -288,12 +258,11 @@ namespace test
             Mat2<int> b({0, 1, 1, 0});
             return expect(dot(a, b) == RVec2<int>({2, 1}) and a * b == RVec2<int>({2, 1}));
         };
-
         //: column by row vector
         "column vector by row vector"_test = []{
             Vec3<int> a(1, 2, 3);
             RVec3<int> b({1, 2, 3});
-            return expect(dot<Mat3<int>>(a, b) == Mat3<int>({1, 2, 3, 2, 4, 6, 3, 6, 9}));
+            return expect(a * b == Mat3<int>({1, 2, 3, 2, 4, 6, 3, 6, 9}));
         };
     });
 
