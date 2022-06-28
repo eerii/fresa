@@ -1,4 +1,5 @@
 //* system_tests
+#ifdef ENABLE_TESTS
 
 #include "unit_test.h"
 #include "system.h"
@@ -52,3 +53,5 @@ namespace test
         };
     });
 }
+
+#endif

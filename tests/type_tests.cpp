@@ -1,4 +1,5 @@
 //* types_tests
+#ifdef ENABLE_TESTS
 
 #include "unit_test.h"
 #include "fresa_types.h"
@@ -159,3 +160,5 @@ namespace test
         };
     });
 }
+
+#endif

@@ -1,4 +1,5 @@
 //* job_tests
+#ifdef ENABLE_TESTS
 
 #include "unit_test.h"
 #include "jobs.h"
@@ -94,3 +95,5 @@ namespace test
         log::debug("stopping system 'JobSystem'");
     });
 }
+
+#endif
