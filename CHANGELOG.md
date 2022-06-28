@@ -11,6 +11,7 @@ _general description_
 - **added** - constexpr for
 - **added** - vector linear algebra
 - **added** - matrix linear algebra
+- **changed** - included test guard for production
 - **todo** - global/local job queues
 
 #### [0.4.1] job system (_21 jun 22_)

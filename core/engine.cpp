@@ -21,8 +21,10 @@ void fresa::run(int argv, char** args) {
 
     //: run tests if requested
     //      tests can be specified using command line arguments as "-t test_a,test_b"
+    #ifdef ENABLE_TESTS
     auto test_it = arguments.find("t");
     test_it == arguments.end() ? test_runner.run({""}) : test_runner.run(split(test_it->second, ',') | ranges::to_vector);
+    #endif
 
     //: initialization
     fresa::detail::init();
