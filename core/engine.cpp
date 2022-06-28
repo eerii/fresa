@@ -14,7 +14,9 @@ constexpr std::array<ui8, 3> version = {0, 4, 2};
 //* main entry point
 //      called from main, it creates the engine, runs it and closes it when finished
 void fresa::run(int argv, char** args) {
-    log::info("{} {}.{}.{}", fmt::format(fmt::emphasis::bold, "fresa"), version[0], version[1], version[2]);
+    log::info("{} {}.{}.{}",
+              fmt::format(fmt::emphasis::bold, "fresa"),
+              version[0], version[1], version[2]);
 
     //: command line arguments
     auto arguments = detail::handle_arguments(argv, args);
