@@ -164,6 +164,18 @@
 </div>
     
     
+      <div class="md-header__source">
+        <a href="https://github.com/josekoalas/fresa" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    josekoalas/fresa
+  </div>
+</a>
+      </div>
+    
   </nav>
   
 </header>
@@ -198,6 +210,18 @@
     </a>
     fresa 🍓
   </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/josekoalas/fresa" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    josekoalas/fresa
+  </div>
+</a>
+    </div>
   
   <ul class="md-nav__list" data-md-scrollfix>
     
@@ -354,16 +378,20 @@
             <article class="md-content__inner md-typeset">
               
                 
+  <a href="https://github.com/josekoalas/fresa/edit/master/docs/engine_design/design.md" title="Edit this page" class="md-content__button md-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
+  </a>
+
 
 
 <h1 id="engine-design">engine design</h1>
 <h2 id="data-oriented-design">data oriented design</h2>
-<p><strong>fresa :strawberry:</strong> will try to adhere to a <em>data oriented design</em>. Object oriented programming is not always suitable to game engines, it can get too messy too soon. I enjoy designing engines with data in mind, with it being separated from the functions that use it, providing cleaner and easier to debug code. It can also be more performant in a variety of situations. There are many articles detailing how data oriented design can be better for many reasons (<em>insert reference</em>), however, I will stick to it since I have made engines in OOD and DOD and I like data programming much better. Please note that this engine will not always be 100% perfectly data oriented, since in some problems it makes more sense to take other approaches.</p>
-<p>Just a quick note, I have seen many places use DOD and ECS used interchangeably. Though <strong>fresa :strawberry:</strong> integrates a simple ECS for managing the game entities, an ECS is just an example of what data oriented design can do. It can span all the pieces and frameworks of an engine, it is not wise to reduce it only to an ECS.</p>
+<p><strong>fresa <img alt="🍓" class="twemoji" src="https://twemoji.maxcdn.com/v/latest/svg/1f353.svg" title=":strawberry:" /></strong> will try to adhere to a <em>data oriented design</em>. Object oriented programming is not always suitable to game engines, it can get too messy too soon. I enjoy designing engines with data in mind, with it being separated from the functions that use it, providing cleaner and easier to debug code. It can also be more performant in a variety of situations. There are many articles detailing how data oriented design can be better for many reasons (<em>insert reference</em>), however, I will stick to it since I have made engines in OOD and DOD and I like data programming much better. Please note that this engine will not always be 100% perfectly data oriented, since in some problems it makes more sense to take other approaches.</p>
+<p>Just a quick note, I have seen many places use DOD and ECS used interchangeably. Though <strong>fresa <img alt="🍓" class="twemoji" src="https://twemoji.maxcdn.com/v/latest/svg/1f353.svg" title=":strawberry:" /></strong> integrates a simple ECS for managing the game entities, an ECS is just an example of what data oriented design can do. It can span all the pieces and frameworks of an engine, it is not wise to reduce it only to an ECS.</p>
 <h2 id="libraries">libraries</h2>
 <p><strong>fresa</strong>'s approach to libraries is similar to its approach to language features. Libraries will be only added when they provide a sustancial improvement over hand made code, or at least until I can work on a custom version. For example, <code>vulkan memory allocator</code> significantly improves memory handling in <code>vulkan</code> and it is really well constructed.</p>
 <p>When choosing a library, its code size will be pretty important. Adding a small one file header library will be preferred to a big and complex project. I will try to only add libraries (or parts of them) which <em>only</em> focus on the problem I'm trying to solve by using them. Also, I would like to be able to easily review all the library code. It will also be nice if they share the same coding style as the engine, for example, with a focus on compile time calculations and with intentful use of new <code>c++</code> standards.</p>
-<p>All libraries will be linked in the project template <strong>aguacate :avocado:</strong> as submodules, under the folder <code>deps</code>, so it is effortless to start a new <strong>fresa :strawberry:</strong> project with them. They will be also listed here with propper attribution and licensing information.</p>
+<p>All libraries will be linked in the project template <strong>aguacate <img alt="🥑" class="twemoji" src="https://twemoji.maxcdn.com/v/latest/svg/1f951.svg" title=":avocado:" /></strong> as submodules, under the folder <code>deps</code>, so it is effortless to start a new <strong>fresa <img alt="🍓" class="twemoji" src="https://twemoji.maxcdn.com/v/latest/svg/1f353.svg" title=":strawberry:" /></strong> project with them. They will be also listed here with propper attribution and licensing information.</p>
 <ul>
 <li><strong>fmt</strong>: This library could easily be part of the std library. It is easy to follow, has a really nice syntax and vastly simplifies printing and formatting strings. Besides, it is really performant. I use it as a basis to the logging system (<code>log.h</code>), since it also allows to use formatting and colors. It may not be strictly required for our implementation, but a very welcomed quality of life. Also temporary while compilers gain support of <code>std::format</code>.</li>
 <li><strong>range-v3</strong>: This is a temporary fix since compiler support for the <code>&lt;ranges&gt;</code> of <code>c++20</code> is not finalised (specially in clang, the compiler I am using). The code will try to import <code>&lt;ranges&gt;</code>, and if not fall back to <code>&lt;range-v3&gt;</code>, which should be pretty much compatible since the standard is based off it. Once compiler support is more widespread it will be removed.</li>
