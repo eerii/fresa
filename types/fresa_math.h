@@ -6,8 +6,11 @@
 #include <numbers>
 #include <random>
 
-//!!!!!!
-#include "log.h"
+//* contents
+//      : common numeric concepts
+//      : linear algebra abstract operations
+//      : vector and matrix implementations
+//      : random number generator
 
 namespace fresa
 {
@@ -111,6 +114,8 @@ namespace fresa
     template <concepts::Matrix M> constexpr bool operator== (const M& a, const M& b) { return detail::compare_op(a, b, std::equal_to()); }
     //: inequality
     template <concepts::Matrix M> constexpr bool operator!= (const M& a, const M& b) { return not (a == b); }
+    //: less than
+    template <concepts::Matrix M> constexpr bool operator< (const M& a, const M& b) { return detail::compare_op(a, b, std::less()); }
 
     //---
     //* vector operations
@@ -249,99 +254,10 @@ namespace fresa
         return result;
     }
 
-    namespace detail
-    {
-        //: pivot rows
-        template <std::size_t From, std::size_t To, concepts::SquareMatrix M>
-        requires (From < To and To < M::size().first)
-        constexpr void pivot_rows(M& m) {
-            if constexpr (From == To) return;
-            constexpr auto N = M::size().first;
-            for_<0, N>([&](auto j) {
-                std::swap(m.template get<From, j>(), m.template get<To, j>());
-            });
-        }
-
-        //: max index of an initializer list
-        template <typename T>
-        constexpr auto max_i(std::initializer_list<T> ilist) {
-            return std::distance( ilist.begin(), std::max_element( ilist.begin(), ilist.end() ) );
-        }
-    }
-
-    //: lu decomposition
-    template <concepts::SquareMatrix M, concepts::SquareMatrix MR = M>
-    requires (std::is_floating_point_v<typename MR::value_type>)
-    constexpr std::tuple<bool, M, MR> lu(const M& m) {
-        constexpr auto N = M::size().first;
-        using T = typename M::value_type;
-        bool singular = false;
-        MR result = to<MR>(m);
-
-        //: pivot rows
-        M p = identity<M>();
-        for_<0, N>([&](auto j){
-            //: find max element in column j
-            auto max = [&] <std::size_t ... I> (std::index_sequence<I...>) {
-                return detail::max_i({ result.template get<I + j, j>()... });
-            } (std::make_index_sequence<M::size().first - j>{}) + j;
-            for_<j.value, N>([&](auto i){
-                if (max == i.value) {
-                    //: if max element is 0, matrix is singular
-                    if (m.template get<i, j>() < 1e-10) {
-                        singular = true;
-                        return false;
-                    }
-                    //: swap rows
-                    if constexpr (j != i) {
-                        detail::pivot_rows<j.value, i.value>(result);
-                        detail::pivot_rows<j.value, i.value>(p);
-                        return false;
-                    }
-                }
-                return true;
-            });
-        });
-
-        //: lu decomposition
-        if (not singular) {
-            for_<0, N>([&](auto j){
-                for_<j.value + 1, N>([&](auto i){
-                    result.template get<i, j>() /= result.template get<j, j>();
-                    for_<j.value + 1, N>([&](auto k){
-                        result.template get<i, k>() -= result.template get<i, j>() * result.template get<j, k>();
-                    });
-                });
-            });
-        }
-
-        return std::make_tuple(singular, p, result);
-    }
-
-    //: get lu components
-    template <concepts::SquareMatrix M>
-    constexpr std::tuple<M, M> lu_components(const M& m) {
-        constexpr auto N = M::size().first;
-        M l, u;
-        for_<0, N>([&](auto j){
-            for_<0, N>([&](auto i){
-                if constexpr (i == j) {
-                    l.template get<i, j>() = 1;
-                    u.template get<i, j>() = m.template get<i, j>();
-                } else if constexpr (i > j) {
-                    l.template get<i, j>() = m.template get<i, j>();
-                } else {
-                    u.template get<i, j>() = m.template get<i, j>();
-                }
-            });
-        });
-        return std::make_tuple(l, u);
-    }
-
     //---
 
     //* 2D vector (column)
-    template <concepts::Numeric T>
+    template <concepts::Numeric T = int>
     struct Vec2 {
         using value_type = T;
 
@@ -370,8 +286,8 @@ namespace fresa
         }
     };
 
-    //: 3D vector (column)
-    template <concepts::Numeric T>
+    //* 3D vector (column)
+    template <concepts::Numeric T = int>
     struct Vec3 {
         using value_type = T;
 
@@ -402,7 +318,7 @@ namespace fresa
         }
     };
 
-    //: Matrices
+    //* matrices
     template <std::size_t N, std::size_t M, concepts::Numeric T>
     struct Mat {
         using value_type = T;
@@ -412,6 +328,7 @@ namespace fresa
 
         //: constructors
         constexpr Mat() : data{} {}
+        constexpr Mat(T v) { for_<0, N*M>([&](auto i){ data[i] = v; }); }
         constexpr Mat(std::array<T, N*M>&& d) : data(std::move(d)) {}
 
         //: size
@@ -432,11 +349,43 @@ namespace fresa
     template <concepts::Numeric T>
     using Mat4 = Mat<4, 4, T>;
 
+    //* common overloads for ease of use
+
     //: row vectors
-    template <concepts::Numeric T>
+    template <concepts::Numeric T = int>
     using RVec2 = Mat<1, 2, T>;
-    template <concepts::Numeric T>
+    template <concepts::Numeric T = int>
     using RVec3 = Mat<1, 3, T>;
+
+    //: conversions
+    template <concepts::Numeric B, concepts::Numeric A>
+    constexpr auto to(const Vec2<A>& a) { return to<Vec2<B>>(a); }
+    template <concepts::Numeric B, concepts::Numeric A>
+    constexpr auto to(const Vec3<A>& a) { return to<Vec3<B>>(a); }
+    template <concepts::Numeric B, concepts::Numeric A, std::size_t N, std::size_t M>
+    constexpr auto to(const Mat<N, M, A>& a) { return to<Mat<N, M, B>>(a); }
+
+    //: matrix multiplication (for non squared matrices)
+    template <concepts::Numeric T, std::size_t AN, std::size_t AM, std::size_t BN, std::size_t BM>
+    requires (not concepts::SquareMatrix<Mat<AN, AM, T>> or not concepts::SquareMatrix<Mat<BN, BM, T>>)
+    constexpr auto dot(const Mat<AN, AM, T>& a, const Mat<BN, BM, T>& b) { return dot<Mat<AN, BM, T>>(a, b); }
+    template <concepts::Numeric T, std::size_t AN, std::size_t AM, std::size_t BN, std::size_t BM>
+    requires (not concepts::SquareMatrix<Mat<AN, AM, T>> or not concepts::SquareMatrix<Mat<BN, BM, T>>)
+    constexpr auto operator* (const Mat<AN, AM, T>& a, const Mat<BN, BM, T>& b) { return dot<Mat<AN, BM, T>>(a, b); }
+
+    //: identity
+    template <concepts::Numeric T, std::size_t N>
+    constexpr auto identity() { return identity<Mat<N, N, T>>(); }
+
+    //: column vector by row vector
+    template <concepts::Numeric T>
+    constexpr auto dot(const Vec2<T>& a, const RVec2<T>& b) { return dot<Mat2<T>>(a, b); }
+    template <concepts::Numeric T>
+    constexpr auto operator* (const Vec2<T>& a, const RVec2<T>& b) { return dot<Mat2<T>>(a, b); }
+    template <concepts::Numeric T>
+    constexpr auto dot(const Vec3<T>& a, const RVec3<T>& b) { return dot<Mat3<T>>(a, b); }
+    template <concepts::Numeric T>
+    constexpr auto operator* (const Vec3<T>& a, const RVec3<T>& b) { return dot<Mat3<T>>(a, b); }
 
     //---
 
