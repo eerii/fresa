@@ -2,7 +2,7 @@
 
 ### 0.4 milestone
 
-_general description_
+_new implementation of fresa_
 
 #### [0.4.2] numbers and letters (_29 jun 22_)
 
@@ -15,9 +15,9 @@ _general description_
 - **fixed** - constexpression logging with fmt
 - **added** - mkbuild documentation system
 - **changed** - divided repositories (fresa and fresa-legacy)
-
 - **todo** - global/local job queues
 - **todo** - write documentation
+
 
 #### [0.4.1] job system (_21 jun 22_)
 
