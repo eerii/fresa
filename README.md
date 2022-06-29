@@ -44,8 +44,8 @@ _Experimental graphics branch: This branch contains an experimental GPU based re
 Right now the project is in the **very pre-alpha** state, so use it at your own risk.
 
 **Examples:**
-- :avocado: [aguacate](https://github.com/josekoalas/aguacate): Full **fresa** template, with detailed instructions on how to build
-- :sun_behind_large_cloud: [raymarching](https://github.com/josekoalas/maracuya/tree/main/raymarching): Quick and simple raymarching example
+- :peach: [melocoton](https://github.com/eerii/melocoton): Full **fresa** template, with detailed instructions on how to build
+- :sun_behind_large_cloud: [raymarching](https://github.com/eerii/maracuya/tree/main/raymarching): Quick and simple raymarching example
 
 You can check  for an example on how one could set up a **fresa** project. Instructions on how to build it are there.
 
@@ -95,7 +95,7 @@ int main(int argc, const char * argv[]) {
 
 **other files**
 
-To access the ECS capabilities, a `component_list.h` file may be created that `#includes` all the component headers you create, as well as a variant for the component type. Follow the instructions on [`ecs.h`](https://github.com/josekoalas/fresa/blob/main/ecs/ecs.h) or the example in [aguacate](https://github.com/josekoalas/aguacate) to create one.
+To access the ECS capabilities, a `component_list.h` file may be created that `#includes` all the component headers you create, as well as a variant for the component type. Follow the instructions on [`ecs.h`](https://github.com/eerii/fresa/blob/main/ecs/ecs.h) or the example in [aguacate](https://github.com/eerii/aguacate) to create one.
 
 You can also create a `vertex_list.h` to add new vertex type definitions to use with glsl.
 
@@ -113,4 +113,4 @@ This project is licensed under GNU GPLv3. It allows anyone to see, use, modify a
 7. The software author or license can not be held liable for any damages inflicted by the software.
 ```
 
-For reference, please read the full license [here](https://github.com/josekoalas/fresa/blob/main/LICENSE.md).
+For reference, please read the full license [here](https://github.com/eerii/fresa/blob/main/LICENSE.md).
