@@ -15,8 +15,8 @@ _new implementation of fresa_
 - **fixed** - constexpression logging with fmt
 - **added** - mkbuild documentation system
 - **changed** - divided repositories (fresa and fresa-legacy)
+- - **added** - documentation structure and getting started
 - **todo** - global/local job queues
-- **todo** - write documentation
 
 
 #### [0.4.1] job system (_21 jun 22_)

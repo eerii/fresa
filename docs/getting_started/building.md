@@ -40,7 +40,7 @@ These compilers have been tested to work. Older versions might work but are not 
 - gcc 12.1.0
 - _msvc not tested yet_
 
-## installing compilers
+## extra: installing compilers
 
 This is a very brief and general guide to install the most recent compilers. Your system requirements might vary so please refer to the original instructions when in doubt.
 
@@ -68,7 +68,7 @@ brew install llvm
 
 Windows is not tested yet, but the project should compile using either clang or gcc. Alternatively, you could try compiling it with MSVC, I will test it soon to check compatibility. You can use clang with [Visual Studio](https://docs.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170) or install gcc with [MinGW](https://sourceforge.net/projects/mingw/files/Installer/mingw-get-setup.exe/download).
 
-## installing cmake
+## extra: installing cmake
 
 `CMake` is our build system of choice. You can download it from the [official website](https://cmake.org/download) or, if you are using an unix like system, get it from a package manager:
 

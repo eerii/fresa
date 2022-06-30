@@ -53,3 +53,22 @@ extra:
 nav:
   - getting started:
     - building the project: getting_started/building.md
+    - a simple program: getting_started/first_project.md
+
+  - reference:
+    - engine: reference/engine.md
+    - time: reference/time.md
+    - math: reference/math.md
+
+    - custom types:
+      - type names: reference/types/type_names.md
+      - constexpr for: reference/types/constexpr_for.md
+      - atomic queue: reference/types/atomic_queue.md
+      - strings: reference/types/strings.md
+
+    - system manager: reference/system.md
+    - job system: reference/jobs.md
+    
+    - tools:
+      - logging: reference/tools/log.md
+      - unit tests: reference/tools/unit_test.md

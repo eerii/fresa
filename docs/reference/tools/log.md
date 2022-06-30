@@ -1,0 +1,3 @@
+# [`log`](https://github.com/josekoalas/fresa/blob/main/tools/log.h)
+
+...
