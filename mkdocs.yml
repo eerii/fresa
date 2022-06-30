@@ -9,6 +9,7 @@ edit_uri: ""
 theme:
   name: material
   features:
+    - navigation.tracking
     - navigation.instant
     - toc.follow
     - toc.integrate
@@ -31,10 +32,16 @@ theme:
         name: switch to dark mode
 
 markdown_extensions:
+  - toc:
+      permalink: true
   - pymdownx.arithmatex:
       generic: true
   - pymdownx.tasklist:
       custom_checkbox: true
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
 
 plugins:
   - search
@@ -44,8 +51,5 @@ extra:
     provider: mike
 
 nav:
-  - home: index.md
-  - engine design:
-    - design: engine_design/design.md
-    - features: engine_design/features.md
-    - style: engine_design/style.md
+  - getting started:
+    - building the project: getting_started/building.md
