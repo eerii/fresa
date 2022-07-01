@@ -2,87 +2,62 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/</loc>
-         <lastmod>2022-06-30</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://josekoalas.github.io/fresa/0.4/engine_design/design/</loc>
-         <lastmod>2022-06-30</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://josekoalas.github.io/fresa/0.4/engine_design/features/</loc>
-         <lastmod>2022-06-30</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://josekoalas.github.io/fresa/0.4/engine_design/style/</loc>
-         <lastmod>2022-06-30</lastmod>
+         <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/getting_started/building/</loc>
-         <lastmod>2022-06-30</lastmod>
+         <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/getting_started/first_project/</loc>
-         <lastmod>2022-06-30</lastmod>
+         <lastmod>2022-07-01</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://josekoalas.github.io/fresa/0.4/reference/coroutines/</loc>
+         <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/engine/</loc>
-         <lastmod>2022-06-30</lastmod>
+         <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/jobs/</loc>
-         <lastmod>2022-06-30</lastmod>
+         <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/math/</loc>
-         <lastmod>2022-06-30</lastmod>
+         <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/system/</loc>
-         <lastmod>2022-06-30</lastmod>
+         <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/time/</loc>
-         <lastmod>2022-06-30</lastmod>
+         <lastmod>2022-07-01</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://josekoalas.github.io/fresa/0.4/reference/types/</loc>
+         <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/tools/log/</loc>
-         <lastmod>2022-06-30</lastmod>
+         <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/tools/unit_test/</loc>
-         <lastmod>2022-06-30</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://josekoalas.github.io/fresa/0.4/reference/types/atomic_queue/</loc>
-         <lastmod>2022-06-30</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://josekoalas.github.io/fresa/0.4/reference/types/constexpr_for/</loc>
-         <lastmod>2022-06-30</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://josekoalas.github.io/fresa/0.4/reference/types/strings/</loc>
-         <lastmod>2022-06-30</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://josekoalas.github.io/fresa/0.4/reference/types/type_names/</loc>
-         <lastmod>2022-06-30</lastmod>
+         <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>

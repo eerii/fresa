@@ -345,6 +345,20 @@
               
   
   
+  
+    <li class="md-nav__item">
+      <a href="../types/" class="md-nav__link">
+        custom types
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
     
   
   
@@ -356,47 +370,9 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          time
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         time
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#clock" class="md-nav__link">
-    clock
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#time_1" class="md-nav__link">
-    time
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -422,85 +398,10 @@
   
   
   
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-      
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_4" type="checkbox" id="__nav_2_4" >
-      
-      
-      
-      
-        <label class="md-nav__link" for="__nav_2_4">
-          custom types
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <nav class="md-nav" aria-label="custom types" data-md-level="2">
-        <label class="md-nav__title" for="__nav_2_4">
-          <span class="md-nav__icon md-icon"></span>
-          custom types
-        </label>
-        <ul class="md-nav__list" data-md-scrollfix>
-          
-            
-              
-  
-  
-  
     <li class="md-nav__item">
-      <a href="../types/type_names/" class="md-nav__link">
-        type names
+      <a href="../coroutines/" class="md-nav__link">
+        coroutines
       </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../types/constexpr_for/" class="md-nav__link">
-        constexpr for
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../types/atomic_queue/" class="md-nav__link">
-        atomic queue
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../types/strings/" class="md-nav__link">
-        strings
-      </a>
-    </li>
-  
-
-            
-          
-        </ul>
-      </nav>
     </li>
   
 
@@ -543,18 +444,18 @@
     <li class="md-nav__item md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_7" type="checkbox" id="__nav_2_7" >
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_8" type="checkbox" id="__nav_2_8" >
       
       
       
       
-        <label class="md-nav__link" for="__nav_2_7">
+        <label class="md-nav__link" for="__nav_2_8">
           tools
           <span class="md-nav__icon md-icon"></span>
         </label>
       
       <nav class="md-nav" aria-label="tools" data-md-level="2">
-        <label class="md-nav__title" for="__nav_2_7">
+        <label class="md-nav__title" for="__nav_2_8">
           <span class="md-nav__icon md-icon"></span>
           tools
         </label>
@@ -617,13 +518,7 @@
 
 <h1 id="time"><a href="https://github.com/josekoalas/fresa/blob/main/core/fresa_time.h"><code>time</code></a><a class="headerlink" href="#time" title="Permanent link">&para;</a></h1>
 <p>Small time management utility based on <code>std::chrono</code>. Defines helpful functions to manage the flow of time. It also imports the chrono literals for time, for example, <code>1ms</code>.</p>
-<h2 id="clock"><code>clock</code><a class="headerlink" href="#clock" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="n">fresa</span><span class="o">::</span><span class="n">clock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="p">;</span><span class="w"></span>
-</code></pre></div>
-<h2 id="time_1"><code>time</code><a class="headerlink" href="#time_1" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">time</span><span class="p">()</span><span class="w"></span>
-</code></pre></div>
-<p>Returns the current point in time.</p>
+<p>The clock implementation is <code>std::chrono::steady_clock</code>, aliased as <code>fresa::clock</code>. The main function of the library is <code>fresa::time()</code>, which returns the current point in time.</p>
 
               
             </article>
@@ -639,7 +534,7 @@
     <nav class="md-footer__inner md-grid" aria-label="Footer" >
       
         
-        <a href="../engine/" class="md-footer__link md-footer__link--prev" aria-label="Previous: engine" rel="prev">
+        <a href="../types/" class="md-footer__link md-footer__link--prev" aria-label="Previous: custom types" rel="prev">
           <div class="md-footer__button md-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
           </div>
@@ -648,7 +543,7 @@
               <span class="md-footer__direction">
                 Previous
               </span>
-              engine
+              custom types
             </div>
           </div>
         </a>

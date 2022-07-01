@@ -430,6 +430,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/types/" class="md-nav__link">
+        custom types
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/time/" class="md-nav__link">
         time
       </a>
@@ -457,85 +471,10 @@
   
   
   
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-      
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_4" type="checkbox" id="__nav_2_4" >
-      
-      
-      
-      
-        <label class="md-nav__link" for="__nav_2_4">
-          custom types
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <nav class="md-nav" aria-label="custom types" data-md-level="2">
-        <label class="md-nav__title" for="__nav_2_4">
-          <span class="md-nav__icon md-icon"></span>
-          custom types
-        </label>
-        <ul class="md-nav__list" data-md-scrollfix>
-          
-            
-              
-  
-  
-  
     <li class="md-nav__item">
-      <a href="../../reference/types/type_names/" class="md-nav__link">
-        type names
+      <a href="../../reference/coroutines/" class="md-nav__link">
+        coroutines
       </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/types/constexpr_for/" class="md-nav__link">
-        constexpr for
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/types/atomic_queue/" class="md-nav__link">
-        atomic queue
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/types/strings/" class="md-nav__link">
-        strings
-      </a>
-    </li>
-  
-
-            
-          
-        </ul>
-      </nav>
     </li>
   
 
@@ -578,18 +517,18 @@
     <li class="md-nav__item md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_7" type="checkbox" id="__nav_2_7" >
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_8" type="checkbox" id="__nav_2_8" >
       
       
       
       
-        <label class="md-nav__link" for="__nav_2_7">
+        <label class="md-nav__link" for="__nav_2_8">
           tools
           <span class="md-nav__icon md-icon"></span>
         </label>
       
       <nav class="md-nav" aria-label="tools" data-md-level="2">
-        <label class="md-nav__title" for="__nav_2_7">
+        <label class="md-nav__title" for="__nav_2_8">
           <span class="md-nav__icon md-icon"></span>
           tools
         </label>
@@ -674,8 +613,8 @@ cmake --build build
 <li>clang 14.0.6</li>
 <li>apple clang 14.0.0</li>
 <li>gcc 12.1.0</li>
-<li><em>msvc not tested yet</em></li>
 </ul>
+<p>MSVC is mostly working, except for nested constexpr for loops in the math library. There is an issue where these loops don't compile only with MSVC. I already submitted a <a href="https://developercommunity.visualstudio.com/t/Lambda-inside-lambda-cant-detect-conste/10085564">bug report</a> with a temporary workaround, but I will wait until I hear more before I decide how to proceed. At this time, clang or gcc are recommended.</p>
 <h2 id="extra-installing-compilers">extra: installing compilers<a class="headerlink" href="#extra-installing-compilers" title="Permanent link">&para;</a></h2>
 <p>This is a very brief and general guide to install the most recent compilers. Your system requirements might vary so please refer to the original instructions when in doubt.</p>
 <p><strong>debian/ubuntu:</strong></p>
@@ -692,7 +631,7 @@ brew install gcc
 brew install llvm
 </code></pre></div>
 <p><strong>windows:</strong></p>
-<p>Windows is not tested yet, but the project should compile using either clang or gcc. Alternatively, you could try compiling it with MSVC, I will test it soon to check compatibility. You can use clang with <a href="https://docs.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170">Visual Studio</a> or install gcc with <a href="https://sourceforge.net/projects/mingw/files/Installer/mingw-get-setup.exe/download">MinGW</a>.</p>
+<p>You can use clang with <a href="https://docs.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170">Visual Studio</a> or install gcc with <a href="https://sourceforge.net/projects/mingw/files/Installer/mingw-get-setup.exe/download">MinGW</a>. As mentioned above, MSVC is a work in progress.</p>
 <h2 id="extra-installing-cmake">extra: installing cmake<a class="headerlink" href="#extra-installing-cmake" title="Permanent link">&para;</a></h2>
 <p><code>CMake</code> is our build system of choice. You can download it from the <a href="https://cmake.org/download">official website</a> or, if you are using an unix like system, get it from a package manager:</p>
 <p><strong>debian/ubuntu:</strong></p>
