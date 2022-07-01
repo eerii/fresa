@@ -585,14 +585,9 @@
 <h1 id="engine"><a href="https://github.com/josekoalas/fresa/blob/main/core/engine.h"><code>engine</code></a><a class="headerlink" href="#engine" title="Permanent link">&para;</a></h1>
 <p>This is the main class of <strong>fresa</strong>. Handles initialization, update and cleaning, calling all required systems.</p>
 <h2 id="run"><code>run</code><a class="headerlink" href="#run" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">run</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="o">**</span><span class="w"> </span><span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">nullptr</span><span class="p">)</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">run</span><span class="p">()</span><span class="w"></span>
 </code></pre></div>
-<p>This is the main entrypoint of the engine. <code>argv</code> and <code>args</code> are optional variables describing the command line arguments passed to the program. They can be forwarded from <code>main</code> for extra customization.</p>
-<p>First it parses the arguments using the helper function <code>handle_arguments</code>. Then it perform tests (if enabled) and calls <a href="#init"><code>init</code></a> before running the update loop. Finally it stops all systems and returns control to the caller function.</p>
-<p><strong>supported arguments:</strong></p>
-<ul>
-<li><code>-t test1,test2</code>: Comma sepparated list of the test suites to run. Defaults to none. <em>(Note: if the project is not compiled enabling unit testing using <code>FRESA_ENABLE_TESTS</code> this argument is ignored)</em>.</li>
-</ul>
+<p>This is the main entrypoint of the engine. First it perform the tests defined in the configuration file (if enabled with <code>FRESA_ENABLE_TESTS</code>). Then calls <a href="#init"><code>init</code></a> before running the update loop. Finally it stops all systems and returns control to the caller function.</p>
 <h2 id="init"><code>init</code><a class="headerlink" href="#init" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">detail</span><span class="o">::</span><span class="n">init</span><span class="p">()</span><span class="w"></span>
 </code></pre></div>

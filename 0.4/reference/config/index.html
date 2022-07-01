@@ -576,18 +576,18 @@
 
 
 <h1 id="config"><a href="https://github.com/josekoalas/fresa/blob/main/core/fresa_config.h"><code>config</code></a><a class="headerlink" href="#config" title="Permanent link">&para;</a></h1>
-<p>The configuration system defined in <code>fresa_config.h</code> allows for configurable constexpr variables. The struct <code>Config</code> contains constexpr virtual methods (a new <code>c++20</code> feature), allowing to create an interface that can be extended but retaining the compile time definitions. This is the original config structure:</p>
+<p>The configuration system defined in <code>fresa_config.h</code> allows for configurable constexpr variables. The struct <code>Config</code> contains constexpr virtual methods (a new <code>c++20</code> feature), allowing to create an interface that can be extended but retaining the compile time definitions. It is a bit more verbose than other approaches, but being able to extend and override constant expressions is very powerful. Look at this example, here we have the original config structure:</p>
 <div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">fresa</span><span class="o">::</span><span class="n">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="n">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;fresa&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
 <span class="p">};</span><span class="w"></span>
 </code></pre></div>
-<p>And can be overwritten as:</p>
+<p>Which can be overwritten as:</p>
 <div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">GameConfig</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;aguacate&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="p">};</span><span class="w"></span>
 </code></pre></div>
 <h2 id="configuration-file">configuration file<a class="headerlink" href="#configuration-file" title="Permanent link">&para;</a></h2>
-<p><strong>fresa</strong> allows you to create a configuration file to overwrite the default options. To do so, create a header file and include it in the project. By default the name of the configuration file is <code>config.h</code>, but if you wish to use a different name you can use the <code>FRESA_CONFIG_FILE</code> preprocessor directive as <code>FRESA_CONFIG_FILE = file_name.h</code> (only write the file name, not its path). An example configuration file is provided with the <a href="https://github.com/josekoalas/aguacate">template</a> repository, which is similar to this:</p>
+<p><strong>fresa</strong> allows you to create a configuration file to overwrite the default options. To do so, create a header file and include it in the project. By default the name of the configuration file is <code>config.h</code>, but if you wish to use a different name you can use the <code>FRESA_CONFIG_FILE</code> preprocessor directive as <code>FRESA_CONFIG_FILE = file_name.h</code> (only write the file name, excluding its path). An example configuration file is provided with the <a href="https://github.com/josekoalas/aguacate">template</a> repository, similar to this:</p>
 <div class="highlight"><span class="filename">config.h</span><pre><span></span><code><span class="cp">#pragma once</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;fresa_config.h&quot;</span><span class="cp"></span>
 
@@ -634,6 +634,11 @@
 <td><code>version</code></td>
 <td><code>std::array&lt;ui8, 3&gt;</code></td>
 <td><code>{0, 4, x}</code></td>
+</tr>
+<tr>
+<td><code>run_tests</code></td>
+<td><code>str_view</code></td>
+<td><code>""</code></td>
 </tr>
 </tbody>
 </table>
