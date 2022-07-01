@@ -1,5 +1,5 @@
 //* system_tests
-#ifdef ENABLE_TESTS
+#ifdef FRESA_ENABLE_TESTS
 
 #include "unit_test.h"
 #include "system.h"

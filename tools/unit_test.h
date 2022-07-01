@@ -1,7 +1,7 @@
 //* unit_test
 //      basic unit testing framework with no macros
 //      key idea from kris jusiak (https://www.youtube.com/watch?v=-qAXShy1xiE)
-//      can be completely disabled from production code with the preprocessor macro ENABLE_TESTS
+//      can be completely disabled from production code with the preprocessor macro FRESA_ENABLE_TESTS
 
 //: example
 //      TestSuite suite("Some tests", []{
@@ -11,7 +11,7 @@
 //      ...
 //      test_runner.run();
 #pragma once
-#ifdef ENABLE_TESTS
+#ifdef FRESA_ENABLE_TESTS
 
 #include "std_types.h"
 #include "log.h"

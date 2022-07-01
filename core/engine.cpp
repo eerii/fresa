@@ -6,24 +6,23 @@
 #include "unit_test.h"
 #include "system.h"
 #include "jobs.h"
+#include "fresa_config.h"
 
 using namespace fresa;
-
-constexpr std::array<ui8, 3> version = {0, 4, 2};
 
 //* main entry point
 //      called from main, it creates the engine, runs it and closes it when finished
 void fresa::run(int argv, char** args) {
     log::info("{} {}.{}.{}",
-              fmt::format(fmt::emphasis::bold, "fresa"),
-              version[0], version[1], version[2]);
+              fmt::format(fmt::emphasis::bold, config.name()),
+              config.version()[0], config.version()[1], config.version()[2]);
 
     //: command line arguments
     auto arguments = detail::handle_arguments(argv, args);
 
     //: run tests if requested
     //      tests can be specified using command line arguments as "-t test_a,test_b"
-    #ifdef ENABLE_TESTS
+    #ifdef FRESA_ENABLE_TESTS
     auto test_it = arguments.find("t");
     test_it == arguments.end() ? test_runner.run({""}) : test_runner.run(split(test_it->second, ',') | ranges::to_vector);
     #endif

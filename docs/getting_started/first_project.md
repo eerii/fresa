@@ -11,6 +11,8 @@ int main (int argv, char** args) {
 }
 ```
 
-All you need to run **fresa** is to import the engine header and call `fresa::run`. Optionally you can pass the program arguments directly to use command line options.
+All you need to run **fresa** is to import the engine header and call `fresa::run()`. Optionally you can pass the program arguments directly to use command line options.
 
-_This page will be updated when components and configuration are added to the engine to explain how to create your own functionality._
+If you wish to configure how the engine behaves, you can look into the [configuration file](../reference/config.md).
+
+_This page will be updated when components are added to the engine to explain how to create your own functionality._

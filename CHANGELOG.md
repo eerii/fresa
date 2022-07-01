@@ -12,10 +12,11 @@ _new implementation of fresa_
 - events
 - file management and parser
 - reflection
+- continue with documentation
 
 #### [0.4.3] name (_1 jul 22_)
 
-- **added** -
+- **added** - engine configuration variables using constexpr functions
 
 #### [0.4.2] numbers and letters (_29 jun 22_)
 

@@ -58,6 +58,7 @@ nav:
   - reference:
     - engine: reference/engine.md
     - custom types: reference/types.md
+    - configuration: reference/config.md
     - time: reference/time.md
     - math: reference/math.md
     - coroutines: reference/coroutines.md

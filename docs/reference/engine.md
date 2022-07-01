@@ -14,7 +14,7 @@ First it parses the arguments using the helper function `handle_arguments`. Then
 
 **supported arguments:**
 
-- `-t test1,test2`: Comma sepparated list of the test suites to run. Defaults to none. _(Note: if the project is not compiled enabling unit testing using `ENABLE_TESTS` this argument is ignored)_.
+- `-t test1,test2`: Comma sepparated list of the test suites to run. Defaults to none. _(Note: if the project is not compiled enabling unit testing using `FRESA_ENABLE_TESTS` this argument is ignored)_.
 
 ## `init`
 
