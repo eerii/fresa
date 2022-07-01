@@ -22,6 +22,8 @@ namespace fresa
         constexpr str_view virtual name() const { return "fresa"; };
         //: version
         constexpr std::array<ui8, 3> virtual version() const { return {0, 4, 3}; };
+        //: unit tests to run (comma separated list)
+        constexpr str_view virtual run_tests() const { return ""; };
     };
 }
 

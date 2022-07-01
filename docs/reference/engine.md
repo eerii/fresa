@@ -5,16 +5,10 @@ This is the main class of **fresa**. Handles initialization, update and cleaning
 ## `run`
 
 ```cpp
-void fresa::run(int argv = 0, char** args = nullptr)
+void fresa::run()
 ```
 
-This is the main entrypoint of the engine. `argv` and `args` are optional variables describing the command line arguments passed to the program. They can be forwarded from `main` for extra customization.
-
-First it parses the arguments using the helper function `handle_arguments`. Then it perform tests (if enabled) and calls [`init`](#init) before running the update loop. Finally it stops all systems and returns control to the caller function.
-
-**supported arguments:**
-
-- `-t test1,test2`: Comma sepparated list of the test suites to run. Defaults to none. _(Note: if the project is not compiled enabling unit testing using `FRESA_ENABLE_TESTS` this argument is ignored)_.
+This is the main entrypoint of the engine. First it perform the tests defined in the configuration file (if enabled with `FRESA_ENABLE_TESTS`). Then calls [`init`](#init) before running the update loop. Finally it stops all systems and returns control to the caller function.
 
 ## `init`
 

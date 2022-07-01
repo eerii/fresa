@@ -6,12 +6,12 @@ If you are using the [template](building.md#using-a-template) then you already h
 #include "engine.h"
 
 int main (int argv, char** args) {
-    fresa::run(argv, args);
+    fresa::run();
     return 0;
 }
 ```
 
-All you need to run **fresa** is to import the engine header and call `fresa::run()`. Optionally you can pass the program arguments directly to use command line options.
+All you need to run **fresa** is to import the engine header and call `fresa::run()`.
 
 If you wish to configure how the engine behaves, you can look into the [configuration file](../reference/config.md).
 

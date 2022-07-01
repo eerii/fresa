@@ -12,19 +12,15 @@ using namespace fresa;
 
 //* main entry point
 //      called from main, it creates the engine, runs it and closes it when finished
-void fresa::run(int argv, char** args) {
+void fresa::run() {
     log::info("{} {}.{}.{}",
               fmt::format(fmt::emphasis::bold, config.name()),
               config.version()[0], config.version()[1], config.version()[2]);
 
-    //: command line arguments
-    auto arguments = detail::handle_arguments(argv, args);
-
     //: run tests if requested
-    //      tests can be specified using command line arguments as "-t test_a,test_b"
     #ifdef FRESA_ENABLE_TESTS
-    auto test_it = arguments.find("t");
-    test_it == arguments.end() ? test_runner.run({""}) : test_runner.run(split(test_it->second, ',') | ranges::to_vector);
+    if constexpr (config.run_tests().size() > 0)
+        test_runner.run(split(config.run_tests(), ',') | ranges::to_vector);
     #endif
 
     //: initialization
@@ -102,27 +98,4 @@ bool fresa::detail::update() {
 void fresa::detail::stop() {
     // log::debug("closing all systems");
     system::stop();
-}
-
-//* create argument list
-//      parses the command line arguments and creates a list of key-value pairs
-//      arguments are passed in the form of "-k value"
-std::unordered_map<str, str> fresa::detail::handle_arguments(int argv, char** args) {
-    std::unordered_map<str, str> arguments;
-    for (int i = 1; i < argv; i++) {
-        auto a = str(args[i]);
-        auto len = a.size();
-        if (a[0] == '-') {
-            str key = a.substr(1, 1);
-            arguments[key] = len > 2 ? a.substr(2, len - 2) : "";
-            continue;
-        }
-        if (args[i-1][0] == '-') {
-            str key = str(args[i-1]).substr(1, 1);
-            arguments[key] = a;
-            continue;
-        };
-        log::error("Invalid argument '{}'", a);
-    }
-    return arguments;
 }

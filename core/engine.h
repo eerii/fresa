@@ -8,14 +8,13 @@
 namespace fresa
 {
     //* call from main.cpp
-    void run(int argv = 0, char** args = nullptr);
+    void run();
 
     //* different stages of the engine, referenced from run()
     namespace detail {
         void init();
         bool update();
         void stop();
-        std::unordered_map<str, str> handle_arguments(int argv, char** args);
     }
 }
 
