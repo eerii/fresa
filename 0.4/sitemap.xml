@@ -16,6 +16,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://josekoalas.github.io/fresa/0.4/reference/config/</loc>
+         <lastmod>2022-07-01</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/coroutines/</loc>
          <lastmod>2022-07-01</lastmod>
          <changefreq>daily</changefreq>

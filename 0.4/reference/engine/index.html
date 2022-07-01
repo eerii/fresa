@@ -423,6 +423,20 @@
   
   
     <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
+        configuration
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../time/" class="md-nav__link">
         time
       </a>
@@ -496,18 +510,18 @@
     <li class="md-nav__item md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_8" type="checkbox" id="__nav_2_8" >
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_9" type="checkbox" id="__nav_2_9" >
       
       
       
       
-        <label class="md-nav__link" for="__nav_2_8">
+        <label class="md-nav__link" for="__nav_2_9">
           tools
           <span class="md-nav__icon md-icon"></span>
         </label>
       
       <nav class="md-nav" aria-label="tools" data-md-level="2">
-        <label class="md-nav__title" for="__nav_2_8">
+        <label class="md-nav__title" for="__nav_2_9">
           <span class="md-nav__icon md-icon"></span>
           tools
         </label>
@@ -577,7 +591,7 @@
 <p>First it parses the arguments using the helper function <code>handle_arguments</code>. Then it perform tests (if enabled) and calls <a href="#init"><code>init</code></a> before running the update loop. Finally it stops all systems and returns control to the caller function.</p>
 <p><strong>supported arguments:</strong></p>
 <ul>
-<li><code>-t test1,test2</code>: Comma sepparated list of the test suites to run. Defaults to none. <em>(Note: if the project is not compiled enabling unit testing using <code>ENABLE_TESTS</code> this argument is ignored)</em>.</li>
+<li><code>-t test1,test2</code>: Comma sepparated list of the test suites to run. Defaults to none. <em>(Note: if the project is not compiled enabling unit testing using <code>FRESA_ENABLE_TESTS</code> this argument is ignored)</em>.</li>
 </ul>
 <h2 id="init"><code>init</code><a class="headerlink" href="#init" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">detail</span><span class="o">::</span><span class="n">init</span><span class="p">()</span><span class="w"></span>
