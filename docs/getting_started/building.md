@@ -38,7 +38,8 @@ These compilers have been tested to work. Older versions might work but are not 
 - clang 14.0.6
 - apple clang 14.0.0
 - gcc 12.1.0
-- _msvc not tested yet_
+
+MSVC is mostly working, except for nested constexpr for loops in the math library. There is an issue where these loops don't compile only with MSVC. I already submitted a [bug report](https://developercommunity.visualstudio.com/t/Lambda-inside-lambda-cant-detect-conste/10085564) with a temporary workaround, but I will wait until I hear more before I decide how to proceed. At this time, clang or gcc are recommended.
 
 ## extra: installing compilers
 
@@ -66,7 +67,7 @@ brew install llvm
 
 **windows:**
 
-Windows is not tested yet, but the project should compile using either clang or gcc. Alternatively, you could try compiling it with MSVC, I will test it soon to check compatibility. You can use clang with [Visual Studio](https://docs.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170) or install gcc with [MinGW](https://sourceforge.net/projects/mingw/files/Installer/mingw-get-setup.exe/download).
+You can use clang with [Visual Studio](https://docs.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170) or install gcc with [MinGW](https://sourceforge.net/projects/mingw/files/Installer/mingw-get-setup.exe/download). As mentioned above, MSVC is a work in progress.
 
 ## extra: installing cmake
 

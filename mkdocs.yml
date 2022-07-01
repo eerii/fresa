@@ -57,14 +57,10 @@ nav:
 
   - reference:
     - engine: reference/engine.md
+    - custom types: reference/types.md
     - time: reference/time.md
     - math: reference/math.md
-
-    - custom types:
-      - type names: reference/types/type_names.md
-      - constexpr for: reference/types/constexpr_for.md
-      - atomic queue: reference/types/atomic_queue.md
-      - strings: reference/types/strings.md
+    - coroutines: reference/coroutines.md
 
     - system manager: reference/system.md
     - job system: reference/jobs.md

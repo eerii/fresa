@@ -4,6 +4,19 @@
 
 _new implementation of fresa_
 
+#### todo
+- global/local job queues
+- slerp, tween, ... to the math library
+- cvars and configuration
+- ecs
+- events
+- file management and parser
+- reflection
+
+#### [0.4.3] name (_1 jul 22_)
+
+- **added** -
+
 #### [0.4.2] numbers and letters (_29 jun 22_)
 
 - **added** - random number generator
@@ -15,9 +28,8 @@ _new implementation of fresa_
 - **fixed** - constexpression logging with fmt
 - **added** - mkbuild documentation system
 - **changed** - divided repositories (fresa and fresa-legacy)
-- - **added** - documentation structure and getting started
-- **todo** - global/local job queues
-
+- **added** - documentation structure and getting started
+- **fixed** - mutex import in atomic queue was missing
 
 #### [0.4.1] job system (_21 jun 22_)
 
