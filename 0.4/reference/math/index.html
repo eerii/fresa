@@ -398,9 +398,95 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          math
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         math
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#linear-algebra" class="md-nav__link">
+    linear algebra
+  </a>
+  
+    <nav class="md-nav" aria-label="linear algebra">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#numerical-concepts" class="md-nav__link">
+    numerical concepts
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#functions" class="md-nav__link">
+    functions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vector-implementation" class="md-nav__link">
+    vector implementation
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#matrix-implementation" class="md-nav__link">
+    matrix implementation
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#type-transformations" class="md-nav__link">
+    type transformations
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pre-defined-matrices" class="md-nav__link">
+    pre-defined matrices
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#random-number-generator" class="md-nav__link">
+    random number generator
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -531,7 +617,251 @@
 
 
 <h1 id="math"><a href="https://github.com/josekoalas/fresa/blob/main/types/fresa_math.h"><code>math</code></a><a class="headerlink" href="#math" title="Permanent link">&para;</a></h1>
-<p>...</p>
+<h2 id="linear-algebra">linear algebra<a class="headerlink" href="#linear-algebra" title="Permanent link">&para;</a></h2>
+<h3 id="numerical-concepts">numerical concepts<a class="headerlink" href="#numerical-concepts" title="Permanent link">&para;</a></h3>
+<p>Collection of concepts for numerical types.</p>
+<p><strong><code>concepts::Numeric</code></strong> </p>
+<p>Defines a number, it is the union of <code>std::integral</code> and <code>std::floating_point</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="n">concepts</span><span class="o">::</span><span class="n">Numeric</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">Numeric</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">Numeric</span><span class="o">&lt;</span><span class="n">str</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<p><strong><code>concepts::Matrix</code></strong> </p>
+<p>Defines a matrix-like type with a two dimensional size, a type, and a <code>get</code> member function with constexpr access. The specialization <code>concepts::SquareMatrix</code> is a matrix with the same size on both dimensions. An example of a minimal definition of a matrix is as follows:</p>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">Matrix2x3</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//: value type</span>
+<span class="w">    </span><span class="n">M</span><span class="o">::</span><span class="n">value_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">int</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//: size</span>
+<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">pair</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">};</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//: reference get</span>
+<span class="w">    </span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">I</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">J</span><span class="o">&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">T</span><span class="o">&amp;</span><span class="w"> </span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//: constant get</span>
+<span class="w">    </span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">I</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">J</span><span class="o">&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="p">};</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">Matrix</span><span class="o">&lt;</span><span class="n">Matrix2x3</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">SquareMatrix</span><span class="o">&lt;</span><span class="n">Matrix2x3</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w"> </span><span class="c1">// 2 != 3</span>
+</code></pre></div>
+<p><strong><code>concepts::ColumnVector</code></strong></p>
+<p>A column vector is just a matrix of size Nx1 with N &gt; 1. It is the most usual type of vector and the one we specificly define later. There is also a row vector concept, <code>concepts::RowVector</code>, which is a matrix of size 1xN, but it is mainly there to assist with some advanced linear algebra operations that will be rarely used. The concept <code>concepts::Vector</code> is the union of both types of vector.</p>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">Vector4f</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//: value type</span>
+<span class="w">    </span><span class="n">M</span><span class="o">::</span><span class="n">value_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">float</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//: size</span>
+<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">pair</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">};</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//: reference get</span>
+<span class="w">    </span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">I</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">J</span><span class="o">&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">T</span><span class="o">&amp;</span><span class="w"> </span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//: constant get</span>
+<span class="w">    </span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">I</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">J</span><span class="o">&gt;</span><span class="w"></span>
+<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="p">};</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">Matrix</span><span class="o">&lt;</span><span class="n">Vector4f</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">ColumnVector</span><span class="o">&lt;</span><span class="n">Vector4f</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">RowVector</span><span class="o">&lt;</span><span class="n">Vector4f</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">Vector</span><span class="o">&lt;</span><span class="n">Vector4f</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<h3 id="functions">functions<a class="headerlink" href="#functions" title="Permanent link">&para;</a></h3>
+<p>All operations defined in the algebra library are constant expressions, meaning that they can be resolved at compile time (for constexpr variables) and save performance on runtime. This is the main motivation to have a templated <code>get</code> member function instead of a regular lookup.</p>
+<p><strong>scalar operations on vectors/matrices</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">M</span><span class="w"> </span><span class="n">mat</span><span class="p">;</span><span class="w"> </span><span class="c1">// M satisfies concepts::Matrix</span>
+<span class="n">T</span><span class="w"> </span><span class="n">scalar</span><span class="p">;</span><span class="w"> </span><span class="c1">// T satisfies concepts::Numeric and it is the same as M::value_type</span>
+
+<span class="c1">//: scalar multiplication</span>
+<span class="n">M</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mat</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">scalar</span><span class="p">;</span><span class="w"></span>
+<span class="n">M</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scalar</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">mat</span><span class="p">;</span><span class="w"></span>
+<span class="n">mat</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="n">scalar</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//: scalar division</span>
+<span class="n">M</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mat</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">scalar</span><span class="p">;</span><span class="w"></span>
+<span class="n">mat</span><span class="w"> </span><span class="o">/=</span><span class="w"> </span><span class="n">scalar</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<p><strong>arithmetic operations on vectors/matrices</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">M</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"> </span><span class="c1">// M satisfies concepts::Matrix</span>
+
+<span class="c1">//: sum</span>
+<span class="n">M</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+<span class="n">a</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//: difference</span>
+<span class="n">M</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+<span class="n">a</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<p><strong>comparison operations on vectors/matrices</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">M</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"> </span><span class="c1">// M satisfies concepts::Matrix</span>
+
+<span class="c1">//: equality</span>
+<span class="kt">bool</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//: inequality</span>
+<span class="kt">bool</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//: less than (element wise less comparison, returns true if **all** elements are less)</span>
+<span class="kt">bool</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<p><strong>vector specific operations</strong></p>
+<p><em>Note: technically opearations on vectors mostly require one of them to be a column vector and the other to be a row vector, but for simplicity <strong>fresa</strong> allows operations between two vectors of the same type (for example two column vectors) to be performed correctly. There are special overloads to handle special cases with column with row vector operations in the matrix section.</em></p>
+<div class="highlight"><pre><span></span><code><span class="c1">// V satisfies concepts::Vector</span>
+<span class="c1">// CV satisfies concepts::ColumnVector</span>
+<span class="c1">// T satisfies concepts::Numeric and it is the same as V::value_type</span>
+<span class="c1">// S satisfies concepts::Numeric but not necesarily the same type as V::value_type</span>
+
+<span class="c1">//: dot product</span>
+<span class="n">V</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+<span class="n">T</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">b</span><span class="w"></span>
+
+<span class="c1">//: cross product</span>
+<span class="n">CV</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"> </span><span class="c1">// The vector size must be 3.</span>
+<span class="n">CV</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cross</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">);</span><span class="w"></span>
+
+<span class="c1">//: norm</span>
+<span class="n">V</span><span class="w"> </span><span class="n">v</span><span class="p">;</span><span class="w"></span>
+<span class="n">S</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">norm</span><span class="p">(</span><span class="n">v</span><span class="p">);</span><span class="w"> </span>
+
+<span class="c1">//: normalized vector (unit length)</span>
+<span class="n">V</span><span class="w"> </span><span class="n">v</span><span class="p">;</span><span class="w"></span>
+<span class="n">V</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">normalize</span><span class="p">(</span><span class="n">v</span><span class="p">);</span><span class="w"></span>
+
+<span class="c1">//: angle between vectors (in radians)</span>
+<span class="n">V</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+<span class="n">S</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">angle</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">);</span><span class="w"></span>
+
+<span class="c1">//: angles with respect to the coordinate axis</span>
+<span class="n">CV</span><span class="w"> </span><span class="n">v</span><span class="p">;</span><span class="w"></span>
+<span class="n">S</span><span class="w"> </span><span class="n">result_x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">angle_x</span><span class="p">(</span><span class="n">v</span><span class="p">);</span><span class="w"></span>
+<span class="n">S</span><span class="w"> </span><span class="n">result_y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">angle_y</span><span class="p">(</span><span class="n">v</span><span class="p">);</span><span class="w"></span>
+<span class="n">S</span><span class="w"> </span><span class="n">result_z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">angle_z</span><span class="p">(</span><span class="n">v</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+<p><strong>matrix product</strong></p>
+<div class="highlight"><pre><span></span><code><span class="c1">//: general matrix product</span>
+<span class="c1">//  A, B and M satisfy concepts::Matrix</span>
+<span class="c1">//  the sizes must be compatible, meaning A=AIxAJ, B=BIxBJ, M=MIxMJ with AJ==BI, MI==AI, MJ==BJ</span>
+<span class="c1">//  it is in general non conmutative, a*b != b*a</span>
+<span class="n">A</span><span class="w"> </span><span class="n">a</span><span class="p">;</span><span class="w"> </span><span class="n">B</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+<span class="n">M</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dot</span><span class="o">&lt;</span><span class="n">M</span><span class="p">,</span><span class="w"> </span><span class="n">A</span><span class="p">,</span><span class="w"> </span><span class="n">B</span><span class="o">&gt;</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">);</span><span class="w"></span>
+
+<span class="c1">//: square matrix product</span>
+<span class="c1">//  notation can be simplified for square matrices since A = B = M -&gt; SM (concepts::SquareMatrix)</span>
+<span class="n">SM</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+<span class="n">SM</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//: vector-matrix products</span>
+<span class="c1">//  similarly, notation can be simplified for vector multiplication</span>
+<span class="c1">//  note that the size of the vector must equal the size of the square matrix (3x3 by 3x1 for example)</span>
+<span class="c1">//  also keep in mind the order of multiplication since only the one defined below is defined</span>
+
+<span class="c1">//  column vectors</span>
+<span class="n">CV</span><span class="w"> </span><span class="n">c</span><span class="p">;</span><span class="w"> </span><span class="n">SM</span><span class="w"> </span><span class="n">m</span><span class="p">;</span><span class="w"></span>
+<span class="n">CV</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dot</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">c</span><span class="p">;</span><span class="w"></span>
+<span class="c1">//  row vectors</span>
+<span class="n">RV</span><span class="w"> </span><span class="n">r</span><span class="p">;</span><span class="w"> </span><span class="n">SM</span><span class="w"> </span><span class="n">m</span><span class="p">;</span><span class="w"></span>
+<span class="n">RV</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="w"> </span><span class="n">m</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">m</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<p>While row by column vector operations are already well defined by the regular dot product (since the result is a scalar), column by row vector operations produce a matrix and would require extensive syntax. Therefore a specialization exists only for <a href="#vector-implementation"><strong>fresa</strong> defined</a> types (<code>Vec2/3</code>, <code>RVec2/3</code> and <code>Mat</code>) that allows a simple dot operator syntax.</p>
+<div class="highlight"><pre><span></span><code><span class="n">Vec3</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">c</span><span class="p">;</span><span class="w"></span>
+<span class="n">RVec3</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">r</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//: row by column vector, scalar (already well defined)</span>
+<span class="n">T</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">c</span><span class="w"></span>
+
+<span class="c1">//: column by row vector, matrix</span>
+<span class="n">Mat3</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dot</span><span class="p">(</span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">v</span><span class="p">;</span><span class="w"> </span><span class="c1">// equivalent to Mat3&lt;T&gt; result = dot&lt;Mat3&lt;t&gt;&gt;(c, v);</span>
+</code></pre></div>
+<p><strong>other matrix operations</strong></p>
+<div class="highlight"><pre><span></span><code><span class="c1">//: transpose</span>
+<span class="n">M</span><span class="w"> </span><span class="n">m</span><span class="p">;</span><span class="w"></span>
+<span class="n">M</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">transpose</span><span class="p">(</span><span class="n">m</span><span class="p">);</span><span class="w"></span>
+
+<span class="c1">//: determinant and inverse implementations are defined on [aguacate/experimental](https://github.com/josekoalas/aguacate/blob/main/experimental/_linear_algebra.h). i am not 100% happy with the clarity and performance of current implementation so they are not imported directly in the project, but are fully functional and can be used.</span>
+</code></pre></div>
+<h3 id="vector-implementation">vector implementation<a class="headerlink" href="#vector-implementation" title="Permanent link">&para;</a></h3>
+<p><strong>fresa</strong> provides predefined implementations for a series of types that satisfie <code>concepts::ColumnVector</code>.</p>
+<p><strong>2D vector</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">Vec2</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">v</span><span class="p">;</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">ColumnVector</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//: size</span>
+<span class="n">v</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="p">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">};</span><span class="w"></span>
+
+<span class="c1">//: vector components</span>
+<span class="n">v</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">get</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">&gt;</span><span class="w"> </span><span class="n">and</span><span class="w"></span>
+<span class="n">v</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">get</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">&gt;</span><span class="w"> </span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<p><strong>3D vector</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">Vec3</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">v</span><span class="p">;</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">ColumnVector</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//: size</span>
+<span class="n">v</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="p">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">};</span><span class="w"></span>
+
+<span class="c1">//: vector components</span>
+<span class="n">v</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">get</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">&gt;</span><span class="w"> </span><span class="n">and</span><span class="w"></span>
+<span class="n">v</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">get</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">&gt;</span><span class="w"> </span><span class="n">and</span><span class="w"></span>
+<span class="n">v</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">get</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">&gt;</span><span class="w"> </span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<h3 id="matrix-implementation">matrix implementation<a class="headerlink" href="#matrix-implementation" title="Permanent link">&para;</a></h3>
+<p>There is also an implementation for a generic NxM matrix that satisfies <code>concepts::Matrix</code> using an <code>std::array</code> of size N*M. To retrieve an element using the specification defined <code>get&lt;I, J&gt;</code> function it uses the index of the array <code>data[I * M + J]</code>. Specializations exist for commonly used matrix dimensions:</p>
+<div class="highlight"><pre><span></span><code><span class="n">Mat</span><span class="o">&lt;</span><span class="n">N</span><span class="p">,</span><span class="w"> </span><span class="n">M</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">m</span><span class="p">;</span><span class="w"></span>
+<span class="n">concepts</span><span class="o">::</span><span class="n">Matrix</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">m</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//: size</span>
+<span class="n">m</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">N</span><span class="p">,</span><span class="w"> </span><span class="n">M</span><span class="p">};</span><span class="w"></span>
+
+<span class="c1">//: 2x2 matrix</span>
+<span class="n">Mat2</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Mat</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="c1">//: 3x3 matrix</span>
+<span class="n">Mat3</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Mat</span><span class="o">&lt;</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="c1">//: 4x4 matrix</span>
+<span class="n">Mat4</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Mat</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<p>There are also defined types for the less used row vectors, which for simplicity use the matrix impementation (and therefore dont have .x, .y, ... components available, but they can still be <a href="#type-transformations">convertible</a> to column vectors).</p>
+<div class="highlight"><pre><span></span><code><span class="c1">//: 2D row vector</span>
+<span class="n">RVec2</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Mat</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+<span class="c1">//: 3D row vector</span>
+<span class="n">RVec3</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Mat</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<h3 id="type-transformations">type transformations<a class="headerlink" href="#type-transformations" title="Permanent link">&para;</a></h3>
+<p>Matrix-like objects can be converted to other types of the same characteristics that satisfy the same concepts.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">//: convert to compatible type (same size)</span>
+<span class="c1">//  A and B both satisfy concepts::Matrix, but are different types</span>
+<span class="n">A</span><span class="w"> </span><span class="n">a</span><span class="p">;</span><span class="w"> </span>
+<span class="n">B</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">to</span><span class="o">&lt;</span><span class="n">B</span><span class="o">&gt;</span><span class="p">(</span><span class="n">a</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+<p>One specialization for <a href="#vector-implementation"><strong>fresa</strong> defined</a> types (<code>Mat</code>, <code>Vec2</code> and <code>Vec3</code>) is to be able to convert between value types without having to specity the entire name, for example:</p>
+<div class="highlight"><pre><span></span><code><span class="n">Vec2</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">a</span><span class="p">;</span><span class="w"></span>
+<span class="n">Vec2</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">to</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">a</span><span class="p">);</span><span class="w"></span>
+<span class="c1">//: the other possibility without specialization is Vec2&lt;float&gt; b = to&lt;Vec2&lt;float&gt;&gt;(a);</span>
+</code></pre></div>
+<p>There are specializations for column and row vectors, allowing conversions between the two despite not technically having the same two dimensional size. For example a 3x1 column vector can be converted to a 1x3 row vector.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">//: CV satisfies concepts::ColumnVector and RV satisfies concepts::RowVector</span>
+
+<span class="c1">//: to column vector</span>
+<span class="n">RV</span><span class="w"> </span><span class="n">r</span><span class="p">;</span><span class="w"></span>
+<span class="n">CV</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">to_column</span><span class="o">&lt;</span><span class="n">CV</span><span class="o">&gt;</span><span class="p">(</span><span class="n">r</span><span class="p">);</span><span class="w"></span>
+
+<span class="c1">//: to row vector</span>
+<span class="n">CV</span><span class="w"> </span><span class="n">c</span><span class="p">;</span><span class="w"></span>
+<span class="n">RV</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">to_row</span><span class="o">&lt;</span><span class="n">RV</span><span class="o">&gt;</span><span class="p">(</span><span class="n">c</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+<h3 id="pre-defined-matrices">pre-defined matrices<a class="headerlink" href="#pre-defined-matrices" title="Permanent link">&para;</a></h3>
+<p><strong>identity matrix</strong></p>
+<p>An identity matrix constexpr can be generated for any type that satisfies <code>concepts::SquareMatrix</code>. There are also specializations for the <a href="#matrix-implementation"><strong>fresa</strong> defined</a> type <code>Mat</code>, specifying only the type and dimension.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">//: general matrix identity</span>
+<span class="n">M</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">identity</span><span class="o">&lt;</span><span class="n">M</span><span class="o">&gt;</span><span class="w"></span>
+
+<span class="c1">//: fresa matrix identity</span>
+<span class="n">Mat3</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">identity</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="o">&gt;</span><span class="p">();</span><span class="w"></span>
+</code></pre></div>
+<h2 id="random-number-generator">random number generator<a class="headerlink" href="#random-number-generator" title="Permanent link">&para;</a></h2>
+<p><strong>fresa</strong> has a random number generator based on the <code>&lt;random&gt;</code> library. It uses a Mersenne Twister engine (by Matsumoto and Nishimura), either <a href="https://en.cppreference.com/w/cpp/numeric/random/mersenne_twister_engine"><code>mt19937</code></a> or <a href="https://en.cppreference.com/w/cpp/numeric/random/mersenne_twister_engine"><code>mt19937_64</code></a> depending on the bytes required.</p>
+<div class="highlight"><pre><span></span><code><span class="n">T</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">random</span><span class="p">(</span><span class="n">T</span><span class="w"> </span><span class="n">min</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">max</span><span class="p">)</span><span class="w"> </span><span class="c1">// with T = concepts::Numeric</span>
+</code></pre></div>
+<p>The <code>random</code> function returns a number between <code>min</code> and <code>max</code> (closed interval, so both included) using a uniform distribution, with support for both <a href="https://en.cppreference.com/w/cpp/numeric/random/uniform_int_distribution">integral</a> and <a href="https://en.cppreference.com/w/cpp/numeric/random/uniform_real_distribution">floating</a> point types. The default type for the template parameter <code>T</code> is <code>int</code>. Some examples:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">random</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">37</span><span class="p">;</span><span class="w"></span>
+<span class="kt">float</span><span class="w"> </span><span class="n">random</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="mf">0.f</span><span class="p">,</span><span class="w"> </span><span class="mf">1.f</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.37f</span><span class="p">;</span><span class="w"></span>
+<span class="n">ui64</span><span class="w"> </span><span class="n">random</span><span class="o">&lt;</span><span class="n">ui64</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
 
               
             </article>
