@@ -90,6 +90,13 @@ namespace test
             return expect(j.ready() and j.get() == 5);
         };
 
+        "job on a specific thread"_test = [] {
+            auto j = detail::job_returns_number();
+            jobs::schedule(j, nullptr, 3);
+            jobs::waitFor(j);
+            return expect(j.ready() and j.get() == 64);
+        };
+
         system::manager.stop.top().f();
         system::manager.stop.pop();
         log::debug("stopping system 'JobSystem'");

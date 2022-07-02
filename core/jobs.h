@@ -43,7 +43,7 @@ namespace fresa::jobs
             if (promise.parent != nullptr) {
                 ui32 n = promise.parent->children.fetch_sub(1);
                 if (n == 1)
-                    promise.parent->resume(); //! !!! schedule parent coroutine using job system
+                    promise.parent->resume();
             }
         }
     };
@@ -94,7 +94,7 @@ namespace fresa::jobs
         std::atomic<ui32> children = 0;
 
         //: multithreading information
-        ui32 thread_index;
+        int thread_index = -1;
     };
 
     //* job promise
@@ -250,10 +250,19 @@ namespace fresa::jobs
         static void schedule(JobPromiseBase* job) noexcept {
             if (job == nullptr) { log::error("invalid job to schedule"); return; }
 
-            thread_local static ui32 t_id(random<ui32>(0, thread_count-1));
+            thread_local static ui32 t_id = random<ui32>(0, thread_count-1);
 
-            global_queues[t_id].push(job); //- global/local queues, also job can specify thread
-            thread_cv[t_id]->notify_all();
+            //: no thread specified, schedule on a random thread's global queue
+            if (job->thread_index < 0 or job->thread_index >= thread_count) {
+                t_id = (++t_id) % thread_count;
+                global_queues[t_id].push(job);
+                thread_cv[t_id]->notify_all();
+                return;
+            }
+
+            //: if a thread is specified, schedule on the local queue
+            local_queues[job->thread_index].push(job);
+            thread_cv[job->thread_index]->notify_all();
         }
 
         //: run function for each thread
@@ -272,7 +281,7 @@ namespace fresa::jobs
             detail::log<"JOB SYSTEM", LOG_JOBS, fmt::color::light_green>("worker thread {} ready", thread_index);
 
             //: random index for job stealing
-            ui32 steal_next = random<ui32>(0, thread_count-1);
+            ui32 steal_next = random<ui32>(0, thread_count - 1);
 
             //: number of empty loops before sleeping
             constexpr ui32 max_empty_loops = 256;
@@ -310,7 +319,7 @@ namespace fresa::jobs
                 }
                 //: if there is no job still, sleep
                 else if (empty_loops++ > max_empty_loops) {
-                    thread_cv.at(thread_index)->wait_for(lock, 1ms); //! maybe this is too long of a wait
+                    thread_cv.at(thread_index)->wait_for(lock, 1ms); //? maybe this is too long of a wait
                     empty_loops = max_empty_loops / 2;
                 }
             }
@@ -344,15 +353,16 @@ namespace fresa::jobs
 
     //* schedule jobs
     template <typename T>
-    void schedule(const JobFuture<T>& job, JobPromiseBase* parent = nullptr) {
+    void schedule(const JobFuture<T>& job, JobPromiseBase* parent = nullptr, int thread_index = -1) noexcept {
         auto& promise = job.handle.promise();
+        promise.thread_index = thread_index;
         JobSystem::schedule(&promise);
         promise.parent = parent;
     }
 
     //* wait for a job to complete
     template <typename T> requires (not std::is_void<T>())
-    void waitFor(JobFuture<T>& job) {
+    void waitFor(JobFuture<T>& job) noexcept {
         while (not job.ready());
     }
 }
