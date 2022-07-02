@@ -414,4 +414,63 @@ namespace fresa
 
         return dist(rng);
     }
+
+    //---
+
+    //* factorial
+    template <std::size_t N> requires (N >= 0)
+    constexpr auto factorial() {
+        if constexpr (N == 0) return 1;
+        else return N * factorial<N-1>();
+    }
+
+    //* combinatory number
+    template <std::size_t N, std::size_t K> requires (N >= 0 and K >= 0 and N >= K)
+    constexpr auto binomial() {
+        return factorial<N>() / (factorial<K>() * factorial<N-K>());
+    }
+
+    //* pascal triangle
+    //      returns an array with the Nth row of the pascal triangle (being N = 0 the first row)
+    template <std::size_t N> requires (N >= 0)
+    constexpr std::array<std::size_t, N+1> pascal_triangle() {
+        return []<std::size_t ... I>(std::index_sequence<I...>) {
+            return std::array<std::size_t, N+1>({ binomial<N, I>()... });
+        }(std::make_index_sequence<N+1>());
+    }
+
+    //---
+
+    //* constexpr integral power
+    template <std::size_t N, concepts::Numeric T>
+    constexpr T pow(T x) {
+        if constexpr (N == 0) return 1;
+        else return x * pow<N-1>(x);
+    }
+
+    //---
+
+    //* smoothstep functions
+    //      sigmoid-like interpolation functions for smooth transitions between 0 and 1 based on the value of x
+    //      N is the order of the smoothstep function, with N = 1 being the regular smoothstep
+    //      the order of the polinomial generated is 2N+1, so in the case of S1, it is a 3rd degree polinomial
+    //      see https://en.wikipedia.org/wiki/Smoothstep
+    template <std::size_t N = 1, std::floating_point T> requires (N >= 0)
+    constexpr T smoothstep(T x) {
+        x = std::clamp(x, T(0.0), T(1.0));
+        T result = 0.0;
+        for_<0, N+1>([&](auto K) {
+            result += binomial<N+K, K>() * binomial<2*N+1, N-K>() * pow<K>(-x);
+        });
+        return pow<N+1>(x) * result;
+    }
+
+    /*template <concepts::Numeric T>
+    constexpr auto lerp(T a, T b, T t) { 
+        return a + (b - a) * t;
+    }*/
+    //      - linear
+    //      - cosine
+    //      - cubic
+    //      - smoothstep
 }

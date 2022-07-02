@@ -13,6 +13,7 @@ Features from the standard library will be added with a clear intent, trying to 
 - `<cstdint>` for standard integer types
 - `<random>` for generating pseudo-random numbers
 - `<numbers>` for mathematical constants, including pi
+- `std::clamp`
 
 **strings**
 

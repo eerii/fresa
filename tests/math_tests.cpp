@@ -286,6 +286,78 @@ namespace test
             return expect(r >= 0 and r <= ui64(1) << 48);
         };
     });
+
+    //* factorials
+    inline TestSuite factorial_test("math", []{
+        "factorials"_test = []{
+            return expect(factorial<0>() == 1 and
+                          factorial<1>() == 1 and
+                          factorial<2>() == 2 and
+                          factorial<3>() == 6 and
+                          factorial<4>() == 24 and
+                          factorial<5>() == 120);
+        };
+        "combinatory numbers"_test = []{
+            return expect(binomial<0, 0>() == 1 and
+                          binomial<1, 0>() == 1 and binomial<1, 1>() == 1 and
+                          binomial<2, 0>() == 1 and binomial<2, 1>() == 2 and binomial<2, 2>() == 1 and
+                          binomial<3, 0>() == 1 and binomial<3, 1>() == 3 and binomial<3, 2>() == 3 and binomial<3, 3>() == 1 and
+                          binomial<4, 0>() == 1 and binomial<4, 1>() == 4 and binomial<4, 2>() == 6 and binomial<4, 3>() == 4 and binomial<4, 4>() == 1);
+        };
+        "pascal triangle"_test = []{
+            return expect(pascal_triangle<0>() == std::to_array<std::size_t>({1}) and
+                          pascal_triangle<1>() == std::to_array<std::size_t>({1, 1}) and
+                          pascal_triangle<2>() == std::to_array<std::size_t>({1, 2, 1}) and
+                          pascal_triangle<3>() == std::to_array<std::size_t>({1, 3, 3, 1}) and
+                          pascal_triangle<4>() == std::to_array<std::size_t>({1, 4, 6, 4, 1}) and
+                          pascal_triangle<5>() == std::to_array<std::size_t>({1, 5, 10, 10, 5, 1}));
+        };
+        "powers"_test = []{
+            return expect(pow<0>(2) == 1 and
+                          pow<1>(2) == 2 and
+                          pow<2>(2) == 4 and
+                          pow<3>(2) == 8 and
+                          pow<4>(2) == 16 and
+                          pow<5>(2) == 32 and
+                          pow<6>(2) == 64);
+        };
+        "real powers"_test = []{
+            return expect(pow<0>(0.5) == 1.0 and
+                          pow<1>(0.5) == 0.5 and
+                          pow<2>(0.5) == 0.25 and
+                          pow<3>(0.5) == 0.125 and
+                          pow<4>(0.5) == 0.0625);
+        };
+        "smoothstep S0 (clamping function)"_test = []{
+            return expect(smoothstep<0>(-1.) == 0.0 and
+                          smoothstep<0>(0.0) == 0.0 and
+                          smoothstep<0>(0.5) == 0.5 and
+                          smoothstep<0>(1.0) == 1.0 and
+                          smoothstep<0>(2.0) == 1.0);
+        };
+        "smoothstep S1 (regular)"_test = []{
+            auto smoothstep_1 = [](double x){ 
+                x = std::clamp(x, 0.0, 1.0);
+                return x * x * (3 - 2 * x);
+            };
+
+            bool passed = true;
+            for (double x = -0.5; x <= 1.5; x += 0.1)
+                passed = passed and smoothstep<>(x) - smoothstep_1(x) < 1e-8;
+            return expect(passed);
+        };
+        "smoothstep S2 (smoother)"_test = []{
+            auto smoothstep_2 = [](double x){ 
+                x = std::clamp(x, 0.0, 1.0);
+                return x * x * x * (x * (x * 6 - 15) + 10);
+            };
+
+            bool passed = true;
+            for (double x = -0.5; x <= 1.5; x += 0.1)
+                passed = passed and smoothstep<2>(x) - smoothstep_2(x) < 1e-8;
+            return expect(passed);
+        };
+    });
 }
 
 #endif

@@ -5,7 +5,6 @@
 _new implementation of fresa_
 
 #### todo
-- slerp, tween, ... to the math library
 - ecs
 - events
 - file management and parser
@@ -19,6 +18,7 @@ _new implementation of fresa_
 - **changed** - now unit tests are defined in the configuration file
 - **fixed** - job system can now schedule to both global and local queues
 - **added** - math library documentation
+- **added** - constexpr factorial, power and smoothstep definitions
 
 #### [0.4.2] numbers and letters (_29 jun 22_)
 
