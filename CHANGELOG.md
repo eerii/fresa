@@ -11,13 +11,14 @@ _new implementation of fresa_
 - file management and parser
 - reflection
 - continue with documentation
-🐢🐢
-#### [0.4.3] name (_1 jul 22_)
+
+#### [0.4.3] name (_2 jul 22_)
 
 - **added** - engine configuration variables using constexpr functions
 - **removed** - deprecated command line options in favor of the configuration file for now
 - **changed** - now unit tests are defined in the configuration file
 - **fixed** - job system can now schedule to both global and local queues
+- **added** - math library documentation
 
 #### [0.4.2] numbers and letters (_29 jun 22_)
 

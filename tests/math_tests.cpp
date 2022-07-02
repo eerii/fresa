@@ -98,6 +98,10 @@ namespace test
             Vec2<> a{3, 4};
             return expect(norm(a) == 5);
         };
+        "norm of a more complicated vector"_test = []{
+            Vec2<> a{1, 1}; 
+            return expect(norm(a) == std::sqrt(2));
+        };
         "normalized unit vector"_test = []{
             Vec2<float> a{3.0f, 4.0f};
             return expect(normalize(a) == Vec2<float>{3.0f, 4.0f} / 5.0f);
