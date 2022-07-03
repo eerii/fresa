@@ -395,6 +395,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#engine-config" class="md-nav__link">
+    engine config
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#configuration-file" class="md-nav__link">
     configuration file
   </a>
@@ -576,46 +583,71 @@
 
 
 <h1 id="config"><a href="https://github.com/josekoalas/fresa/blob/main/core/fresa_config.h"><code>config</code></a><a class="headerlink" href="#config" title="Permanent link">&para;</a></h1>
-<p>The configuration system defined in <code>fresa_config.h</code> allows for configurable constexpr variables. The struct <code>Config</code> contains constexpr virtual methods (a new <code>c++20</code> feature), allowing to create an interface that can be extended but retaining the compile time definitions. It is a bit more verbose than other approaches, but being able to extend and override constant expressions is very powerful. Look at this example, here we have the original config structure:</p>
-<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">fresa</span><span class="o">::</span><span class="n">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<p>The configuration system defined in <code>fresa_config.h</code> includes three types of configuration variables:</p>
+<ul>
+<li><code>EngineConfig</code>: Compile time variables that change the way the engine work. These are for things like enabling different parts of the engine or values that don't change.</li>
+<li><code>RunConfig</code>: Run time modifiable values, for example, the settings menus or options that change with the player's input.</li>
+<li><code>DebugConfig</code>: Also run time values, but are disabled in production builds. All usage of this must be guarded using the <code>DEBUG</code> directive. Useful for debug toggles during development.</li>
+</ul>
+<h2 id="engine-config">engine config<a class="headerlink" href="#engine-config" title="Permanent link">&para;</a></h2>
+<p>The struct <code>EngineConfig</code> contains constexpr virtual methods (a new <code>c++20</code> feature), allowing to create an interface that can be extended but retaining the compile time definitions. It is a bit more verbose than other approaches, but being able to extend and override constant expressions is very powerful. Look at this example, here we have the original config structure:</p>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">fresa</span><span class="o">::</span><span class="n">EngineConfig</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="n">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;fresa&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
 <span class="p">};</span><span class="w"></span>
 </code></pre></div>
 <p>Which can be overwritten as:</p>
-<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">GameConfig</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">_EngineConfig</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">EngineConfig</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//: change the project name to &quot;aguacate&quot;</span>
 <span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;aguacate&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="p">};</span><span class="w"></span>
 </code></pre></div>
 <h2 id="configuration-file">configuration file<a class="headerlink" href="#configuration-file" title="Permanent link">&para;</a></h2>
-<p><strong>fresa</strong> allows you to create a configuration file to overwrite the default options. To do so, create a header file and include it in the project. By default the name of the configuration file is <code>config.h</code>, but if you wish to use a different name you can use the <code>FRESA_CONFIG_FILE</code> preprocessor directive as <code>FRESA_CONFIG_FILE = file_name.h</code> (only write the file name, excluding its path). An example configuration file is provided with the <a href="https://github.com/josekoalas/aguacate">template</a> repository, similar to this:</p>
+<p><strong>fresa</strong> allows you to create an optional configuration file to overwrite the default options. To do so, create a header file and include it in the project. By default the name of the configuration file is <code>config.h</code>, but if you wish to use a different name you can use the <code>FRESA_CONFIG_FILE</code> preprocessor directive as <code>FRESA_CONFIG_FILE = file_name.h</code> (only write the file name, excluding its path). An example configuration file is provided with the <a href="https://github.com/josekoalas/aguacate">template</a> repository, similar to this:</p>
 <div class="highlight"><span class="filename">config.h</span><pre><span></span><code><span class="cp">#pragma once</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;fresa_config.h&quot;</span><span class="cp"></span>
 
 <span class="k">namespace</span><span class="w"> </span><span class="nn">fresa</span><span class="w"></span>
 <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">GameConfig</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Config</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="c1">//: change the project name to &quot;my project&quot;</span>
+<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">_EngineConfig</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">EngineConfig</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">        </span><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;my project&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">config</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">engine_config</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">    </span><span class="kr">inline</span><span class="w"> </span><span class="n">RunConfig</span><span class="w"> </span><span class="n">config</span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="p">.</span><span class="n">something</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;initial value&quot;</span><span class="w"></span>
+<span class="w">    </span><span class="p">};</span><span class="w"></span>
+
+<span class="w">    </span><span class="cp">#ifdef DEBUG</span>
+<span class="w">    </span><span class="kr">inline</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">DebugConfig</span><span class="w"> </span><span class="n">debug_config</span><span class="p">{};</span><span class="w"></span>
+<span class="w">    </span><span class="cp">#endif</span>
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
-<p>This configuration file:</p>
+<p>If you chose to create a configuration file, it needs to:</p>
 <ul>
-<li>Needs to import <code>fresa_config.h</code>.</li>
-<li>Creates a struct that extends <code>fresa::Config</code>.</li>
-<li>Overrides some of the constexpr methods with new configurations.</li>
-<li><strong>Creates an inline variable named <code>config</code>.</strong></li>
+<li>Import <code>fresa_config.h</code>.</li>
+<li><em>(optional)</em> Create a struct that extends <code>fresa::EngineConfig</code> to override some of the constexpr methods with new configurations.</li>
+<li><em>(optional)</em> Create structs that extend <code>fresa::RunConfig</code> and <code>fresa::DebugConfig</code>.</li>
+<li><strong>Creates a inline variables named <code>engine_config</code>, <code>config</code> and <code>debug_config</code>.</strong> Even if you don't modify the default options of some of these structs, you need to define all three variables <em>(only if you create a configuration file)</em>. These variables must be either of the original struct's types or a derived type. <code>engine_config</code> also needs to be constexpr.</li>
 </ul>
-<p>If you look at the <a href="https://github.com/josekoalas/fresa/blob/main/core/fresa_config.h"><code>fresa_config.h</code></a> code, you will see that the configuration file, if present, is imported back into that header (using guards to avoid compilation loops). That means that the <code>config</code> variable will be available engine-wide, allowing every system to access this overwritten configuration.</p>
+<p>If you look at <a href="https://github.com/josekoalas/fresa/blob/main/core/fresa_config.h"><code>fresa_config.h</code></a>, you will see that the configuration file, if present, is imported back into that header (using guards to avoid compilation loops). That means that the config variables will be available engine-wide, allowing every system to access this overwritten configuration.</p>
 <h2 id="using-configuration">using configuration<a class="headerlink" href="#using-configuration" title="Permanent link">&para;</a></h2>
-<p>All you need to access the configuration variables is to include "fresa_config.h" and call any option from <code>config</code>.</p>
+<p>All you need to access the configuration variables is to include "fresa_config.h" and call any option from <code>engine_config</code>, <code>run_config</code> or <code>debug_config</code>. Note that the values in engine config are functions, so they must be called.</p>
 <div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;fresa_config.h&quot;</span><span class="cp"></span>
 
 <span class="kt">void</span><span class="w"> </span><span class="nf">using_configuration</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">.</span><span class="n">name</span><span class="p">());</span><span class="w"></span>
+<span class="w">    </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">engine_config</span><span class="p">.</span><span class="n">name</span><span class="p">());</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="k">constexpr</span><span class="w"> </span><span class="p">(</span><span class="n">engine_config</span><span class="p">.</span><span class="n">version</span><span class="p">().</span><span class="n">at</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="c1">// engine config can be used in compile time expressions</span>
+<span class="w">        </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;alpha&quot;</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">run_config</span><span class="p">.</span><span class="n">player_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;mango&quot;</span><span class="p">;</span><span class="w"> </span><span class="c1">// run and debug config are modifyable</span>
+
+<span class="w">    </span><span class="cp">#ifdef DEBUG</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">debug_config</span><span class="p">.</span><span class="n">show_debug_artifacts</span><span class="p">)</span><span class="w"> </span><span class="c1">// debug config must be guarded</span>
+<span class="w">        </span><span class="n">render_debug</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="cp">#endif</span>
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
 <h2 id="configuration-options">configuration options<a class="headerlink" href="#configuration-options" title="Permanent link">&para;</a></h2>
+<p><strong>engine</strong></p>
 <table>
 <thead>
 <tr>
@@ -639,6 +671,40 @@
 <td><code>run_tests</code></td>
 <td><code>str_view</code></td>
 <td><code>""</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>run</strong></p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>debug</strong></p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>type</th>
+<th>default value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 </tbody>
 </table>
