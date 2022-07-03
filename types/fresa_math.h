@@ -11,6 +11,8 @@
 //      : linear algebra abstract operations
 //      : vector and matrix implementations
 //      : random number generator
+//      : math expressions (factorial, binomail, power)
+//      : interpolation and smoothstep
 
 namespace fresa
 {

@@ -5,14 +5,17 @@
 _new implementation of fresa_
 
 #### todo
-- engine config vs game config (constexpr vs runtime and modifiable)
 - ecs
 - events
 - file management and parser
 - reflection
 - continue with documentation
 
-#### [0.4.3] name (_2 jul 22_)
+#### [0.4.4] name (_3 jul 22_)
+
+- **added** - 
+
+#### [0.4.3] configuration (_3 jul 22_)
 
 - **added** - engine configuration variables using constexpr functions
 - **removed** - deprecated command line options in favor of the configuration file for now
@@ -21,6 +24,7 @@ _new implementation of fresa_
 - **added** - math library documentation
 - **added** - constexpr factorial, power and smoothstep definitions
 - **added** - linear and non linear interpolation
+- **added** - three types of configuration: engine, run and debug
 
 #### [0.4.2] numbers and letters (_29 jun 22_)
 

@@ -14,13 +14,13 @@ using namespace fresa;
 //      called from main, it creates the engine, runs it and closes it when finished
 void fresa::run() {
     log::info("{} {}.{}.{}",
-              fmt::format(fmt::emphasis::bold, config.name()),
-              config.version()[0], config.version()[1], config.version()[2]);
+              fmt::format(fmt::emphasis::bold, engine_config.name()),
+              engine_config.version()[0], engine_config.version()[1], engine_config.version()[2]);
 
     //: run tests if requested
     #ifdef FRESA_ENABLE_TESTS
-    if constexpr (config.run_tests().size() > 0)
-        test_runner.run(split(config.run_tests(), ',') | ranges::to_vector);
+    if constexpr (engine_config.run_tests().size() > 0)
+        test_runner.run(split(engine_config.run_tests(), ',') | ranges::to_vector);
     #endif
 
     //: initialization

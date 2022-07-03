@@ -1,14 +1,21 @@
 //* fresa_config
-//      engine wide global configuration using constexpr virtual functions, so all configuration is resolved at compile time
+//      engine wide global configuration uses constexpr virtual functions, so all configuration is resolved at compile time
+//      runtime and debug configuration is a simple struct, can be overrided using the parent construct, they are modifyiable by code at runtime
 //      you may override the default values using a configuration file
 
 //* example of a configuration file
 //      #include "fresa_config.h"
 //      namespace fresa
 //      {
-//          constexpr inline struct GameConfig : Config {
+//          constexpr inline struct _EngineConfig : EngineConfig {
 //              constexpr str_view name() const override { return "my name"; }
-//          } config;
+//          } engine_config;
+//      
+//          inline RunConfig run_config{ .something = "value" };
+//
+//          #ifdef DEBUG
+//          inline DebugConfig debug_config{};
+//          #endif
 //      }
 //: the default name of the configuration file is "config.h", but an alternative can be added using FRESA_CONFIG_FILE
 #pragma once
@@ -17,7 +24,8 @@
 
 namespace fresa
 {
-    struct Config {
+    //* engine config (compile time)
+    struct EngineConfig {
         //: name
         constexpr str_view virtual name() const { return "fresa"; };
         //: version
@@ -25,6 +33,18 @@ namespace fresa
         //: unit tests to run (comma separated list)
         constexpr str_view virtual run_tests() const { return ""; };
     };
+
+    //* run config (run time)
+    struct RunConfig {
+
+    };
+
+    //* debug config (run time, only on debug builds)
+    #ifdef DEBUG
+    struct DebugConfig {
+
+    };
+    #endif
 }
 
 //* a configuration file can be specified using the directive FRESA_CONFIG_FILE, it defaults to "config.h"
@@ -36,10 +56,19 @@ namespace fresa
 #if __has_include(FRESA_CONFIG_FILE) & !defined(FRESA_CONFIG)
     #define FRESA_CONFIG //: guard to avoid an infinite loop
     #include FRESA_CONFIG_FILE
-    static_assert(std::derived_from<decltype(fresa::config), fresa::Config>, "the config file must define fresa::config and it must be a subclass of fresa::Config");
+    static_assert(std::derived_from<decltype(fresa::engine_config), fresa::EngineConfig>, "the config file must define fresa::engine_config and it must be fresa::EngineConfig or a subclass of it");
+    static_assert(std::derived_from<decltype(fresa::config), fresa::RunConfig>, "the config file must define fresa::config and it must be fresa::RunConfig or a subclass of it");
+    #ifdef DEBUG
+    static_assert(std::derived_from<decltype(fresa::debug_config), fresa::DebugConfig>, "the config file must define fresa::debug_config and it must be fresa::DebugConfig or a subclass of it");
+    #endif
 #else
+//* if not, use the default values
 namespace fresa
 {
-    constexpr inline Config config;
+    constexpr inline EngineConfig engine_config;
+    constexpr inline RunConfig config;
+    #ifdef DEBUG
+    constexpr inline DebugConfig debug_config;
+    #endif
 }
 #endif
