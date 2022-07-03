@@ -320,3 +320,51 @@ int random(0, 100) = 37;
 float random<float>(0.f, 1.f) = 0.37f;
 ui64 random<ui64>(0, 5) = 4;
 ```
+
+## general math functions
+
+### factorials
+
+The function `factorial<N>()` provides a constexpr factorial for $N!$. Similarly, `binomial<N, K>()` returns the combinatorial number N over K. A helper function `pascal_triangle<N>()` returns an array of size N+1 with the elements of the Nth row of the pascal triangle (with 0 being the first row).
+
+### constexpr powers
+
+The function `std::pow` does not allow for constexpr powers, so `pow<N>(x)` has been added, providing a constant expression for integer positive powers of x.
+
+## interpolation
+
+The `interpolate` function allows for interpolation between `a` and `b` using `t` as a parameter. Without any more parameters it uses linear interpolation, but a function can be passed to be aplied to `t` before interpolation, such as smoothstep.
+
+```cpp
+auto c = interpolate(a, b, t);
+auto c = interpolate(a, b, t, func) == interpolate(a, b, func(t));
+
+interpolate(a, b, 0.0) == a;
+interpolate(a, b, 1.0) == b;
+```
+
+### smoothstep
+
+A [smoothstep](https://en.wikipedia.org/wiki/Smoothstep) function is a sigmoid-like interpolation function that transitions smoothly between 0 and 1, with inputs lower than 0 being always 0 and inputs greater than 1 being 1. There are different orders of the smoothstep function:
+
+- $S_0$: Behaves like a clamping function.
+- $S_1$: Classical smoothstep function, same as implemented in _glsl_. Its main term is the 3rd degree polinomial $-2x^3 + 3x^2$.
+- $S_2$: Often called _smootherstep_. It uses a 5th degree polinomial, $6x^5 - 15x^4 + 10x^3$.
+
+The function `smoothstep<N>(x)` returns the smoothstep interpolation of order N. If no order is specified, it defaults to N = 1.
+
+```cpp
+auto c = interpolate(a, b, t, smoothstep<N, T>);
+```
+
+### cosine interpolation
+
+```cpp
+auto c = interpolate(a, b, t, cos_interpolation<T>);
+```
+
+### cubic interpolation
+
+```cpp
+auto c = interpolate(a, b, t, pow<3, T>);
+```

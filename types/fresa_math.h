@@ -442,7 +442,7 @@ namespace fresa
     //---
 
     //* constexpr integral power
-    template <std::size_t N, concepts::Numeric T>
+    template <std::size_t N, concepts::Numeric T> requires (N >= 0)
     constexpr T pow(T x) {
         if constexpr (N == 0) return 1;
         else return x * pow<N-1>(x);
@@ -450,12 +450,25 @@ namespace fresa
 
     //---
 
+    //* interpolate
+    //      interpolates between a and b based on the value of t
+    //: linear interpolation
+    template <std::floating_point T>
+    constexpr T interpolate(T a, T b, T t) {
+        return std::lerp(a, b, t);
+    }
+    //: using an interpolation function
+    template <std::floating_point T, typename F>
+    constexpr T interpolate(T a, T b, T t, F&& f) {
+        return std::lerp(a, b, f(t));
+    }
+
     //* smoothstep functions
     //      sigmoid-like interpolation functions for smooth transitions between 0 and 1 based on the value of x
     //      N is the order of the smoothstep function, with N = 1 being the regular smoothstep
     //      the order of the polinomial generated is 2N+1, so in the case of S1, it is a 3rd degree polinomial
     //      see https://en.wikipedia.org/wiki/Smoothstep
-    template <std::size_t N = 1, std::floating_point T> requires (N >= 0)
+    template <std::size_t N = 1, std::floating_point T = float> requires (N >= 0)
     constexpr T smoothstep(T x) {
         x = std::clamp(x, T(0.0), T(1.0));
         T result = 0.0;
@@ -465,12 +478,10 @@ namespace fresa
         return pow<N+1>(x) * result;
     }
 
-    /*template <concepts::Numeric T>
-    constexpr auto lerp(T a, T b, T t) { 
-        return a + (b - a) * t;
-    }*/
-    //      - linear
-    //      - cosine
-    //      - cubic
-    //      - smoothstep
+    //* cosine interpolation function
+    template <std::floating_point T = float>
+    constexpr T cos_interpolation(T x) {
+        x = std::clamp(x, T(0.0), T(1.0));
+        return (T(1.0) - std::cos(x * pi)) / T(2.0);
+    }
 }

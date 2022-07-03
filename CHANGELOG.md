@@ -5,6 +5,7 @@
 _new implementation of fresa_
 
 #### todo
+- engine config vs game config (constexpr vs runtime and modifiable)
 - ecs
 - events
 - file management and parser
@@ -19,6 +20,7 @@ _new implementation of fresa_
 - **fixed** - job system can now schedule to both global and local queues
 - **added** - math library documentation
 - **added** - constexpr factorial, power and smoothstep definitions
+- **added** - linear and non linear interpolation
 
 #### [0.4.2] numbers and letters (_29 jun 22_)
 

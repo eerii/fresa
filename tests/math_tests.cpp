@@ -357,6 +357,32 @@ namespace test
                 passed = passed and smoothstep<2>(x) - smoothstep_2(x) < 1e-8;
             return expect(passed);
         };
+        "interpolate (linear)"_test = []{
+            return expect(interpolate(0.0f, 1.0f, 0.0f) == 0.0f and
+                          interpolate(0.0f, 1.0f, 0.5f) == 0.5f and
+                          interpolate(0.0f, 1.0f, 1.0f) == 1.0f);
+        };
+        "interpolate (smoothstep)"_test = []{
+            return expect(interpolate(0.0f, 1.0f, 0.0f, smoothstep<>) == 0.0f and
+                          interpolate(0.0f, 1.0f, 0.2f, smoothstep<>) == smoothstep<>(0.2f) and
+                          interpolate(0.0f, 1.0f, 0.5f, smoothstep<>) == 0.5f and
+                          interpolate(0.0f, 1.0f, 0.7f, smoothstep<>) == smoothstep<>(0.7f) and
+                          interpolate(0.0f, 1.0f, 1.0f, smoothstep<>) == 1.0f);
+        };
+        "interpolate (cubic)"_test = []{
+            return expect(interpolate(0.0f, 1.0f, 0.0f, pow<3, float>) == 0.0f and
+                          interpolate(0.0f, 1.0f, 0.2f, pow<3, float>) == pow<3>(0.2f) and
+                          interpolate(0.0f, 1.0f, 0.5f, pow<3, float>) == pow<3>(0.5f) and
+                          interpolate(0.0f, 1.0f, 0.7f, pow<3, float>) == pow<3>(0.7f) and
+                          interpolate(0.0f, 1.0f, 1.0f, pow<3, float>) == 1.0f);
+        };
+        "interpolate (cosine)"_test = []{
+            return expect(interpolate(0.0f, 1.0f, 0.0f, cos_interpolation<>) == 0.0f and
+                          interpolate(0.0f, 1.0f, 0.2f, cos_interpolation<>) == cos_interpolation<>(0.2f) and
+                          interpolate(0.0f, 1.0f, 0.5f, cos_interpolation<>) == cos_interpolation<>(0.5f) and
+                          interpolate(0.0f, 1.0f, 0.7f, cos_interpolation<>) == cos_interpolation<>(0.7f) and
+                          interpolate(0.0f, 1.0f, 1.0f, cos_interpolation<>) == 1.0f);
+        };
     });
 }
 
