@@ -484,6 +484,67 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#general-math-functions" class="md-nav__link">
+    general math functions
+  </a>
+  
+    <nav class="md-nav" aria-label="general math functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#factorials" class="md-nav__link">
+    factorials
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#constexpr-powers" class="md-nav__link">
+    constexpr powers
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpolation" class="md-nav__link">
+    interpolation
+  </a>
+  
+    <nav class="md-nav" aria-label="interpolation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#smoothstep" class="md-nav__link">
+    smoothstep
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosine-interpolation" class="md-nav__link">
+    cosine interpolation
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cubic-interpolation" class="md-nav__link">
+    cubic interpolation
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -861,6 +922,35 @@
 <div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="nf">random</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">37</span><span class="p">;</span><span class="w"></span>
 <span class="kt">float</span><span class="w"> </span><span class="n">random</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="mf">0.f</span><span class="p">,</span><span class="w"> </span><span class="mf">1.f</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.37f</span><span class="p">;</span><span class="w"></span>
 <span class="n">ui64</span><span class="w"> </span><span class="n">random</span><span class="o">&lt;</span><span class="n">ui64</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<h2 id="general-math-functions">general math functions<a class="headerlink" href="#general-math-functions" title="Permanent link">&para;</a></h2>
+<h3 id="factorials">factorials<a class="headerlink" href="#factorials" title="Permanent link">&para;</a></h3>
+<p>The function <code>factorial&lt;N&gt;()</code> provides a constexpr factorial for <span class="arithmatex">\(N!\)</span>. Similarly, <code>binomial&lt;N, K&gt;()</code> returns the combinatorial number N over K. A helper function <code>pascal_triangle&lt;N&gt;()</code> returns an array of size N+1 with the elements of the Nth row of the pascal triangle (with 0 being the first row).</p>
+<h3 id="constexpr-powers">constexpr powers<a class="headerlink" href="#constexpr-powers" title="Permanent link">&para;</a></h3>
+<p>The function <code>std::pow</code> does not allow for constexpr powers, so <code>pow&lt;N&gt;(x)</code> has been added, providing a constant expression for integer positive powers of x.</p>
+<h2 id="interpolation">interpolation<a class="headerlink" href="#interpolation" title="Permanent link">&para;</a></h2>
+<p>The <code>interpolate</code> function allows for interpolation between <code>a</code> and <code>b</code> using <code>t</code> as a parameter. Without any more parameters it uses linear interpolation, but a function can be passed to be aplied to <code>t</code> before interpolation, such as smoothstep.</p>
+<div class="highlight"><pre><span></span><code><span class="k">auto</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">interpolate</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">);</span><span class="w"></span>
+<span class="k">auto</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">interpolate</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="n">func</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">interpolate</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">func</span><span class="p">(</span><span class="n">t</span><span class="p">));</span><span class="w"></span>
+
+<span class="n">interpolate</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">a</span><span class="p">;</span><span class="w"></span>
+<span class="n">interpolate</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<h3 id="smoothstep">smoothstep<a class="headerlink" href="#smoothstep" title="Permanent link">&para;</a></h3>
+<p>A <a href="https://en.wikipedia.org/wiki/Smoothstep">smoothstep</a> function is a sigmoid-like interpolation function that transitions smoothly between 0 and 1, with inputs lower than 0 being always 0 and inputs greater than 1 being 1. There are different orders of the smoothstep function:</p>
+<ul>
+<li><span class="arithmatex">\(S_0\)</span>: Behaves like a clamping function.</li>
+<li><span class="arithmatex">\(S_1\)</span>: Classical smoothstep function, same as implemented in <em>glsl</em>. Its main term is the 3rd degree polinomial <span class="arithmatex">\(-2x^3 + 3x^2\)</span>.</li>
+<li><span class="arithmatex">\(S_2\)</span>: Often called <em>smootherstep</em>. It uses a 5th degree polinomial, <span class="arithmatex">\(6x^5 - 15x^4 + 10x^3\)</span>.</li>
+</ul>
+<p>The function <code>smoothstep&lt;N&gt;(x)</code> returns the smoothstep interpolation of order N. If no order is specified, it defaults to N = 1.</p>
+<div class="highlight"><pre><span></span><code><span class="k">auto</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">interpolate</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="n">smoothstep</span><span class="o">&lt;</span><span class="n">N</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+<h3 id="cosine-interpolation">cosine interpolation<a class="headerlink" href="#cosine-interpolation" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">auto</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">interpolate</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="n">cos_interpolation</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+<h3 id="cubic-interpolation">cubic interpolation<a class="headerlink" href="#cubic-interpolation" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">auto</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">interpolate</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="n">pow</span><span class="o">&lt;</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="p">);</span><span class="w"></span>
 </code></pre></div>
 
               
