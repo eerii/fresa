@@ -11,11 +11,11 @@ _new implementation of fresa_
 - reflection
 - continue with documentation
 
-#### [0.4.4] name (_3 jul 22_)
+#### [0.4.4] name (_00 jul 22_)
 
-- **added** - 
+- **added** - log documentation
 
-#### [0.4.3] configuration (_3 jul 22_)
+#### [0.4.3] configuration (_03 jul 22_)
 
 - **added** - engine configuration variables using constexpr functions
 - **removed** - deprecated command line options in favor of the configuration file for now

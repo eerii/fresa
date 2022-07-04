@@ -194,7 +194,7 @@ Mat3<T> result = dot(c, v) == c * v; // equivalent to Mat3<T> result = dot<Mat3<
 M m;
 M result = transpose(m);
 
-//: determinant and inverse implementations are defined on [aguacate/experimental](https://github.com/josekoalas/aguacate/blob/main/experimental/_linear_algebra.h). i am not 100% happy with the clarity and performance of current implementation so they are not imported directly in the project, but are fully functional and can be used.
+//: determinant and inverse implementations are defined on [aguacate/extras](https://github.com/josekoalas/aguacate/blob/main/extras/_linear_algebra.h). i am not 100% happy with the clarity and performance of current implementation so they are not imported directly in the project, but are fully functional and can be used.
 ```
 
 ### vector implementation

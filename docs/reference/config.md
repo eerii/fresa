@@ -54,7 +54,7 @@ If you chose to create a configuration file, it needs to:
 - Import `fresa_config.h`.
 - _(optional)_ Create a struct that extends `fresa::EngineConfig` to override some of the constexpr methods with new configurations.
 - _(optional)_ Create structs that extend `fresa::RunConfig` and `fresa::DebugConfig`.
-- **Creates a inline variables named `engine_config`, `config` and `debug_config`.** Even if you don't modify the default options of some of these structs, you need to define all three variables _(only if you create a configuration file)_. These variables must be either of the original struct's types or a derived type. `engine_config` also needs to be constexpr.
+- **Create inline variables named `engine_config`, `config` and `debug_config`.** Even if you don't modify the default options of some of these structs, you need to define all three variables _(only if you create a configuration file)_. These variables must be either of the original struct's types or a derived type. `engine_config` also needs to be constexpr.
 
 If you look at [`fresa_config.h`](https://github.com/josekoalas/fresa/blob/main/core/fresa_config.h), you will see that the configuration file, if present, is imported back into that header (using guards to avoid compilation loops). That means that the config variables will be available engine-wide, allowing every system to access this overwritten configuration.
 
