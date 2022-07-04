@@ -626,7 +626,7 @@
 <li>Import <code>fresa_config.h</code>.</li>
 <li><em>(optional)</em> Create a struct that extends <code>fresa::EngineConfig</code> to override some of the constexpr methods with new configurations.</li>
 <li><em>(optional)</em> Create structs that extend <code>fresa::RunConfig</code> and <code>fresa::DebugConfig</code>.</li>
-<li><strong>Creates a inline variables named <code>engine_config</code>, <code>config</code> and <code>debug_config</code>.</strong> Even if you don't modify the default options of some of these structs, you need to define all three variables <em>(only if you create a configuration file)</em>. These variables must be either of the original struct's types or a derived type. <code>engine_config</code> also needs to be constexpr.</li>
+<li><strong>Create inline variables named <code>engine_config</code>, <code>config</code> and <code>debug_config</code>.</strong> Even if you don't modify the default options of some of these structs, you need to define all three variables <em>(only if you create a configuration file)</em>. These variables must be either of the original struct's types or a derived type. <code>engine_config</code> also needs to be constexpr.</li>
 </ul>
 <p>If you look at <a href="https://github.com/josekoalas/fresa/blob/main/core/fresa_config.h"><code>fresa_config.h</code></a>, you will see that the configuration file, if present, is imported back into that header (using guards to avoid compilation loops). That means that the config variables will be available engine-wide, allowing every system to access this overwritten configuration.</p>
 <h2 id="using-configuration">using configuration<a class="headerlink" href="#using-configuration" title="Permanent link">&para;</a></h2>
