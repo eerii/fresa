@@ -5,6 +5,8 @@
 _new implementation of fresa_
 
 #### todo
+- check where to add nodiscard
+- documentation for new strong type definitions
 - ecs
 - events
 - file management and parser
@@ -13,6 +15,7 @@ _new implementation of fresa_
 
 #### [0.4.4] name (_00 jul 22_)
 
+- **added** - strongly typed definitions
 - **added** - log documentation
 
 #### [0.4.3] configuration (_03 jul 22_)
