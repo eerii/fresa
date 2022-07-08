@@ -738,7 +738,7 @@
 </tr>
 </tbody>
 </table>
-<h2 id="type-name"><a href="https://github.com/josekoalas/fresa/blob/main/types/fresa_types.h"><code>type name</code></a><a class="headerlink" href="#type-name" title="Permanent link">&para;</a></h2>
+<h2 id="type-name"><a href="https://github.com/josekoalas/fresa/blob/main/types/type_name.h"><code>type name</code></a><a class="headerlink" href="#type-name" title="Permanent link">&para;</a></h2>
 <p>Constexpr compiler-independent type name implementation.</p>
 <div class="highlight"><pre><span></span><code><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">type_name_n</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span><span class="p">();</span><span class="w"></span>
 <span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">type_name</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="o">&gt;</span><span class="p">();</span><span class="w"></span>
@@ -750,7 +750,7 @@
 <span class="n">type_name_n</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;std::array&quot;</span><span class="p">;</span><span class="w"></span>
 <span class="n">type_name</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;std::array&quot;</span><span class="p">;</span><span class="w"></span>
 </code></pre></div>
-<h2 id="constexpr-for"><a href="https://github.com/josekoalas/fresa/blob/main/types/fresa_types.h"><code>constexpr for</code></a><a class="headerlink" href="#constexpr-for" title="Permanent link">&para;</a></h2>
+<h2 id="constexpr-for"><a href="https://github.com/josekoalas/fresa/blob/main/types/constexpr_for.h"><code>constexpr for</code></a><a class="headerlink" href="#constexpr-for" title="Permanent link">&para;</a></h2>
 <p>Approach of a variety of constexpr for loops. Uses template metaprograming to create the iteration on compile time, supporting constexpr results.</p>
 <p><strong>integral for</strong></p>
 <p>Similar to a regular for loop, has a range of integral values [a, b) and calls the function inside each time with a different value of <code>i</code>. In the case of the constexpr for, <code>i</code> is an integral constant which can be used as a constexpr, for example for template parameters.</p>
