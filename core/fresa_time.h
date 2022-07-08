@@ -13,7 +13,7 @@ namespace fresa
     using clock = std::chrono::steady_clock;
 
     //* get current time
-    inline clock::time_point time() { return clock::now(); }
+    [[nodiscard]] inline clock::time_point time() { return clock::now(); }
 
     //* fixed delta time for updates, new simulation each 1/N seconds
     auto constexpr update_frequency = 100;

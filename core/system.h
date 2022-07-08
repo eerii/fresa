@@ -57,7 +57,7 @@ namespace fresa::system
     } manager;
 
     //* register and initialize system
-    void add(concepts::System auto s, ui8 priority = SYSTEM_PRIORITY_DEFAULT) {
+    inline void add(concepts::System auto s, ui8 priority = SYSTEM_PRIORITY_DEFAULT) {
         constexpr auto name = type_name<decltype(s)>();
         log::debug("registering system '{}'", name);
 

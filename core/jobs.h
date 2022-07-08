@@ -166,13 +166,13 @@ namespace fresa::jobs
         }
 
         //: ready - returns true if the promise value is set
-        bool ready() noexcept {
+        [[nodiscard]] bool ready() noexcept {
             static_assert(not std::is_void_v<T>, "ready() requires a coroutine with a return value, not void");
             return this->handle.promise().value.has_value();
         }
         
         //: get - returns the promise value
-        T get() noexcept {
+        [[nodiscard]] T get() noexcept {
             static_assert(not std::is_void_v<T>, "get() requires a coroutine with a return value, not void");
             return this->handle.promise().value.value();
         }

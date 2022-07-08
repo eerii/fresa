@@ -5,19 +5,23 @@
 _new implementation of fresa_
 
 #### todo
-- check where to add nodiscard
 - ecs
 - events
 - file management and parser
 - reflection
 - continue with documentation
 
-#### [0.4.4] name (_00 jul 22_)
+#### [0.4.5] name (_00 jul 22_)
+
+- **added** - .
+
+#### [0.4.4] strong types (_08 jul 22_)
 
 - **added** - strongly typed definitions
 - **added** - log documentation
 - **changed** - separated fresa_types.h into constexpr_for.h and type_name.h
 - **changed** - cleaner and more minimal header imports
+- **added** - no discard attributes to appropiate functions
 
 #### [0.4.3] configuration (_03 jul 22_)
 

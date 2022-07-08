@@ -69,11 +69,11 @@ namespace fresa
         }
     }
     //: scalar product
-    template <concepts::Matrix M> constexpr M operator* (const M& a, const typename M::value_type& b) { return detail::scalar_op(a, b, std::multiplies()); }
-    template <concepts::Matrix M> constexpr M operator* (const typename M::value_type& b, const M& a) { return a * b; }
+    template <concepts::Matrix M> [[nodiscard]] constexpr M operator* (const M& a, const typename M::value_type& b) { return detail::scalar_op(a, b, std::multiplies()); }
+    template <concepts::Matrix M> [[nodiscard]] constexpr M operator* (const typename M::value_type& b, const M& a) { return a * b; }
     template <concepts::Matrix M> constexpr M& operator*= (M& a, const typename M::value_type& b) { return a = a * b; }
     //: scalar quotient
-    template <concepts::Matrix M> constexpr M operator/ (const M& a, const typename M::value_type& b) { return detail::scalar_op(a, b, std::divides()); }
+    template <concepts::Matrix M> [[nodiscard]] constexpr M operator/ (const M& a, const typename M::value_type& b) { return detail::scalar_op(a, b, std::divides()); }
     template <concepts::Matrix M> constexpr M& operator/= (M& a, const typename M::value_type& b) { return a = a / b; }
 
     //* arithmetic operations on vectors/matrices
@@ -92,10 +92,10 @@ namespace fresa
         }
     }
     //: sum
-    template <concepts::Matrix M> constexpr M operator+ (const M& a, const M& b) {  return detail::binary_op(a, b, std::plus()); }
+    template <concepts::Matrix M> [[nodiscard]] constexpr M operator+ (const M& a, const M& b) {  return detail::binary_op(a, b, std::plus()); }
     template <concepts::Matrix M> constexpr M& operator+= (M& a, const M& b) { return a = a + b; }
     //: difference
-    template <concepts::Matrix M> constexpr M operator- (const M& a, const M& b) { return detail::binary_op(a, b, std::minus()); }
+    template <concepts::Matrix M> [[nodiscard]] constexpr M operator- (const M& a, const M& b) { return detail::binary_op(a, b, std::minus()); }
     template <concepts::Matrix M> constexpr M& operator-= (M& a, const M& b) { return a = a - b; }
 
     //* comparison operations on vectors/matrices
@@ -114,17 +114,17 @@ namespace fresa
         }
     }
     //: equality
-    template <concepts::Matrix M> constexpr bool operator== (const M& a, const M& b) { return detail::compare_op(a, b, std::equal_to()); }
+    template <concepts::Matrix M> [[nodiscard]] constexpr bool operator== (const M& a, const M& b) { return detail::compare_op(a, b, std::equal_to()); }
     //: inequality
-    template <concepts::Matrix M> constexpr bool operator!= (const M& a, const M& b) { return not (a == b); }
+    template <concepts::Matrix M> [[nodiscard]] constexpr bool operator!= (const M& a, const M& b) { return not (a == b); }
     //: less than
-    template <concepts::Matrix M> constexpr bool operator< (const M& a, const M& b) { return detail::compare_op(a, b, std::less()); }
+    template <concepts::Matrix M> [[nodiscard]] constexpr bool operator< (const M& a, const M& b) { return detail::compare_op(a, b, std::less()); }
 
     //---
     //* vector operations
 
     //: dot product
-    template <concepts::Vector V> constexpr auto dot(const V& a, const V& b) {
+    template <concepts::Vector V> [[nodiscard]] constexpr auto dot(const V& a, const V& b) {
         typename V::value_type result{};
         for_<0, V::size().first>([&](auto i) {
             for_<0, V::size().second>([&](auto j) {
@@ -133,36 +133,36 @@ namespace fresa
         });
         return result;
     }
-    template <concepts::Vector V> constexpr auto operator* (const V& a, const V& b) { return dot(a, b); }
+    template <concepts::Vector V> [[nodiscard]] constexpr auto operator* (const V& a, const V& b) { return dot(a, b); }
 
     //: cross product (3D)
     template <concepts::ColumnVector V> requires (V::size().first == 3)
-    constexpr V cross(const V& a, const V& b) {
+    [[nodiscard]] constexpr V cross(const V& a, const V& b) {
         return V{a.template get<1, 0>() * b.template get<2, 0>() - a.template get<2, 0>() * b.template get<1, 0>(),
                  a.template get<2, 0>() * b.template get<0, 0>() - a.template get<0, 0>() * b.template get<2, 0>(),
                  a.template get<0, 0>() * b.template get<1, 0>() - a.template get<1, 0>() * b.template get<0, 0>()};
     }
 
     //: norm
-    template <concepts::Vector V> constexpr auto norm(const V& v) { return std::sqrt(dot(v, v)); }
+    template <concepts::Vector V> [[nodiscard]] constexpr auto norm(const V& v) { return std::sqrt(dot(v, v)); }
 
     //: normalize
-    template <concepts::Vector V> requires std::floating_point<typename V::value_type> constexpr V normalize(const V& v) { return v / norm(v); }
+    template <concepts::Vector V> requires std::floating_point<typename V::value_type> [[nodiscard]] constexpr V normalize(const V& v) { return v / norm(v); }
 
     //: angle between vectors
-    template <concepts::Vector V> constexpr auto angle(const V& a, const V& b) { return std::acos(dot(a, b) / (norm(a) * norm(b))); }
+    template <concepts::Vector V> [[nodiscard]] constexpr auto angle(const V& a, const V& b) { return std::acos(dot(a, b) / (norm(a) * norm(b))); }
 
     //: angle with respect to the coordinate axis
-    template <concepts::ColumnVector V> constexpr auto angle_x(const V& v) { V vx{}; vx.template get<0, 0>() = 1; return angle(v, vx); }
-    template <concepts::ColumnVector V> requires (V::size().first >= 2) constexpr auto angle_y(const V& v) { V vy{}; vy.template get<1, 0>() = 1; return angle(v, vy); }
-    template <concepts::ColumnVector V> requires (V::size().first >= 3) constexpr auto angle_z(const V& v) { V vz{}; vz.template get<2, 0>() = 1; return angle(v, vz); }
+    template <concepts::ColumnVector V> [[nodiscard]] constexpr auto angle_x(const V& v) { V vx{}; vx.template get<0, 0>() = 1; return angle(v, vx); }
+    template <concepts::ColumnVector V> requires (V::size().first >= 2) [[nodiscard]] constexpr auto angle_y(const V& v) { V vy{}; vy.template get<1, 0>() = 1; return angle(v, vy); }
+    template <concepts::ColumnVector V> requires (V::size().first >= 3) [[nodiscard]] constexpr auto angle_z(const V& v) { V vz{}; vz.template get<2, 0>() = 1; return angle(v, vz); }
 
     //---
     //* transformations
 
     //: to convertible type
     template <concepts::Matrix B, concepts::Matrix A> requires (A::size().first == A::size().first and A::size().second == B::size().second)
-    constexpr B to(const A& a) {
+    [[nodiscard]] constexpr B to(const A& a) {
         if constexpr (std::is_same_v<A, B>) return a;
         B result;
         for_<0, A::size().first>([&](auto i) {
@@ -175,7 +175,7 @@ namespace fresa
 
     //: to column vector
     template <concepts::ColumnVector C, concepts::RowVector R> requires (C::size().first == R::size().second)
-    constexpr C to_column(const R& v) {
+    [[nodiscard]] constexpr C to_column(const R& v) {
         C result;
         for_<0, R::size().second>([&](auto i) {
             result.template get<i, 0>() = v.template get<0, i>();
@@ -185,7 +185,7 @@ namespace fresa
 
     //: to row vector
     template <concepts::RowVector R, concepts::ColumnVector C> requires (C::size().first == R::size().second)
-    constexpr R to_row(const C& v) {
+    [[nodiscard]] constexpr R to_row(const C& v) {
         R result;
         for_<0, C::size().first>([&](auto i) {
             result.template get<0, i>() = v.template get<i, 0>();
@@ -196,10 +196,10 @@ namespace fresa
     //: row vector by column vector multiplication (regular dot product)
     template <concepts::RowVector R, concepts::ColumnVector C>
     requires (C::size().first == R::size().second)
-    constexpr auto dot(const R& r, const C& c) { auto r_ = to_column<C>(r); return dot(r_, c); }
+    [[nodiscard]] constexpr auto dot(const R& r, const C& c) { auto r_ = to_column<C>(r); return dot(r_, c); }
     template <concepts::RowVector R, concepts::ColumnVector C>
     requires (C::size().first == R::size().second)
-    constexpr auto operator* (const R& r, const C& c) { return dot(r, c); }
+    [[nodiscard]] constexpr auto operator* (const R& r, const C& c) { return dot(r, c); }
 
     //---
     //* matrix operations
@@ -207,7 +207,7 @@ namespace fresa
     //: matrix multiplication
     template <concepts::Matrix M, concepts::Matrix A, concepts::Matrix B>
     requires (A::size().second == B::size().first and M::size().first == A::size().first and M::size().second == B::size().second)
-    constexpr M dot(const A& a, const B& b) {
+    [[nodiscard]] constexpr M dot(const A& a, const B& b) {
         M result;
         for_<0, A::size().first>([&](auto i) {
             for_<0, B::size().second>([&](auto j) {
@@ -221,13 +221,13 @@ namespace fresa
 
     //: multiplication for square matrices
     template <concepts::SquareMatrix M>
-    constexpr M dot(const M& a, const M& b) { return dot<M, M, M>(a, b); }
+    [[nodiscard]] constexpr M dot(const M& a, const M& b) { return dot<M, M, M>(a, b); }
     template <concepts::SquareMatrix M>
-    constexpr M operator* (const M& a, const M& b) { return dot<M, M, M>(a, b); }
+    [[nodiscard]] constexpr M operator* (const M& a, const M& b) { return dot<M, M, M>(a, b); }
 
     //: transpose
     template <concepts::SquareMatrix M>
-    constexpr M transpose(const M& a) {
+    [[nodiscard]] constexpr M transpose(const M& a) {
         M result;
         for_<0, M::size().first>([&](auto i) {
             for_<0, M::size().second>([&](auto j) {
@@ -239,17 +239,17 @@ namespace fresa
 
     //: matrix vector multiplication
     template <concepts::SquareMatrix M, concepts::ColumnVector V> requires (M::size().second == V::size().first)
-    constexpr V dot(const M& m, const V& v) { return dot<V, M, V>(m, v); }
+    [[nodiscard]] constexpr V dot(const M& m, const V& v) { return dot<V, M, V>(m, v); }
     template <concepts::SquareMatrix M, concepts::ColumnVector V> requires (M::size().second == V::size().first)
-    constexpr V operator* (const M& m, const V& v) { return dot<V, M, V>(m, v); }
+    [[nodiscard]] constexpr V operator* (const M& m, const V& v) { return dot<V, M, V>(m, v); }
     template <concepts::SquareMatrix M, concepts::RowVector V> requires (M::size().first == V::size().second)
-    constexpr V dot(const V& v, const M& m) { return dot<V, V, M>(v, m); }
+    [[nodiscard]] constexpr V dot(const V& v, const M& m) { return dot<V, V, M>(v, m); }
     template <concepts::SquareMatrix M, concepts::RowVector V> requires (M::size().first == V::size().second)
-    constexpr V operator* (const V& v, const M& m) { return dot<V, V, M>(v, m); }
+    [[nodiscard]] constexpr V operator* (const V& v, const M& m) { return dot<V, V, M>(v, m); }
 
     //: identity
     template <concepts::SquareMatrix M>
-    constexpr M identity() {
+    [[nodiscard]] constexpr M identity() {
         M result;
         for_<0, M::size().first>([&](auto i) {
             result.template get<i, i>() = 1;

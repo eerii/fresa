@@ -14,7 +14,7 @@ namespace fresa
 
     //: type_name_t is preinitialized for void, this way we can automatically
     //  calculate compiler specific prefixes and suffixes and trim the other names accordingly
-    template <> constexpr str_view type_name_n<void>() { return "void"; }
+    template <> [[nodiscard]] constexpr str_view type_name_n<void>() { return "void"; }
 
     namespace detail
     {
@@ -45,7 +45,7 @@ namespace fresa
     //: constexpr type names including all namespaces
     //  to exclude fresa namespaces, use type_name<T>()
     template <typename T>
-    constexpr str_view type_name_n() {
+    [[nodiscard]] constexpr str_view type_name_n() {
         constexpr auto compiler_name = detail::compiler_type_name<T>();
         return compiler_name.substr(detail::compiler_type_prefix(), compiler_name.length() - detail::compiler_type_prefix() - detail::compiler_type_suffix());
     }
@@ -54,7 +54,7 @@ namespace fresa
     //  for example, "std::vector" will remain the same, but "fresa::graphics::Buffer" will return "Buffer"
     //  to include namespaces use, use type_name_n<T>()
     template <typename T>
-    constexpr str_view type_name() {
+    [[nodiscard]] constexpr str_view type_name() {
         constexpr auto name = type_name_n<T>();
         if (name.find("fresa::") != str_view::npos) {
             auto pos = name.find_last_of("::");
