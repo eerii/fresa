@@ -28,9 +28,6 @@ namespace fresa
 #include <map>
 #include <unordered_map>
 
-//* tuples
-#include <tuple>
-
 //* concepts
 #ifdef __cpp_lib_concepts
     #include <concepts>
@@ -54,17 +51,6 @@ namespace fresa
     }
 #else
     #error "ranges not supported"
-#endif
-
-//* coroutines
-#if __has_include(<coroutine>)
-    #include <coroutine>
-    namespace std_ = std;
-#elif __has_include(<experimental/coroutine>)
-    #include <experimental/coroutine>
-    namespace std_ = std::experimental;
-#else
-    #error "coroutines not supported"
 #endif
 
 //* new jthread

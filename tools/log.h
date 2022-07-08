@@ -3,10 +3,16 @@
 //      includes different levels configurable by LOG_LEVEL
 #pragma once
 
-#include "fresa_types.h"
-#include "fmt/core.h"
-#include "fmt/color.h"
-#include "fmt/ranges.h"
+#include "std_types.h"
+#include "strings.h"
+
+#if __has_include("fmt/core.h")
+    #include "fmt/core.h"
+    #include "fmt/color.h"
+    #include "fmt/ranges.h"
+#else
+    #error "fmt library not found"
+#endif
 
 namespace fresa
 {

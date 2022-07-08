@@ -20,7 +20,7 @@
 //: the default name of the configuration file is "config.h", but an alternative can be added using FRESA_CONFIG_FILE
 #pragma once
 
-#include "fresa_types.h"
+#include "std_types.h"
 
 namespace fresa
 {

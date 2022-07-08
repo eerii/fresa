@@ -2,7 +2,16 @@
 //      implementation of c++20 coroutine support
 #pragma once
 
-#include "std_types.h"
+#if __has_include(<coroutine>)
+    #include <coroutine>
+    namespace std_ = std;
+#elif __has_include(<experimental/coroutine>)
+    #include <experimental/coroutine>
+    namespace std_ = std::experimental;
+#else
+    #error "coroutines not supported"
+#endif
+
 #include <optional>
 
 namespace fresa::coroutines

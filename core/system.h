@@ -2,8 +2,10 @@
 //      manages the engine's subsystems, allowing for creation, iteration with priority, and destruction in order
 #pragma once
 
-#include "fresa_types.h"
+#include "std_types.h"
+#include "type_name.h"
 #include "log.h"
+
 #include <queue>
 #include <stack>
 

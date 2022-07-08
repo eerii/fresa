@@ -3,7 +3,7 @@
 //      !WIP ...
 #pragma once
 
-#include "fresa_types.h"
+#include "std_types.h"
 #include "strong_types.h"
 
 namespace fresa::ecs

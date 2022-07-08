@@ -3,8 +3,6 @@
 //      central point of the engine, calls all the other subsystems
 #pragma once
 
-#include "fresa_types.h"
-
 namespace fresa
 {
     //* call from main.cpp

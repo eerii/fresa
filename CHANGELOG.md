@@ -6,7 +6,6 @@ _new implementation of fresa_
 
 #### todo
 - check where to add nodiscard
-- documentation for new strong type definitions
 - ecs
 - events
 - file management and parser
@@ -17,6 +16,8 @@ _new implementation of fresa_
 
 - **added** - strongly typed definitions
 - **added** - log documentation
+- **changed** - separated fresa_types.h into constexpr_for.h and type_name.h
+- **changed** - cleaner and more minimal header imports
 
 #### [0.4.3] configuration (_03 jul 22_)
 

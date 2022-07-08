@@ -81,7 +81,7 @@ The namespace aliases are mainly to allow compatibility between the standard lib
 | `std::ranges::views` | `rv` |
 | `std::experimental` | `std_` |
 
-## [`type name`](https://github.com/josekoalas/fresa/blob/main/types/fresa_types.h)
+## [`type name`](https://github.com/josekoalas/fresa/blob/main/types/type_name.h)
 
 Constexpr compiler-independent type name implementation.
 
@@ -100,7 +100,7 @@ type_name_n<std::array>() == "std::array";
 type_name<std::array>() == "std::array";
 ```
 
-## [`constexpr for`](https://github.com/josekoalas/fresa/blob/main/types/fresa_types.h)
+## [`constexpr for`](https://github.com/josekoalas/fresa/blob/main/types/constexpr_for.h)
 
 Approach of a variety of constexpr for loops. Uses template metaprograming to create the iteration on compile time, supporting constexpr results.
 
