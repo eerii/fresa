@@ -442,6 +442,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#strong-types" class="md-nav__link">
+    strong types
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -822,6 +829,32 @@
 </code></pre></div>
 <h2 id="coroutines"><a href="https://github.com/josekoalas/fresa/blob/main/types/coroutines.h"><code>coroutines</code></a><a class="headerlink" href="#coroutines" title="Permanent link">&para;</a></h2>
 <p>See <a href="../coroutines/">coroutines</a>.</p>
+<h2 id="strong-types"><a href="https://github.com/josekoalas/fresa/blob/main/types/strong_types.h"><code>strong types</code></a><a class="headerlink" href="#strong-types" title="Permanent link">&para;</a></h2>
+<p>A reimplementation of rollbear's <a href="https://github.com/rollbear/strong_type">strong type</a> library. The functionality and usage is mostly the same, but I simplified it a bit for our usecase and used concepts instead of SFINAE for clarity since <code>c++20</code> is already required for the rest of the engine. All credits go to their implementation.</p>
+<p>To describe a strong type alias you do the following:</p>
+<div class="highlight"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;strong_types.h&quot;</span><span class="cp"></span>
+<span class="k">using</span><span class="w"> </span><span class="n">IntLike</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strong</span><span class="o">::</span><span class="n">Type</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="k">decltype</span><span class="p">([]{}),</span><span class="w"> </span><span class="n">strong</span><span class="o">::</span><span class="n">Regular</span><span class="p">,</span><span class="w"> </span><span class="p">...</span><span class="o">&gt;</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<p>The first parameter of <code>strong::Type</code> is the type you are aliasing. The second is a tag, which is an unique template parameter to keep different strong types distinct. We can use the lambda return type for this since it is always guaranteed to be unique, written as <code>decltype([]{})</code>. Finally, a list of modifiers can be optionally specified. These are passthroughs added to the strong type to allow easier manipulation and functionality.</p>
+<p><strong>modifiers</strong></p>
+<ul>
+<li><code>Equality</code> and <code>EqualityWith&lt;T&gt;</code> provide equality operators (<code>==</code> and <code>!=</code>) with the same type and with another type <code>T</code> respectively. This extra type can be strong or regular, but can't be the same type you are defining (for that you can use the regular <code>Equality</code>).</li>
+<li><code>Ordered</code> and <code>OrderedWith&lt;T&gt;</code> provide comparison operators (<code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code> and <code>&gt;=</code>).</li>
+<li><code>Semiregular</code> is default constructible, move and copy constructible, move and copy assignable and swappable.</li>
+<li><code>Regular</code> extends all semiregular requirements while also being equality comparable. Recommended base type.</li>
+<li><code>Unique</code> makes the type move constructible and assignable but not copy constructible or assignable.</li>
+<li><code>Incrementable</code> provides increment operators (<code>++</code> and <code>--</code>). For exclusive increment or decrement use <code>detail::OnlyIncrementable</code> and <code>detail::OnlyDecrementable</code>.</li>
+<li><code>Boolean</code> gives the type a cast to <code>bool</code>, for example, to use inside if statements.</li>
+<li><code>OStreamable</code>, <code>IStreamable</code> and <code>IOStreamable</code> pass the stream operators (<code>&lt;&lt;</code> and <code>&gt;&gt;</code>) to the base type.</li>
+<li><code>Arithmetic</code> and <code>ArithmeticWith&lt;T&gt;</code> provide arithmetic operators (<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code> and <code>%</code>), as well as the corresponding assignment operators (<code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code> and <code>%=</code>).</li>
+<li><code>Bitwise</code> and <code>BitwiseWith&lt;T&gt;</code> provide bitwise operators (<code>&amp;</code>, <code>|</code>, <code>^</code>, <code>&lt;&lt;</code> and <code>&gt;&gt;</code>), as well as the corresponding assigment operators (<code>&amp;=</code>, <code>|=</code>, <code>^=</code>, <code>&lt;&lt;=</code> and <code>&gt;&gt;=</code>).</li>
+<li><code>Indexed</code> allows to access the base type indices using <code>[]</code> and <code>.at()</code>.</li>
+<li><code>Iterator</code> adds functionality depending on the iterator type.</li>
+<li><code>Range</code> allows to iterate over the elements. Defines <code>begin</code> and <code>end</code>, as well as <code>cbegin</code> and <code>cend</code>. You can use the type inside a range based for loop.</li>
+<li><code>ConvertibleTo&lt;T&gt;</code> gives the type an explicit cast to <code>T</code>. <code>ImplicitlyConvertibleTo&lt;T&gt;</code> gives it an implicit cast. Use the latter with caution since it can defeat the whole point of having a separate strong type.</li>
+<li><code>Hashable&lt;T&gt;</code> spetializes <code>std::hash</code> to take this strong type. Allows to use it as a key in an <code>std::unordered_map</code>. Inherits <code>Equality</code>.</li>
+<li><code>Formattable&lt;T&gt;</code> spetializes <code>fmt::format</code> if the library is available. Allows to use <code>log</code> to print it.</li>
+</ul>
 
               
             </article>
