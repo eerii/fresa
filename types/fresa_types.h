@@ -6,9 +6,6 @@
 //* standard types
 #include "std_types.h"
 
-//* strong types
-//#include "strong_types.h"
-
 //* string utilities
 #include "strings.h"
 

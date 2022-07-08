@@ -216,3 +216,35 @@ queue.clear();
 ## [`coroutines`](https://github.com/josekoalas/fresa/blob/main/types/coroutines.h)
 
 See [coroutines](coroutines.md).
+
+## [`strong types`](https://github.com/josekoalas/fresa/blob/main/types/strong_types.h)
+
+A reimplementation of rollbear's [strong type](https://github.com/rollbear/strong_type) library. The functionality and usage is mostly the same, but I simplified it a bit for our usecase and used concepts instead of SFINAE for clarity since `c++20` is already required for the rest of the engine. All credits go to their implementation.
+
+To describe a strong type alias you do the following:
+
+```cpp
+#include "strong_types.h"
+using IntLike = strong::Type<int, decltype([]{}), strong::Regular, ...>;
+```
+
+The first parameter of `strong::Type` is the type you are aliasing. The second is a tag, which is an unique template parameter to keep different strong types distinct. We can use the lambda return type for this since it is always guaranteed to be unique, written as `decltype([]{})`. Finally, a list of modifiers can be optionally specified. These are passthroughs added to the strong type to allow easier manipulation and functionality.
+
+**modifiers**
+
+- `Equality` and `EqualityWith<T>` provide equality operators (`==` and `!=`) with the same type and with another type `T` respectively. This extra type can be strong or regular, but can't be the same type you are defining (for that you can use the regular `Equality`).
+- `Ordered` and `OrderedWith<T>` provide comparison operators (`<`, `>`, `<=` and `>=`).
+- `Semiregular` is default constructible, move and copy constructible, move and copy assignable and swappable.
+- `Regular` extends all semiregular requirements while also being equality comparable. Recommended base type.
+- `Unique` makes the type move constructible and assignable but not copy constructible or assignable.
+- `Incrementable` provides increment operators (`++` and `--`). For exclusive increment or decrement use `detail::OnlyIncrementable` and `detail::OnlyDecrementable`.
+- `Boolean` gives the type a cast to `bool`, for example, to use inside if statements.
+- `OStreamable`, `IStreamable` and `IOStreamable` pass the stream operators (`<<` and `>>`) to the base type.
+- `Arithmetic` and `ArithmeticWith<T>` provide arithmetic operators (`+`, `-`, `*`, `/` and `%`), as well as the corresponding assignment operators (`+=`, `-=`, `*=`, `/=` and `%=`).
+- `Bitwise` and `BitwiseWith<T>` provide bitwise operators (`&`, `|`, `^`, `<<` and `>>`), as well as the corresponding assigment operators (`&=`, `|=`, `^=`, `<<=` and `>>=`).
+- `Indexed` allows to access the base type indices using `[]` and `.at()`.
+- `Iterator` adds functionality depending on the iterator type.
+- `Range` allows to iterate over the elements. Defines `begin` and `end`, as well as `cbegin` and `cend`. You can use the type inside a range based for loop.
+- `ConvertibleTo<T>` gives the type an explicit cast to `T`. `ImplicitlyConvertibleTo<T>` gives it an implicit cast. Use the latter with caution since it can defeat the whole point of having a separate strong type.
+- `Hashable<T>` spetializes `std::hash` to take this strong type. Allows to use it as a key in an `std::unordered_map`. Inherits `Equality`.
+- `Formattable<T>` spetializes `fmt::format` if the library is available. Allows to use `log` to print it.
