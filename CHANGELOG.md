@@ -13,7 +13,9 @@ _new implementation of fresa_
 
 #### [0.4.5] name (_00 jul 22_)
 
-- **added** - .
+- **added** - constexpr type hashing using fnv1a
+- **added** - entity id with index and version for ecs
+- **added** - 
 
 #### [0.4.4] strong types (_08 jul 22_)
 

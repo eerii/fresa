@@ -41,10 +41,10 @@ namespace fresa
             //: constructor with default value
             constexpr Type() noexcept requires std::default_initializable<T> : value{} {}
             //: constructor using initializer list
-            template <typename U> constexpr Type(std::initializer_list<U> list) noexcept requires std::constructible_from<T, std::initializer_list<U>> : value{list} {}
+            template <typename U> constexpr Type(std::initializer_list<U> list) noexcept requires std::constructible_from<T, std::initializer_list<U>> : value(list) {}
             //: constructor using arguments and forwarding
-            template <typename ... U> constexpr Type(U&& ...args) noexcept requires (std::constructible_from<T, U&&...> and sizeof...(U) > 0) : value{std::forward<U>(args)...} {}
-            
+            template <typename ... U> constexpr Type(U&& ...args) noexcept requires (std::constructible_from<T, U&&...> and sizeof...(U) > 0) : value(std::forward<U>(args)...) {}
+
             //: swaping two values
             constexpr void swap(Type &a, Type &b) noexcept requires std::swappable<T> { ranges::swap(a.value, b.value); }
 
@@ -333,7 +333,7 @@ namespace fresa
                 [[nodiscard]] friend constexpr bool operator!=(std::nullptr_t, const T& t) noexcept { return t.value != nullptr; }
 
                 [[nodiscard]] constexpr auto operator*() const -> decltype(*std::declval<const underlying_t<T>&>()) {
-                    auto &self = static_cast<const T&>(*this);
+                    auto &self = (const T&)(*this);
                     return *self.value;
                 }
                 [[nodiscard]] constexpr auto operator->() const -> decltype(&(*std::declval<const underlying_t<T>&>())) { &operator*(); }
@@ -434,8 +434,8 @@ namespace fresa
             requires (std::convertible_to<underlying_t<A>, underlying_t<B>> and not std::same_as<A, B>)
             struct convertible_to {
                 constexpr explicit operator B() const noexcept { 
-                    auto &self = static_cast<const A&>(*this);
-                    return B(self.value);
+                    auto &self = (A&)(*this);
+                    return B{underlying_t<B>(self.value)};
                 }
             };
         }
@@ -449,8 +449,8 @@ namespace fresa
             requires (std::convertible_to<underlying_t<A>, underlying_t<B>> and not std::same_as<A, B>)
             struct implicitly_convertible_to {
                 constexpr operator B() const noexcept { 
-                    auto &self = static_cast<const A&>(*this);
-                    return B(self.value);
+                    auto &self = (A&)(*this);
+                    return B{underlying_t<B>(self.value)};
                 }
             };
         }
