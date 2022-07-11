@@ -412,9 +412,61 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          coroutines
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         coroutines
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#promises" class="md-nav__link">
+    promises
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#futures" class="md-nav__link">
+    futures
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#awaitables" class="md-nav__link">
+    awaitables
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#simple-yield-counter" class="md-nav__link">
+    simple yield counter
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -531,6 +583,39 @@
 
 
 <h1 id="coroutines"><a href="https://github.com/josekoalas/fresa/blob/main/types/coroutines.h"><code>coroutines</code></a><a class="headerlink" href="#coroutines" title="Permanent link">&para;</a></h1>
+<p>Coroutines are a new feature in <code>c++20</code> that allow for functions to stop and resume execution later. It introduces three new keywords, <code>co_await</code>, <code>co_yield</code> and <code>co_return</code>. However, the implementation in the standard is missing the basic primitives which would allow for easier creation of coroutines, but these are suppossed to come later with <code>c++23</code>. The <a href="https://github.com/lewissbaker/cppcoro"><code>cppcoro</code></a> library is an excelent implementation of most of these features.</p>
+<p>Since in <strong>fresa</strong> coroutines are used very sparsely, mainly to easily use the <a href="../jobs/">job system</a>, a custom very basic implementation is made. For a very good list of coroutine resources, see <a href="https://gist.github.com/MattPD/9b55db49537a90545a90447392ad3aeb">this gist</a> by MattPD, which includes links to many talks and articles explaining the new features.</p>
+<p>The <strong>fresa</strong> implementation derives from the talks on a coroutine job system by <a href="https://www.youtube.com/watch?v=KWi793v5uA8">Tanki Zhang</a> (<a href="https://github.com/tankiJong/cpp-coroutine-job-system">github</a>) and the <a href="https://www.youtube.com/watch?v=XtFWxwDX7D4">vienna job system</a> by Helmut Hlavacs (<a href="https://github.com/hlavacs/ViennaGameJobSystem">github</a>), as well as the magnificent blog posts of <a href="https://lewissbaker.github.io/2017/09/25/coroutine-theory">Lewis Baker</a>, <a href="https://www.scs.stanford.edu/~dm/blog/c++-coroutines.html">David Mazières</a> and <a href="https://www.modernescpp.com/index.php/c-20-coroutines-the-first-overview">Rainer Grimm</a>.</p>
+<p>It defines three base types: promises, futures and awaitables.</p>
+<h2 id="promises">promises<a class="headerlink" href="#promises" title="Permanent link">&para;</a></h2>
+<p>A promise is the implementation of the <code>promise_type</code> that all futures require in <code>c++20</code>. It must specify how the coroutine behaves when it is initialized and when it is finalized, when a value is yielded from it, and it must return a <strong>future</strong> object. In <strong>fresa</strong> there are <code>PromiseBase</code>, which is an untemplated promise base type that contain general definitions. It suspends always when a coroutine is started, so it must explicitly be resumed. It also ignores any exception by design. Finally, it includes an unspecialized <code>std::coroutine_handle&lt;&gt; handle</code>, which is used to control the flow of the coroutine.</p>
+<p>Then an specialization of promises is made separately for regular and void types in <code>Promise&lt;T&gt;</code>. They create the <code>get_return_object</code> to a <code>Future&lt;P, T&gt;</code>, and always suspend on finish and yielding. The <code>Promise&lt;void&gt;</code> has a <code>return_void</code> and doesn't require the use of <code>co_return</code>, while the <code>Promise&lt;T&gt;</code> has a <code>return_value</code> which can be stored in the promise.</p>
+<h2 id="futures">futures<a class="headerlink" href="#futures" title="Permanent link">&para;</a></h2>
+<p>All coroutine functions must return a <code>Future&lt;P, T&gt;</code> object, which encapsulates the state of the coroutine and can be used to access the underlying promise and handle. <code>FutureBase</code> only contains a pointer to the untyped promise type for type erasure purposes. Its child <code>Future&lt;P, T&gt;</code> defines the <code>promise_type</code> and is in turned passed to the underlying promise to be used by <code>get_return_object</code>. A simplification of notation is provided with <code>FuturePromise&lt;T&gt; = Future&lt;Promise&lt;T&gt;, T&gt;</code>.</p>
+<h2 id="awaitables">awaitables<a class="headerlink" href="#awaitables" title="Permanent link">&para;</a></h2>
+<p>These define how the coroutine suspends with <code>await_ready</code>, <code>await_suspend</code> and <code>await_resume</code>. The trivial awaitables defined by the standard are <code>std::suspend_always</code> and <code>std::suspend_never</code>. Custom awaitables can be created, and are in fact an essential part of the <a href="../jobs/">job system</a>.</p>
+<p>Ok, this was a mess. This is probably the least clear article in the documentation section due to the nature of how coroutines are implemented in <code>c++</code>. This will need a rewrite with an extensive explanation of how they work. For now, if you want to dive deep into coroutines, take a look at the <a href="https://gist.github.com/MattPD/9b55db49537a90545a90447392ad3aeb">links</a> I mentioned before, and lets see a practical example for now to clarify things.</p>
+<h2 id="simple-yield-counter">simple yield counter<a class="headerlink" href="#simple-yield-counter" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">FuturePromise</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">counter_yield</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">;;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"></span>
+<span class="w">        </span><span class="k">co_yield</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="c1">//...</span>
+
+<span class="k">auto</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">counter_yield</span><span class="p">();</span><span class="w"></span>
+<span class="n">c</span><span class="p">.</span><span class="n">handle</span><span class="p">.</span><span class="n">resume</span><span class="p">();</span><span class="w"></span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w">  </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="n">c</span><span class="p">.</span><span class="n">handle</span><span class="p">.</span><span class="n">promise</span><span class="p">().</span><span class="n">value</span><span class="p">.</span><span class="n">value</span><span class="p">());</span><span class="w"></span>
+<span class="w">    </span><span class="n">c</span><span class="p">.</span><span class="n">handle</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+<span class="n">c</span><span class="p">.</span><span class="n">handle</span><span class="p">.</span><span class="n">destroy</span><span class="p">();</span><span class="w"></span>
+
+<span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"></span>
+<span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"></span>
+<span class="o">&gt;</span><span class="w"> </span><span class="mi">2</span><span class="w"></span>
+</code></pre></div>
+<p>This example shows how to create an infinite counter using <code>co_yield</code> and our simple future type. You can see more examples in the <a href="https://github.com/josekoalas/fresa/blob/main/tests/type_tests.cpp">type unit test</a> file.</p>
 
               
             </article>
