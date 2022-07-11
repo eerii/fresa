@@ -6,7 +6,7 @@ _new implementation of fresa_
 
 #### todo
 - ecs:
-  - pool allocator
+  - sparse pool allocator
   - scene
   - scene view
   - systems v2
@@ -19,6 +19,7 @@ _new implementation of fresa_
 - **added** - constexpr type hashing using fnv1a
 - **added** - entity id with index and version for ecs
 - **changed** - moved log level into a configuration parameter
+- **added** - unit test and coroutine documentation
 
 #### [0.4.4] strong types (_08 jul 22_)
 
