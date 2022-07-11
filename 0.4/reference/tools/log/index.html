@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://josekoalas.github.io/fresa/0.4/reference/tools/log/">
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.3.0, mkdocs-material-8.3.8">
+      <meta name="generator" content="mkdocs-1.3.0, mkdocs-material-8.3.9">
     
     
       
@@ -577,7 +577,7 @@
 </code></pre></div>
 <p>The <code>name</code> template parameter is the type of log message, <code>LOG_LEVEL</code> is used to enable or disable log types, and a color can be passed to make the output more readable. The first function parameter must be an <a href="https://fmt.dev/latest/syntax.html"><code>fmt::format_string</code></a>. Simplifying, this means that it will behave as a regular string but everywhere there is a "{}" it will be replaced with the next argument. Custom printing formats can be passed, for example, as "{:.2f}". Leveraging the new features introduced in <code>fmt</code> with <code>c++20</code>, the passthrough can now use constant expressions to format at compile time.</p>
 <h2 id="log-levels">log levels<a class="headerlink" href="#log-levels" title="Permanent link">&para;</a></h2>
-<p>The logging level can be specified using the <code>LOG_LEVEL</code> preprocessor directive. Each log level is defined in a bitwise enum, so they can be granularly combined.</p>
+<p>The logging level can be specified using the <code>engine_config.log_level()</code> <a href="../../config/">config</a> parameter. Each log level is defined in a bitwise enum, so they can be granularly combined.</p>
 <table>
 <thead>
 <tr>
@@ -616,7 +616,7 @@
 </tr>
 </tbody>
 </table>
-<p>For example, <code>LOG_LEVEL = 0b0010011</code> enables logging for errors, warnings and unit test results.</p>
+<p>For example, <code>log_level = 0b0010011</code> enables logging for errors, warnings and unit test results.</p>
 <h2 id="predefined-log-functions">predefined log functions<a class="headerlink" href="#predefined-log-functions" title="Permanent link">&para;</a></h2>
 <p>There are a number of predetermined log functions as a convenience:</p>
 <table>
@@ -731,7 +731,7 @@
     <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.tracking", "navigation.instant", "toc.follow", "toc.integrate", "search.suggest", "search.highlight"], "search": "../../../assets/javascripts/workers/search.b97dbffb.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.0238f547.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.6c7ad80a.min.js"></script>
       
     
   </body>
