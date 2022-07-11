@@ -11,7 +11,7 @@ The `name` template parameter is the type of log message, `LOG_LEVEL` is used to
 
 ## log levels
 
-The logging level can be specified using the `LOG_LEVEL` preprocessor directive. Each log level is defined in a bitwise enum, so they can be granularly combined.
+The logging level can be specified using the `engine_config.log_level()` [config](../config.md) parameter. Each log level is defined in a bitwise enum, so they can be granularly combined.
 
 | log level | bit flag |
 |---|---|
@@ -23,7 +23,7 @@ The logging level can be specified using the `LOG_LEVEL` preprocessor directive.
 | `LOG_DEBUG` | 1 << 5 |
 | `LOG_JOBS` | 1 << 6 |
 
-For example, `LOG_LEVEL = 0b0010011` enables logging for errors, warnings and unit test results.
+For example, `log_level = 0b0010011` enables logging for errors, warnings and unit test results.
 
 ## predefined log functions
 

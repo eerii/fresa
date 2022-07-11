@@ -13,7 +13,7 @@
 //      
 //          inline RunConfig run_config{ .something = "value" };
 //
-//          #ifdef DEBUG
+//          #ifdef FRESA_DEBUG
 //          inline DebugConfig debug_config{};
 //          #endif
 //      }
@@ -32,6 +32,8 @@ namespace fresa
         constexpr std::array<ui8, 3> virtual version() const { return {0, 4, 5}; };
         //: unit tests to run (comma separated list)
         constexpr str_view virtual run_tests() const { return ""; };
+        //: log level (see tools/log.h for the list of levels)
+        constexpr ui32 virtual log_level() const { return 0b0000111; };
     };
 
     //* run config (run time)
@@ -40,7 +42,7 @@ namespace fresa
     };
 
     //* debug config (run time, only on debug builds)
-    #ifdef DEBUG
+    #ifdef FRESA_DEBUG
     struct DebugConfig {
 
     };
@@ -58,7 +60,7 @@ namespace fresa
     #include FRESA_CONFIG_FILE
     static_assert(std::derived_from<decltype(fresa::engine_config), fresa::EngineConfig>, "the config file must define fresa::engine_config and it must be fresa::EngineConfig or a subclass of it");
     static_assert(std::derived_from<decltype(fresa::config), fresa::RunConfig>, "the config file must define fresa::config and it must be fresa::RunConfig or a subclass of it");
-    #ifdef DEBUG
+    #ifdef FRESA_DEBUG
     static_assert(std::derived_from<decltype(fresa::debug_config), fresa::DebugConfig>, "the config file must define fresa::debug_config and it must be fresa::DebugConfig or a subclass of it");
     #endif
 #else
@@ -67,7 +69,7 @@ namespace fresa
 {
     constexpr inline EngineConfig engine_config;
     constexpr inline RunConfig config;
-    #ifdef DEBUG
+    #ifdef FRESA_DEBUG
     constexpr inline DebugConfig debug_config;
     #endif
 }

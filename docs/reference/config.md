@@ -4,7 +4,7 @@ The configuration system defined in `fresa_config.h` includes three types of con
 
 - `EngineConfig`: Compile time variables that change the way the engine work. These are for things like enabling different parts of the engine or values that don't change.
 - `RunConfig`: Run time modifiable values, for example, the settings menus or options that change with the player's input.
-- `DebugConfig`: Also run time values, but are disabled in production builds. All usage of this must be guarded using the `DEBUG` directive. Useful for debug toggles during development.
+- `DebugConfig`: Also run time values, but are disabled in production builds. All usage of this must be guarded using the `FRESA_DEBUG` directive. Useful for debug toggles during development.
 
 ## engine config
 
@@ -43,7 +43,7 @@ namespace fresa
         .something = "initial value"
     };
 
-    #ifdef DEBUG
+    #ifdef FRESA_DEBUG
     inline struct DebugConfig debug_config{};
     #endif
 }
@@ -72,7 +72,7 @@ void using_configuration() {
 
     run_config.player_name = "mango"; // run and debug config are modifyable
 
-    #ifdef DEBUG
+    #ifdef FRESA_DEBUG
     if (debug_config.show_debug_artifacts) // debug config must be guarded
         render_debug();
     #endif
@@ -88,6 +88,7 @@ void using_configuration() {
 | `name` | `str_view` | `"fresa"` |
 | `version` | `std::array<ui8, 3>` | `{0, 4, x}` |
 | `run_tests` | `str_view` | `""` |
+| `log_level` | `ui32` | `0b0000111` |
 
 **run**
 

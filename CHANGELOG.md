@@ -5,17 +5,20 @@
 _new implementation of fresa_
 
 #### todo
-- ecs
+- ecs:
+  - pool allocator
+  - scene
+  - scene view
+  - systems v2
 - events
-- file management and parser
 - reflection
 - continue with documentation
 
-#### [0.4.5] name (_00 jul 22_)
+#### [0.4.5] ecs (_00 jul 22_)
 
 - **added** - constexpr type hashing using fnv1a
 - **added** - entity id with index and version for ecs
-- **added** - 
+- **changed** - moved log level into a configuration parameter
 
 #### [0.4.4] strong types (_08 jul 22_)
 

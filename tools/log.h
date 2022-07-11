@@ -3,7 +3,7 @@
 //      includes different levels configurable by LOG_LEVEL
 #pragma once
 
-#include "std_types.h"
+#include "fresa_config.h"
 #include "strings.h"
 
 #if __has_include("fmt/core.h")
@@ -27,15 +27,11 @@ namespace fresa
         LOG_JOBS = 1 << 6,
     };
 
-    #ifndef LOG_LEVEL
-    #define LOG_LEVEL 0b0111111
-    #endif
-
     namespace detail
     {
         template<str_literal name, std::size_t level, fmt::color color = fmt::color::white, typename ... T>
         constexpr void log(fmt::format_string<T...> fs, T&& ...t) {
-            if constexpr((LOG_LEVEL & level) == level) {
+            if constexpr((engine_config.log_level() & level) == level) {
                 fmt::print("{} {}\n",
                            fmt::format(fg(color), "[{}]:", name.value),
                            fmt::format(fs, std::forward<T>(t)...));
