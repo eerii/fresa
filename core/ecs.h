@@ -8,23 +8,25 @@
 
 namespace fresa::ecs
 {
-    //* entity id
-    //      this is a numerical handle that references an entity
-    //      it is composed of a version and an index, being the version the first 16 bits and the index the last 16 bits
+    //* index-version id
+    //      this is a numerical handle composed of a version and an index, being the version the first 16 bits and the index the last 16 bits
     //      the index is the entity handle, while the version exists to reuse deleted entity ids
-    using EntityID = strong::Type<ui32, decltype([]{}), strong::Regular, strong::Bitwise, strong::BitwiseWith<int>>;
-    namespace detail
+    //      the id meant to be aliased for the types that require it, such as the entity and sparse set
+    namespace detail 
     {
-        using EntityIndex = strong::Type<ui16, decltype([]{}), strong::Regular, strong::ConvertibleTo<EntityID>, strong::Hashable>;
-        using EntityVersion = strong::Type<ui16, decltype([]{}), strong::Regular, strong::ConvertibleTo<EntityID>, strong::Ordered>;
-
-        [[nodiscard]] constexpr EntityIndex getIndex(EntityID id) noexcept { return EntityIndex(id.value); }
-        [[nodiscard]] constexpr EntityVersion getVersion(EntityID id) noexcept { return EntityVersion((id >> 16).value); }
-    };
-    constexpr EntityID id(detail::EntityIndex index, detail::EntityVersion version) noexcept {
-        return (EntityID(version) << 16) | EntityID(index);
+        using ID = strong::Type<ui32, decltype([]{}), strong::Regular, strong::Bitwise, strong::BitwiseWith<int>>;
     }
-    constexpr EntityID invalid_entity = id(-1, 0);
+    using Index = strong::Type<ui16, decltype([]{}), strong::Regular, strong::ConvertibleTo<detail::ID>, strong::Hashable>;
+    using Version = strong::Type<ui16, decltype([]{}), strong::Regular, strong::ConvertibleTo<detail::ID>, strong::Ordered>;
+
+    [[nodiscard]] constexpr Index index(detail::ID id) noexcept { return Index(id.value); }
+    [[nodiscard]] constexpr Version version(detail::ID id) noexcept { return Version((id >> 16).value); }
+    [[nodiscard]] constexpr detail::ID id(Index i, Version v) noexcept { return (detail::ID(v) << 16) | detail::ID(i); }
+
+    constexpr detail::ID invalid_id = id(-1, 0);
+
+    //: alias for entities
+    using EntityID = detail::ID;
 
     //---
 
@@ -47,39 +49,31 @@ namespace fresa::ecs
     //: typed component pool
     template<typename T>
     struct ComponentPool : ComponentPoolBase {
-        //: sparse id
-        //      the sparse array contains objects that, much like entity ids, contain a version and an index
-        //      the naming distinction is to avoid confusion with entities, since these represent the positions on the dense array
-        //      functionally it behaves the same
-        using SparseID = EntityID;
-        using SparseIndex = detail::EntityIndex;
+        //: alias for sparse set
+        using SparseID = detail::ID;
 
         //: data
-        std::unordered_map<SparseIndex, std::array<SparseID, engine_config.ecs_page_size()>> sparse;
+        std::unordered_map<Index, std::array<SparseID, engine_config.ecs_page_size()>> sparse;
         std::vector<T> dense;
 
         //: get sparse
         //      gets the entity index and sees if it is included in the sparse array
-        [[nodiscard]] SparseID SID(const EntityID entity) const {
-            //- make pointer
-            const auto pos = detail::getIndex(entity).value;
+        [[nodiscard]] SparseID* sparse_at(const EntityID entity) {
+            const auto pos = index(entity).value;
             const auto page = pos / engine_config.ecs_page_size();
-            const auto page_pos = pos % engine_config.ecs_page_size();
-            if (not sparse.contains(page))
-                return invalid_entity;
-            return sparse.at(page).at(page_pos);
+            return sparse.contains(page) ? &(sparse.at(page).at(pos % engine_config.ecs_page_size())) : nullptr;
         }
 
         //: is valid
         //      checks if an sparse id handle points to something and has a propper version
-        [[nodiscard]] bool valid(const SparseID sid, const detail::EntityVersion version) const {
-            return sid != invalid_entity and detail::getVersion(sid) == version;
+        [[nodiscard]] bool valid(const SparseID* sid, const Version v) const {
+            return sid != nullptr and *sid != invalid_id and version(*sid) == v;
         }
 
         //: contains entity
         //      checks if the entity is included in the sparse array, also verifying the version
         [[nodiscard]] bool contains(const EntityID entity) const {
-            return valid(SID(entity), detail::getVersion(entity));
+            return valid(sparse_at(entity), version(entity));
         }
 
         //: add
@@ -87,29 +81,29 @@ namespace fresa::ecs
         //      if the entity has the same or higher version, an error is thrown
         void add(const EntityID entity, T&& value) {
             //- use freed list
-            const auto pos = detail::getIndex(entity).value;
+            const auto pos = index(entity).value;
             const auto page = pos / engine_config.ecs_page_size();
 
             if (not sparse.contains(page))
-                sparse[page].fill(invalid_entity);
-            auto &element = sparse.at(pos / engine_config.ecs_page_size()).at(pos % engine_config.ecs_page_size());
+                sparse[page].fill(invalid_id);
 
-            if (element == invalid_entity) {
-                element = id(dense.size(), detail::getVersion(entity));
+            auto& element = *sparse_at(pos);
+            if (element == invalid_id) {
+                element = id(dense.size(), version(entity));
                 dense.emplace_back(std::move(value));
-            } else if (detail::getVersion(entity) > detail::getVersion(element)) {
-                element = id(detail::getIndex(element), detail::getVersion(entity));
-                dense.at(detail::getIndex(element).value) = std::move(value);
+            } else if (version(entity) > version(element)) {
+                element = id(index(element), version(entity));
+                dense.at(index(element).value) = std::move(value);
             } else {
-                log::error("entity {} with version {} already exists in sparse set", entity.value, detail::getVersion(entity).value);
+                log::error("entity {} with version {} already exists in sparse set", entity.value, version(entity).value);
             }
         }
 
         //: get
         //      returns a pointer to the entity value from the dense array if it exists, if not it returns nullptr
-        [[nodiscard]] const T* get(const EntityID entity) const {
-            const auto sid = SID(entity);
-            return valid(sid, detail::getVersion(entity)) ? &dense.at(detail::getIndex(sid).value) : nullptr;
+        [[nodiscard]] const T* get(const EntityID entity) {
+            const auto sid = sparse_at(entity);
+            return valid(sid, version(entity)) ? &dense.at(index(*sid).value) : nullptr;
         }
 
         //: remove
@@ -118,26 +112,33 @@ namespace fresa::ecs
         //      this function uses find if to find the last entity, however, it might be faster to use a dedicated extra array that holds
         //      the references to the entities from each spot of the dense array
         void remove(const EntityID entity) {
-            const auto sid = SID(entity);
-            if (not valid(sid, detail::getVersion(entity))) return;
+            const auto sid = sparse_at(entity);
+            if (not valid(sid, version(entity))) return;
 
             const auto last_dense = dense.size() - 1;
             SparseID* last_sparse = nullptr;
             for (auto &[key, page] : sparse) {
-                last_sparse = std::find_if(page.begin(), page.end(), [&](const auto &e) { return detail::getIndex(e) == last_dense; });
+                last_sparse = std::find_if(page.begin(), page.end(), [&](const auto &e) { return index(e) == last_dense; });
                 if (last_sparse != page.end()) break;
             };
-            auto* removed_element = &sparse.at(detail::getIndex(entity).value / engine_config.ecs_page_size()).at(detail::getIndex(entity).value % engine_config.ecs_page_size());
-            std::swap(*last_sparse, *removed_element);
-            std::swap(dense.back(), dense.at(detail::getIndex(sid).value));
 
-            *removed_element = invalid_entity;
+            auto removed_element = sparse_at(index(entity).value);
+            std::swap(*last_sparse, *removed_element);
+            std::swap(dense.back(), dense.at(index(*sid).value));
+
+            *removed_element = invalid_id;
             dense.pop_back();
+        }
+
+        //: clear
+        void clear() {
+            sparse.clear();
+            dense.clear();
         }
 
         //: size and extent
         [[nodiscard]] std::size_t size() const { return dense.size(); }
-        [[nodiscard]] std::size_t extent() const { return sparse.size(); }
+        [[nodiscard]] std::size_t extent() const { return sparse.size() * engine_config.ecs_page_size(); }
 
         //: iterators
         [[nodiscard]] auto begin() const noexcept { return dense.begin(); }
