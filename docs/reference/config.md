@@ -89,6 +89,7 @@ void using_configuration() {
 | `version` | `std::array<ui8, 3>` | `{0, 4, x}` |
 | `run_tests` | `str_view` | `""` |
 | `log_level` | `ui32` | `0b0000111` |
+| `ecs_page_size` | `ui32` | `256` |
 
 **run**
 
