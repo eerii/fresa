@@ -37,29 +37,40 @@ namespace fresa::ecs
     //      the pool is a sparse set that stores the components using a dense array
 
     //: base component pool
-    //      default constructor, no copy or move, destroyed when out of scope
     struct ComponentPoolBase {
+        //: default constructor, no copy or move, destroyed when out of scope
         ComponentPoolBase() = default;
         ComponentPoolBase(const ComponentPoolBase&) = delete;
         ComponentPoolBase& operator=(const ComponentPoolBase&) = delete;
         ComponentPoolBase(ComponentPoolBase&&) = delete;
         ComponentPoolBase& operator=(ComponentPoolBase&&) = delete;
         constexpr virtual ~ComponentPoolBase() = default;
+
+        //: alias for sparse set
+        using SparseID = detail::ID;
+        
+        //: constexpr virtual functions to access derived functions from base type
+        constexpr virtual const SparseID* sparse_at(const EntityID id) const = 0;
+        constexpr virtual bool valid(const SparseID* sid, const Version v) const = 0;
+        constexpr virtual bool contains(const EntityID entity) const = 0;
+        constexpr virtual void remove(const EntityID entity) = 0;
     };
 
     //: typed component pool
     template<typename T>
     struct ComponentPool : ComponentPoolBase {
-        //: alias for sparse set
-        using SparseID = detail::ID;
-
         //: data
         std::unordered_map<Index, std::array<SparseID, engine_config.ecs_page_size()>> sparse;
         std::vector<T> dense;
 
         //: get sparse
         //      gets the entity index and sees if it is included in the sparse array
-        [[nodiscard]] SparseID* sparse_at(const EntityID entity) {
+        [[nodiscard]] constexpr const SparseID* sparse_at(const EntityID entity) const override {
+            const auto pos = index(entity).value;
+            const auto page = pos / engine_config.ecs_page_size();
+            return sparse.contains(page) ? &(sparse.at(page).at(pos % engine_config.ecs_page_size())) : nullptr;
+        }
+        [[nodiscard]] constexpr SparseID* sparse_at(const EntityID entity) {
             const auto pos = index(entity).value;
             const auto page = pos / engine_config.ecs_page_size();
             return sparse.contains(page) ? &(sparse.at(page).at(pos % engine_config.ecs_page_size())) : nullptr;
@@ -67,20 +78,20 @@ namespace fresa::ecs
 
         //: is valid
         //      checks if an sparse id handle points to something and has a propper version
-        [[nodiscard]] bool valid(const SparseID* sid, const Version v) const {
+        [[nodiscard]] constexpr bool valid(const SparseID* sid, const Version v) const override {
             return sid != nullptr and *sid != invalid_id and version(*sid) == v;
         }
 
         //: contains entity
         //      checks if the entity is included in the sparse array, also verifying the version
-        [[nodiscard]] bool contains(const EntityID entity) const {
+        [[nodiscard]] constexpr bool contains(const EntityID entity) const override {
             return valid(sparse_at(entity), version(entity));
         }
 
         //: add
         //      adds an entity to the sparse array, if there is an entity with a lower version it is updated
         //      if the entity has the same or higher version, an error is thrown
-        void add(const EntityID entity, T&& value) {
+        constexpr void add(const EntityID entity, T&& value) {
             const auto pos = index(entity).value;
             const auto page = pos / engine_config.ecs_page_size();
 
@@ -101,7 +112,7 @@ namespace fresa::ecs
 
         //: get
         //      returns a pointer to the entity value from the dense array if it exists, if not it returns nullptr
-        [[nodiscard]] const T* get(const EntityID entity) {
+        [[nodiscard]] constexpr const T* get(const EntityID entity) {
             const auto sid = sparse_at(entity);
             return valid(sid, version(entity)) ? &dense.at(index(*sid).value) : nullptr;
         }
@@ -111,16 +122,18 @@ namespace fresa::ecs
         //      it swaps the last element with the removed element from both the sparse and dense arrays
         //      this function uses find if to find the last entity, however, it might be faster to use a dedicated extra array that holds
         //      the references to the entities from each spot of the dense array
-        void remove(const EntityID entity) {
+        constexpr void remove(const EntityID entity) override {
             const auto sid = sparse_at(entity);
             if (not valid(sid, version(entity))) return;
 
             const auto last_dense = dense.size() - 1;
-            SparseID* last_sparse = nullptr;
-            for (auto &[key, page] : sparse) {
-                last_sparse = std::find_if(page.begin(), page.end(), [&](const auto &e) { return index(e) == last_dense; });
-                if (last_sparse != page.end()) break;
-            };
+            SparseID* last_sparse = [&]{
+                for (auto &[key, page] : sparse) {
+                    SparseID* last = std::find_if(page.begin(), page.end(), [&](const auto &e) { return index(e) == last_dense; });
+                    if (last != page.end()) return last;
+                }
+                return (SparseID*)nullptr;
+            }();
 
             auto removed_element = sparse_at(index(entity).value);
             std::swap(*last_sparse, *removed_element);
@@ -131,14 +144,15 @@ namespace fresa::ecs
         }
 
         //: clear
-        void clear() {
+        constexpr void clear() {
+            log::info("clearing {}", type_name<T>());
             sparse.clear();
             dense.clear();
         }
 
         //: size and extent
-        [[nodiscard]] std::size_t size() const { return dense.size(); }
-        [[nodiscard]] std::size_t extent() const { return sparse.size() * engine_config.ecs_page_size(); }
+        [[nodiscard]] constexpr std::size_t size() const { return dense.size(); }
+        [[nodiscard]] constexpr std::size_t extent() const { return sparse.size() * engine_config.ecs_page_size(); }
 
         //: iterators
         [[nodiscard]] auto begin() const noexcept { return dense.begin(); }
@@ -194,12 +208,24 @@ namespace fresa::ecs
 
         //: add entity
         template <typename ... C>
-        const EntityID add(C&& ... components) {
+        constexpr const EntityID add(C&& ... components) {
             const auto entity = free_entities.front();
             if (free_entities.size() > 1) free_entities.pop_front();
             else free_entities.back() = entity.value + 1;
             (cpool<C>().add(entity, std::forward<C>(components)), ...);
             return entity;
+        }
+
+        //: get entity component
+        template <typename C>
+        [[nodiscard]] constexpr const C* get(const EntityID entity) {
+            return cpool<C>().get(entity);
+        }
+
+        //: remove entity
+        constexpr void remove(const EntityID entity) {
+            [&] { for (auto &[key, pool] : component_pools) pool->remove(entity); }();
+            free_entities.push_front(entity);
         }
     };
 }

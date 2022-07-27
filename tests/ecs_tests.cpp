@@ -65,6 +65,19 @@ namespace test
                           scene.component_pools.contains(type_hash<int>()) and
                           scene.component_pools.contains(type_hash<float>()));
         };
+
+        "get component"_test = [&]{
+            auto e = scene.add(int{5}, float{1.68f});
+            return expect(*scene.get<int>(e) == 5 and *scene.get<float>(e) == 1.68f);
+        };
+
+        "remove entity"_test = [&]{
+            auto e = scene.add(int{16});
+            scene.remove(e);
+            return expect(scene.free_entities.size() == 2 and scene.free_entities.front() == e and scene.get<int>(e) == nullptr);
+        };
+
+        
     });
 }
 

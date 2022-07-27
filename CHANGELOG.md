@@ -6,7 +6,6 @@ _new implementation of fresa_
 
 #### todo
 - ecs:
-  - scene
   - scene view
   - systems v2
 - events
@@ -20,6 +19,7 @@ _new implementation of fresa_
 - **changed** - moved log level into a configuration parameter
 - **added** - unit test and coroutine documentation
 - **added** - ecs sparse allocator
+- **added** - ecs scene manager
 
 #### [0.4.4] strong types (_08 jul 22_)
 
