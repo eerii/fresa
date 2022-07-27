@@ -5,6 +5,7 @@
 #include "std_types.h"
 #include "type_name.h"
 #include "log.h"
+#include <deque>
 
 namespace fresa::ecs
 {
@@ -80,7 +81,6 @@ namespace fresa::ecs
         //      adds an entity to the sparse array, if there is an entity with a lower version it is updated
         //      if the entity has the same or higher version, an error is thrown
         void add(const EntityID entity, T&& value) {
-            //- use freed list
             const auto pos = index(entity).value;
             const auto page = pos / engine_config.ecs_page_size();
 
@@ -156,17 +156,19 @@ namespace fresa::ecs
     //* scene
     //      ...
     struct Scene {
+        //* component pool
+        //      searchs the hash map for the specified component type
+        //      if none is found, create it. this operation is thread safe
+
         //: hash map of component pools, using the component type as a key
         std::unordered_map<TypeHash, std::unique_ptr<ComponentPoolBase>> component_pools;
 
         //: this mutex prevents the creation of multiple component pools of the same type
         std::mutex component_pool_create_mutex;
 
-        //* get component pool
-        //      searchs the hash map for the specified component type
-        //      if none is found, create it. this operation is thread safe
+        //: get component pool
         template <typename C>
-        auto& getPool() {
+        auto& cpool() {
             constexpr TypeHash t = type_hash<C>();
             std::lock_guard<std::mutex> lock(component_pool_create_mutex);
 
@@ -181,6 +183,23 @@ namespace fresa::ecs
 
             //: return a reference to the pool
             return (ComponentPool<C>&)(*it->second);
+        }
+
+        // ---
+
+        //* entities
+        //      ...
+
+        std::deque<EntityID> free_entities = {ecs::id(0, 0)};
+
+        //: add entity
+        template <typename ... C>
+        const EntityID add(C&& ... components) {
+            const auto entity = free_entities.front();
+            if (free_entities.size() > 1) free_entities.pop_front();
+            else free_entities.back() = entity.value + 1;
+            (cpool<C>().add(entity, std::forward<C>(components)), ...);
+            return entity;
         }
     };
 }

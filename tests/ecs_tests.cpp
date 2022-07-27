@@ -8,7 +8,7 @@ namespace test
 {
     using namespace fresa;
 
-    inline TestSuite component_pool_tests("component_pool", []{
+    inline TestSuite component_pool_tests("ecs_component_pool", []{
         ecs::ComponentPool<int> cpool;
 
         "add items"_test = [&]{
@@ -36,6 +36,34 @@ namespace test
         "update entity"_test = [&]{
             cpool.add(ecs::id(3, 1), 13);
             return expect(cpool.size() == 9 and *cpool.get(ecs::id(3, 1)) == 13);
+        };
+    });
+
+    inline TestSuite scene_tests("ecs_scene", []{
+        ecs::Scene scene;
+
+        "create pool"_test = [&]{
+            scene.cpool<int>();
+            return expect(scene.component_pools.size() == 1);
+        };
+
+        "get pool"_test = [&]{
+            auto& pool = scene.cpool<int>();
+            return expect(scene.component_pools.size() == 1);
+        };
+
+        "add entity"_test = [&]{
+            auto e1 = scene.add();
+            auto e2 = scene.add();
+            return expect(e1 == ecs::id(0, 0) and e2 == ecs::id(1, 0) and
+                          scene.free_entities.size() == 1 and scene.free_entities.front() == ecs::id(2, 0));
+        };
+
+        "component types"_test = [&]{
+            auto e = scene.add(int{1}, float{2.0f});
+            return expect(scene.component_pools.size() == 2 and
+                          scene.component_pools.contains(type_hash<int>()) and
+                          scene.component_pools.contains(type_hash<float>()));
         };
     });
 }
