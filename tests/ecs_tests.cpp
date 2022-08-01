@@ -76,8 +76,15 @@ namespace test
             scene.remove(e);
             return expect(scene.free_entities.size() == 2 and scene.free_entities.front() == e and scene.get<int>(e) == nullptr);
         };
+    });
 
-        
+    inline TestSuite scene_view_tests("ecs_scene_view", []{
+        ecs::Scene scene;
+
+        "scene view"_test = [&]{
+            ecs::View<int, float> view(scene);
+            return expect(true);
+         };
     });
 }
 

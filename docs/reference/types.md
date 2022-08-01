@@ -166,7 +166,7 @@ Returns a lowercase string view. Works for constexpr strings. There is also a li
 
 ```cpp
 fresa::lower("FrEsA") == "fresa"
-"AgUAcAte"_lower == "aguacate"
+"MeRmElAdA"_lower == "mermelada"
 ```
 
 **split**

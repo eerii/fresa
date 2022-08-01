@@ -19,8 +19,8 @@ namespace test
             return expect("JoSEkOALaS"_lower == "josekoalas");
         };
         "lowercase with string variable"_test = []{
-            str s = "AguACAtE!";
-            return expect(lower(s) == "aguacate!");
+            str s = "MeRmElAdA!";
+            return expect(lower(s) == "mermelada!");
         };
         "split string with commas"_test = []{
             auto s = split("a,b,c,d", ',') | ranges::to_vector;

@@ -20,14 +20,14 @@ Which can be overwritten as:
 
 ```cpp
 struct _EngineConfig : fresa::EngineConfig {
-    //: change the project name to "aguacate"
-    constexpr str_view name() const override { return "aguacate"; }
+    //: change the project name to "mermelada"
+    constexpr str_view name() const override { return "mermelada"; }
 };
 ```
 
 ## configuration file
 
-**fresa** allows you to create an optional configuration file to overwrite the default options. To do so, create a header file and include it in the project. By default the name of the configuration file is `config.h`, but if you wish to use a different name you can use the `FRESA_CONFIG_FILE` preprocessor directive as `FRESA_CONFIG_FILE = file_name.h` (only write the file name, excluding its path). An example configuration file is provided with the [template](https://github.com/josekoalas/aguacate) repository, similar to this:
+**fresa** allows you to create an optional configuration file to overwrite the default options. To do so, create a header file and include it in the project. By default the name of the configuration file is `config.h`, but if you wish to use a different name you can use the `FRESA_CONFIG_FILE` preprocessor directive as `FRESA_CONFIG_FILE = file_name.h` (only write the file name, excluding its path). An example configuration file is provided with the [template](https://github.com/josekoalas/mermelada) repository, similar to this:
 
 ```cpp title="config.h"
 #pragma once

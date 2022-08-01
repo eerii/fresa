@@ -2,11 +2,11 @@
 
 ## using a template
 
-This projects provides a ready to use [template](https://github.com/josekoalas/aguacate) with all required dependencies preconfigured. It can be used in two ways, either by creating your own copy _(recommended)_ or by cloning it directly.
+This projects provides a ready to use [template](https://github.com/josekoalas/mermelada) with all required dependencies preconfigured. It can be used in two ways, either by creating your own copy _(recommended)_ or by cloning it directly.
 
 **a. creating a copy**
 
-Go to [josekoalas/aguacate](https://github.com/josekoalas/aguacate) and click on the green button that says "Use this template". **This requires a GitHub account**. You will be taken to a new screen to configure the new repository settings. Set a name and the options you prefer and click on "Create repository from template". Now you will have a copy of the template in your profile ready to use. Download it with the following command, replacing `your_github_username` and `repository_name` with the appropiate values.
+Go to [josekoalas/mermelada](https://github.com/josekoalas/mermelada) and click on the green button that says "Use this template". **This requires a GitHub account**. You will be taken to a new screen to configure the new repository settings. Set a name and the options you prefer and click on "Create repository from template". Now you will have a copy of the template in your profile ready to use. Download it with the following command, replacing `your_github_username` and `repository_name` with the appropiate values.
 
 ```sh
 git clone --recurse-submodules https://github.com/your_github_username/repository_name
@@ -18,8 +18,8 @@ cd repository_name
 If you don't have a github account or you don't want to create a copy, you can download the template directly by doing:
 
 ```sh
-git clone --recurse-submodules https://github.com/josekoalas/aguacate
-cd aguacate
+git clone --recurse-submodules https://github.com/josekoalas/mermelada
+cd mermelada
 ```
 
 ## building the project
