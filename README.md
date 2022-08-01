@@ -38,3 +38,13 @@ cmake --build build
 ```
 
 The build system of choice is [`cmake`](https://cmake.org), and the build is tested with `clang 14.0` and `gcc 12.1`. `MSVC` support is comming as soon as the fix for [this](https://developercommunity.visualstudio.com/t/Lambda-inside-lambda-cant-detect-conste/10085564) bug report I submitted is released.
+
+## contributing :herb:
+
+You are welcome to contribute to **fresa** in any way you can. If you want to do so, you can either open an issue or a pull request on github for a feature on the roadmap or bug fix, or contact me through [email](mailto:jose.pazos.perez@rai.usc.es) or [telegram](https://t.me/josekoalas) for further discussion.
+
+When contributing, please be sure to include documentation on what you are doing and try to follow the naming conventions of the rest of the project.
+
+## license :pencil:
+
+This project is licensed under [GNU GPLv3](LICENSE.md).
