@@ -597,12 +597,12 @@
 </code></pre></div>
 <p>Which can be overwritten as:</p>
 <div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">_EngineConfig</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">EngineConfig</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="c1">//: change the project name to &quot;aguacate&quot;</span>
-<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;aguacate&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//: change the project name to &quot;mermelada&quot;</span>
+<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;mermelada&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="p">};</span><span class="w"></span>
 </code></pre></div>
 <h2 id="configuration-file">configuration file<a class="headerlink" href="#configuration-file" title="Permanent link">&para;</a></h2>
-<p><strong>fresa</strong> allows you to create an optional configuration file to overwrite the default options. To do so, create a header file and include it in the project. By default the name of the configuration file is <code>config.h</code>, but if you wish to use a different name you can use the <code>FRESA_CONFIG_FILE</code> preprocessor directive as <code>FRESA_CONFIG_FILE = file_name.h</code> (only write the file name, excluding its path). An example configuration file is provided with the <a href="https://github.com/josekoalas/aguacate">template</a> repository, similar to this:</p>
+<p><strong>fresa</strong> allows you to create an optional configuration file to overwrite the default options. To do so, create a header file and include it in the project. By default the name of the configuration file is <code>config.h</code>, but if you wish to use a different name you can use the <code>FRESA_CONFIG_FILE</code> preprocessor directive as <code>FRESA_CONFIG_FILE = file_name.h</code> (only write the file name, excluding its path). An example configuration file is provided with the <a href="https://github.com/josekoalas/mermelada">template</a> repository, similar to this:</p>
 <div class="highlight"><span class="filename">config.h</span><pre><span></span><code><span class="cp">#pragma once</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;fresa_config.h&quot;</span><span class="cp"></span>
 
@@ -676,6 +676,11 @@
 <td><code>log_level</code></td>
 <td><code>ui32</code></td>
 <td><code>0b0000111</code></td>
+</tr>
+<tr>
+<td><code>ecs_page_size</code></td>
+<td><code>ui32</code></td>
+<td><code>256</code></td>
 </tr>
 </tbody>
 </table>

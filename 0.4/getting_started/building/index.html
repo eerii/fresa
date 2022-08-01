@@ -605,16 +605,16 @@
 
 <h1 id="building-the-project">building the project<a class="headerlink" href="#building-the-project" title="Permanent link">&para;</a></h1>
 <h2 id="using-a-template">using a template<a class="headerlink" href="#using-a-template" title="Permanent link">&para;</a></h2>
-<p>This projects provides a ready to use <a href="https://github.com/josekoalas/aguacate">template</a> with all required dependencies preconfigured. It can be used in two ways, either by creating your own copy <em>(recommended)</em> or by cloning it directly.</p>
+<p>This projects provides a ready to use <a href="https://github.com/josekoalas/mermelada">template</a> with all required dependencies preconfigured. It can be used in two ways, either by creating your own copy <em>(recommended)</em> or by cloning it directly.</p>
 <p><strong>a. creating a copy</strong></p>
-<p>Go to <a href="https://github.com/josekoalas/aguacate">josekoalas/aguacate</a> and click on the green button that says "Use this template". <strong>This requires a GitHub account</strong>. You will be taken to a new screen to configure the new repository settings. Set a name and the options you prefer and click on "Create repository from template". Now you will have a copy of the template in your profile ready to use. Download it with the following command, replacing <code>your_github_username</code> and <code>repository_name</code> with the appropiate values.</p>
+<p>Go to <a href="https://github.com/josekoalas/mermelada">josekoalas/mermelada</a> and click on the green button that says "Use this template". <strong>This requires a GitHub account</strong>. You will be taken to a new screen to configure the new repository settings. Set a name and the options you prefer and click on "Create repository from template". Now you will have a copy of the template in your profile ready to use. Download it with the following command, replacing <code>your_github_username</code> and <code>repository_name</code> with the appropiate values.</p>
 <div class="highlight"><pre><span></span><code>git clone --recurse-submodules https://github.com/your_github_username/repository_name
 <span class="nb">cd</span> repository_name
 </code></pre></div>
 <p><strong>b. cloning the template</strong></p>
 <p>If you don't have a github account or you don't want to create a copy, you can download the template directly by doing:</p>
-<div class="highlight"><pre><span></span><code>git clone --recurse-submodules https://github.com/josekoalas/aguacate
-<span class="nb">cd</span> aguacate
+<div class="highlight"><pre><span></span><code>git clone --recurse-submodules https://github.com/josekoalas/mermelada
+<span class="nb">cd</span> mermelada
 </code></pre></div>
 <h2 id="building-the-project_1">building the project<a class="headerlink" href="#building-the-project_1" title="Permanent link">&para;</a></h2>
 <p>The template repository already includes a <code>CMakeLists.txt</code> with all the configuration needed. Please ensure you have a <a href="#tested-compilers">compatible compiler</a> and a recent version of <a href="#installing-cmake">cmake</a> before proceeding. To configure and build the project use the following two commands respectively:</p>
@@ -624,11 +624,11 @@ cmake --build build
 <h2 id="tested-compilers">tested compilers<a class="headerlink" href="#tested-compilers" title="Permanent link">&para;</a></h2>
 <p>These compilers have been tested to work. Older versions might work but are not officially supported.</p>
 <ul>
-<li>clang 14.0.6</li>
-<li>apple clang 14.0.0</li>
-<li>gcc 12.1.0</li>
+<li>clang 14.0+</li>
+<li>apple clang 14.0+</li>
+<li>gcc 12.1+</li>
 </ul>
-<p>MSVC is mostly working, except for nested constexpr for loops in the math library. There is an issue where these loops don't compile only with MSVC. I already submitted a <a href="https://developercommunity.visualstudio.com/t/Lambda-inside-lambda-cant-detect-conste/10085564">bug report</a> with a temporary workaround, but I will wait until I hear more before I decide how to proceed. At this time, clang or gcc are recommended.</p>
+<p>MSVC is mostly working, except for nested constexpr for loops in the math library. There is an issue where these loops don't compile only with MSVC. I already submitted a <a href="https://developercommunity.visualstudio.com/t/Lambda-inside-lambda-cant-detect-conste/10085564">bug report</a> with a temporary workaround, and it is pending release. At this time, clang or gcc are recommended.</p>
 <h2 id="extra-installing-compilers">extra: installing compilers<a class="headerlink" href="#extra-installing-compilers" title="Permanent link">&para;</a></h2>
 <p>This is a very brief and general guide to install the most recent compilers. Your system requirements might vary so please refer to the original instructions when in doubt.</p>
 <p><strong>debian/ubuntu:</strong></p>
@@ -661,13 +661,13 @@ snap install cmake
 <p>To use <strong>fresa</strong> all you need is to include "engine.h" and call <code>fresa::run</code>. Configuration parameters are a work in progress.</p>
 <h2 id="advanced-required-libraries">advanced: required libraries<a class="headerlink" href="#advanced-required-libraries" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="https://github.com/fmtlib/fmt"><strong>fmt</strong></a>: Used for general string formatting, mainly as a basis to the logging system (<code>log.h</code>). May be replaced with <code>std::format</code> in the future, but it depends on its capabilities.</li>
+<li><a href="https://github.com/fmtlib/fmt"><strong>fmt</strong></a> <em>[MIT]</em>: Used for general string formatting, mainly as a basis to the logging system (<code>log.h</code>). May be replaced with <code>std::format</code> in the future, but it depends on its capabilities.</li>
 </ul>
 <p><strong>standard libraries</strong></p>
 <p>Some compilers don't have full support of all <code>c++20</code> features. Therefore, while those compilers get support, you can alternatively use this libraries that the standard is based on as a stand in. Once compiler support is widespread these will be removed.</p>
 <ul>
-<li><a href="https://github.com/ericniebler/range-v3"><strong>range-v3</strong></a>: For <code>std::ranges</code>.</li>
-<li><a href="https://github.com/josuttis/jthread"><strong>jthread</strong></a>: For <code>std::jthread</code>.</li>
+<li><a href="https://github.com/ericniebler/range-v3"><strong>range-v3</strong></a> <em>[BSL 1.0]</em>: For <code>std::ranges</code>.</li>
+<li><a href="https://github.com/josuttis/jthread"><strong>jthread</strong></a> <em>[CC BY 4.0]</em>: For <code>std::jthread</code>.</li>
 </ul>
 
               
