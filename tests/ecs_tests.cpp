@@ -4,6 +4,8 @@
 #include "unit_test.h"
 #include "ecs.h"
 
+#include "_debug_cpool.h" //! ONLY FOR TESTING
+
 namespace test
 {
     using namespace fresa;
@@ -84,11 +86,13 @@ namespace test
         scene.add(int{3});
         scene.add(int{5});
 
+        scene.remove(ecs::id(2, 0));
+        scene.add(int{7});
+
+        debug_cpool(scene);
+
         "scene view"_test = [&]{
             ecs::View<int> view(scene);
-            for (auto a : view) {
-                log::info("{}", a);
-            };
             return expect(true);
          };
     });

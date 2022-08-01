@@ -21,6 +21,7 @@ _new implementation of fresa_
 - **added** - ecs sparse allocator
 - **added** - ecs scene manager
 - **changed** - renamed template repository from aguacate to mermelada (actually makes sense now :3)
+- **fixed** - sparse container now works better and preserves entity ids
 
 #### [0.4.4] strong types (_08 jul 22_)
 
