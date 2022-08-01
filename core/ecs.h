@@ -36,29 +36,32 @@ namespace fresa::ecs
     //      the pool base is used to store references to the component pool in a hashed type map for later access
     //      the pool is a sparse set that stores the components using a dense array
 
-    //: base component pool
-    struct ComponentPoolBase {
-        //: default constructor, no copy or move, destroyed when out of scope
-        ComponentPoolBase() = default;
-        ComponentPoolBase(const ComponentPoolBase&) = delete;
-        ComponentPoolBase& operator=(const ComponentPoolBase&) = delete;
-        ComponentPoolBase(ComponentPoolBase&&) = delete;
-        ComponentPoolBase& operator=(ComponentPoolBase&&) = delete;
-        constexpr virtual ~ComponentPoolBase() = default;
+    namespace detail
+    {
+        //: base component pool
+        struct ComponentPoolBase {
+            //: default constructor, no copy or move, destroyed when out of scope
+            ComponentPoolBase() = default;
+            ComponentPoolBase(const ComponentPoolBase&) = delete;
+            ComponentPoolBase& operator=(const ComponentPoolBase&) = delete;
+            ComponentPoolBase(ComponentPoolBase&&) = delete;
+            ComponentPoolBase& operator=(ComponentPoolBase&&) = delete;
+            constexpr virtual ~ComponentPoolBase() = default;
 
-        //: alias for sparse set
-        using SparseID = detail::ID;
-        
-        //: constexpr virtual functions to access derived functions from base type
-        constexpr virtual const SparseID* sparse_at(const EntityID id) const = 0;
-        constexpr virtual bool valid(const SparseID* sid, const Version v) const = 0;
-        constexpr virtual bool contains(const EntityID entity) const = 0;
-        constexpr virtual void remove(const EntityID entity) = 0;
-    };
+            //: alias for sparse set
+            using SparseID = detail::ID;
+            
+            //: constexpr virtual functions to access derived functions from base type
+            constexpr virtual const SparseID* sparse_at(const EntityID id) const = 0;
+            constexpr virtual bool valid(const SparseID* sid, const Version v) const = 0;
+            constexpr virtual bool contains(const EntityID entity) const = 0;
+            constexpr virtual void remove(const EntityID entity) = 0;
+        };
+    }
 
     //: typed component pool
-    template<typename T>
-    struct ComponentPool : ComponentPoolBase {
+    template <typename T>
+    struct ComponentPool : detail::ComponentPoolBase {
         //: data
         std::unordered_map<Index, std::array<SparseID, engine_config.ecs_page_size()>> sparse;
         std::vector<T> dense;
@@ -155,27 +158,27 @@ namespace fresa::ecs
         [[nodiscard]] constexpr std::size_t extent() const { return sparse.size() * engine_config.ecs_page_size(); }
 
         //: iterators
-        [[nodiscard]] auto begin() const noexcept { return dense.begin(); }
-        [[nodiscard]] auto end() const noexcept { return dense.end(); }
-        [[nodiscard]] auto cbegin() const noexcept { return dense.cbegin(); }
-        [[nodiscard]] auto cend() const noexcept { return dense.cend(); }
-        [[nodiscard]] auto rbegin() const noexcept { return dense.rbegin(); }
-        [[nodiscard]] auto rend() const noexcept { return dense.rend(); }
-        [[nodiscard]] auto crbegin() const noexcept { return dense.crbegin(); }
-        [[nodiscard]] auto crend() const noexcept { return dense.crend(); }
+        [[nodiscard]] constexpr auto begin() const noexcept { return dense.begin(); }
+        [[nodiscard]] constexpr auto end() const noexcept { return dense.end(); }
+        [[nodiscard]] constexpr auto cbegin() const noexcept { return dense.cbegin(); }
+        [[nodiscard]] constexpr auto cend() const noexcept { return dense.cend(); }
+        [[nodiscard]] constexpr auto rbegin() const noexcept { return dense.rbegin(); }
+        [[nodiscard]] constexpr auto rend() const noexcept { return dense.rend(); }
+        [[nodiscard]] constexpr auto crbegin() const noexcept { return dense.crbegin(); }
+        [[nodiscard]] constexpr auto crend() const noexcept { return dense.crend(); }
     };
 
     //---
 
     //* scene
-    //      ...
+    //-     ...
     struct Scene {
         //* component pool
         //      searchs the hash map for the specified component type
         //      if none is found, create it. this operation is thread safe
 
         //: hash map of component pools, using the component type as a key
-        std::unordered_map<TypeHash, std::unique_ptr<ComponentPoolBase>> component_pools;
+        std::unordered_map<TypeHash, std::unique_ptr<detail::ComponentPoolBase>> component_pools;
 
         //: this mutex prevents the creation of multiple component pools of the same type
         std::mutex component_pool_create_mutex;
@@ -202,7 +205,7 @@ namespace fresa::ecs
         // ---
 
         //* entities
-        //      ...
+        //-     ...
 
         std::deque<EntityID> free_entities = {ecs::id(0, 0)};
 
@@ -226,6 +229,31 @@ namespace fresa::ecs
         constexpr void remove(const EntityID entity) {
             [&] { for (auto &[key, pool] : component_pools) pool->remove(entity); }();
             free_entities.push_front(entity);
+        }
+    };
+
+    //* view
+    //! for now one component only, not C..., also needs to include the entity id, maybe divide dense and data again? check if entity valid as well
+
+    template <typename C>
+    struct View {
+        //: scene pointer
+        Scene* scene;
+
+        //: if a scene view doesn't specify any types, it will iterate over all of them
+        static constexpr bool all = false;//sizeof...(C) == 0;
+
+        //: constructor
+        constexpr View(Scene& s) : scene(&s) {}
+
+        //: iterator
+        //      iterates over all entities that have the specified components
+        //      if no components are specified, it will iterate over all entities
+        [[nodiscard]] constexpr auto begin() const noexcept {
+            return scene->cpool<C>().begin();
+        }
+        [[nodiscard]] constexpr auto end() const noexcept {
+            return scene->cpool<C>().end();
         }
     };
 }

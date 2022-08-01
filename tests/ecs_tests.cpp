@@ -80,9 +80,15 @@ namespace test
 
     inline TestSuite scene_view_tests("ecs_scene_view", []{
         ecs::Scene scene;
+        scene.add(int{1});
+        scene.add(int{3});
+        scene.add(int{5});
 
         "scene view"_test = [&]{
-            ecs::View<int, float> view(scene);
+            ecs::View<int> view(scene);
+            for (auto a : view) {
+                log::info("{}", a);
+            };
             return expect(true);
          };
     });
