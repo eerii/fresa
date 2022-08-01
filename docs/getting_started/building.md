@@ -35,11 +35,11 @@ cmake --build build
 
 These compilers have been tested to work. Older versions might work but are not officially supported.
 
-- clang 14.0.6
-- apple clang 14.0.0
-- gcc 12.1.0
+- clang 14.0+
+- apple clang 14.0+
+- gcc 12.1+
 
-MSVC is mostly working, except for nested constexpr for loops in the math library. There is an issue where these loops don't compile only with MSVC. I already submitted a [bug report](https://developercommunity.visualstudio.com/t/Lambda-inside-lambda-cant-detect-conste/10085564) with a temporary workaround, but I will wait until I hear more before I decide how to proceed. At this time, clang or gcc are recommended.
+MSVC is mostly working, except for nested constexpr for loops in the math library. There is an issue where these loops don't compile only with MSVC. I already submitted a [bug report](https://developercommunity.visualstudio.com/t/Lambda-inside-lambda-cant-detect-conste/10085564) with a temporary workaround, and it is pending release. At this time, clang or gcc are recommended.
 
 ## extra: installing compilers
 
@@ -95,11 +95,11 @@ To use **fresa** all you need is to include "engine.h" and call `fresa::run`. Co
 
 ## advanced: required libraries
 
-- [**fmt**](https://github.com/fmtlib/fmt): Used for general string formatting, mainly as a basis to the logging system (`log.h`). May be replaced with `std::format` in the future, but it depends on its capabilities.
+- [**fmt**](https://github.com/fmtlib/fmt) _[MIT]_: Used for general string formatting, mainly as a basis to the logging system (`log.h`). May be replaced with `std::format` in the future, but it depends on its capabilities.
 
 **standard libraries**
 
 Some compilers don't have full support of all `c++20` features. Therefore, while those compilers get support, you can alternatively use this libraries that the standard is based on as a stand in. Once compiler support is widespread these will be removed.
 
-- [**range-v3**](https://github.com/ericniebler/range-v3): For `std::ranges`.
-- [**jthread**](https://github.com/josuttis/jthread): For `std::jthread`.
+- [**range-v3**](https://github.com/ericniebler/range-v3) _[BSL 1.0]_: For `std::ranges`.
+- [**jthread**](https://github.com/josuttis/jthread) _[CC BY 4.0]_: For `std::jthread`.
