@@ -258,21 +258,19 @@ namespace fresa::ecs
 
         //: iterators
         //      iterates over all entities that have all the specified components
-        //      for (auto [entity, data1, data2] : view) ... (note, no & is needed, they are already references)
-        [[nodiscard]] constexpr auto each() {
+        //      for (auto [entity, data1, data2] : view()) ... (note, no & is needed, they are already references)
+        [[nodiscard]] constexpr auto operator()() noexcept {
             indices = intersection();
-            return rv::zip(indices, [&]{
+            return rv::zip(rv::const_(indices), [&]{
                 auto &pool = scene->cpool<C>();
                 return rv::zip(pool.dense, pool.data) | rv::filter([&](auto a) {
                     return std::count(indices.begin(), indices.end(), a.first);
                 }) | rv::values;
             }()...);
         }
-        [[nodiscard]] constexpr auto begin() noexcept { return each().begin(); }
-        [[nodiscard]] constexpr auto end() noexcept { return each().end(); }
         //      you can iterate over just the data using:
         //      for (auto [data1, data2] : view.data())
-        [[nodiscard]] constexpr auto data() {
+        [[nodiscard]] constexpr auto data() noexcept {
             indices = intersection();
             return rv::zip([&]{
                 auto &pool = scene->cpool<C>();
@@ -293,10 +291,8 @@ namespace fresa::ecs
 
         //: iterators
         //      iterates over all entities that have the specified component
-        //      for (auto [entity, data] : view) ... (note, no & is needed, they are already references)
-        [[nodiscard]] constexpr auto each() noexcept { return rv::zip(scene->cpool<C>().dense, scene->cpool<C>().data); }
-        [[nodiscard]] constexpr auto begin() noexcept { return each().begin(); }
-        [[nodiscard]] constexpr auto end() noexcept { return each().end(); }
+        //      for (auto [entity, data] : view()) ... (note, no & is needed, they are already references)
+        [[nodiscard]] constexpr auto operator()() noexcept { return rv::zip(rv::const_(scene->cpool<C>().dense), scene->cpool<C>().data); }
         //      to iterate over just the data use it like:
         //      for (auto &data) : view.data()) ...
         [[nodiscard]] constexpr auto& data() noexcept { return scene->cpool<C>().data; }

@@ -146,29 +146,51 @@ namespace test
         ecs::Scene scene;
         scene.add(int{1});
         scene.add(int{3});
-        scene.add(int{3}, float{4.5f});
-        scene.add(float{0.5f});
-        scene.add(int{5}, float{1.5f});
-        scene.add(int{7}, float{0.3f});
+        scene.add(int{5}, float{3.14f});
+        scene.add(float{0.50f});
+        scene.add(int{7}, float{1.68f});
+        scene.add(int{9}, float{0.32f});
 
-        "scene view"_test = [&]{
-            ecs::View<int> view(scene);
-
-            for (auto [entity, data] : view) {
-                log::info("{} {}", entity.value, data);
-                data += 1;
+        "one component scene view"_test = [&]{
+            auto view = ecs::View<int>(scene);
+            bool test_result = true;
+            int i = 0;
+            for (auto [e, d] : view()) {
+                test_result &= d == 2*i + 1 and e == std::vector<ecs::Index>({0, 1, 2, 4, 5}).at(i); i++;
             }
+            return expect(test_result);
+        };
 
-            ecs::View<int, float> view2(scene);
-            auto a = view2.intersection();
-            for (auto i : a) log::info("{}", i.value);
-
-            for (auto [e, a, b] : view2.each()) {
-                log::info("aaaa {} {} {}", e.value, a, b);
+        "data only view"_test = [&]{
+            auto view = ecs::View<float>(scene);
+            bool test_result = true;
+            int i = 0;
+            for (auto d : view.data()) {
+                test_result &= d == std::vector<float>({3.14f, 0.50f, 1.68f, 0.32f}).at(i); i++;
             }
+            return expect(test_result);
+        };
 
-            return expect(true);
-         };
+        "multiple components"_test = [&]{
+            auto view = ecs::View<int, float>(scene);
+            bool test_result = true;
+            int i = 0;
+            for (auto [e, d_int, d_float] : view()) {
+                test_result &= e == std::vector<ecs::Index>({2, 4, 5}).at(i) and
+                               d_int == std::vector<int>({5, 7, 9}).at(i) and
+                               d_float == std::vector<float>({3.14f, 1.68f, 0.32f}).at(i); i++;
+            }
+            return expect(test_result);
+        };
+
+        "modify values"_test = [&]{
+            auto view = ecs::View<int>(scene);
+            bool test_result = true;
+            for (auto [e, d] : view()) { d = 10; /* can't modify entities by design, e = ecs::Index(0) does not compile */ }
+            for (auto [e, d] : view()) { test_result &= d == 10; }
+            test_result &= *scene.get<int>(0) == 10;
+            return expect(test_result);
+        };
     });
 }
 
