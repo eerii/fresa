@@ -90,7 +90,7 @@ namespace fresa
             //: run selected suites
             void run (const std::vector<test_objects::Suite> &suites) {
                 for (auto suite : suites) {
-                    detail::log<"TEST", LOG_TEST | LOG_DEBUG, fmt::color::slate_gray>("Running suite '{}'", suite.name);
+                    detail::log<"TEST", LOG_TEST | LOG_DEBUG, fmt::color::slate_gray>("running suite '{}'", suite.name);
                     suite.run();
                 }
             }

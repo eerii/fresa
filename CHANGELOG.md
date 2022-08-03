@@ -6,7 +6,6 @@ _new implementation of fresa_
 
 #### todo
 - ecs:
-  - scene view
   - systems v2
 - events
 - reflection
@@ -22,6 +21,7 @@ _new implementation of fresa_
 - **added** - ecs scene manager
 - **changed** - renamed template repository from aguacate to mermelada (actually makes sense now :3)
 - **fixed** - sparse container now works better and preserves entity ids
+- **added** - ecs scene views
 
 #### [0.4.4] strong types (_08 jul 22_)
 

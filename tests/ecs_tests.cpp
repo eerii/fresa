@@ -29,12 +29,6 @@ namespace test
                           cpool.sparse.at(0).at(5) == ecs::invalid_id and cpool.sparse.at(0).at(9) == 5);
         };
 
-        "iteration"_test = [&]{
-            int i = 0;
-            for (auto& item : cpool) i++;
-            return expect(i == 9);
-        };
-
         "update entity"_test = [&]{
             cpool.add(ecs::id(3, 1), 13);
             return expect(cpool.size() == 9 and *cpool.get(ecs::id(3, 1)) == 13);
@@ -42,57 +36,137 @@ namespace test
     });
 
     inline TestSuite scene_tests("ecs_scene", []{
-        ecs::Scene scene;
+        {
+            ecs::Scene scene;
 
-        "create pool"_test = [&]{
-            scene.cpool<int>();
-            return expect(scene.component_pools.size() == 1);
-        };
+            "create pool"_test = [&]{
+                scene.cpool<int>();
+                return expect(scene.component_pools.size() == 1);
+            };
 
-        "get pool"_test = [&]{
-            auto& pool = scene.cpool<int>();
-            return expect(scene.component_pools.size() == 1);
-        };
+            "get pool"_test = [&]{
+                auto& pool = scene.cpool<int>();
+                return expect(scene.component_pools.size() == 1);
+            };
 
-        "add entity"_test = [&]{
-            auto e1 = scene.add();
-            auto e2 = scene.add();
-            return expect(e1 == ecs::id(0, 0) and e2 == ecs::id(1, 0) and
-                          scene.free_entities.size() == 1 and scene.free_entities.front() == ecs::id(2, 0));
-        };
+            "add entity"_test = [&]{
+                auto e1 = scene.add();
+                auto e2 = scene.add();
+                return expect(e1 == ecs::id(0, 0) and e2 == ecs::id(1, 0) and
+                              scene.free_entities.size() == 1 and scene.free_entities.front() == ecs::id(2, 0));
+            };
 
-        "component types"_test = [&]{
-            auto e = scene.add(int{1}, float{2.0f});
-            return expect(scene.component_pools.size() == 2 and
-                          scene.component_pools.contains(type_hash<int>()) and
-                          scene.component_pools.contains(type_hash<float>()));
-        };
+            "component types"_test = [&]{
+                auto e = scene.add(int{1}, float{2.0f});
+                return expect(scene.component_pools.size() == 2 and
+                              scene.component_pools.contains(type_hash<int>()) and
+                              scene.component_pools.contains(type_hash<float>()));
+            };
 
-        "get component"_test = [&]{
-            auto e = scene.add(int{5}, float{1.68f});
-            return expect(*scene.get<int>(e) == 5 and *scene.get<float>(e) == 1.68f);
-        };
+            "get component"_test = [&]{
+                auto e = scene.add(int{5}, float{1.68f});
+                return expect(*scene.get<int>(e) == 5 and *scene.get<float>(e) == 1.68f);
+            };
 
-        "remove entity"_test = [&]{
-            auto e = scene.add(int{16});
-            scene.remove(e);
-            return expect(scene.free_entities.size() == 2 and scene.free_entities.front() == e and scene.get<int>(e) == nullptr);
-        };
+            "remove entity"_test = [&]{
+                auto e = scene.add(int{16});
+                scene.remove(e);
+                return expect(scene.free_entities.size() == 2 and
+                              ecs::index(scene.free_entities.front()) == ecs::index(e) and
+                              ecs::version(scene.free_entities.front()) == ecs::version(e) + ecs::Version(1) and
+                              scene.get<int>(e) == nullptr);
+            };
+        }
+        {
+            ecs::Scene scene;
+            std::vector<ecs::EntityID> entities;
+            for (int i = 0; i < 10; i++)
+                entities.push_back(scene.add(int{1 << i}));
+
+            "remove a few entities"_test = [&]{
+                scene.remove(entities[5]);
+                scene.remove(entities[2]);
+
+                bool verify_sparse = [&]{
+                    auto& s = scene.cpool<int>().sparse.at(0);
+                    return s.at(0) == ecs::id(0, 0) and s.at(1) == ecs::id(1, 0) and s.at(2) == ecs::invalid_id and
+                           s.at(3) == ecs::id(3, 0) and s.at(4) == ecs::id(4, 0) and s.at(5) == ecs::invalid_id and
+                           s.at(6) == ecs::id(6, 0) and s.at(7) == ecs::id(7, 0) and
+                           s.at(8) == ecs::id(2, 0) and s.at(9) == ecs::id(5, 0);
+                }();
+
+                bool verify_dense = [&]{
+                    auto& d = scene.cpool<int>().dense;
+                    return d.at(0) == ecs::Index(0) and d.at(1) == ecs::Index(1) and d.at(2) == ecs::Index(8) and
+                           d.at(3) == ecs::Index(3) and d.at(4) == ecs::Index(4) and d.at(5) == ecs::Index(9) and
+                           d.at(6) == ecs::Index(6) and d.at(7) == ecs::Index(7);
+                }();
+
+                bool verify_data = [&]{
+                    auto& d = scene.cpool<int>().data;
+                    return d.at(0) == 1 and d.at(1) == 2 and d.at(2) == 256 and d.at(3) == 8 and
+                           d.at(4) == 16 and d.at(5) == 512 and d.at(6) == 64 and d.at(7) == 128;
+                }();
+
+                return expect(scene.free_entities == std::deque<ecs::EntityID>({ecs::id(2, 1), ecs::id(5, 1), ecs::id(10, 0)}) and
+                              verify_sparse and verify_dense and verify_data);
+            };
+
+            "add entity back"_test = [&]{
+                scene.add(int{1024});
+
+                bool verify_sparse = [&]{
+                    auto& s = scene.cpool<int>().sparse.at(0);
+                    return s.at(0) == ecs::id(0, 0) and s.at(1) == ecs::id(1, 0) and s.at(2) == ecs::id(8, 1) and
+                           s.at(3) == ecs::id(3, 0) and s.at(4) == ecs::id(4, 0) and s.at(5) == ecs::invalid_id and
+                           s.at(6) == ecs::id(6, 0) and s.at(7) == ecs::id(7, 0) and
+                           s.at(8) == ecs::id(2, 0) and s.at(9) == ecs::id(5, 0);
+                }();
+
+                bool verify_dense = [&]{
+                    auto& d = scene.cpool<int>().dense;
+                    return d.at(0) == ecs::Index(0) and d.at(1) == ecs::Index(1) and d.at(2) == ecs::Index(8) and
+                           d.at(3) == ecs::Index(3) and d.at(4) == ecs::Index(4) and d.at(5) == ecs::Index(9) and
+                           d.at(6) == ecs::Index(6) and d.at(7) == ecs::Index(7) and d.at(8) == ecs::Index(2);
+                }();
+
+                bool verify_data = [&]{
+                    auto& d = scene.cpool<int>().data;
+                    return d.at(0) == 1 and d.at(1) == 2 and d.at(2) == 256 and d.at(3) == 8 and
+                           d.at(4) == 16 and d.at(5) == 512 and d.at(6) == 64 and d.at(7) == 128 and d.at(8) == 1024;
+                }();
+
+                return expect(scene.free_entities == std::deque<ecs::EntityID>({ecs::id(5, 1), ecs::id(10, 0)}) and
+                              verify_sparse and verify_dense and verify_data);
+            };
+        }
     });
 
     inline TestSuite scene_view_tests("ecs_scene_view", []{
         ecs::Scene scene;
         scene.add(int{1});
         scene.add(int{3});
-        scene.add(int{5});
-
-        scene.remove(ecs::id(2, 0));
-        scene.add(int{7});
-
-        debug_cpool(scene);
+        scene.add(int{3}, float{4.5f});
+        scene.add(float{0.5f});
+        scene.add(int{5}, float{1.5f});
+        scene.add(int{7}, float{0.3f});
 
         "scene view"_test = [&]{
             ecs::View<int> view(scene);
+
+            for (auto [entity, data] : view) {
+                log::info("{} {}", entity.value, data);
+                data += 1;
+            }
+
+            ecs::View<int, float> view2(scene);
+            auto a = view2.intersection();
+            for (auto i : a) log::info("{}", i.value);
+
+            for (auto [e, a, b] : view2.each()) {
+                log::info("aaaa {} {} {}", e.value, a, b);
+            }
+
             return expect(true);
          };
     });

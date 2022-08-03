@@ -11,6 +11,8 @@
 #include "log.h"
 #include <deque>
 
+#include "constexpr_for.h"
+
 namespace fresa::ecs
 {
     //* index-version id
@@ -21,7 +23,7 @@ namespace fresa::ecs
     {
         using ID = strong::Type<ui32, decltype([]{}), strong::Regular, strong::Bitwise, strong::BitwiseWith<int>>;
     }
-    using Index = strong::Type<ui16, decltype([]{}), strong::Regular, strong::ConvertibleTo<detail::ID>, strong::Hashable>;
+    using Index = strong::Type<ui16, decltype([]{}), strong::Regular, strong::ConvertibleTo<detail::ID>, strong::Ordered, strong::Hashable>;
     using Version = strong::Type<ui16, decltype([]{}), strong::Regular, strong::ConvertibleTo<detail::ID>, strong::Ordered, strong::Arithmetic>;
 
     [[nodiscard]] constexpr Index index(detail::ID id) noexcept { return Index(id.value); }
@@ -157,17 +159,6 @@ namespace fresa::ecs
         //: size and extent
         [[nodiscard]] constexpr std::size_t size() const { return dense.size(); }
         [[nodiscard]] constexpr std::size_t extent() const { return sparse.size() * engine_config.ecs_page_size(); }
-
-        //: iterators
-        //- add support for dense entity iterators
-        [[nodiscard]] constexpr auto begin() const noexcept { return data.begin(); }
-        [[nodiscard]] constexpr auto end() const noexcept { return data.end(); }
-        [[nodiscard]] constexpr auto cbegin() const noexcept { return data.cbegin(); }
-        [[nodiscard]] constexpr auto cend() const noexcept { return data.cend(); }
-        [[nodiscard]] constexpr auto rbegin() const noexcept { return data.rbegin(); }
-        [[nodiscard]] constexpr auto rend() const noexcept { return data.rend(); }
-        [[nodiscard]] constexpr auto crbegin() const noexcept { return data.crbegin(); }
-        [[nodiscard]] constexpr auto crend() const noexcept { return data.crend(); }
     };
 
     //---
@@ -203,8 +194,6 @@ namespace fresa::ecs
             //: return a reference to the pool
             return (ComponentPool<C>&)(*it->second);
         }
-        template <typename C>
-        const auto& cpool() const { return const_cast<Scene*>(this)->cpool<C>(); }
 
         // ---
 
@@ -237,41 +226,79 @@ namespace fresa::ecs
     };
 
     //* view
-    //! for now one component only, not C..., also needs to include the entity id, maybe divide dense and data again? check if entity valid as well
-    //! OK FINALLY, entt does it by using the dense array as data in the unspetialized array
-
-    template <typename C>
+    //-     ...
+    template <typename ... C> requires (sizeof...(C) > 0)
     struct View {
         //: scene pointer
         Scene* scene;
 
-        //: if a scene view doesn't specify any types, it will iterate over all of them
-        static constexpr bool all = false;//sizeof...(C) == 0;
+        //: component pools and intersection of entity indices
+        std::array<detail::ComponentPoolBase*, sizeof...(C)> pools;
+        std::vector<Index> indices;
+
+        //: constructor
+        constexpr View(Scene& s) : scene(&s) {
+            int i = 0; ([&]{ pools.at(i++) = &scene->cpool<C>(); }(), ...);
+        }
+
+        //: intersection of all the pools (entities that contain all components specified)
+        [[nodiscard]] constexpr auto intersection() noexcept {
+            auto last = pools.front()->dense;
+            std::sort(last.begin(), last.end());
+            decltype(last) current;
+            for (auto &pool : pools) {
+                auto dense = pool->dense;
+                std::sort(dense.begin(), dense.end());
+                std::set_intersection(last.begin(), last.end(), dense.begin(), dense.end(), std::back_inserter(current));
+                std::swap(last, current);
+                current.clear();
+            }
+            return last;
+        }
+
+        //: iterators
+        //      iterates over all entities that have all the specified components
+        //      for (auto [entity, data1, data2] : view) ... (note, no & is needed, they are already references)
+        [[nodiscard]] constexpr auto each() {
+            indices = intersection();
+            return rv::zip(indices, [&]{
+                auto &pool = scene->cpool<C>();
+                return rv::zip(pool.dense, pool.data) | rv::filter([&](auto a) {
+                    return std::count(indices.begin(), indices.end(), a.first);
+                }) | rv::values;
+            }()...);
+        }
+        [[nodiscard]] constexpr auto begin() noexcept { return each().begin(); }
+        [[nodiscard]] constexpr auto end() noexcept { return each().end(); }
+        //      you can iterate over just the data using:
+        //      for (auto [data1, data2] : view.data())
+        [[nodiscard]] constexpr auto data() {
+            indices = intersection();
+            return rv::zip([&]{
+                auto &pool = scene->cpool<C>();
+                return rv::zip(pool.dense, pool.data) | rv::filter([&](auto a) {
+                    return std::count(indices.begin(), indices.end(), a.first);
+                }) | rv::values;
+            }()...);
+        }
+    };
+    //: specialization for only one component (should be faster)
+    template <typename C>
+    struct View<C> {
+        //: scene pointer
+        Scene* scene;
 
         //: constructor
         constexpr View(Scene& s) : scene(&s) {}
 
-        //: iterator
-        //      iterates over all entities that have the specified components
-        //      if no components are specified, it will iterate over all entities
-        [[nodiscard]] constexpr auto begin() const noexcept {
-            return scene->cpool<C>().begin();
-        }
-        [[nodiscard]] constexpr auto end() const noexcept {
-            return scene->cpool<C>().end();
-        }
+        //: iterators
+        //      iterates over all entities that have the specified component
+        //      for (auto [entity, data] : view) ... (note, no & is needed, they are already references)
+        [[nodiscard]] constexpr auto each() noexcept { return rv::zip(scene->cpool<C>().dense, scene->cpool<C>().data); }
+        [[nodiscard]] constexpr auto begin() noexcept { return each().begin(); }
+        [[nodiscard]] constexpr auto end() noexcept { return each().end(); }
+        //      to iterate over just the data use it like:
+        //      for (auto &data) : view.data()) ...
+        [[nodiscard]] constexpr auto& data() noexcept { return scene->cpool<C>().data; }
     };
-
-    namespace detail
-    {
-        template <std::size_t N>
-        struct ViewIterator {
-            std::array<const ComponentPoolBase*, N> pools;
-
-
-            [[nodiscard]] bool valid() const noexcept {
-                
-            }
-        };
-    }
 }
