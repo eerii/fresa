@@ -5,15 +5,15 @@
 _new implementation of fresa_
 
 #### todo
-- ecs:
-  - test ecs with a sample
-  - systems v2
-  - documentation
+- ecs and system documentation
 - events
 - reflection
-- continue with documentation
 
-#### [0.4.5] ecs (_00 jul 22_)
+#### [0.4.6] ecs (_00 ago 22_)
+
+- **added** - system simulation update loop
+
+#### [0.4.5] ecs (_10 ago 22_)
 
 - **added** - constexpr type hashing using fnv1a
 - **added** - entity id with index and version for ecs

@@ -81,13 +81,13 @@ bool fresa::detail::update() {
 
     //: update the simulation with discrete steps
     while (accumulator >= dt) {
-        //- simulation(t, dt)
+        system::update(); //: simulation(t, dt)
 
         accumulator -= dt;
         simulation_time += dt;
 
         //: temporary fake exit after 0.1s for testing
-        if (simulation_time.time_since_epoch().count() * 1.0e-6 > 100)
+        if (simulation_time.time_since_epoch() > 100ms)
             return false;
     }
 

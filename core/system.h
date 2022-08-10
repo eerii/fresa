@@ -80,4 +80,12 @@ namespace fresa::system
             manager.stop.pop();
         }
     }
+
+    //* simulation update all systems in order
+    inline void update() {
+        auto queue = manager.update;
+        while (not queue.empty()) {
+            queue.top().f(); queue.pop();
+        }
+    }
 }
