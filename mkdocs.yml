@@ -54,6 +54,7 @@ nav:
   - getting started:
     - building the project: getting_started/building.md
     - a simple program: getting_started/first_project.md
+    - working with entities: getting_started/working_with_entities.md
 
   - reference:
     - engine: reference/engine.md

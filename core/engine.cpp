@@ -12,6 +12,16 @@
 #include "system.h"
 #include "jobs.h"
 
+//* engine callbacks
+//      if present, include the configuration file and check that it defines a valid fresa::engine_callback
+//      if not, use the default values
+#if __has_include(FRESA_ENGINE_FILE)
+    #include FRESA_ENGINE_FILE
+    static_assert(std::derived_from<decltype(fresa::engine_callback), fresa::EngineCallback>, "the engine file must define fresa::engine_callback and it must be fresa::Engine or a subclass of it");
+#else
+    namespace fresa { constexpr inline EngineCallback engine_callback; }
+#endif
+
 using namespace fresa;
 
 //* main entry point
@@ -49,7 +59,8 @@ void fresa::detail::init() {
     //: job system
     system::add(jobs::JobSystem(), system::SystemPriorities::SYSTEM_PRIORITY_FIRST);
 
-    //- register systems ...
+    //: user initialization
+    engine_callback.on_init();
 }
 
 //* update
@@ -100,6 +111,7 @@ bool fresa::detail::update() {
 
 //* stop and cleanup
 void fresa::detail::stop() {
+    engine_callback.on_stop();
     log::debug("closing all systems");
     system::stop();
 }

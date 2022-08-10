@@ -12,6 +12,7 @@ _new implementation of fresa_
 #### [0.4.6] ecs (_00 ago 22_)
 
 - **added** - system simulation update loop
+- **added** - user configurable engine callbacks for initialization and shutdown
 
 #### [0.4.5] ecs (_10 ago 22_)
 
