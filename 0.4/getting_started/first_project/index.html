@@ -294,10 +294,55 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          a simple program
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         a simple program
       </a>
       
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#hello-world" class="md-nav__link">
+    hello world
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../working_with_entities/" class="md-nav__link">
+        working with entities
+      </a>
     </li>
   
 
@@ -540,8 +585,32 @@
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
 <p>All you need to run <strong>fresa</strong> is to import the engine header and call <code>fresa::run()</code>.</p>
-<p>If you wish to configure how the engine behaves, you can look into the <a href="../../reference/config/">configuration file</a>.</p>
-<p><em>This page will be updated when components are added to the engine to explain how to create your own functionality.</em></p>
+<p>If you wish to configure how the engine behaves, you can look into the <a href="../../reference/config/">configuration file</a> and how the <a href="../../reference/engine/#callbacks">engine callbacks</a> work.</p>
+<h2 id="hello-world">hello world<a class="headerlink" href="#hello-world" title="Permanent link">&para;</a></h2>
+<p>For this example we are going to use the <a href="../../reference/engine/#callbacks"><code>on_init()</code></a> engine callback, which will execute its code when the engine is initialized. We will create a <code>game.h</code> file and define this funcion as so:</p>
+<div class="highlight"><span class="filename">game.h</span><pre><span></span><code><span class="cp">#pragma once</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;engine.h&quot;</span><span class="cp"></span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">fresa</span><span class="w"></span>
+<span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">_EngineCallback</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">EngineCallback</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="nf">on_init</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="c1">// here goes your code</span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">engine_callback</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+<p>Now, we can import the <a href="../../reference/tools/log/">logging</a> library and use it to print a message when the callback is executed:</p>
+<div class="highlight"><span class="filename">game.h</span><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;engine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;log.h&quot;</span><span class="cp"></span>
+
+<span class="c1">//... other code</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">on_init</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;hello world!&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+<p>If you execute the program now, you will see the message printed in the terminal.</p>
 
               
             </article>
@@ -573,13 +642,13 @@
       
       
         
-        <a href="../../reference/engine/" class="md-footer__link md-footer__link--next" aria-label="Next: engine" rel="next">
+        <a href="../working_with_entities/" class="md-footer__link md-footer__link--next" aria-label="Next: working with entities" rel="next">
           <div class="md-footer__title">
             <div class="md-ellipsis">
               <span class="md-footer__direction">
                 Next
               </span>
-              engine
+              working with entities
             </div>
           </div>
           <div class="md-footer__button md-icon">
