@@ -11,8 +11,6 @@
 #include "log.h"
 #include <deque>
 
-#include "constexpr_for.h"
-
 namespace fresa::ecs
 {
     //* index-version id
@@ -44,7 +42,7 @@ namespace fresa::ecs
 
     namespace detail
     {
-        //: base component pool
+        //* base component pool
         struct ComponentPoolBase {
             //: default constructor, no copy or move
             ComponentPoolBase() = default;
@@ -88,10 +86,14 @@ namespace fresa::ecs
             
             //: remove is a constexpr virtual functions that is overriden by the derived classes
             constexpr virtual void remove(const EntityID entity) = 0;
+
+            //: size and extent
+            [[nodiscard]] constexpr std::size_t size() const { return dense.size(); }
+            [[nodiscard]] constexpr std::size_t extent() const { return sparse.size() * engine_config.ecs_page_size(); }
         };
     }
 
-    //: typed component pool
+    //* typed component pool
     template <typename T>
     struct ComponentPool : detail::ComponentPoolBase {
         //: data
@@ -155,16 +157,12 @@ namespace fresa::ecs
             sparse.clear();
             data.clear();
         }
-
-        //: size and extent
-        [[nodiscard]] constexpr std::size_t size() const { return dense.size(); }
-        [[nodiscard]] constexpr std::size_t extent() const { return sparse.size() * engine_config.ecs_page_size(); }
     };
 
     //---
 
     //* scene
-    //-     ...
+    //      a scene holds a number of component pools, each with its entities
     struct Scene {
         //* component pool
         //      searchs the hash map for the specified component type
@@ -223,6 +221,8 @@ namespace fresa::ecs
             [&] { for (auto &[key, pool] : component_pools) pool->remove(entity); }();
             free_entities.push_front(id(index(entity), version(entity) + Version(1)));
         }
+
+        //- number of entities
     };
 
     //* view

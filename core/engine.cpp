@@ -44,7 +44,7 @@ void fresa::run() {
 
 //* initialization
 void fresa::detail::init() {
-    // log::debug("setting up the engine");
+    log::debug("setting up the engine");
 
     //: job system
     system::add(jobs::JobSystem(), system::SystemPriorities::SYSTEM_PRIORITY_FIRST);
@@ -100,6 +100,6 @@ bool fresa::detail::update() {
 
 //* stop and cleanup
 void fresa::detail::stop() {
-    // log::debug("closing all systems");
+    log::debug("closing all systems");
     system::stop();
 }

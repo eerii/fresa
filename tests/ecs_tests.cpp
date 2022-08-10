@@ -4,8 +4,6 @@
 #include "unit_test.h"
 #include "ecs.h"
 
-#include "_debug_cpool.h" //! ONLY FOR TESTING
-
 namespace test
 {
     using namespace fresa;
@@ -79,6 +77,18 @@ namespace test
         }
         {
             ecs::Scene scene;
+            constexpr int p = engine_config.ecs_page_size();
+            for (int i = 0; i < p * 2.5; i++)
+                scene.add(int{i});
+
+            "more than one page"_test = [&]{
+                return expect(scene.cpool<int>().sparse.size() == 3 and
+                              scene.get<int>(ecs::id(p * 0.5, 0)) != nullptr and *scene.get<int>(ecs::id(p * 0.5, 0)) == p * 0.5 and
+                              scene.get<int>(ecs::id(p * 1.5, 0)) != nullptr and *scene.get<int>(ecs::id(p * 1.5, 0)) == p * 1.5);
+            };
+        }
+        {
+            ecs::Scene scene;
             std::vector<ecs::EntityID> entities;
             for (int i = 0; i < 10; i++)
                 entities.push_back(scene.add(int{1 << i}));
@@ -143,54 +153,75 @@ namespace test
     });
 
     inline TestSuite scene_view_tests("ecs_scene_view", []{
-        ecs::Scene scene;
-        scene.add(int{1});
-        scene.add(int{3});
-        scene.add(int{5}, float{3.14f});
-        scene.add(float{0.50f});
-        scene.add(int{7}, float{1.68f});
-        scene.add(int{9}, float{0.32f});
+        {
+            ecs::Scene scene;
+            scene.add(int{1});
+            scene.add(int{3});
+            scene.add(int{5}, float{3.14f});
+            scene.add(float{0.50f});
+            scene.add(int{7}, float{1.68f});
+            scene.add(int{9}, float{0.32f});
 
-        "one component scene view"_test = [&]{
-            auto view = ecs::View<int>(scene);
-            bool test_result = true;
-            int i = 0;
-            for (auto [e, d] : view()) {
-                test_result &= d == 2*i + 1 and e == std::vector<ecs::Index>({0, 1, 2, 4, 5}).at(i); i++;
-            }
-            return expect(test_result);
-        };
+            "one component scene view"_test = [&]{
+                auto view = ecs::View<int>(scene);
+                bool test_result = true;
+                int i = 0;
+                for (auto [e, d] : view()) {
+                    test_result &= d == 2*i + 1 and e == std::vector<ecs::Index>({0, 1, 2, 4, 5}).at(i); i++;
+                }
+                return expect(test_result);
+            };
 
-        "data only view"_test = [&]{
-            auto view = ecs::View<float>(scene);
-            bool test_result = true;
-            int i = 0;
-            for (auto d : view.data()) {
-                test_result &= d == std::vector<float>({3.14f, 0.50f, 1.68f, 0.32f}).at(i); i++;
-            }
-            return expect(test_result);
-        };
+            "data only view"_test = [&]{
+                auto view = ecs::View<float>(scene);
+                bool test_result = true;
+                int i = 0;
+                for (auto d : view.data()) {
+                    test_result &= d == std::vector<float>({3.14f, 0.50f, 1.68f, 0.32f}).at(i); i++;
+                }
+                return expect(test_result);
+            };
 
-        "multiple components"_test = [&]{
-            auto view = ecs::View<int, float>(scene);
-            bool test_result = true;
-            int i = 0;
-            for (auto [e, d_int, d_float] : view()) {
-                test_result &= e == std::vector<ecs::Index>({2, 4, 5}).at(i) and
-                               d_int == std::vector<int>({5, 7, 9}).at(i) and
-                               d_float == std::vector<float>({3.14f, 1.68f, 0.32f}).at(i); i++;
-            }
-            return expect(test_result);
-        };
+            "multiple components"_test = [&]{
+                auto view = ecs::View<int, float>(scene);
+                bool test_result = true;
+                int i = 0;
+                for (auto [e, d_int, d_float] : view()) {
+                    test_result &= e == std::vector<ecs::Index>({2, 4, 5}).at(i) and
+                                d_int == std::vector<int>({5, 7, 9}).at(i) and
+                                d_float == std::vector<float>({3.14f, 1.68f, 0.32f}).at(i); i++;
+                }
+                return expect(test_result);
+            };
 
-        "modify values"_test = [&]{
-            auto view = ecs::View<int>(scene);
-            bool test_result = true;
-            for (auto [e, d] : view()) { d = 10; /* can't modify entities by design, e = ecs::Index(0) does not compile */ }
-            for (auto [e, d] : view()) { test_result &= d == 10; }
-            test_result &= *scene.get<int>(0) == 10;
-            return expect(test_result);
-        };
+            "modify values"_test = [&]{
+                auto view = ecs::View<int>(scene);
+                bool test_result = true;
+                for (auto [e, d] : view()) { d = 10; /* can't modify entities by design, e = ecs::Index(0) does not compile */ }
+                for (auto [e, d] : view()) { test_result &= d == 10; }
+                test_result &= *scene.get<int>(0) == 10;
+                return expect(test_result);
+            };
+        }
+        {
+            ecs::Scene scene;
+            constexpr int p = engine_config.ecs_page_size();
+            for (int i = 0; i < p * 2.5; i++)
+                scene.add(int{i});
+                
+            "more than one page"_test = [&]{
+                auto view = ecs::View<int>(scene);
+                bool test_result = true;
+
+                int count = 0;
+                for (auto [e, d] : view()) {
+                    test_result &= d == count;
+                    count++;
+                }
+
+                return expect(test_result and count == p * 2.5);
+            };
+        }
     });
 }
 

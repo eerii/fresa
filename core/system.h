@@ -13,18 +13,17 @@ namespace fresa::system
 {
     namespace concepts
     {
-        //* system concept, requires an initialacion and stop function
+        //* system concept, requires an init function
         template <typename T>
-        concept System = requires(T s) {
-            T::init();
-            T::stop();
-        };
+        concept System = requires(T s) { T::init(); };
+
+        //* system with a stop callback
+        template <typename T>
+        concept SystemWithStop = System<T> && requires(T s) { T::stop(); };
 
         //* system with simulation update
         template <typename T>
-        concept SystemWithUpdate = System<T> and requires(T s) {
-            T::update();
-        };
+        concept SystemWithUpdate = System<T> and requires(T s) { T::update(); };
     }
 
     namespace detail
@@ -59,23 +58,24 @@ namespace fresa::system
     //* register and initialize system
     inline void add(concepts::System auto s, ui8 priority = SYSTEM_PRIORITY_DEFAULT) {
         constexpr auto name = type_name<decltype(s)>();
-        log::debug("registering system '{}'", name);
+        ::fresa::detail::log<"SYSTEM", LOG_DEBUG, fmt::color::medium_purple>("registering system '{}'", name);
 
-        //* initialize system
+        //: initialize system
         s.init();
         
-        //* add to update list
+        //: add to update list
         if constexpr (concepts::SystemWithUpdate<decltype(s)>)
             manager.update.push({priority, name, s.update});
 
-        //* add to destructor list
-        manager.stop.push({name, s.stop});
+        //: add to destructor list
+        if constexpr (concepts::SystemWithStop<decltype(s)>)
+            manager.stop.push({name, s.stop});
     }
 
     //* clean all systems in inverse order when program stops
     inline void stop() {
         while (not manager.stop.empty()) {
-            log::debug("stopping system '{}'", manager.stop.top().name);
+            ::fresa::detail::log<"SYSTEM", LOG_DEBUG, fmt::color::medium_purple>("stopping system '{}'", manager.stop.top().name);
             manager.stop.top().f();
             manager.stop.pop();
         }

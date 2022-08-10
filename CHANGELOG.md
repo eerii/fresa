@@ -6,7 +6,9 @@ _new implementation of fresa_
 
 #### todo
 - ecs:
+  - test ecs with a sample
   - systems v2
+  - documentation
 - events
 - reflection
 - continue with documentation
@@ -22,6 +24,8 @@ _new implementation of fresa_
 - **changed** - renamed template repository from aguacate to mermelada (actually makes sense now :3)
 - **fixed** - sparse container now works better and preserves entity ids
 - **added** - ecs scene views
+- **added** - more ecs tests, including multiple sparse memory pages
+- **changed** - systems can now optionally contain the stop function
 
 #### [0.4.4] strong types (_08 jul 22_)
 
