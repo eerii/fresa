@@ -120,7 +120,7 @@ namespace test
             std::atomic<int> value = 0;
             std::jthread t([&]{
                 auto v = q.pop(); 
-                if (v.has_value())
+                if (v)
                     value = v.value();
             });
             t.join();

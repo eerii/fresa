@@ -23,7 +23,7 @@ namespace test
 
         "remove item"_test = [&]{
             cpool.remove(ecs::id(5, 0));
-            return expect(cpool.size() == 9 and cpool.get(ecs::id(5, 0)) == nullptr and
+            return expect(cpool.size() == 9 and not cpool.get(ecs::id(5, 0)) and
                           cpool.sparse.at(0).at(5) == ecs::invalid_id and cpool.sparse.at(0).at(9) == 5);
         };
 
@@ -72,7 +72,7 @@ namespace test
                 return expect(scene.free_entities.size() == 2 and
                               ecs::index(scene.free_entities.front()) == ecs::index(e) and
                               ecs::version(scene.free_entities.front()) == ecs::version(e) + ecs::Version(1) and
-                              scene.get<int>(e) == nullptr);
+                              not scene.get<int>(e));
             };
         }
         {
@@ -83,8 +83,8 @@ namespace test
 
             "more than one page"_test = [&]{
                 return expect(scene.cpool<int>().sparse.size() == 3 and
-                              scene.get<int>(ecs::id(p * 0.5, 0)) != nullptr and *scene.get<int>(ecs::id(p * 0.5, 0)) == p * 0.5 and
-                              scene.get<int>(ecs::id(p * 1.5, 0)) != nullptr and *scene.get<int>(ecs::id(p * 1.5, 0)) == p * 1.5);
+                              scene.get<int>(ecs::id(p * 0.5, 0)) == p * 0.5 and
+                              scene.get<int>(ecs::id(p * 1.5, 0)) == p * 1.5);
             };
         }
         {

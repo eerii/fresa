@@ -295,18 +295,18 @@ namespace fresa::jobs
             while (running) {
                 //: get job
                 current_job = local_queues[thread_index].pop();
-                if (not current_job.has_value())
+                if (not current_job)
                     current_job = global_queues[thread_index].pop();
 
                 //: if there is no job, try to steal one from another thread
                 ui32 n = thread_count - 1;
-                while (not current_job.has_value() and --n > 0) {
+                while (not current_job and --n > 0) {
                     steal_next = (steal_next + 1) % thread_count;
                     current_job = global_queues[steal_next].pop();
                 }
 
                 //: there is a job
-                if (current_job.has_value()) {
+                if (current_job) {
                     if (current_job.value() == nullptr) {
                         log::error("the job you are trying to add is null, this should not happen");
                         continue;

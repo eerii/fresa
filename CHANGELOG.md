@@ -26,6 +26,7 @@ _new implementation of fresa_
 - **added** - ecs scene views
 - **added** - more ecs tests, including multiple sparse memory pages
 - **changed** - systems can now optionally contain the stop function
+- **changed** - ecs get returns an std::optional instead of a pointer
 
 #### [0.4.4] strong types (_08 jul 22_)
 

@@ -10,6 +10,7 @@
 #include "type_name.h"
 #include "log.h"
 #include <deque>
+#include <optional>
 
 namespace fresa::ecs
 {
@@ -125,9 +126,9 @@ namespace fresa::ecs
 
         //: get
         //      returns a pointer to the entity value from the dense array if it exists, if not it returns nullptr
-        [[nodiscard]] constexpr const T* get(const EntityID entity) {
+        [[nodiscard]] constexpr auto get(const EntityID entity) {
             const auto sid = sparse_at(entity);
-            return valid(sid, version(entity)) ? &data.at(index(*sid).value) : nullptr;
+            return valid(sid, version(entity)) ? std::optional<const std::reference_wrapper<T>>(data.at(index(*sid).value)) : std::nullopt;
         }
 
         //: remove
@@ -163,6 +164,7 @@ namespace fresa::ecs
 
     //* scene
     //      a scene holds a number of component pools, each with its entities
+    //      the scene is responsible for adding, updating and removing the entities
     struct Scene {
         //* component pool
         //      searchs the hash map for the specified component type
@@ -196,8 +198,9 @@ namespace fresa::ecs
         // ---
 
         //* entities
-        //-     ...
-
+        //      an entity is just a handle made from an index and a version
+        //      the free entities list contains first any entity that has been deleted and can be reused and last a value of the next entity to be created
+        //      reusing previous entity ids will always come first, the version parameter is used to distinguis between entities that have been reused
         std::deque<EntityID> free_entities = {ecs::id(0, 0)};
 
         //: add entity
@@ -212,7 +215,7 @@ namespace fresa::ecs
 
         //: get entity component
         template <typename C>
-        [[nodiscard]] constexpr const C* get(const EntityID entity) {
+        [[nodiscard]] constexpr auto get(const EntityID entity) {
             return cpool<C>().get(entity);
         }
 
@@ -226,7 +229,10 @@ namespace fresa::ecs
     };
 
     //* view
-    //-     ...
+    //      a view is an iterator range over some entities in a scene
+    //      the view can be created over entities with one or more components, and will iterate over the entities that have all of this components
+    //      there is a specialization for only one component that should be faster since it doesn't have to calculate the intersection
+    //      iterating over a view should be relatively performant since it uses the dense array of the component pool
     template <typename ... C> requires (sizeof...(C) > 0)
     struct View {
         //: scene pointer
