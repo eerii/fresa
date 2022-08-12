@@ -12,6 +12,7 @@
 
 #include "log.h"
 #include "system.h"
+#include "fresa_assert.h"
 
 #include <atomic>
 #include <thread>
@@ -311,10 +312,7 @@ namespace fresa::jobs
 
                 //: there is a job
                 if (current_job) {
-                    if (current_job.value() == nullptr) {
-                        log::error("the job you are trying to add is null, this should not happen");
-                        continue;
-                    }
+                    fresa_assert(current_job.value() == nullptr, "the job you are trying to add is null, this should not happen");
 
                     //: run the job
                     detail::log<"JOB RUNNING", LOG_JOBS, fmt::color::gold>("thread {} is running job {}", thread_index, current_job.value()->handle.address());
