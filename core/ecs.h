@@ -62,12 +62,12 @@ namespace fresa::ecs
 
             //: get sparse
             //      gets the entity index and sees if it is included in the sparse array
-            [[nodiscard]] constexpr const SparseID* sparse_at(const EntityID entity) const {
+            [[nodiscard]] const SparseID* sparse_at(const EntityID entity) const {
                 const auto pos = index(entity).value;
                 const auto page = pos / engine_config.ecs_page_size();
                 return sparse.contains(page) ? &(sparse.at(page).at(pos % engine_config.ecs_page_size())) : nullptr;
             }
-            [[nodiscard]] constexpr SparseID* sparse_at(const EntityID entity) {
+            [[nodiscard]] SparseID* sparse_at(const EntityID entity) {
                 const auto pos = index(entity).value;
                 const auto page = pos / engine_config.ecs_page_size();
                 return sparse.contains(page) ? &(sparse.at(page).at(pos % engine_config.ecs_page_size())) : nullptr;
@@ -81,7 +81,7 @@ namespace fresa::ecs
 
             //: contains entity
             //      checks if the entity is included in the sparse array, also verifying the version
-            [[nodiscard]] constexpr bool contains(const EntityID entity) const {
+            [[nodiscard]] bool contains(const EntityID entity) const {
                 return valid(sparse_at(entity), version(entity));
             }
             
@@ -89,8 +89,8 @@ namespace fresa::ecs
             constexpr virtual void remove(const EntityID entity) = 0;
 
             //: size and extent
-            [[nodiscard]] constexpr std::size_t size() const { return dense.size(); }
-            [[nodiscard]] constexpr std::size_t extent() const { return sparse.size() * engine_config.ecs_page_size(); }
+            [[nodiscard]] std::size_t size() const { return dense.size(); }
+            [[nodiscard]] std::size_t extent() const { return sparse.size() * engine_config.ecs_page_size(); }
         };
     }
 
@@ -220,7 +220,7 @@ namespace fresa::ecs
         }
 
         //: remove entity
-        constexpr void remove(const EntityID entity) {
+        void remove(const EntityID entity) {
             [&] { for (auto &[key, pool] : component_pools) pool->remove(entity); }();
             free_entities.push_front(id(index(entity), version(entity) + Version(1)));
         }

@@ -5,14 +5,15 @@
 _new implementation of fresa_
 
 #### todo
-- ecs and system documentation
-- events
+- ecs, system, events documentation
 - reflection
 
-#### [0.4.6] ecs (_00 ago 22_)
+#### [0.4.6] events (_12 ago 22_)
 
 - **added** - system simulation update loop
 - **added** - user configurable engine callbacks for initialization and shutdown
+- **fixed** - small ecs fixes to make it compile in gcc
+- **added** - simple event system
 
 #### [0.4.5] ecs (_10 ago 22_)
 
