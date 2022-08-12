@@ -31,7 +31,17 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://josekoalas.github.io/fresa/0.4/reference/ecs/</loc>
+         <lastmod>2022-08-12</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/engine/</loc>
+         <lastmod>2022-08-12</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://josekoalas.github.io/fresa/0.4/reference/events/</loc>
          <lastmod>2022-08-12</lastmod>
          <changefreq>daily</changefreq>
     </url>
@@ -42,11 +52,6 @@
     </url>
     <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/math/</loc>
-         <lastmod>2022-08-12</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://josekoalas.github.io/fresa/0.4/reference/system/</loc>
          <lastmod>2022-08-12</lastmod>
          <changefreq>daily</changefreq>
     </url>

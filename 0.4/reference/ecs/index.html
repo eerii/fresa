@@ -10,14 +10,14 @@
         <meta name="author" content="José Pazos Pérez">
       
       
-        <link rel="canonical" href="https://josekoalas.github.io/fresa/0.4/reference/system/">
+        <link rel="canonical" href="https://josekoalas.github.io/fresa/0.4/reference/ecs/">
       
       <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.3.0, mkdocs-material-8.3.9">
     
     
       
-        <title>system manager - fresa 🍓</title>
+        <title>ecs - fresa 🍓</title>
       
     
     
@@ -68,7 +68,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#system" class="md-skip">
+        <a href="#ecs" class="md-skip">
           Skip to content
         </a>
       
@@ -107,7 +107,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              system manager
+              ecs
             
           </span>
         </div>
@@ -440,9 +440,68 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          ecs
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
-        system manager
+        ecs
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#systems" class="md-nav__link">
+    systems
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entities" class="md-nav__link">
+    entities
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#components" class="md-nav__link">
+    components
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scenes" class="md-nav__link">
+    scenes
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#views" class="md-nav__link">
+    views
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -468,22 +527,36 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../events/" class="md-nav__link">
+        events
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
     
     <li class="md-nav__item md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_9" type="checkbox" id="__nav_2_9" >
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_10" type="checkbox" id="__nav_2_10" >
       
       
       
       
-        <label class="md-nav__link" for="__nav_2_9">
+        <label class="md-nav__link" for="__nav_2_10">
           tools
           <span class="md-nav__icon md-icon"></span>
         </label>
       
       <nav class="md-nav" aria-label="tools" data-md-level="2">
-        <label class="md-nav__title" for="__nav_2_9">
+        <label class="md-nav__title" for="__nav_2_10">
           <span class="md-nav__icon md-icon"></span>
           tools
         </label>
@@ -558,8 +631,78 @@
                 
 
 
-<h1 id="system"><a href="https://github.com/josekoalas/fresa/blob/main/core/system.h"><code>system</code></a><a class="headerlink" href="#system" title="Permanent link">&para;</a></h1>
-<p>actively developing...</p>
+<h1 id="ecs"><code>ecs</code><a class="headerlink" href="#ecs" title="Permanent link">&para;</a></h1>
+<h2 id="systems"><a href="https://github.com/josekoalas/fresa/blob/main/core/system.h"><code>systems</code></a><a class="headerlink" href="#systems" title="Permanent link">&para;</a></h2>
+<p>A system is a part of <strong>fresa</strong> that has a certain structure and is used to change how the engine behaves. By creating different functions, a system can execute code at the start, at the end or in the update loop. This is a key part of the entity-component-system architecture, but can also be used for systems that don't interact with the ecs directly, such as the job system. You can define a system in a struct-like fashion:</p>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SystemA</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kr">inline</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">System</span><span class="o">&lt;</span><span class="n">SystemA</span><span class="o">&gt;</span><span class="w"> </span><span class="n">system</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* ... */</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+<p>There are two ways to register a system inside the manager, either by using <code>system::add()</code> or by creating a static member of type <code>System&lt;&gt;</code>, which will call add automaticaly on initialization. It is important to note that for systems to be registered, their header file must be included in at least one source file.</p>
+<p>Systems can contain these functions:</p>
+<ul>
+<li><strong><code>init()</code></strong>: called once in the engine initialization, in order of priority.</li>
+<li><strong><code>update()</code></strong>: called each simulation frame the update loop, in order of priority.</li>
+<li><strong><code>stop()</code></strong>: called once in the engine shutdown, in reverse order of priority.</li>
+</ul>
+<p>An example of a system can be as follows:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="p">;</span><span class="w"></span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">CountingSystem</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kr">inline</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">System</span><span class="o">&lt;</span><span class="n">CountingSystem</span><span class="o">&gt;</span><span class="w"> </span><span class="n">system</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">update</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">count</span><span class="o">++</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">stop</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;count: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+<h2 id="entities"><a href="https://github.com/josekoalas/fresa/blob/main/core/ecs.h"><code>entities</code></a><a class="headerlink" href="#entities" title="Permanent link">&para;</a></h2>
+<p>In this ecs system, entities are just an id that can be used to access components from a pool. They are composed of an index and a version, both of them 16 bits, creating a total of 32 bits for the entity id, being the lower 16 bits the index and the upper 16 bits the version. The version is incremented each time the entity id is reused by a new entity.</p>
+<div class="highlight"><pre><span></span><code><span class="n">ecs</span><span class="o">::</span><span class="n">EntityID</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">id</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"> </span><span class="c1">//: create an entity from an index and a version</span>
+<span class="n">ecs</span><span class="o">::</span><span class="n">Index</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">index</span><span class="p">(</span><span class="n">e</span><span class="p">);</span><span class="w"> </span><span class="c1">//: get the entity index</span>
+<span class="n">ecs</span><span class="o">::</span><span class="n">Version</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">version</span><span class="p">(</span><span class="n">e</span><span class="p">);</span><span class="w"> </span><span class="c1">//: get the entity version</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="n">ecs</span><span class="o">::</span><span class="n">EntityID</span><span class="w"> </span><span class="n">invalid_entity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">id</span><span class="p">(</span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"> </span><span class="c1">//: this is an invalid entity defined for checking if an entity id is valid</span>
+</code></pre></div>
+<h2 id="components"><a href="https://github.com/josekoalas/fresa/blob/main/core/ecs.h"><code>components</code></a><a class="headerlink" href="#components" title="Permanent link">&para;</a></h2>
+<p>Components are structs of data asociated to entities. Theoretically, components can be any type of data, even fundamental types such as <code>int</code>. However, for clarity, it is recommended to make each component type a struct. Entities can't have more than one component of the same type.</p>
+<div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">PositionComponent</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">y</span><span class="p">;</span><span class="w"></span>
+<span class="p">};</span><span class="w"></span>
+</code></pre></div>
+<p>These components are stored in <code>ComponentPool</code> objects, that function similar to a sparse allocator. Inside it there is a sparse array of all entity ids that map to a dense array of packed component data. There is actually a third array, with the same layout of the dense one, but this one mapping back to the position inside the sparse array. This is done for faster lookup in exchange for a slightly higher memory footprint.</p>
+<h2 id="scenes"><a href="https://github.com/josekoalas/fresa/blob/main/core/ecs.h"><code>scenes</code></a><a class="headerlink" href="#scenes" title="Permanent link">&para;</a></h2>
+<p>The scene object exists to manage entities and component pools. It has a hash map of component pools that uses a constexpr type hash as the key. To get a component pool of a specific type from this map use <code>scene.cpool&lt;Component&gt;()</code>. If a component pool doesn't exist, this function will create it.</p>
+<p>For regular usage, you can use the dedicated functions to manage entities:</p>
+<div class="highlight"><pre><span></span><code><span class="n">ecs</span><span class="o">::</span><span class="n">Scene</span><span class="w"> </span><span class="n">scene</span><span class="p">;</span><span class="w"> </span><span class="c1">//: create a scene</span>
+<span class="n">ecs</span><span class="o">::</span><span class="n">EntityID</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scene</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="n">PositionComponent</span><span class="p">{</span><span class="mf">1.0f</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0f</span><span class="p">});</span><span class="w"> </span><span class="c1">//: create an entity with a position component</span>
+<span class="n">ecs</span><span class="o">::</span><span class="n">EntityID</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scene</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="n">ComponentA</span><span class="p">{},</span><span class="w"> </span><span class="n">ComponentB</span><span class="p">{});</span><span class="w"> </span><span class="c1">//: create an entity with multiple components</span>
+<span class="n">scene</span><span class="p">.</span><span class="n">remove</span><span class="p">(</span><span class="n">e</span><span class="p">);</span><span class="w"> </span><span class="c1">//: remove the entity</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scene</span><span class="p">.</span><span class="n">get</span><span class="o">&lt;</span><span class="n">PositionComponent</span><span class="o">&gt;</span><span class="p">(</span><span class="n">e</span><span class="p">);</span><span class="w"> </span><span class="c1">//: get the position component of the entity</span>
+</code></pre></div>
+<p>The last line indicates how to get a component from an entity. The result is a <code>std::optional&lt;&gt;</code> that is null if the entity doesn't have the component. If it does have it, then the optional contains a reference to the underlying component in the sparse set.</p>
+<h2 id="views"><a href="https://github.com/josekoalas/fresa/blob/main/core/ecs.h"><code>views</code></a><a class="headerlink" href="#views" title="Permanent link">&para;</a></h2>
+<p>Views are a way to iterate over entities and components. They will iterate over all entities that have <strong>all</strong> the components in the view. This is key for writing systems that operate on entities.</p>
+<div class="highlight"><pre><span></span><code><span class="k">auto</span><span class="w"> </span><span class="n">view</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ecs</span><span class="o">::</span><span class="n">View</span><span class="o">&lt;</span><span class="n">PositionComponent</span><span class="o">&gt;</span><span class="p">(</span><span class="n">scene</span><span class="p">);</span><span class="w"></span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="p">[</span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="n">position</span><span class="p">]</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">view</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//...</span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+<p>The view range can accessed by using the operator <code>()</code>, using a range-based for loop. It will decompose in a tuple of the entity id and the components currently iterating. A view can be defined for multiple components.</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="p">[</span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">]</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ecs</span><span class="o">::</span><span class="n">View</span><span class="o">&lt;</span><span class="n">ComponentA</span><span class="p">,</span><span class="w"> </span><span class="n">ComponentB</span><span class="o">&gt;</span><span class="p">(</span><span class="n">scene</span><span class="p">)())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//...</span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+<p>You can read and modify the component values inside of the for loop, but the entity id is read only. Please note that unlike other range based for loops, no <code>&amp;</code> is written before the square brackets, but the compontents inside are still references. This has to do with how <code>ranges::zip</code> works.</p>
+<p>There is the possibility to iterate over just the data, without the entity id, by using the <code>data()</code> function.</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="n">position</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ecs</span><span class="o">::</span><span class="n">View</span><span class="o">&lt;</span><span class="n">ComponentPosition</span><span class="o">&gt;</span><span class="p">(</span><span class="n">scene</span><span class="p">).</span><span class="n">data</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//...</span>
+<span class="p">}</span><span class="w"></span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="p">[</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">]</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ecs</span><span class="o">::</span><span class="n">View</span><span class="o">&lt;</span><span class="n">ComponentA</span><span class="p">,</span><span class="w"> </span><span class="n">ComponentB</span><span class="o">&gt;</span><span class="p">(</span><span class="n">scene</span><span class="p">).</span><span class="n">data</span><span class="p">()</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">//...</span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
 
               
             </article>

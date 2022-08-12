@@ -472,8 +472,8 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/system/" class="md-nav__link">
-        system manager
+      <a href="../../reference/ecs/" class="md-nav__link">
+        ecs
       </a>
     </li>
   
@@ -499,22 +499,36 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../../reference/events/" class="md-nav__link">
+        events
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
     
     <li class="md-nav__item md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_9" type="checkbox" id="__nav_2_9" >
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2_10" type="checkbox" id="__nav_2_10" >
       
       
       
       
-        <label class="md-nav__link" for="__nav_2_9">
+        <label class="md-nav__link" for="__nav_2_10">
           tools
           <span class="md-nav__icon md-icon"></span>
         </label>
       
       <nav class="md-nav" aria-label="tools" data-md-level="2">
-        <label class="md-nav__title" for="__nav_2_9">
+        <label class="md-nav__title" for="__nav_2_10">
           <span class="md-nav__icon md-icon"></span>
           tools
         </label>
@@ -599,9 +613,9 @@
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
 <p>All you need to run <strong>fresa</strong> is to import the engine header and call <code>fresa::run()</code>.</p>
-<p>If you wish to configure how the engine behaves, you can look into the <a href="../../reference/config/">configuration file</a>.</p>
+<p>If you wish to configure how the engine behaves, you can look into the <a href="../../reference/config/">configuration file</a> and into the <a href="../../reference/ecs/#systems">system manager</a>.</p>
 <h2 id="hello-world">hello world<a class="headerlink" href="#hello-world" title="Permanent link">&para;</a></h2>
-<p>For this example we are going to use a simple system with an <a href="../../reference/system/"><code>init()</code></a> function, which will execute its code when the engine is initialized. We will create a <code>hello_world.h</code> file and define this system as so:</p>
+<p>For this example we are going to use a simple system with an <a href="../../reference/ecs/"><code>init()</code></a> function, which will execute its code when the engine is initialized. We will create a <code>hello_world.h</code> file and define this system as so:</p>
 <div class="highlight"><span class="filename">hello_world.h</span><pre><span></span><code><span class="cp">#pragma once</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;system.h&quot;</span><span class="cp"></span>
 
