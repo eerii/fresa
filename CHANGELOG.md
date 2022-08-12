@@ -8,6 +8,11 @@ _new implementation of fresa_
 - ecs, system, events documentation
 - reflection
 
+#### [0.4.7] reflection (_00 ago 22_)
+
+- **added** - new automatic system registration using static members
+- **removed** - removed engine callbacks in favor of system initialization
+
 #### [0.4.6] events (_12 ago 22_)
 
 - **added** - system simulation update loop

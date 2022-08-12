@@ -14,15 +14,15 @@ The documentation is available at [josekoalas.github.io/fresa](https://josekoala
 
 _This is a reimplementation of **fresa** from scratch. The motivation behind it is to focus on clarity and documentation from the beginning. You can see the source for the fully-functioning legacy version [here](https://github.com/josekoalas/fresa-legacy). This new version is not up to par feature-wise with the original project yet._
 
-- _simple entity-component system (in progress)_
+- simple entity-component system
 - game loop and system manager
 - multithread job system
+- event manager
 - logging and debug tools
 - macro-less unit testing framework
 
 **next up**
 
-- events
 - reflection
 - gpu driven renderer
 

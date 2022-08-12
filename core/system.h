@@ -30,15 +30,14 @@ namespace fresa::system
     {
         //* objects for the system update and stop lists
         //      a lower number means higher priority, so a system with priority 2 comes before a system with priority 4
-        struct SystemUpdateObject {
+        struct SystemObject {
             ui8 priority;
             str_view name;
-            void (*f)();
+            std::function<void()> f;
         };
-        struct SystemStopObject {
-            str_view name;
-            void (*f) ();
-        };
+
+        using SystemPriorityQueue = std::priority_queue<detail::SystemObject, std::deque<detail::SystemObject>, 
+                                    decltype([](auto a, auto b){ return a.priority >= b.priority; })>;
     }
 
     //* system priorities
@@ -50,18 +49,17 @@ namespace fresa::system
 
     //* system manager
     inline struct SystemManager {
-        std::priority_queue<detail::SystemUpdateObject, std::deque<detail::SystemUpdateObject>, 
-                            decltype([](auto a, auto b){ return a.priority >= b.priority; })> update;
-        std::stack<detail::SystemStopObject> stop;
+        detail::SystemPriorityQueue init;
+        detail::SystemPriorityQueue update;
+        std::stack<detail::SystemObject> stop;
     } manager;
 
     //* register and initialize system
     inline void add(concepts::System auto s, ui8 priority = SYSTEM_PRIORITY_DEFAULT) {
         constexpr auto name = type_name<decltype(s)>();
-        ::fresa::detail::log<"SYSTEM", LOG_DEBUG, fmt::color::medium_purple>("registering system '{}'", name);
 
         //: initialize system
-        s.init();
+        manager.init.push({priority, name, s.init});
         
         //: add to update list
         if constexpr (concepts::SystemWithUpdate<decltype(s)>)
@@ -69,7 +67,16 @@ namespace fresa::system
 
         //: add to destructor list
         if constexpr (concepts::SystemWithStop<decltype(s)>)
-            manager.stop.push({name, s.stop});
+            manager.stop.push({priority, name, s.stop});
+    }
+
+    //* init all systems in order
+    inline void init() {
+        while (not manager.init.empty()) {
+            ::fresa::detail::log<"SYSTEM", LOG_DEBUG, fmt::color::medium_purple>("initializing system '{}'", manager.init.top().name);
+            manager.init.top().f();
+            manager.init.pop();
+        }
     }
 
     //* clean all systems in inverse order when program stops
@@ -88,4 +95,21 @@ namespace fresa::system
             queue.top().f(); queue.pop();
         }
     }
+}
+
+//* system helper for registration
+//      automatically adds a system to the manager, used like:
+//
+//      struct SomeSystem {
+//          inline static System<SomeSystem> system;
+//          static void init() {...}
+//      }
+//
+//      it uses static initialization to register the system using `system::add`, which is then executed when calling `system::init` from engine
+namespace fresa
+{
+    template <typename T, ui8 priority = system::SYSTEM_PRIORITY_DEFAULT>
+    struct System {
+        System() { system::add(T{}, priority); }
+    };
 }

@@ -13,35 +13,46 @@ int main (int argv, char** args) {
 
 All you need to run **fresa** is to import the engine header and call `fresa::run()`.
 
-If you wish to configure how the engine behaves, you can look into the [configuration file](../reference/config.md) and how the [engine callbacks](../reference/engine.md#callbacks) work.
+If you wish to configure how the engine behaves, you can look into the [configuration file](../reference/config.md).
 
 ## hello world
 
-For this example we are going to use the [`on_init()`](../reference/engine.md#callbacks) engine callback, which will execute its code when the engine is initialized. We will create a `game.h` file and define this funcion as so:
+For this example we are going to use a simple system with an [`init()`](../reference/system.md) function, which will execute its code when the engine is initialized. We will create a `hello_world.h` file and define this system as so:
 
-```cpp title="game.h"
+```cpp title="hello_world.h"
 #pragma once
-#include "engine.h"
+#include "system.h"
 
 namespace fresa
 {
-    constexpr inline struct _EngineCallback : EngineCallback {
-        void on_init() const override {
-            // here goes your code
+    struct SomeSystem {
+        inline static System<SomeSystem> system; //: this line registers the system
+
+        static void init() {
+            //: your code goes here
         }
-    } engine_callback;
+    };
 }
+```
+
+You also need to include it inside `main.cpp`:
+
+```cpp title="main.cpp"
+#include "engine.h"
+#include "hello_world.h"
+
+//... other code
 ```
 
 Now, we can import the [logging](../reference/tools/log.md) library and use it to print a message when the callback is executed:
 
-```cpp title="game.h"
+```cpp title="hello_world.h"
 #include "engine.h"
 #include "log.h"
 
 //... other code
 
-void on_init() const override {
+static void init() {
     log::info("hello world!");
 }
 ```

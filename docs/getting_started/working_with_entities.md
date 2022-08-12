@@ -64,11 +64,11 @@ for (auto [entity, position, color] : ecs::View<PositionComponent, ColorComponen
 
 ## full example
 
-Lets create a final example, this time, we will find the entity that is the furthest from the origin. This is ran on the `on_init()` callback, so it will execute when the engine is initialized. However, as we will see, in a real world application it makes more sense to use components in combination with systems.
+Lets create a final example, this time, we will find the entity that is the furthest from the origin. We will use a system `init()` function to run this code for now.
 
-```cpp title="game.h"
+```cpp title="example.h"
 #pragma once
-#include "engine.h"
+#include "system.h"
 #include "ecs.h
 #include "log.h"
 
@@ -79,8 +79,10 @@ struct PositionComponent {
 
 namespace fresa
 {
-    constexpr inline struct _EngineCallback : EngineCallback {
-        void on_init() const override {
+    struct SomeSystem {
+        inline static System<SomeSystem> system;
+
+        static void init() {
             ecs::Scene scene;
             scene.add(PositionComponent{1.0f, 3.0f});
             scene.add(PositionComponent{2.0f, 1.5f});
@@ -97,6 +99,6 @@ namespace fresa
 
             log::info("the furthest entity is {}", furthest.value);
         }
-    } engine_callback;
+    };
 }
 ```

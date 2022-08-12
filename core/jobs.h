@@ -11,6 +11,7 @@
 #include "fresa_time.h"
 
 #include "log.h"
+#include "system.h"
 
 #include <atomic>
 #include <thread>
@@ -208,6 +209,9 @@ namespace fresa::jobs
 
     //* job system
     struct JobSystem {
+        //: system registration
+        inline static System<JobSystem, system::SYSTEM_PRIORITY_FIRST> system;
+
         //: global parameters
         static inline std::atomic<bool> running = false;                                // flag to stop the job system
         static inline std::atomic<bool> is_stopped = true;                              // set to true when all threads are stopped
