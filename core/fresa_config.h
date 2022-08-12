@@ -34,6 +34,8 @@ namespace fresa
         constexpr str_view virtual run_tests() const { return ""; };
         //: log level (see tools/log.h for the list of levels)
         constexpr ui32 virtual log_level() const { return 0b0000111; };
+        //: enable assertions
+        constexpr bool virtual enable_assertions() const { return false; };
         //: component pool page size
         constexpr ui32 virtual ecs_page_size() const { return 256; };
     };

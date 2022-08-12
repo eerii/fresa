@@ -70,3 +70,4 @@ nav:
     - tools:
       - logging: reference/tools/log.md
       - unit tests: reference/tools/unit_test.md
+      - assertions: reference/tools/assertions.md

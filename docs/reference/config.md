@@ -88,6 +88,7 @@ void using_configuration() {
 | `name` | `str_view` | `"fresa"` |
 | `version` | `std::array<ui8, 3>` | `{0, 4, x}` |
 | `run_tests` | `str_view` | `""` |
+| `enable_assertions` | `bool` | `false` |
 | `log_level` | `ui32` | `0b0000111` |
 | `ecs_page_size` | `ui32` | `256` |
 

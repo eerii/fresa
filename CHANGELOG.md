@@ -12,6 +12,9 @@ _new implementation of fresa_
 
 - **added** - new automatic system registration using static members
 - **removed** - removed engine callbacks in favor of system initialization
+- **removed** - system tests are now more difficult to write due to automatic registration
+- **changed** - source location implementation is now moved to source_loc.h
+- **added** - runtime assertions
 
 #### [0.4.6] events (_12 ago 22_)
 
