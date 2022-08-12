@@ -61,6 +61,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://josekoalas.github.io/fresa/0.4/reference/tools/assertions/</loc>
+         <lastmod>2022-08-12</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://josekoalas.github.io/fresa/0.4/reference/tools/log/</loc>
          <lastmod>2022-08-12</lastmod>
          <changefreq>daily</changefreq>
