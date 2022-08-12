@@ -5,7 +5,7 @@
 _new implementation of fresa_
 
 #### todo
-- ecs, system, events documentation
+- jobs, events documentation
 - reflection
 
 #### [0.4.7] reflection (_00 ago 22_)
@@ -15,6 +15,7 @@ _new implementation of fresa_
 - **removed** - system tests are now more difficult to write due to automatic registration
 - **changed** - source location implementation is now moved to source_loc.h
 - **added** - runtime assertions
+- **added** - ecs and systems documentation
 
 #### [0.4.6] events (_12 ago 22_)
 

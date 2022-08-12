@@ -64,8 +64,9 @@ nav:
     - math: reference/math.md
     - coroutines: reference/coroutines.md
 
-    - system manager: reference/system.md
+    - ecs: reference/ecs.md
     - job system: reference/jobs.md
+    - events: reference/events.md
     
     - tools:
       - logging: reference/tools/log.md

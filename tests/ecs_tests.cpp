@@ -68,10 +68,11 @@ namespace test
 
             "remove entity"_test = [&]{
                 auto e = scene.add(int{16});
+                auto v = ecs::version(e); v++;
                 scene.remove(e);
                 return expect(scene.free_entities.size() == 2 and
                               ecs::index(scene.free_entities.front()) == ecs::index(e) and
-                              ecs::version(scene.free_entities.front()) == ecs::version(e) + ecs::Version(1) and
+                              ecs::version(scene.free_entities.front()) == v and
                               not scene.get<int>(e));
             };
         }

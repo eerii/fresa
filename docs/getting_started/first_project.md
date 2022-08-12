@@ -13,11 +13,11 @@ int main (int argv, char** args) {
 
 All you need to run **fresa** is to import the engine header and call `fresa::run()`.
 
-If you wish to configure how the engine behaves, you can look into the [configuration file](../reference/config.md).
+If you wish to configure how the engine behaves, you can look into the [configuration file](../reference/config.md) and into the [system manager](../reference/ecs.md#systems).
 
 ## hello world
 
-For this example we are going to use a simple system with an [`init()`](../reference/system.md) function, which will execute its code when the engine is initialized. We will create a `hello_world.h` file and define this system as so:
+For this example we are going to use a simple system with an [`init()`](../reference/ecs.md) function, which will execute its code when the engine is initialized. We will create a `hello_world.h` file and define this system as so:
 
 ```cpp title="hello_world.h"
 #pragma once

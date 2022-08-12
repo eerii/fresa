@@ -7,7 +7,6 @@
 #include "log.h"
 
 #include <queue>
-#include <stack>
 
 namespace fresa::system
 {
@@ -38,6 +37,8 @@ namespace fresa::system
 
         using SystemPriorityQueue = std::priority_queue<detail::SystemObject, std::deque<detail::SystemObject>, 
                                     decltype([](auto a, auto b){ return a.priority >= b.priority; })>;
+        using SystemReversePriorityQueue = std::priority_queue<detail::SystemObject, std::deque<detail::SystemObject>, 
+                                    decltype([](auto a, auto b){ return b.priority >= a.priority; })>;
     }
 
     //* system priorities
@@ -51,7 +52,7 @@ namespace fresa::system
     inline struct SystemManager {
         detail::SystemPriorityQueue init;
         detail::SystemPriorityQueue update;
-        std::stack<detail::SystemObject> stop;
+        detail::SystemReversePriorityQueue stop;
     } manager;
 
     //* register and initialize system

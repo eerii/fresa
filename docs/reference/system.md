@@ -1,3 +1,0 @@
-# [`system`](https://github.com/josekoalas/fresa/blob/main/core/system.h)
-
-actively developing...

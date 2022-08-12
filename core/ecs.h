@@ -18,12 +18,16 @@ namespace fresa::ecs
     //      this is a numerical handle composed of a version and an index, being the version the first 16 bits and the index the last 16 bits
     //      the index is the entity handle, while the version exists to reuse deleted entity ids
     //      the id meant to be aliased for the types that require it, such as the entity and sparse set
+    //
+    //: id - regular, bitwise (for getting the index and version)
+    //: index - regular, ordered (allows comparison and iteration), hashable (key in unordered map)
+    //: version - regular, ordered (allows comparison and iteration), incrementable (easily update version with ++)
     namespace detail 
     {
-        using ID = strong::Type<ui32, decltype([]{}), strong::Regular, strong::Bitwise, strong::BitwiseWith<int>>;
+        using ID = strong::Type<ui32, decltype([]{}), strong::Regular, strong::Bitwise>;
     }
-    using Index = strong::Type<ui16, decltype([]{}), strong::Regular, strong::ConvertibleTo<detail::ID>, strong::Ordered, strong::Hashable>;
-    using Version = strong::Type<ui16, decltype([]{}), strong::Regular, strong::ConvertibleTo<detail::ID>, strong::Ordered, strong::Arithmetic>;
+    using Index = strong::Type<ui16, decltype([]{}), strong::Regular, strong::Ordered, strong::Hashable, strong::ConvertibleTo<detail::ID>>;
+    using Version = strong::Type<ui16, decltype([]{}), strong::Regular, strong::Ordered, strong::Incrementable, strong::ConvertibleTo<detail::ID>>;
 
     [[nodiscard]] constexpr Index index(detail::ID id) noexcept { return Index(id.value); }
     [[nodiscard]] constexpr Version version(detail::ID id) noexcept { return Version((id >> 16).value); }
@@ -222,7 +226,8 @@ namespace fresa::ecs
         //: remove entity
         void remove(const EntityID entity) {
             [&] { for (auto &[key, pool] : component_pools) pool->remove(entity); }();
-            free_entities.push_front(id(index(entity), version(entity) + Version(1)));
+            auto v = version(entity);
+            free_entities.push_front(id(index(entity), v++));
         }
 
         //- number of entities
@@ -230,7 +235,7 @@ namespace fresa::ecs
 
     //* view
     //      a view is an iterator range over some entities in a scene
-    //      the view can be created over entities with one or more components, and will iterate over the entities that have all of this components
+    //      the view can be created over entities with one or more components, and will iterate over the entities that have all of these components
     //      there is a specialization for only one component that should be faster since it doesn't have to calculate the intersection
     //      iterating over a view should be relatively performant since it uses the dense array of the component pool
     template <typename ... C> requires (sizeof...(C) > 0)
