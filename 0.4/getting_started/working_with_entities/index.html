@@ -645,9 +645,9 @@
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
 <h2 id="full-example">full example<a class="headerlink" href="#full-example" title="Permanent link">&para;</a></h2>
-<p>Lets create a final example, this time, we will find the entity that is the furthest from the origin. This is ran on the <code>on_init()</code> callback, so it will execute when the engine is initialized. However, as we will see, in a real world application it makes more sense to use components in combination with systems.</p>
-<div class="highlight"><span class="filename">game.h</span><pre><span></span><code><span class="cp">#pragma once</span>
-<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;engine.h&quot;</span><span class="cp"></span>
+<p>Lets create a final example, this time, we will find the entity that is the furthest from the origin. We will use a system <code>init()</code> function to run this code for now.</p>
+<div class="highlight"><span class="filename">example.h</span><pre><span></span><code><span class="cp">#pragma once</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;system.h&quot;</span><span class="cp"></span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;ecs.h</span>
 <span class="cpf">#include &quot;</span><span class="c1">log.h&quot;</span><span class="cp"></span>
 
@@ -658,8 +658,10 @@
 
 <span class="k">namespace</span><span class="w"> </span><span class="nn">fresa</span><span class="w"></span>
 <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">_EngineCallback</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">EngineCallback</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="nf">on_init</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">SomeSystem</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kr">inline</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">System</span><span class="o">&lt;</span><span class="n">SomeSystem</span><span class="o">&gt;</span><span class="w"> </span><span class="n">system</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">        </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">            </span><span class="n">ecs</span><span class="o">::</span><span class="n">Scene</span><span class="w"> </span><span class="n">scene</span><span class="p">;</span><span class="w"></span>
 <span class="w">            </span><span class="n">scene</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="n">PositionComponent</span><span class="p">{</span><span class="mf">1.0f</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0f</span><span class="p">});</span><span class="w"></span>
 <span class="w">            </span><span class="n">scene</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="n">PositionComponent</span><span class="p">{</span><span class="mf">2.0f</span><span class="p">,</span><span class="w"> </span><span class="mf">1.5f</span><span class="p">});</span><span class="w"></span>
@@ -676,7 +678,7 @@
 
 <span class="w">            </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;the furthest entity is {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">furthest</span><span class="p">.</span><span class="n">value</span><span class="p">);</span><span class="w"></span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">engine_callback</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">};</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
 

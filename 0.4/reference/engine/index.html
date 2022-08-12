@@ -408,13 +408,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#callbacks" class="md-nav__link">
-    callbacks
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -621,30 +614,6 @@
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">detail</span><span class="o">::</span><span class="n">stop</span><span class="p">()</span><span class="w"></span>
 </code></pre></div>
 <p>Called from <a href="#run"><code>run</code></a> when execution ends. Clear systems in LIFO order (using an <code>std::stack</code>).</p>
-<h2 id="callbacks">callbacks<a class="headerlink" href="#callbacks" title="Permanent link">&para;</a></h2>
-<p>The engine also includes user configurable callbacks that are executed to modify the engine behavior. For example, the <code>on_init()</code> callback can be used to add systems. This callbacks can be configured similar to how the <code>EngineConfig</code> struct in <a href="../config/">config.h</a> works.</p>
-<p>In order to customize the callbacks you may create a header file that includes <code>engine.h</code> and defines an <code>EngineCallback</code> derived struct. The name of this struct is defined by the <code>FRESA_ENGINE_FILE</code> preprocessor directive, which defaults to <code>game.h</code>, and it can be configured by <code>FRESA_ENGINE_FILE = file_name.h</code> (only write the file name, excluding its path). An example engine file is provided with the <a href="https://github.com/josekoalas/mermelada">template</a> repository, similar to this:</p>
-<div class="highlight"><span class="filename">game.h</span><pre><span></span><code><span class="cp">#pragma once</span>
-
-<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;engine.h&quot;</span><span class="cp"></span>
-<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;log.h&quot;</span><span class="cp"></span>
-
-<span class="k">namespace</span><span class="w"> </span><span class="nn">fresa</span><span class="w"></span>
-<span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">_EngineCallback</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">EngineCallback</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="nf">on_init</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span>
-<span class="w">            </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;hey&quot;</span><span class="p">);</span><span class="w"></span>
-<span class="w">        </span><span class="p">}</span><span class="w"></span>
-
-<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="nf">on_stop</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">engine_callback</span><span class="p">;</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
-</code></pre></div>
-<p>The available callbacks are:</p>
-<ul>
-<li><code>on_init()</code>: called when the engine is initialized, at the end of the <code>init()</code> function.</li>
-<li><code>on_stop()</code>: called when the engine is stopped, at the start of the <code>stop()</code> function.</li>
-</ul>
 
               
             </article>

@@ -585,28 +585,36 @@
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
 <p>All you need to run <strong>fresa</strong> is to import the engine header and call <code>fresa::run()</code>.</p>
-<p>If you wish to configure how the engine behaves, you can look into the <a href="../../reference/config/">configuration file</a> and how the <a href="../../reference/engine/#callbacks">engine callbacks</a> work.</p>
+<p>If you wish to configure how the engine behaves, you can look into the <a href="../../reference/config/">configuration file</a>.</p>
 <h2 id="hello-world">hello world<a class="headerlink" href="#hello-world" title="Permanent link">&para;</a></h2>
-<p>For this example we are going to use the <a href="../../reference/engine/#callbacks"><code>on_init()</code></a> engine callback, which will execute its code when the engine is initialized. We will create a <code>game.h</code> file and define this funcion as so:</p>
-<div class="highlight"><span class="filename">game.h</span><pre><span></span><code><span class="cp">#pragma once</span>
-<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;engine.h&quot;</span><span class="cp"></span>
+<p>For this example we are going to use a simple system with an <a href="../../reference/system/"><code>init()</code></a> function, which will execute its code when the engine is initialized. We will create a <code>hello_world.h</code> file and define this system as so:</p>
+<div class="highlight"><span class="filename">hello_world.h</span><pre><span></span><code><span class="cp">#pragma once</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;system.h&quot;</span><span class="cp"></span>
 
 <span class="k">namespace</span><span class="w"> </span><span class="nn">fresa</span><span class="w"></span>
 <span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">_EngineCallback</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">EngineCallback</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="nf">on_init</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">            </span><span class="c1">// here goes your code</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">SomeSystem</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kr">inline</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">System</span><span class="o">&lt;</span><span class="n">SomeSystem</span><span class="o">&gt;</span><span class="w"> </span><span class="n">system</span><span class="p">;</span><span class="w"> </span><span class="c1">//: this line registers the system</span>
+
+<span class="w">        </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="c1">//: your code goes here</span>
 <span class="w">        </span><span class="p">}</span><span class="w"></span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">engine_callback</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">};</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
+<p>You also need to include it inside <code>main.cpp</code>:</p>
+<div class="highlight"><span class="filename">main.cpp</span><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;engine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;hello_world.h&quot;</span><span class="cp"></span>
+
+<span class="c1">//... other code</span>
+</code></pre></div>
 <p>Now, we can import the <a href="../../reference/tools/log/">logging</a> library and use it to print a message when the callback is executed:</p>
-<div class="highlight"><span class="filename">game.h</span><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;engine.h&quot;</span><span class="cp"></span>
+<div class="highlight"><span class="filename">hello_world.h</span><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;engine.h&quot;</span><span class="cp"></span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;log.h&quot;</span><span class="cp"></span>
 
 <span class="c1">//... other code</span>
 
-<span class="kt">void</span><span class="w"> </span><span class="nf">on_init</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;hello world!&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
