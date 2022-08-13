@@ -49,7 +49,7 @@ namespace fresa
     }
 
     //: tuple like loop (auto a : tuple_object)
-    template <typename F, concepts::TupleLike T>
+    template <typename F, typename T> requires concepts::TupleLike<std::remove_reference_t<T>>
     constexpr void for_(F&& f, T&& t) {
         constexpr std::size_t N = std::tuple_size_v<std::decay_t<T>>;
         for_<0, N>([&](auto i) {

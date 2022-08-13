@@ -5,8 +5,9 @@
 _new implementation of fresa_
 
 #### todo
-- jobs, events documentation
-- reflection
+- jobs, events, reflection documentation
+- reflection utilities
+- code generator for member names, only run on changed files
 
 #### [0.4.7] reflection (_00 ago 22_)
 

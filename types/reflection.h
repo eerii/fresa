@@ -1,0 +1,90 @@
+//* reflection
+//      implementing reflection into fresa has been one of the most iterative and extensive tasks in the engine
+//      reflection in c++ as of now is pretty much absent, and there have been a multitude of hacks to get it kind of working
+//      in fresa, i want reflection to be pretty much invisible to the user, so they don't have to write any extra code
+//      but also to leverage the power of compile time reflection. these two requirements combined make it very difficult to implement
+//
+//      the brief history of how reflection was implemented begins with a "simple" macro system that pasted a lot of static code
+//      inside every struct that the user wanted to be reflected. the user needed to input the name of all fields and then that information
+//      could be queried. this was later moved to a template inheritance relation with leverage of the latest language features to avoid
+//      macros alltogether, but the user still needed to input the name of all fields twice. then i implemented alexandr poltavsky's type loophole,
+//      that allowed for reflection on everything except for member field names without any user intervention. the implementation now has moved
+//      to something similar to antony polukhin's pfr library, but without as many features and updated to use concepts. reflection is ongoing
+//      development, and the challenge of generating field names is still there. i might look into a compiler tool to optionally generate them
+//      automatically during builds, since they are only required for debug interfaces such as the inspector.
+//
+//      this journey would have not been possible if not for the incredible contributions of different authors:
+//      · alexandr poltavsky: [type loophole](https://github.com/alexpolt/luple/blob/master/type-loophole.h)
+//      · antony polukhin: [pfr](https://github.com/apolukhin/pfr_non_boost)
+//      · konanm [tser](https://github.com/KonanM/tser)
+//      · jameson thatcher [bluescreenofdoom](http://bluescreenofdoom.com/post/code/Reflection)
+//      · veselink1 [refl-cpp](https://github.com/veselink1/refl-cpp)
+//      · fabian jung [tsmp](https://github.com/fabian-jung/tsmp)
+//      · joao baptista [counting fields](https://towardsdev.com/counting-the-number-of-fields-in-an-aggregate-in-c-20-c81aecfd725c)
+#pragma once
+
+#include "struct_fields.h"
+#include "tie_as_tuple.h"
+#include "constexpr_for.h"
+
+namespace fresa
+{
+    //* get member
+    template <std::size_t I, typename T>
+    constexpr auto get(T& value) noexcept {
+        return std::get<I>(tie_as_tuple(value));
+    }
+    template <std::size_t I, typename T>
+    constexpr auto get(const T& value) noexcept {
+        return std::get<I>(tie_as_tuple(value));
+    }
+
+    //* for each element (extends tuple like constexpr for)
+    template <typename F, typename T> requires (not concepts::TupleLike<std::remove_reference_t<T>> and concepts::Aggregate<std::remove_reference_t<T>>)
+    constexpr void for_(F&& f, T&& value) {
+        for_(std::forward<F>(f), std::forward<decltype(tie_as_tuple(value))>(tie_as_tuple(value)));
+    }
+
+    //* concepts
+    namespace concepts
+    {
+        //: hashable
+        template<typename T>
+        concept Hashable = requires(T value) {
+            { std::hash<T>{}(value) } -> std::convertible_to<std::size_t>;
+        };
+    }
+
+    //* equality operators
+    template <concepts::Aggregate T> constexpr bool operator==(const T& lhs, const T& rhs) { 
+        bool result = true;
+        constexpr auto fields = field_count_v<T>;
+        for_<0, fields>([&](auto i) {
+            result &= get<i>(lhs) == get<i>(rhs);
+        });
+        return result;
+    }
+    template <concepts::Aggregate T> constexpr bool operator!=(const T& lhs, const T& rhs) { return not (lhs == rhs); }
+
+    //- ostream operator
+    //- member names
+    //- find by name
+}
+
+//: std hashable type
+namespace std
+{
+    template <::fresa::concepts::Aggregate T> requires (not ::fresa::concepts::Hashable<T>)
+    struct hash<T> {
+        constexpr std::size_t operator()(const T& value) const {
+            std::size_t result = 0;
+            constexpr auto fields = fresa::field_count_v<T>;
+            fresa::for_<0, fields>([&](auto i) {
+                using Field = std::remove_reference_t<decltype(fresa::get<i>(value))>;
+                static_assert(::fresa::concepts::Hashable<Field>, "all the fields in the struct must be hashable");
+                result ^= std::hash<Field>{}(fresa::get<i>(value));
+            });
+            return result;
+        }
+    };
+}
