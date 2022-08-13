@@ -17,6 +17,7 @@ _new implementation of fresa_
 - **added** - runtime assertions
 - **added** - ecs and systems documentation
 - **added** - struct field counter with binary search and mitigations
+- **added** - tie as tuple helper and python generator
 
 #### [0.4.6] events (_12 ago 22_)
 
