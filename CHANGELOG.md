@@ -16,6 +16,7 @@ _new implementation of fresa_
 - **changed** - source location implementation is now moved to source_loc.h
 - **added** - runtime assertions
 - **added** - ecs and systems documentation
+- **added** - struct field counter with binary search and mitigations
 
 #### [0.4.6] events (_12 ago 22_)
 
