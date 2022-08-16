@@ -30,7 +30,7 @@ has_struct_after_include = False
 for l in reversed(lines):
     if l.strip().startswith("struct"):
         has_struct_after_include = True
-    if l.strip().startswith("#include"):
+    if l.strip().startswith("#include") and "\"" in l:
         include_file = l.split("\"")[1]
         if include_file.startswith("reflection_"):
             if include_file != "reflection_" + file_name:
@@ -55,39 +55,66 @@ lines = [l for l in lines if not (l == "" or l.startswith("//") or l.startswith(
 @dataclass
 class Struct:
     name : str
+    namespace : str
     members : list
 
 structs = []
-reading_struct = False
+current_struct = ""
+current_struct_index = -1
+current_namespace = ""
+brackets = ""
+
 for l in lines:
+    if l.startswith("namespace"):
+        n = l.split(" ")[1].strip("{")
+        current_namespace = n if current_namespace == "" else current_namespace + "::" + n
+        brackets += "n"
+        continue
+
     if l.startswith("struct"):
-        reading_struct = True
-        s = l.split()
-        if len(s) == 3 or s[2] == ":" and len(s) == 5:
-            structs.append(Struct(s[1], []))
-        else:
-            print(f"{file_name} has a wrong struct definition: {l}")
-            sys.exit(0)
+        n = l.split(" ")[1].strip("{")
+        namespace = current_namespace + ("" if current_struct == "" else "::" + current_struct)
+        current_struct = n if current_struct == "" else current_struct + "::" + n
+        brackets += "s"
+        structs.append(Struct(n, namespace, []))
+        current_struct_index = len(structs) - 1
         continue
 
     if l.startswith("}"):
-        reading_struct = False
+        last = brackets[-1]
+        brackets = brackets[:-1]
+        if last == "n":
+            current_namespace = "::".join(current_namespace.split("::")[:-1])
+        else:
+            current_struct = "::".join(current_struct.split("::")[:-1])
+            new_struct = current_struct.split("::")[-1]
+            for s in reversed(structs):
+                if s.name == new_struct:
+                    current_struct_index = structs.index(s)
+                    break
+        continue
 
-    if reading_struct:
+    if brackets[-1] == "s":
         if not l.endswith(";"):
             print(f"{file_name} has an invalid line inside a struct: {l}")
             sys.exit(0)
+        l = l.strip(";")
 
+        if "static" in l:
+            continue
+        
         if "=" in l:
             l = l.split("=")[0]
 
-        s = l[:-1].split()
+        if "," in l:
+            names = l.split(",")
+            for n in names:
+                name = n.strip().split()[-1]
+                structs[current_struct_index].members.append(name)
+            continue
 
-        if len(s) > 1 and not "static" in s:
-            structs[-1].members.append(s[-1])
-
-# !!! namespaces
-# !!! inner structs
+        name = l.split()[-1]
+        structs[current_struct_index].members.append(name)
 
 # begin reflection header
 
@@ -108,7 +135,7 @@ namespace fresa
 
 for s in structs:
     members = ", ".join([f'"{m}"' for m in s.members])
-    header += f"    template <> constexpr auto field_names<{s.name}>() {{ return std::array<str_view, {len(s.members)}>{{{members}}}; }}\n"
+    header += f"    template <> constexpr auto field_names<{s.namespace}::{s.name}>() {{ return std::array<str_view, {len(s.members)}>{{{members}}}; }}\n"
 
 # end reflection header
 
@@ -116,6 +143,6 @@ header += "}"
 
 # write reflection file
 
-f = open(f"../../reflection/reflection_{file_name}", "w")
+f = open(f"reflection/reflection_{file_name}", "w")
 f.write(header)
 f.close()

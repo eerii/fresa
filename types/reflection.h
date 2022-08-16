@@ -105,7 +105,7 @@ namespace fresa
 
     //* get member by name
     template <str_literal M, concepts::Aggregate T> constexpr auto get(T& value) {
-        constexpr auto index = getIndexWithName<M, T>();
+        constexpr auto index = detail::getIndexWithName<M, T>();
         static_assert(index.has_value(), "trying to access an invalid member");
         return get<index.value()>(value);
     }
