@@ -19,6 +19,8 @@ _new implementation of fresa_
 - **added** - ecs and systems documentation
 - **added** - struct field counter with binary search and mitigations
 - **added** - tie as tuple helper and python generator
+- **added** - equality and hash operations for reflectable types
+- **added** - tool assisted generation of struct field names
 
 #### [0.4.6] events (_12 ago 22_)
 

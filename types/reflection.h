@@ -48,6 +48,10 @@ namespace fresa
     //* concepts
     namespace concepts
     {
+        //: equality
+        template<typename T>
+        concept EqualityComparable = requires(T value) { value == value; };
+
         //: hashable
         template<typename T>
         concept Hashable = requires(T value) {
@@ -57,17 +61,24 @@ namespace fresa
 
     //* equality operators
     template <concepts::Aggregate T> constexpr bool operator==(const T& lhs, const T& rhs) { 
-        bool result = true;
-        constexpr auto fields = field_count_v<T>;
-        for_<0, fields>([&](auto i) {
-            result &= get<i>(lhs) == get<i>(rhs);
-        });
-        return result;
+        if constexpr (concepts::EqualityComparable<T>)
+            return lhs == rhs;
+        else {
+            bool result = true;
+            constexpr auto fields = field_count_v<T>;
+            for_<0, fields>([&](auto i) {
+                result &= get<i>(lhs) == get<i>(rhs);
+            });
+            return result;
+        }
     }
     template <concepts::Aggregate T> constexpr bool operator!=(const T& lhs, const T& rhs) { return not (lhs == rhs); }
 
-    //- ostream operator
-    //- member names
+    //* member names
+    template <concepts::Aggregate T> constexpr auto field_names() {
+        return std::array<str_view, 0>{};
+    }
+
     //- find by name
 }
 
