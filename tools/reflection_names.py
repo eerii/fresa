@@ -26,22 +26,27 @@ f.close()
 # check if file is asking for reflection
 
 is_reflectable = False
+has_struct_after_include = False
 for l in reversed(lines):
-    if l.startswith("#include"):
+    if l.strip().startswith("struct"):
+        has_struct_after_include = True
+    if l.strip().startswith("#include"):
         include_file = l.split("\"")[1]
         if include_file.startswith("reflection_"):
             if include_file != "reflection_" + file_name:
                 print(f"{file_name} has a wrong reflection include: {include_file}")
                 sys.exit(0)
+            if has_struct_after_include:
+                print(f"{file_name} has a struct defined after the include, which is not allowed")
+                sys.exit(0)
             is_reflectable = True
             break
-
-# !!! check that the include is the last thing in the file
 
 if not is_reflectable:
     sys.exit(0)
 
 # filter and prepare lines
+
 lines = [l.strip() for l in lines]
 lines = [l for l in lines if not (l == "" or l.startswith("//") or l.startswith("#"))]
 
