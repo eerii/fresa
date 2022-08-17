@@ -468,9 +468,61 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          events
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         events
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#event-object" class="md-nav__link">
+    event object
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-a-callback" class="md-nav__link">
+    add a callback
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#remove-a-callback" class="md-nav__link">
+    remove a callback
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#publish-an-event" class="md-nav__link">
+    publish an event
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -545,6 +597,20 @@
 
             
           
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/reflection/" class="md-nav__link">
+        reflection
+      </a>
+    </li>
+  
+
+            
+          
         </ul>
       </nav>
     </li>
@@ -573,7 +639,49 @@
 
 
 <h1 id="events"><a href="https://github.com/josekoalas/fresa/blob/main/core/events.h"><code>events</code></a><a class="headerlink" href="#events" title="Permanent link">&para;</a></h1>
-<p>actively developing...</p>
+<p>Events are a way to communicate between systems. They are used to notify of changes and trigger callbacks associated with them. The event system in <strong>fresa</strong> is really simple, you just need to create an event object and subscribe functions to it.</p>
+<h2 id="event-object">event object<a class="headerlink" href="#event-object" title="Permanent link">&para;</a></h2>
+<p>An event is defined by <code>events::Event</code>. It can have zero or some template parameters, which are the types that will be passed to the subscriber functions. Creating an event is as simple as to define it.</p>
+<div class="highlight"><pre><span></span><code><span class="n">events</span><span class="o">::</span><span class="n">Event</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">e</span><span class="p">;</span><span class="w"></span>
+<span class="n">events</span><span class="o">::</span><span class="n">Event</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">e</span><span class="p">;</span><span class="w"></span>
+</code></pre></div>
+<h2 id="add-a-callback">add a callback<a class="headerlink" href="#add-a-callback" title="Permanent link">&para;</a></h2>
+<p>To add a function to an event you may call the method <code>add()</code> with a suitable function (must match the event template parameters).</p>
+<div class="highlight"><pre><span></span><code><span class="n">events</span><span class="o">::</span><span class="n">Event</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">e</span><span class="p">;</span><span class="w"></span>
+
+<span class="c1">//: with a lambda</span>
+<span class="n">e</span><span class="p">.</span><span class="n">add</span><span class="p">([](</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">f</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;event received: {} {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">);</span><span class="w"></span>
+<span class="p">});</span><span class="w"></span>
+
+<span class="c1">//: with a function</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">callback</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">f</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;event received: {} {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+<span class="n">e</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="n">callback</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+<p>When adding a callback, the method will return an <code>events::CallbackID</code> handle, which can be stored to access the callback later (for example, to remove it).</p>
+<div class="highlight"><pre><span></span><code><span class="n">events</span><span class="o">::</span><span class="n">CallbackID</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">add</span><span class="p">([](){});</span><span class="w"></span>
+</code></pre></div>
+<h2 id="remove-a-callback">remove a callback<a class="headerlink" href="#remove-a-callback" title="Permanent link">&para;</a></h2>
+<p>To remove a callback you may call the method <code>remove()</code> with the <code>events::CallbackID</code> handle.</p>
+<div class="highlight"><pre><span></span><code><span class="n">events</span><span class="o">::</span><span class="n">Event</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">e</span><span class="p">;</span><span class="w"></span>
+<span class="n">events</span><span class="o">::</span><span class="n">CallbackID</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">add</span><span class="p">([](){});</span><span class="w"></span>
+<span class="n">e</span><span class="p">.</span><span class="n">remove</span><span class="p">(</span><span class="n">id</span><span class="p">);</span><span class="w"></span>
+</code></pre></div>
+<p>You can remove all callbacks with the method <code>reset()</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="n">e</span><span class="p">.</span><span class="n">reset</span><span class="p">();</span><span class="w"></span>
+</code></pre></div>
+<h2 id="publish-an-event">publish an event<a class="headerlink" href="#publish-an-event" title="Permanent link">&para;</a></h2>
+<p>When an event is published, all callbacks are called with the event parameters. The <code>publish()</code> method takes the same parameters as the event template. Event callbacks are thread safe and there are no guarantees about the order in which they are called. If a callback is removed from the event, it will not be called when the event is published.</p>
+<div class="highlight"><pre><span></span><code><span class="n">events</span><span class="o">::</span><span class="n">Event</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">e</span><span class="p">;</span><span class="w"></span>
+<span class="n">events</span><span class="o">::</span><span class="n">CallbackID</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">add</span><span class="p">([](</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">f</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">log</span><span class="o">::</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;event received: {} {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">);</span><span class="w"></span>
+<span class="p">});</span><span class="w"></span>
+<span class="n">e</span><span class="p">.</span><span class="n">publish</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0f</span><span class="p">);</span><span class="w"></span>
+
+<span class="c1">// &gt;&gt; event received: 1 2.0</span>
+</code></pre></div>
 
               
             </article>
