@@ -1,3 +1,3 @@
 # [`jobs`](https://github.com/josekoalas/fresa/blob/main/core/jobs.h)
 
-actively developing...
+The job system is still in its early stages. It is based on the [coroutine](./coroutines.md) implementation. It should work, but some more real scenario testing is needed. This will be done when the engine is more implemented, after the graphics are in place and some examples can be put together. For now, while the job system is a WIP, you can check how it works by looking at the [test suite](https://github.com/josekoalas/fresa/blob/main/tests/job_tests.cpp).

@@ -5,17 +5,14 @@
 _new implementation of fresa_
 
 #### todo
-- jobs documentation
-- jobs example
-- events documentation
-- reflection documentation
-- reflection example
 - full "game" example
+- ci pipeline
 
 #### [0.4.8] documentation and final touches (_00 ago 22_)
 
 - **fixed** - strong types can now propperly be formatted
 - **added** - reflection format operator
+- **added** - documentation for reflection, events and jobs
 
 #### [0.4.7] reflection (_17 ago 22_)
 
