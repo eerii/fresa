@@ -36,6 +36,8 @@ namespace fresa
         constexpr ui32 virtual log_level() const { return 0b0000111; };
         //: enable assertions
         constexpr bool virtual enable_assertions() const { return false; };
+        //: enable validation layers
+        constexpr bool virtual enable_validation_layers() const { return false; };
         //: component pool page size
         constexpr ui32 virtual ecs_page_size() const { return 256; };
     };

@@ -103,3 +103,10 @@ Some compilers don't have full support of all `c++20` features. Therefore, while
 
 - [**range-v3**](https://github.com/ericniebler/range-v3) _[BSL 1.0]_: For `std::ranges`.
 - [**jthread**](https://github.com/josuttis/jthread) _[CC BY 4.0]_: For `std::jthread`.
+
+**rendering libraries**
+
+Despite incorporating its own renderer, some low level functions are required to create and manage a cross platform window, surface and input. For this purpose we use glfw3, along with glad2 for loading functions for both opengl and vulkan.
+
+- [**glfw**](https://github.com/glfw/glfw) _[ZLIB]_: For window creation and input.
+- [**glad**](https://github.com/Dav1dde/glad/tree/glad2) _[MIT]_: For opengl and vulkan loading.

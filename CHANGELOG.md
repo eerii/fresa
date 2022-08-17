@@ -6,7 +6,8 @@ _the graphics engine_
 
 #### [0.5.0] graphics library (_00 ago 22_)
 
-- **added** -
+- **added** - glfw and glad extensions
+- **added** - configuration for enabling the vulkan validation layers
 
 ---
 
