@@ -12,6 +12,8 @@
 #include "system.h"
 #include "jobs.h"
 
+#include "graphics_api.h"
+
 using namespace fresa;
 
 //* main entry point

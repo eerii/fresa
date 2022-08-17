@@ -1,7 +1,7 @@
 # fresa :strawberry:
 
 <p>
-  <a href="https://github.com/josekoalas/fresa/blob/main/CHANGELOG.md"><img alt="changelog" src="https://img.shields.io/badge/changelog-0.4.8-4673db?style=pl"/></a>
+  <a href="https://github.com/josekoalas/fresa/blob/main/CHANGELOG.md"><img alt="changelog" src="https://img.shields.io/badge/changelog-0.5.0-4673db?style=pl"/></a>
 </p>
 
 A tiny game engine made in `c++20`.
