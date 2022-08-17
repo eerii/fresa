@@ -6,10 +6,8 @@ _new implementation of fresa_
 
 #### todo
 - jobs, events, reflection documentation
-- reflection utilities
-- code generator for member names, only run on changed files
 
-#### [0.4.7] reflection (_00 ago 22_)
+#### [0.4.7] reflection (_17 ago 22_)
 
 - **added** - new automatic system registration using static members
 - **removed** - removed engine callbacks in favor of system initialization

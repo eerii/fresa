@@ -23,6 +23,8 @@
 //      · joao baptista [counting fields](https://towardsdev.com/counting-the-number-of-fields-in-an-aggregate-in-c-20-c81aecfd725c)
 #pragma once
 
+#include "std_types.h"
+#include "strings.h"
 #include "struct_fields.h"
 #include "tie_as_tuple.h"
 #include "constexpr_for.h"
