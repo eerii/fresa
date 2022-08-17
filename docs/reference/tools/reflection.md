@@ -103,3 +103,5 @@ template <> constexpr auto fresa::field_names<Something>() { return std::array<s
 ```
 
 This file is non meant to be modified by the user, or imported elsewhere. The reflection tool will scan all structs in the file and write spetializations of the `field_names<T>()` function for each one of them. The import must be done at the end of the file, and can optionally have import guards arround it, like `#if __has_include("reflection_some_file.h")`.
+
+Generated files are created in the `generated/reflection` folder, up a level from the `fresa` directory (so in the template case, it will be under `mermelada/generated/reflection`).

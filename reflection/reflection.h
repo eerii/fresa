@@ -33,11 +33,11 @@ namespace fresa
 {
     //* get member
     template <std::size_t I, concepts::Aggregate T>
-    constexpr auto get(T& value) noexcept {
+    [[nodiscard]] constexpr auto get(T& value) noexcept {
         return std::get<I>(tie_as_tuple(value));
     }
     template <std::size_t I, concepts::Aggregate T>
-    constexpr auto get(const T& value) noexcept {
+    [[nodiscard]] constexpr auto get(const T& value) noexcept {
         return std::get<I>(tie_as_tuple(value));
     }
 
@@ -62,7 +62,7 @@ namespace fresa
     }
 
     //* equality operators
-    template <concepts::Aggregate T> constexpr bool operator==(const T& lhs, const T& rhs) { 
+    template <concepts::Aggregate T> [[nodiscard]] constexpr bool operator==(const T& lhs, const T& rhs) { 
         if constexpr (concepts::EqualityComparable<T>)
             return lhs == rhs;
         else {
@@ -74,7 +74,7 @@ namespace fresa
             return result;
         }
     }
-    template <concepts::Aggregate T> constexpr bool operator!=(const T& lhs, const T& rhs) { return not (lhs == rhs); }
+    template <concepts::Aggregate T> [[nodiscard]] constexpr bool operator!=(const T& lhs, const T& rhs) { return not (lhs == rhs); }
 
     //* member names
     //      meant to be overloaded by functions automatically generated using tools/reflection_names.py
@@ -85,7 +85,7 @@ namespace fresa
     namespace detail
     {
         //: get member name at index
-        template <std::size_t I, concepts::Aggregate T> constexpr str_view getNameWithIndex() {
+        template <std::size_t I, concepts::Aggregate T> [[nodiscard]] constexpr str_view getNameWithIndex() {
             static_assert(I < field_count_v<T>, "index out of bounds");
             if constexpr (field_names<T>().size() > 0)
                 return field_names<T>()[I];
@@ -94,7 +94,7 @@ namespace fresa
         }
         
         //: get index of member name
-        template <str_literal M, concepts::Aggregate T> constexpr auto getIndexWithName() {
+        template <str_literal M, concepts::Aggregate T> [[nodiscard]] constexpr auto getIndexWithName() {
             constexpr auto fields = field_count_v<T>;
             std::optional<std::size_t> index;
             for_<0, fields>([&](auto i) {
@@ -106,7 +106,8 @@ namespace fresa
     }
 
     //* get member by name
-    template <str_literal M, concepts::Aggregate T> constexpr auto get(T& value) {
+    template <str_literal M, concepts::Aggregate T>
+    [[nodiscard]] constexpr auto get(T& value) {
         constexpr auto index = detail::getIndexWithName<M, T>();
         static_assert(index.has_value(), "trying to access an invalid member");
         return get<index.value()>(value);

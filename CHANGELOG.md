@@ -1,20 +1,26 @@
 # changelog :sparkles:
 
+### 0.5 milestone
+
+_the graphics engine_
+
+#### [0.5.0] graphics library (_00 ago 22_)
+
+- **added** -
+
+---
+
 ### 0.4 milestone
 
 _new implementation of fresa_
 
-#### todo
-- full "game" example
-- ci pipeline
-
-#### [0.4.8] documentation and final touches (_00 ago 22_)
+#### [0.4.8] documentation and final touches (_17 ago 22_)
 
 - **fixed** - strong types can now propperly be formatted
 - **added** - reflection format operator
 - **added** - documentation for reflection, events and jobs
 
-#### [0.4.7] reflection (_17 ago 22_)
+#### [0.4.7] reflection (_16 ago 22_)
 
 - **added** - new automatic system registration using static members
 - **removed** - removed engine callbacks in favor of system initialization
