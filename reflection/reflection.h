@@ -116,17 +116,65 @@ namespace fresa
 //: std hashable type
 namespace std
 {
-    template <::fresa::concepts::Aggregate T> requires (not ::fresa::concepts::Hashable<T>)
+    template <fresa::concepts::Aggregate T> requires (not fresa::concepts::Hashable<T>)
     struct hash<T> {
         constexpr std::size_t operator()(const T& value) const {
             std::size_t result = 0;
             constexpr auto fields = fresa::field_count_v<T>;
             fresa::for_<0, fields>([&](auto i) {
                 using Field = std::remove_reference_t<decltype(fresa::get<i>(value))>;
-                static_assert(::fresa::concepts::Hashable<Field>, "all the fields in the struct must be hashable");
+                static_assert(fresa::concepts::Hashable<Field>, "all the fields in the struct must be hashable");
                 result ^= std::hash<Field>{}(fresa::get<i>(value));
             });
             return result;
         }
     };
 }
+
+//: fmt formatable type
+#if __has_include("fmt/format.h")
+    #include "fmt/format.h"
+
+    namespace fresa::detail
+    {
+        template <fresa::concepts::Aggregate T>
+        struct format_refl_impl {
+            template<typename ParseContext>
+            constexpr auto parse(ParseContext& ctx) {
+                return ctx.begin();
+            }
+
+            template <typename FormatContext>
+            constexpr auto format(const T& c, FormatContext& ctx) noexcept {
+                fmt::format_to(ctx.out(), "{{");
+                for_<0, field_count_v<T>>([&](auto i) {
+                    fmt::format_to(ctx.out(), i > 0 ? ", {}" : "{}", get<i>(c));
+                });
+                return fmt::format_to(ctx.out(), "}}");
+            }
+        };
+
+        template <fresa::concepts::Aggregate T>
+        struct format_refl_names_impl {
+            template<typename ParseContext>
+            constexpr auto parse(ParseContext& ctx) {
+                return ctx.begin();
+            }
+
+            template <typename FormatContext>
+            constexpr auto format(const T& c, FormatContext& ctx) noexcept {
+                fmt::format_to(ctx.out(), "{{");
+                for_<0, field_count_v<T>>([&](auto i) {
+                    fmt::format_to(ctx.out(), "{}{}: {}", i > 0 ? ", " : "", detail::getNameWithIndex<i, T>(), get<i>(c));
+                });
+                return fmt::format_to(ctx.out(), "}}");
+            }
+        };
+    }
+
+    template <fresa::concepts::Aggregate T> requires (std::is_class_v<T> and fresa::field_names<T>().size() == 0)
+    struct fmt::formatter<T> : fresa::detail::format_refl_impl<T> {};
+
+    template <fresa::concepts::Aggregate T> requires (std::is_class_v<T> and fresa::field_names<T>().size() > 0)
+    struct fmt::formatter<T> : fresa::detail::format_refl_names_impl<T> {};
+#endif

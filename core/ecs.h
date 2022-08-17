@@ -9,6 +9,7 @@
 #include "std_types.h"
 #include "type_name.h"
 #include "log.h"
+#include "strong_types.h"
 #include <deque>
 #include <optional>
 
@@ -24,10 +25,10 @@ namespace fresa::ecs
     //: version - regular, ordered (allows comparison and iteration), incrementable (easily update version with ++)
     namespace detail 
     {
-        using ID = strong::Type<ui32, decltype([]{}), strong::Regular, strong::Bitwise>;
+        using ID = strong::Type<ui32, decltype([]{}), strong::Regular, strong::Bitwise, strong::Formattable>;
     }
-    using Index = strong::Type<ui16, decltype([]{}), strong::Regular, strong::Ordered, strong::Hashable, strong::ConvertibleTo<detail::ID>>;
-    using Version = strong::Type<ui16, decltype([]{}), strong::Regular, strong::Ordered, strong::Incrementable, strong::ConvertibleTo<detail::ID>>;
+    using Index = strong::Type<ui16, decltype([]{}), strong::Regular, strong::Ordered, strong::Hashable, strong::ConvertibleTo<detail::ID>, strong::Formattable>;
+    using Version = strong::Type<ui16, decltype([]{}), strong::Regular, strong::Ordered, strong::Incrementable, strong::ConvertibleTo<detail::ID>, strong::Formattable>;
 
     [[nodiscard]] constexpr Index index(detail::ID id) noexcept { return Index(id.value); }
     [[nodiscard]] constexpr Version version(detail::ID id) noexcept { return Version((id >> 16).value); }
@@ -124,7 +125,7 @@ namespace fresa::ecs
                 data.at(index(element).value) = std::move(value);
                 dense.at(index(element).value) = index(entity);
             } else {
-                log::error("entity {} with version {} already exists in sparse set", entity.value, version(entity).value);
+                log::error("entity {} with version {} already exists in sparse set", entity, version(entity));
             }
         }
 

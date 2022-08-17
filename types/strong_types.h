@@ -488,12 +488,17 @@ namespace std
 //: fmt formattable type
 #if __has_include("fmt/format.h")
     #include "fmt/format.h"
-    template <::fresa::concepts::StrongType T> requires T::is_formattable
-    struct fmt::formatter<T> : fmt::formatter<::fresa::strong::underlying_t<T>>  {
-        using type = T;
-        template <typename FormatContext> constexpr auto format(const T& t, FormatContext& c) noexcept {
-            const auto &self = (const T&)t;
-            return formatter<::fresa::strong::underlying_t<T>>::format(self.value, c);
-        }
-    };
+
+    namespace fresa::detail
+    {
+        template <concepts::StrongType T> requires T::is_formattable
+        struct format_strong_impl : fmt::formatter<strong::underlying_t<T>> {
+            template <typename FormatContext> constexpr auto format(const T& c, FormatContext& ctx) noexcept {
+                return fmt::formatter<strong::underlying_t<T>>::format(c.value, ctx);
+            }
+        };
+    }
+
+    template <typename T> requires T::is_formattable
+    struct fmt::formatter<T> : fresa::detail::format_strong_impl<T> {};
 #endif

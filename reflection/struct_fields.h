@@ -39,7 +39,7 @@ namespace fresa
     {
         //* aggregate initializable with n arguments
         template <typename T, std::size_t N>
-        concept AggregateN = Aggregate<T> and detail::AggregateFromIndices<T, std::make_index_sequence<N>>::value;
+        concept AggregateN = Aggregate<T> and ::fresa::detail::AggregateFromIndices<T, std::make_index_sequence<N>>::value;
     }
 
     //* binary search (to avoid too many template instantiations)
@@ -109,7 +109,7 @@ namespace fresa
     namespace concepts
     {
         template <typename T, std::size_t N, std::size_t M>
-        concept AggregateFieldNWithM = Aggregate<T> and detail::AggregateIndexInitializableWith<T, std::make_index_sequence<N>, std::make_index_sequence<M>>::value;
+        concept AggregateFieldNWithM = Aggregate<T> and ::fresa::detail::AggregateIndexInitializableWith<T, std::make_index_sequence<N>, std::make_index_sequence<M>>::value;
     }
 
     namespace detail
