@@ -13,8 +13,6 @@ _the graphics engine_
 
 **vulkan todo**
 
-- create surface
-- queue families
 - logical device
 - queues
 - memory allocator
@@ -28,6 +26,7 @@ _the graphics engine_
 
 - **added** - glfw and glad extensions
 - **added** - vulkan instance, debug and gpu implementation
+- **added** - device queues and surfaces
 
 ---
 

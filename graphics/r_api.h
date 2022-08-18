@@ -21,7 +21,7 @@ namespace fresa::graphics
     //* graphics api object
     //      holds information specific to the graphics api currently rendering (vk, gl, ...)
     using GraphicsAPI = VulkanAPI;
-    inline std::unique_ptr<GraphicsAPI> api;
+    inline std::unique_ptr<const GraphicsAPI> api;
 
     //* graphics system
     struct GraphicsSystem {
@@ -46,7 +46,7 @@ namespace fresa::graphics
 
     //* deletion queues
     //      called in reversed order of insertion to delete all resources without dependency issues
-    struct DeletionQueues {
+    inline struct DeletionQueues {
         std::stack<std::function<void()>> global;
         std::stack<std::function<void()>> swapchain;
         std::stack<std::function<void()>> frame;
@@ -55,15 +55,14 @@ namespace fresa::graphics
         void clear_swapchain() { while (!swapchain.empty()) { swapchain.top()(); swapchain.pop(); } }
         void clear_frame() { while (!frame.empty()) { frame.top()(); frame.pop(); } }
         void clear() { clear_global(); clear_swapchain(); clear_frame(); }
-    };
-    inline std::unique_ptr<DeletionQueues> deletion_queues;
+    } deletion_queues;
 
     //* window object
     //      contains the main window reference and the relevant properties
     struct WindowData {
         GLFWwindow* window;
     };
-    inline std::unique_ptr<WindowData> win;
+    inline std::unique_ptr<const WindowData> win;
 
     //* window functions
     WindowData createWindow();

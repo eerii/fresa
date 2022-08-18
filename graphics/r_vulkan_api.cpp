@@ -8,14 +8,22 @@
 using namespace fresa;
 using namespace graphics;
 
+// ---
+// VULKAN SPECIFIC FUNCTIONS
+// ---
+
 namespace fresa::graphics::vk
 {
     //: instance
     VkInstance createInstance();
 
+    //: surface
+    VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window);
+
     //: physical device
     vk::GPU selectGPU(VkInstance instance);
-    ui16 rateGPU(vk::GPU &gpu);
+    ui16 rateGPU(VkInstance instance, const vk::GPU &gpu);
+    std::array<int, 4> getQueueIndices(VkInstance instance, const vk::GPU &gpu);
 
     //: debug
     void glfwErrorCallback(int error, const char* description);
@@ -42,22 +50,27 @@ void GraphicsSystem::init() {
     log::graphics("glad vulkan loader ({}.{})", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
     //: create window
-    win = std::make_unique<WindowData>(createWindow());
+    win = std::make_unique<const WindowData>(createWindow());
 
     //: create vulkan api
-    api = std::make_unique<VulkanAPI>();
-    deletion_queues = std::make_unique<DeletionQueues>();
+    VulkanAPI vk_api;
 
     //: instance
-    api->instance = vk::createInstance();
-    version = gladLoaderLoadVulkan(api->instance, nullptr, nullptr);
+    vk_api.instance = vk::createInstance();
+    version = gladLoaderLoadVulkan(vk_api.instance, nullptr, nullptr);
     graphics_assert(version, "glad failed to load the vulkan functions that require an instance");
-    api->debug_callback = vk::createDebugCallback(api->instance);
+    vk_api.debug_callback = vk::createDebugCallback(vk_api.instance);
 
     //: gpu
-    api->gpu = vk::selectGPU(api->instance);
-    version = gladLoaderLoadVulkan(api->instance, api->gpu.gpu, nullptr);
+    vk_api.gpu = vk::selectGPU(vk_api.instance);
+    version = gladLoaderLoadVulkan(vk_api.instance, vk_api.gpu.gpu, nullptr);
     graphics_assert(version, "glad failed to load the extra vulkan extensions required by the gpu");
+
+    //: surface
+    vk_api.surface = vk::createSurface(vk_api.instance, win->window);
+
+    //: save the api pointer, can't be modified after this point
+    api = std::make_unique<const VulkanAPI>(std::move(vk_api));
 }
 
 //* create vulkan instance
@@ -123,15 +136,66 @@ VkInstance vk::createInstance() {
     VkResult result = vkCreateInstance(&create_info, nullptr, &instance);
     graphics_assert<int>(result == VK_SUCCESS, "fatal error creating a vulkan instance: {}", result);
 
-    deletion_queues->global.push([instance]{ vkDestroyInstance(instance, nullptr); });
+    deletion_queues.global.push([instance]{ vkDestroyInstance(instance, nullptr); });
     log::graphics("created a vulkan instance");
     return instance;
+}
+
+//* create a surface
+//      a surface is an abstraction of the window that vulkan can render to
+VkSurfaceKHR vk::createSurface(VkInstance instance, GLFWwindow* window) {
+    VkSurfaceKHR surface;
+    VkResult result = glfwCreateWindowSurface(instance, window, nullptr, &surface);
+    graphics_assert<int>(result == VK_SUCCESS, "fatal error creating a vulkan surface: {}", result);
+
+    deletion_queues.global.push([instance, surface]{ vkDestroySurfaceKHR(instance, surface, nullptr); });
+    return surface;
+}
+
+//* select physical device
+vk::GPU vk::selectGPU(VkInstance instance) {
+    //: count devices
+    ui32 gpu_count;
+    VkResult result = vkEnumeratePhysicalDevices(instance, &gpu_count, nullptr);
+    graphics_assert<int>(result == VK_SUCCESS, "fatal error enumerating physical devices: {}", result);
+    graphics_assert(gpu_count > 0, "no physical devices found");
+    
+    //: get the available gpus
+    std::vector<VkPhysicalDevice> physical_devices(gpu_count);
+    vkEnumeratePhysicalDevices(instance, &gpu_count, physical_devices.data());
+    log::graphics("gpu{}:", gpu_count > 1 ? "s" : "");
+
+    //: fill the gpu list with all the relevant information
+    std::vector<vk::GPU> gpus;
+    for (auto d : physical_devices) {
+        gpus.push_back(vk::GPU{ .gpu = d });
+        vk::GPU &gpu = gpus.back();
+
+        //: get properties
+        vkGetPhysicalDeviceProperties(gpu.gpu, &gpu.properties);
+        vkGetPhysicalDeviceFeatures(gpu.gpu, &gpu.features);
+        vkGetPhysicalDeviceMemoryProperties(gpu.gpu, &gpu.memory);
+        gpu.queue_indices = vk::getQueueIndices(instance, gpu);
+
+        //: rate the gpu
+        gpu.score = rateGPU(instance, gpu);
+    }
+
+    //: get the gpu with the highest score
+    auto it = std::max_element(gpus.begin(), gpus.end(), [](const auto& a, const auto& b) { return a.score < b.score; });
+    graphics_assert(it != gpus.end() and it->score > 0, "no suitable gpu found");
+
+    //: log the chosen gpu
+    for (auto gpu : gpus)
+        log::graphics(" {} {}", gpu.properties.deviceID == it->properties.deviceID ? "-" : "·", lower(gpu.properties.deviceName));
+
+    return *it;
 }
 
 //* rate physical device
 //      give a score to the gpu based on its capabilities
 //      if the score returned is 0, the gpu is invalid, otherwise selectGPU will choose the one with the highest score
-ui16 vk::rateGPU(vk::GPU &gpu) {
+ui16 vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
     ui16 score = 16;
 
     //: prefer discrete gpus
@@ -158,49 +222,57 @@ ui16 vk::rateGPU(vk::GPU &gpu) {
         if (it == available_extensions.end()) { return 0; }
     }
 
-    //- check queue families
+    //: require present and graphics queues, compute adds extra score
+    if (gpu.queue_indices.at(QUEUE_INDICES_PRESENT) == -1 or gpu.queue_indices[QUEUE_INDICES_GRAPHICS] == -1) return 0;
+    if (gpu.queue_indices.at(QUEUE_INDICES_COMPUTE) != -1) score += 32;
+
     //- check swapchain support
 
     return score;
 }
 
-//* select physical device
-vk::GPU vk::selectGPU(VkInstance instance) {
-    //: count devices
-    ui32 gpu_count;
-    VkResult result = vkEnumeratePhysicalDevices(instance, &gpu_count, nullptr);
-    graphics_assert<int>(result == VK_SUCCESS, "fatal error enumerating physical devices: {}", result);
-    graphics_assert(gpu_count > 0, "no physical devices found");
+//* get queue indices
+std::array<int, 4> vk::getQueueIndices(VkInstance instance, const vk::GPU &gpu) {
+    std::array<int, 4> indices({-1, -1, -1, -1});
     
-    //: get the available gpus
-    std::vector<VkPhysicalDevice> physical_devices(gpu_count);
-    vkEnumeratePhysicalDevices(instance, &gpu_count, physical_devices.data());
-    log::graphics("gpu{}:", gpu_count > 1 ? "s" : "");
+    //: get queue families
+    ui32 queue_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(gpu.gpu, &queue_count, nullptr);
+    std::vector<VkQueueFamilyProperties> queues(queue_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(gpu.gpu, &queue_count, queues.data());
 
-    //: fill the gpu list with all the relevant information
-    std::vector<vk::GPU> gpus;
-    for (auto d : physical_devices) {
-        gpus.push_back(vk::GPU{ .gpu = d });
-        vk::GPU &gpu = gpus.back();
+    //: select the desired queues
+    //      the different types we are looking for are:
+    //          · graphics: pipeline operations, including vertex/fragment shaders and drawing
+    //          · present: send framebuffers to the screen
+    //          · transfer: copy buffers and images
+    //          · compute: for compute shaders
+    //      not all queues are needed, and more can be created for multithread support
+    //      the present and graphics queue can share the same index
 
-        //: get properties
-        vkGetPhysicalDeviceProperties(gpu.gpu, &gpu.properties);
-        vkGetPhysicalDeviceFeatures(gpu.gpu, &gpu.features);
-        vkGetPhysicalDeviceMemoryProperties(gpu.gpu, &gpu.memory);
-
-        //: rate the gpu
-        gpu.score = rateGPU(gpu);
+    for (int i = 0; i < queue_count; i++) {
+        //: present queue
+        if (indices.at(QUEUE_INDICES_PRESENT) == -1) {
+            if (glfwGetPhysicalDevicePresentationSupport(instance, gpu.gpu, i))
+                indices.at(QUEUE_INDICES_PRESENT) = i;
+        }
+        //: graphics queue (can be the same index)
+        if (indices.at(QUEUE_INDICES_GRAPHICS) == -1 and queues.at(i).queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            indices.at(QUEUE_INDICES_GRAPHICS) = i; continue;
+        }
+        //: transfer queue
+        if (indices.at(QUEUE_INDICES_TRANSFER) == -1 and queues.at(i).queueFlags & VK_QUEUE_TRANSFER_BIT) {
+            indices.at(QUEUE_INDICES_TRANSFER) = i; continue;
+        }
+        //: compute queue
+        if (indices.at(QUEUE_INDICES_COMPUTE) == -1 and queues.at(i).queueFlags & VK_QUEUE_COMPUTE_BIT) {
+            indices.at(QUEUE_INDICES_COMPUTE) = i; continue;
+        }
+        if (indices.at(QUEUE_INDICES_GRAPHICS) != -1 and indices.at(QUEUE_INDICES_PRESENT) != -1 and
+            indices.at(QUEUE_INDICES_TRANSFER) != -1 and indices.at(QUEUE_INDICES_COMPUTE) != -1) break;
     }
 
-    //: get the gpu with the highest score
-    auto it = std::max_element(gpus.begin(), gpus.end(), [](const auto& a, const auto& b) { return a.score < b.score; });
-    graphics_assert(it != gpus.end() and it->score > 0, "no suitable gpu found");
-
-    //: log the chosen gpu
-    for (auto gpu : gpus)
-        log::graphics(" {} {}", gpu.properties.deviceID == it->properties.deviceID ? "-" : "·", lower(gpu.properties.deviceName));
-
-    return *it;
+    return indices;
 }
 
 // ---
@@ -218,7 +290,7 @@ void GraphicsSystem::update() {
 //* stop the vulkan api
 void GraphicsSystem::stop() {
     //: clear the deletion queues in reverse order
-    deletion_queues->clear();
+    deletion_queues.clear();
 
     //: stop glfw
     if (win) glfwDestroyWindow(win->window);
@@ -267,8 +339,7 @@ VkDebugReportCallbackEXT vk::createDebugCallback(VkInstance instance) {
     VkDebugReportCallbackCreateInfoEXT create_info{
         .sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
         .flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT,
-        .pfnCallback = vk::debugCallback,
-        .pUserData = api.get()
+        .pfnCallback = vk::debugCallback
     };
 
     //: create callback
@@ -276,7 +347,7 @@ VkDebugReportCallbackEXT vk::createDebugCallback(VkInstance instance) {
     VkResult result = vkCreateDebugReportCallbackEXT(instance, &create_info, nullptr, &callback);
     graphics_assert<std::size_t>(result == VK_SUCCESS, "fatal error creating a vulkan debug callback: {}", result);
 
-    deletion_queues->global.push([instance, callback]{ vkDestroyDebugReportCallbackEXT(instance, callback, nullptr); });
+    deletion_queues.global.push([instance, callback]{ vkDestroyDebugReportCallbackEXT(instance, callback, nullptr); });
     return callback;
 }
 #endif
