@@ -8,6 +8,9 @@ namespace fresa
     //* call from main.cpp
     void run();
 
+    //* can be called when the engine needs to be stopped
+    void quit();
+
     //* different stages of the engine, referenced from run()
     namespace detail {
         void init();

@@ -33,3 +33,11 @@ void fresa::detail::stop()
 ```
 
 Called from [`run`](#run) when execution ends. Clear systems in LIFO order (using an `std::stack`).
+
+## `quit`
+
+```cpp
+void fresa::quit()
+```
+
+Can be called when the engine needs to exit early. This will call [`stop`](#stop) and then exit the application.

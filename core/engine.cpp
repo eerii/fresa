@@ -12,7 +12,7 @@
 #include "system.h"
 #include "jobs.h"
 
-#include "graphics_api.h"
+#include "r_api.h"
 
 using namespace fresa;
 
@@ -40,6 +40,11 @@ void fresa::run() {
 
     //: cleanup
     fresa::detail::stop();
+}
+
+void fresa::quit() {
+    fresa::detail::stop();
+    std::abort();
 }
 
 //---
