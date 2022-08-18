@@ -24,7 +24,7 @@ cd mermelada
 
 ## building the project
 
-The template repository already includes a `CMakeLists.txt` with all the configuration needed. Please ensure you have a [compatible compiler](#tested-compilers) and a recent version of [cmake](#installing-cmake) before proceeding. To configure and build the project use the following two commands respectively:
+The template repository already includes a `CMakeLists.txt` with all the configuration needed. Please ensure you have a [compatible compiler](#tested-compilers) and a recent version of [cmake](#extra-installing-cmake) and the [vulkan sdk](#extra-installing-the-vulkan-sdk) before proceeding. To configure and build the project use the following two commands respectively:
 
 ```sh
 cmake -S . -B build
@@ -86,6 +86,11 @@ snap install cmake
 ```sh
 brew install cmake
 ```
+
+## extra: installing the vulkan sdk
+
+`Vulkan` is the graphics API we use to render our scenes. It is a very powerful and customizable API that is used by many applications. To develop with Vulkan you need to install the latest version of the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). There are readily available binaries for all platforms that take care of the installation.
+
 
 ## advanced: manual configuration
 

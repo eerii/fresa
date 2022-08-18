@@ -73,3 +73,6 @@ nav:
       - unit tests: reference/tools/unit_test.md
       - assertions: reference/tools/assertions.md
       - reflection: reference/tools/reflection.md
+
+  - rendering:
+    - an introduction: rendering/introduction.md

@@ -1,0 +1,3 @@
+# rendering
+
+Since the graphics engine is the core of **fresa**, an entire documentation chapter will be dedicated to it. Since the API is being shaped, this documentation is still a work in progress...

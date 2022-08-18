@@ -4,6 +4,13 @@
 
 _the graphics engine_
 
+**todo**
+
+- write documentation for the new renderer, add libraries used to the build process (vulkan sdk too)
+- test the build in linux and windows, should work on all platforms with not too much trouble
+- write the vulkan to do list looking through the old renderer
+- think of what to do with regards to web builds (support opengl with no compute shaders, use webgpu, ...)
+
 #### [0.5.0] graphics library (_00 ago 22_)
 
 - **added** - glfw and glad extensions
