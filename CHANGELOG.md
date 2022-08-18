@@ -6,10 +6,23 @@ _the graphics engine_
 
 **todo**
 
-- write documentation for the new renderer, add libraries used to the build process (vulkan sdk too)
+- write documentation for the new renderer
 - test the build in linux and windows, should work on all platforms with not too much trouble
 - write the vulkan to do list looking through the old renderer
 - think of what to do with regards to web builds (support opengl with no compute shaders, use webgpu, ...)
+
+**vulkan todo**
+
+- create surface
+- queue families
+- logical device
+- queues
+- memory allocator
+- swapchain
+- command pools
+- command buffers
+- synchronization objects
+- render passes, pipelines, shaders...
 
 #### [0.5.0] graphics library (_00 ago 22_)
 

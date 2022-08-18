@@ -8,9 +8,12 @@
 #include <GLFW/glfw3.h>
 
 #include "std_types.h"
+#include "source_loc.h"
+
 #include "engine.h"
 #include "system.h"
-#include "source_loc.h"
+#include "events.h"
+
 #include <stack>
 
 namespace fresa::graphics
@@ -20,23 +23,11 @@ namespace fresa::graphics
     using GraphicsAPI = VulkanAPI;
     inline std::unique_ptr<GraphicsAPI> api;
 
-    //* deletion queues
-    //      called in reversed order of insertion to delete all resources without dependency issues
-    inline struct DeletionQueues {
-        std::stack<std::function<void()>> global;
-        std::stack<std::function<void()>> swapchain;
-        std::stack<std::function<void()>> frame;
-
-        void clear_global() { while (!global.empty()) { global.top()(); global.pop(); } }
-        void clear_swapchain() { while (!swapchain.empty()) { swapchain.top()(); swapchain.pop(); } }
-        void clear_frame() { while (!frame.empty()) { frame.top()(); frame.pop(); } }
-        void clear() { clear_global(); clear_swapchain(); clear_frame(); }
-    } deletion_queues;
-
     //* graphics system
     struct GraphicsSystem {
         inline static System<GraphicsSystem, system::SYSTEM_PRIORITY_FIRST> system;
-        static void init() noexcept;
+        static void init();
+        static void update();
         static void stop();
     };
 
@@ -52,4 +43,28 @@ namespace fresa::graphics
             fresa::quit();
         }
     }
+
+    //* deletion queues
+    //      called in reversed order of insertion to delete all resources without dependency issues
+    struct DeletionQueues {
+        std::stack<std::function<void()>> global;
+        std::stack<std::function<void()>> swapchain;
+        std::stack<std::function<void()>> frame;
+
+        void clear_global() { while (!global.empty()) { global.top()(); global.pop(); } }
+        void clear_swapchain() { while (!swapchain.empty()) { swapchain.top()(); swapchain.pop(); } }
+        void clear_frame() { while (!frame.empty()) { frame.top()(); frame.pop(); } }
+        void clear() { clear_global(); clear_swapchain(); clear_frame(); }
+    };
+    inline std::unique_ptr<DeletionQueues> deletion_queues;
+
+    //* window object
+    //      contains the main window reference and the relevant properties
+    struct WindowData {
+        GLFWwindow* window;
+    };
+    inline std::unique_ptr<WindowData> win;
+
+    //* window functions
+    WindowData createWindow();
 }

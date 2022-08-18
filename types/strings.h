@@ -7,7 +7,7 @@
 namespace fresa
 {
     //* string literals for templates
-    template <auto N>
+    template <std::size_t N>
     struct str_literal {
         constexpr str_literal(const char (&s)[N]) { std::copy(s, s + N, value); }
         char value[N];

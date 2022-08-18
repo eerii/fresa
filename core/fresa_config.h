@@ -21,6 +21,7 @@
 #pragma once
 
 #include "std_types.h"
+#include "fresa_math.h"
 
 namespace fresa
 {
@@ -42,7 +43,7 @@ namespace fresa
 
     //* run config (run time)
     struct RunConfig {
-
+        Vec2<ui16> window_size = {800, 600};
     };
 
     //* debug config (run time, only on debug builds)

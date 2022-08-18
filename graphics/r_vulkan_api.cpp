@@ -1,5 +1,5 @@
 //* vulkan_api
-//      .
+//      - ...
 
 #include "r_api.h"
 #include "config.h"
@@ -12,6 +12,8 @@ namespace fresa::graphics::vk
 {
     //: instance
     VkInstance createInstance();
+
+    //: physical device
     vk::GPU selectGPU(VkInstance instance);
     ui16 rateGPU(vk::GPU &gpu);
 
@@ -28,7 +30,7 @@ namespace fresa::graphics::vk
 // ---
 
 //* create vulkan graphics api
-void GraphicsSystem::init() noexcept {
+void GraphicsSystem::init() {
     //: initalize glfw
     glfwSetErrorCallback(vk::glfwErrorCallback);
     graphics_assert(glfwInit(), "failed to initalize glfw");
@@ -39,8 +41,12 @@ void GraphicsSystem::init() noexcept {
     graphics_assert(version, "glad failed to load vulkan");
     log::graphics("glad vulkan loader ({}.{})", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
+    //: create window
+    win = std::make_unique<WindowData>(createWindow());
+
     //: create vulkan api
     api = std::make_unique<VulkanAPI>();
+    deletion_queues = std::make_unique<DeletionQueues>();
 
     //: instance
     api->instance = vk::createInstance();
@@ -117,7 +123,7 @@ VkInstance vk::createInstance() {
     VkResult result = vkCreateInstance(&create_info, nullptr, &instance);
     graphics_assert<int>(result == VK_SUCCESS, "fatal error creating a vulkan instance: {}", result);
 
-    deletion_queues.global.push([instance]{ vkDestroyInstance(instance, nullptr); });
+    deletion_queues->global.push([instance]{ vkDestroyInstance(instance, nullptr); });
     log::graphics("created a vulkan instance");
     return instance;
 }
@@ -198,15 +204,24 @@ vk::GPU vk::selectGPU(VkInstance instance) {
 }
 
 // ---
+// UPDATE
+// ---
+
+void GraphicsSystem::update() {
+    glfwPollEvents();
+}
+
+// ---
 // STOPPING
 // ---
 
 //* stop the vulkan api
 void GraphicsSystem::stop() {
     //: clear the deletion queues in reverse order
-    deletion_queues.clear();
+    deletion_queues->clear();
 
     //: stop glfw
+    if (win) glfwDestroyWindow(win->window);
     glfwTerminate();
 }
 
@@ -261,7 +276,7 @@ VkDebugReportCallbackEXT vk::createDebugCallback(VkInstance instance) {
     VkResult result = vkCreateDebugReportCallbackEXT(instance, &create_info, nullptr, &callback);
     graphics_assert<std::size_t>(result == VK_SUCCESS, "fatal error creating a vulkan debug callback: {}", result);
 
-    deletion_queues.global.push([instance, callback]{ vkDestroyDebugReportCallbackEXT(instance, callback, nullptr); });
+    deletion_queues->global.push([instance, callback]{ vkDestroyDebugReportCallbackEXT(instance, callback, nullptr); });
     return callback;
 }
 #endif
