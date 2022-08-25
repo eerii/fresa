@@ -9,6 +9,7 @@ namespace fresa::graphics
 {
     namespace vk
     {
+        //* physical device, representation of a gpu
         struct GPU {
             VkPhysicalDevice gpu;
             VkPhysicalDeviceProperties properties;
@@ -18,6 +19,7 @@ namespace fresa::graphics
             ui16 score;
         };
 
+        //* indices of the queue families
         enum QueueIndices {
             QUEUE_INDICES_GRAPHICS,
             QUEUE_INDICES_PRESENT,
@@ -26,10 +28,12 @@ namespace fresa::graphics
         };
     }
 
+    //* vulkan data
     struct VulkanAPI {
         VkInstance instance;
         VkSurfaceKHR surface;
         vk::GPU gpu;
+        VkDevice device;
 
         VkDebugReportCallbackEXT debug_callback;
     };

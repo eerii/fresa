@@ -2,8 +2,11 @@
 //      - ...
 
 #include "r_api.h"
+#include "log.h"
 #include "config.h"
 #include "strings.h"
+
+#include <set>
 
 using namespace fresa;
 using namespace graphics;
@@ -24,6 +27,18 @@ namespace fresa::graphics::vk
     vk::GPU selectGPU(VkInstance instance);
     ui16 rateGPU(VkInstance instance, const vk::GPU &gpu);
     std::array<int, 4> getQueueIndices(VkInstance instance, const vk::GPU &gpu);
+
+    //: required device extensions and validation layers
+    constexpr std::array<const char*, 2> required_extensions{
+        "VK_KHR_portability_subset",
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    };
+    constexpr std::array<const char*, 1> validation_layers = {
+        "VK_LAYER_KHRONOS_validation"
+    };
+
+    //: logical device
+    VkDevice createDevice(const vk::GPU &gpu);
 
     //: debug
     void glfwErrorCallback(int error, const char* description);
@@ -59,12 +74,17 @@ void GraphicsSystem::init() {
     vk_api.instance = vk::createInstance();
     version = gladLoaderLoadVulkan(vk_api.instance, nullptr, nullptr);
     graphics_assert(version, "glad failed to load the vulkan functions that require an instance");
+    #ifdef FRESA_DEBUG
     vk_api.debug_callback = vk::createDebugCallback(vk_api.instance);
+    #endif
 
-    //: gpu
+    //: gpu (physical device)
     vk_api.gpu = vk::selectGPU(vk_api.instance);
     version = gladLoaderLoadVulkan(vk_api.instance, vk_api.gpu.gpu, nullptr);
     graphics_assert(version, "glad failed to load the extra vulkan extensions required by the gpu");
+
+    //: logical device
+    vk_api.device = vk::createDevice(vk_api.gpu);
 
     //: surface
     vk_api.surface = vk::createSurface(vk_api.instance, win->window);
@@ -95,7 +115,6 @@ VkInstance vk::createInstance() {
     //      primarily used for getting detailed error descriptions, in this case with VK_LAYER_KHRONOS_validation
     //      enabled only when using debug mode
     #ifdef FRESA_DEBUG
-    constexpr std::array<const char*, 1> validation_layers = { "VK_LAYER_KHRONOS_validation" };
     ui32 validation_layer_count;
     vkEnumerateInstanceLayerProperties(&validation_layer_count, nullptr);
     std::vector<VkLayerProperties> available_validation_layers(validation_layer_count);
@@ -209,16 +228,12 @@ ui16 vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
             score += heap.size / 1024 / 1024 / 128;
 
     //: required device extensions
-    constexpr std::array<str_view, 2> required_extensions{
-        "VK_KHR_portability_subset",
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    };
     ui32 extension_count;
     vkEnumerateDeviceExtensionProperties(gpu.gpu, nullptr, &extension_count, nullptr);
     std::vector<VkExtensionProperties> available_extensions(extension_count);
     vkEnumerateDeviceExtensionProperties(gpu.gpu, nullptr, &extension_count, available_extensions.data());
     for (const auto& ext : required_extensions) {
-        auto it = std::find_if(available_extensions.begin(), available_extensions.end(), [&](const auto& e) { return e.extensionName == ext; });
+        auto it = std::find_if(available_extensions.begin(), available_extensions.end(), [&](const auto& e) { return e.extensionName == str_view(ext); });
         if (it == available_extensions.end()) { return 0; }
     }
 
@@ -273,6 +288,49 @@ std::array<int, 4> vk::getQueueIndices(VkInstance instance, const vk::GPU &gpu) 
     }
 
     return indices;
+}
+
+//* create logical device
+VkDevice vk::createDevice(const vk::GPU &gpu) {
+    //: get unique queue indices
+    std::set<int> unique_queue_indices;
+    for (const auto& index : gpu.queue_indices)
+        unique_queue_indices.insert(index);
+    
+    //: queue create info
+    std::vector<VkDeviceQueueCreateInfo> queue_create_info(unique_queue_indices.size());
+    float queue_priorities = 1.0f;
+    for (const auto& family_index : unique_queue_indices) {
+        auto &info = queue_create_info.at(family_index);
+        info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        info.queueFamilyIndex = family_index;
+        info.queueCount = 1;
+        info.pQueuePriorities = &queue_priorities;
+    }
+
+    //: device required features
+    //      you may enable some features here, but try to keep them at the minimum
+    VkPhysicalDeviceFeatures enabled_device_features{};
+
+    //: device create info
+    VkDeviceCreateInfo create_info{
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .enabledLayerCount = (int)validation_layers.size(),
+        .ppEnabledLayerNames = validation_layers.data(),
+        .enabledExtensionCount = (int)required_extensions.size(),
+        .ppEnabledExtensionNames = required_extensions.data(),
+        .pEnabledFeatures = &enabled_device_features,
+    };
+    create_info.queueCreateInfoCount = (int)queue_create_info.size();
+    create_info.pQueueCreateInfos = queue_create_info.data();
+
+    //: create logical device
+    VkDevice device;
+    VkResult result = vkCreateDevice(gpu.gpu, &create_info, nullptr, &device);
+    graphics_assert<int>(result == VK_SUCCESS, "fatal error creating a vulkan logical device: {}", result);
+
+    deletion_queues.global.push([device]{ vkDeviceWaitIdle(device); vkDestroyDevice(device, nullptr); });
+    return device;
 }
 
 // ---

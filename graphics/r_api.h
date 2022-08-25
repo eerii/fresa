@@ -57,13 +57,11 @@ namespace fresa::graphics
         void clear() { clear_global(); clear_swapchain(); clear_frame(); }
     } deletion_queues;
 
-    //* window object
+    //* window
     //      contains the main window reference and the relevant properties
     struct WindowData {
         GLFWwindow* window;
     };
     inline std::unique_ptr<const WindowData> win;
-
-    //* window functions
     WindowData createWindow();
 }
