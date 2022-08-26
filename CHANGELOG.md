@@ -26,6 +26,7 @@ _the graphics engine_
 
 - **added** - vulkan memory allocator library
 - **added** - swapchain
+- **added** - time format for fmt library
 
 #### [0.5.0] vulkan initialization (_26 ago 22_)
 

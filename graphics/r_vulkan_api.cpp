@@ -47,6 +47,9 @@ namespace fresa::graphics::vk
     VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window);
     vk::Swapchain createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface);
 
+    //: command pools
+    
+
     //: debug
     void glfwErrorCallback(int error, const char* description);
     #ifdef FRESA_DEBUG

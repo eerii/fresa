@@ -16,6 +16,15 @@ namespace fresa::graphics
 {
     namespace vk
     {
+        //* indices of the queue families
+        enum QueueIndices {
+            QUEUE_INDICES_GRAPHICS,
+            QUEUE_INDICES_PRESENT,
+            QUEUE_INDICES_TRANSFER,
+            QUEUE_INDICES_COMPUTE,
+            QUEUE_INDICES_COUNT
+        };
+
         //* physical device, representation of a gpu
         struct GPU {
             VkPhysicalDevice gpu = VK_NULL_HANDLE;
@@ -25,18 +34,10 @@ namespace fresa::graphics
             VkPhysicalDeviceFeatures features;
             VkPhysicalDeviceMemoryProperties memory;
 
-            std::array<int, 4> queue_indices = {-1, -1, -1, -1};
+            std::array<int, QUEUE_INDICES_COUNT> queue_indices = {-1, -1, -1, -1};
             std::vector<VkQueue> queues = {};
 
             int score = -1;
-        };
-
-        //* indices of the queue families
-        enum QueueIndices {
-            QUEUE_INDICES_GRAPHICS,
-            QUEUE_INDICES_PRESENT,
-            QUEUE_INDICES_TRANSFER,
-            QUEUE_INDICES_COMPUTE
         };
 
         //* swapchain information, necessary to present to the screen

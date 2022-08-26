@@ -312,7 +312,7 @@ namespace fresa::jobs
 
                 //: there is a job
                 if (current_job) {
-                    fresa_assert(current_job.value() == nullptr, "the job you are trying to add is null, this should not happen");
+                    fresa_assert(current_job.value() != nullptr, "the job you are trying to add is null, this should not happen");
 
                     //: run the job
                     detail::log<"JOB RUNNING", LOG_JOBS, fmt::color::gold>("thread {} is running job {}", thread_index, current_job.value()->handle.address());
