@@ -27,6 +27,7 @@ _the graphics engine_
 - **added** - vulkan memory allocator library
 - **added** - swapchain
 - **added** - time format for fmt library
+- **removed** - the job system is temporarily removed, since it is not ready and doesn't add anything to the engine
 
 #### [0.5.0] vulkan initialization (_26 ago 22_)
 

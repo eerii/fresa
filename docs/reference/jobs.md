@@ -1,3 +1,3 @@
-# [`jobs`](https://github.com/josekoalas/fresa/blob/main/core/jobs.h)
+# [`jobs`](https://github.com/josekoalas/mermelada/blob/main/extras/jobs.h)
 
-The job system is still in its early stages. It is based on the [coroutine](./coroutines.md) implementation. It should work, but some more real scenario testing is needed. This will be done when the engine is more implemented, after the graphics are in place and some examples can be put together. For now, while the job system is a WIP, you can check how it works by looking at the [test suite](https://github.com/josekoalas/fresa/blob/main/tests/job_tests.cpp).
+The job system is still in its early stages. It is based on the [coroutine](./coroutines.md) implementation. It should work, but some more real scenario testing is needed. For now it is hosted on the `extras` folder, since it is not intended to be used.
