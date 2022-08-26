@@ -43,7 +43,10 @@ namespace fresa
 
     //* run config (run time)
     struct RunConfig {
+        //: the size of the application window
         Vec2<ui16> window_size = {800, 600};
+        //: prefer mailbox mode for rendering
+        bool prefer_mailbox_mode = false;
     };
 
     //* debug config (run time, only on debug builds)

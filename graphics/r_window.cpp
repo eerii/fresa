@@ -6,7 +6,7 @@
 
 using namespace fresa;
 
-graphics::WindowData graphics::createWindow() {
+graphics::Window graphics::createWindow() {
     const str name = fmt::format("{} - version {}.{}.{} - vulkan", engine_config.name(), engine_config.version()[0], engine_config.version()[1], engine_config.version()[2]);
     
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -14,7 +14,7 @@ graphics::WindowData graphics::createWindow() {
     GLFWwindow* w = glfwCreateWindow(config.window_size.x, config.window_size.y, name.c_str(), nullptr, nullptr);
     graphics_assert(w, "failed to create a window");
 
-    return WindowData{
+    return Window{
         .window = w
     };
 }

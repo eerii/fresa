@@ -97,6 +97,7 @@ void using_configuration() {
 | option | type | default value |
 |---|---|---|
 | `window_size` | `Vec2<ui16>` | `{800, 600}` |
+| `prefer_mailbox_mode` | `bool` | `false` |
 
 **debug**
 

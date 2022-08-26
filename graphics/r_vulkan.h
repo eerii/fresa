@@ -20,11 +20,14 @@ namespace fresa::graphics
         struct GPU {
             VkPhysicalDevice gpu = VK_NULL_HANDLE;
             VkDevice device = VK_NULL_HANDLE;
+
             VkPhysicalDeviceProperties properties;
             VkPhysicalDeviceFeatures features;
             VkPhysicalDeviceMemoryProperties memory;
+
             std::array<int, 4> queue_indices = {-1, -1, -1, -1};
             std::vector<VkQueue> queues = {};
+
             int score = -1;
         };
 
@@ -35,15 +38,30 @@ namespace fresa::graphics
             QUEUE_INDICES_TRANSFER,
             QUEUE_INDICES_COMPUTE
         };
+
+        //* swapchain information, necessary to present to the screen
+        struct Swapchain {
+            VkSwapchainKHR swapchain;
+
+            VkFormat format;
+            VkExtent2D extent;
+            
+            ui32 size;
+            
+            std::vector<VkImageView> image_views;
+            std::vector<VkImage> images;
+        };
     }
 
     //* vulkan data
     struct VulkanAPI {
         VkInstance instance;
-        VkSurfaceKHR surface;
         vk::GPU gpu;
         
         VmaAllocator allocator;
+
+        VkSurfaceKHR surface;
+        vk::Swapchain swapchain;
 
         VkDebugReportCallbackEXT debug_callback;
     };

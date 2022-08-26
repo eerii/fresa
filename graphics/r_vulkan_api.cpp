@@ -31,9 +31,6 @@ namespace fresa::graphics::vk
     //: instance
     VkInstance createInstance();
 
-    //: surface
-    VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window);
-
     //: physical device
     vk::GPU selectGPU(VkInstance instance);
     int rateGPU(VkInstance instance, const vk::GPU &gpu);
@@ -45,6 +42,10 @@ namespace fresa::graphics::vk
 
     //: allocator
     VmaAllocator createAllocator(VkInstance instance, const vk::GPU &gpu);
+
+    //: surface and swapchain
+    VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window);
+    vk::Swapchain createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface);
 
     //: debug
     void glfwErrorCallback(int error, const char* description);
@@ -90,7 +91,7 @@ void GraphicsSystem::init() {
     log::graphics("glad vulkan loader ({}.{})", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
     //: create window
-    win = std::make_unique<const WindowData>(createWindow());
+    win = std::make_unique<const Window>(createWindow());
 
     //: create vulkan api
     VulkanAPI vk_api;
@@ -115,8 +116,9 @@ void GraphicsSystem::init() {
     //: allocator
     vk_api.allocator = vk::createAllocator(vk_api.instance, vk_api.gpu);
 
-    //: surface
+    //: surface and swapchain
     vk_api.surface = vk::createSurface(vk_api.instance, win->window);
+    vk_api.swapchain = vk::createSwapchain(vk_api.gpu, win->window, vk_api.surface);
 
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const VulkanAPI>(std::move(vk_api));
@@ -184,22 +186,11 @@ VkInstance vk::createInstance() {
     //: create instance
     VkInstance instance;
     VkResult result = vkCreateInstance(&create_info, nullptr, &instance);
-    graphics_assert<int>(result == VK_SUCCESS, "fatal error creating a vulkan instance: {}", result);
+    graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan instance: {}", result);
 
     deletion_queues.global.push([instance]{ vkDestroyInstance(instance, nullptr); });
     log::graphics("created a vulkan instance");
     return instance;
-}
-
-//* create a surface
-//      a surface is an abstraction of the window that vulkan can render to
-VkSurfaceKHR vk::createSurface(VkInstance instance, GLFWwindow* window) {
-    VkSurfaceKHR surface;
-    VkResult result = glfwCreateWindowSurface(instance, window, nullptr, &surface);
-    graphics_assert<int>(result == VK_SUCCESS, "fatal error creating a vulkan surface: {}", result);
-
-    deletion_queues.global.push([instance, surface]{ vkDestroySurfaceKHR(instance, surface, nullptr); });
-    return surface;
 }
 
 //* select physical device
@@ -217,7 +208,6 @@ vk::GPU vk::selectGPU(VkInstance instance) {
     //: get the available gpus
     std::vector<VkPhysicalDevice> physical_devices(gpu_count);
     vkEnumeratePhysicalDevices(instance, &gpu_count, physical_devices.data());
-    log::graphics("gpu{}:", gpu_count > 1 ? "s" : "");
 
     //: fill the gpu list with all the relevant information
     std::vector<vk::GPU> gpus;
@@ -239,9 +229,13 @@ vk::GPU vk::selectGPU(VkInstance instance) {
     auto it = std::max_element(gpus.begin(), gpus.end(), [](const auto& a, const auto& b) { return a.score < b.score; });
     graphics_assert(it != gpus.end() and it->score > 0, "no suitable gpu found");
 
-    //: log the chosen gpu
-    for (auto gpu : gpus)
+    //: log the chosen gpu and the required device extensions
+    log::graphics("gpu{}:", gpu_count > 1 ? "s" : "");
+    for (auto &gpu : gpus)
         log::graphics(" {} {}", gpu.properties.deviceID == it->properties.deviceID ? "-" : "·", lower(gpu.properties.deviceName));
+    log::graphics("required extensions:");
+    for (auto &ext : required_extensions)
+        log::graphics(" - {}", lower(ext));
 
     return *it;
 }
@@ -384,7 +378,7 @@ VkDevice vk::createDevice(const vk::GPU &gpu) {
     //: create logical device
     VkDevice device;
     VkResult result = vkCreateDevice(gpu.gpu, &create_info, nullptr, &device);
-    graphics_assert<int>(result == VK_SUCCESS, "fatal error creating a vulkan logical device: {}", result);
+    graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan logical device: {}", result);
 
     deletion_queues.global.push([device]{ vkDeviceWaitIdle(device); vkDestroyDevice(device, nullptr); });
     log::graphics("created a vulkan gpu device");
@@ -438,11 +432,166 @@ VmaAllocator vk::createAllocator(VkInstance instance, const vk::GPU &gpu) {
     //: create allocator
     VmaAllocator allocator;
     VkResult result = vmaCreateAllocator(&create_info, &allocator);
-    graphics_assert<int>(result == VK_SUCCESS, "error creating a vulkan vma allocator: {}", result);
+    graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan vma allocator: {}", result);
 
     deletion_queues.global.push([allocator]{ vmaDestroyAllocator(allocator); });
     log::graphics("created a vma allocator");
     return allocator;
+}
+
+//* create a surface
+//      a surface is an abstraction of the window that vulkan can render to
+VkSurfaceKHR vk::createSurface(VkInstance instance, GLFWwindow* window) {
+    VkSurfaceKHR surface;
+    VkResult result = glfwCreateWindowSurface(instance, window, nullptr, &surface);
+    graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan surface: {}", result);
+
+    deletion_queues.global.push([instance, surface]{ vkDestroySurfaceKHR(instance, surface, nullptr); });
+    return surface;
+}
+
+//* create a swapchain
+//      a swapchain is a collection of images that are used to render to the screen
+//      they are not core in the vulkan specification since they are optional (for example, while running vulkan headless) and different on every platform
+//      the swapchain has a determined extent, so it (and everything that depends on it) must be recreated when the window is resized
+//      there are also different presentation modes available (no vsync, vsync, mailbox...)
+vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface) {
+    //: select format
+    //      this is the internal format for the vulkan surface, vulkan automatically converts our framebuffers to this space so we don't need to worry
+    ui32 format_count;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(gpu.gpu, surface, &format_count, nullptr);
+    std::vector<VkSurfaceFormatKHR> formats(format_count);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(gpu.gpu, surface, &format_count, formats.data());
+
+    VkSurfaceFormatKHR format = (formats.size() == 1 && formats.at(0).format == VK_FORMAT_UNDEFINED) ? VkSurfaceFormatKHR{VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR} : formats.at(0);
+
+    //: select present mode
+    //      this indicates the way vulkan will present the images to the screen
+    //      + immediate: no vsync, the images are presented directly to the screen
+    //      + fifo: vsync, when the queue is full the program waits
+    //      + mailbox: triple buffering, the program replaces the last images of the queue, less latency but more power consumption
+    //      not all gpus support mailbox (for example integrated intel gpus), so while it is preferred, fifo can be used as a fallback
+    ui32 present_mode_count;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(gpu.gpu, surface, &present_mode_count, nullptr);
+    std::vector<VkPresentModeKHR> present_modes(present_mode_count);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(gpu.gpu, surface, &present_mode_count, present_modes.data());
+
+    VkPresentModeKHR present_mode = [&]{
+        //: check if mailbox is preferred and available, if not use fifo
+        if (config.prefer_mailbox_mode)
+            for (const auto& mode : present_modes)
+                if (mode == VK_PRESENT_MODE_MAILBOX_KHR)
+                    return mode;
+        return VK_PRESENT_MODE_FIFO_KHR;
+    }();
+
+    //: surface capabilities
+    VkSurfaceCapabilitiesKHR capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu.gpu, surface, &capabilities);
+
+    //: select extent
+    //      this is the drawable area on the screen
+    //      if the current extent is uint32_max, we should calculate the actual extent using Window and clamp it to the min and max supported extent by the gpu
+    VkExtent2D extent = [&]{
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+            return capabilities.currentExtent;
+
+        int w, h;
+        glfwGetFramebufferSize(window, &w, &h);
+
+        VkExtent2D actual_extent{ (ui32)w, (ui32)h };
+        std::clamp(actual_extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        std::clamp(actual_extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+        return actual_extent;
+    }();
+
+    //: minimum number of images in the swapchain
+    //      we should ask for at least the minimum number of images in the swapchain, and one more as a good practise to avoid blocking
+    //      we may get more images than the minimum, for example, when using mailbox mode, so no code should be based on this number
+    //      there is also a check to see that we are not requesting more images than the gpu supports
+    ui32 min_image_count = capabilities.minImageCount + 1;
+    if (capabilities.maxImageCount > 0 && min_image_count > capabilities.maxImageCount)
+        min_image_count = capabilities.maxImageCount;
+
+    //: create info
+    VkSwapchainCreateInfoKHR create_info{
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .surface = surface,
+
+        .minImageCount = min_image_count,
+        .imageFormat = format.format,
+        .imageColorSpace = format.colorSpace,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+
+        .preTransform = capabilities.currentTransform,
+        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode = present_mode,
+        .clipped = VK_TRUE,
+        .oldSwapchain = VK_NULL_HANDLE,
+    };
+
+    //: specify the sharing mode for the queues
+    std::array<ui32, 2> queue_family_indices;
+    queue_family_indices.at(0) = (int)gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS);
+    queue_family_indices.at(1) = (int)gpu.queue_indices.at(QUEUE_INDICES_PRESENT);
+    if (queue_family_indices.at(0) != queue_family_indices.at(1)) {
+        create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        create_info.queueFamilyIndexCount = 2;
+        create_info.pQueueFamilyIndices = queue_family_indices.data();
+    } else {
+        create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    }
+
+    //: create swapchain
+    VkSwapchainKHR swapchain;
+    VkResult result = vkCreateSwapchainKHR(gpu.device, &create_info, nullptr, &swapchain);
+    graphics_assert(result == VK_SUCCESS, "failed to create a vulkan swapchain");
+
+    //: get swapchain images
+    ui32 image_count;
+    vkGetSwapchainImagesKHR(gpu.device, swapchain, &image_count, nullptr);
+    std::vector<VkImage> images(image_count);
+    vkGetSwapchainImagesKHR(gpu.device, swapchain, &image_count, images.data());
+
+    //: create image views
+    std::vector<VkImageView> image_views(images.size());
+    for (ui32 i = 0; i < images.size(); i++) {
+        //- move to vk::createImageView()
+        VkImageViewCreateInfo create_info{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = images.at(i),
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = format.format,
+            .components = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY},
+            .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1},
+        };
+        VkResult result = vkCreateImageView(gpu.device, &create_info, nullptr, &image_views.at(i));
+        graphics_assert(result == VK_SUCCESS, "failed to create a vulkan image view for the swapchain");
+    }
+
+    //: create swapchain object
+    Swapchain swapchain_data{
+        .swapchain = swapchain,
+        .format = format.format,
+        .extent = extent,
+        .image_views = image_views,
+        .images = images
+    };
+    swapchain_data.size = (ui32)images.size();
+
+    //: deletion queue
+    deletion_queues.swapchain.push([swapchain_data, device = gpu.device]{
+        for (VkImageView view : swapchain_data.image_views)
+            vkDestroyImageView(device, view, nullptr);
+        vkDestroySwapchainKHR(device, swapchain_data.swapchain, nullptr);
+    });
+
+    log::graphics("created a swapchain: {} images, ({} {}) extent, {} present mode",
+                  images.size(), extent.width, extent.height, present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? "mailbox" : "fifo");
+    return swapchain_data;
 }
 
 // ··········

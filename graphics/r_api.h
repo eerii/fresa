@@ -54,14 +54,14 @@ namespace fresa::graphics
         void clear_global() { while (!global.empty()) { global.top()(); global.pop(); } }
         void clear_swapchain() { while (!swapchain.empty()) { swapchain.top()(); swapchain.pop(); } }
         void clear_frame() { while (!frame.empty()) { frame.top()(); frame.pop(); } }
-        void clear() { clear_global(); clear_swapchain(); clear_frame(); }
+        void clear() { clear_frame(); clear_swapchain(); clear_global(); }
     } deletion_queues;
 
     //* window
     //      contains the main window reference and the relevant properties
-    struct WindowData {
+    struct Window {
         GLFWwindow* window;
     };
-    inline std::unique_ptr<const WindowData> win;
-    WindowData createWindow();
+    inline std::unique_ptr<const Window> win;
+    Window createWindow();
 }

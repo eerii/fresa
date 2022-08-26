@@ -12,18 +12,20 @@ _the graphics engine_
 
 **vulkan todo**
 
-- swapchain
+- recreate swapchain
 - command pools
 - command buffers
 - synchronization objects
 - descriptor sets, shaders...
 - render passes, pipelines, shaders...
+- dont render into the swapchain directly (don't create fb for swapchain, instead blit image into it)
 
 ---
 
 #### [0.5.1] commands and memory (_00 ago 22_)
 
 - **added** - vulkan memory allocator library
+- **added** - swapchain
 
 #### [0.5.0] vulkan initialization (_26 ago 22_)
 
