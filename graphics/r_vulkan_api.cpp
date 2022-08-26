@@ -27,10 +27,11 @@ namespace fresa::graphics::vk
     //: physical device
     vk::GPU selectGPU(VkInstance instance);
     int rateGPU(VkInstance instance, const vk::GPU &gpu);
-    std::array<int, 4> getQueueIndices(VkInstance instance, const vk::GPU &gpu);
+    decltype(vk::GPU{}.queue_indices) getQueueIndices(VkInstance instance, const vk::GPU &gpu);
 
     //: logical device
     VkDevice createDevice(const vk::GPU &gpu);
+    decltype(vk::GPU{}.queues) getQueues(const vk::GPU &gpu);
 
     //: debug
     void glfwErrorCallback(int error, const char* description);
@@ -96,6 +97,7 @@ void GraphicsSystem::init() {
 
     //: logical device
     vk_api.gpu.device = vk::createDevice(vk_api.gpu);
+    vk_api.gpu.queues = vk::getQueues(vk_api.gpu);
 
     //: surface
     vk_api.surface = vk::createSurface(vk_api.instance, win->window);
@@ -233,8 +235,8 @@ vk::GPU vk::selectGPU(VkInstance instance) {
 //      if the score returned is 0, the gpu is invalid, otherwise selectGPU will choose the one with the highest score
 int vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
     //: assertions to ensure the gpu is in a valid state
-    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "this gpu object has not been initialized");
-    fresa_assert(gpu.score == -1, "this gpu has already been rated");
+    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
+    fresa_assert(gpu.score == -1, "the gpu has already been rated");
 
     int score = 16;
 
@@ -277,12 +279,14 @@ int vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
 //          + compute: for compute shaders
 //      not all queues are needed, and more can be created for multithread support
 //      the present and graphics queue can share the same index
-std::array<int, 4> vk::getQueueIndices(VkInstance instance, const vk::GPU &gpu) {
+decltype(vk::GPU{}.queue_indices) vk::getQueueIndices(VkInstance instance, const vk::GPU &gpu) {
     //: assertions to ensure the gpu is in a valid state
-    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "this gpu object has not been initialized");
+    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
     fresa_assert(gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS) == -1, "the queue indices for this gpu have already been found");
 
-    std::array<int, 4> indices({-1, -1, -1, -1});
+    //: create the index array
+    decltype(vk::GPU{}.queue_indices) indices;
+    for (auto &i : indices) i = -1;
     
     //: get queue families
     ui32 queue_count = 0;
@@ -322,24 +326,27 @@ std::array<int, 4> vk::getQueueIndices(VkInstance instance, const vk::GPU &gpu) 
 //      when creating the logical device, a list of extensions can be passed to enable certain features
 VkDevice vk::createDevice(const vk::GPU &gpu) {
     //: assertions to ensure the gpu is in a valid state
-    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "this gpu object has not been initialized");
-    fresa_assert(gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS) != -1, "this gpu queue indices have not been initialized");
-    fresa_assert(gpu.device == VK_NULL_HANDLE, "this gpu device has already been initialized");
+    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
+    fresa_assert(gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS) != -1, "the gpu queue indices have not been initialized");
+    fresa_assert(gpu.device == VK_NULL_HANDLE, "the gpu device has already been initialized");
 
     //: get unique queue indices
-    std::set<int> unique_queue_indices;
-    for (const auto& index : gpu.queue_indices)
-        unique_queue_indices.insert(index);
+    std::map<int, float> unique_queue_indices;
+    constexpr std::size_t queue_count = decltype(vk::GPU::queue_indices){}.size();
+    constexpr std::array<float, queue_count> queue_priorities = { 1.0f, 1.0f, 0.5f, 0.5f};
+    for (const auto& index : gpu.queue_indices) {
+        if (not unique_queue_indices.contains(index))
+            unique_queue_indices[index] = queue_priorities.at(index);
+    }
     
     //: queue create info
     std::vector<VkDeviceQueueCreateInfo> queue_create_info(unique_queue_indices.size());
-    float queue_priorities = 1.0f;
-    for (const auto& family_index : unique_queue_indices) {
+    for (const auto& [family_index, priority] : unique_queue_indices) {
         auto &info = queue_create_info.at(family_index);
         info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         info.queueFamilyIndex = family_index;
         info.queueCount = 1;
-        info.pQueuePriorities = &queue_priorities;
+        info.pQueuePriorities = &priority;
     }
 
     //: device required features
@@ -366,6 +373,27 @@ VkDevice vk::createDevice(const vk::GPU &gpu) {
     deletion_queues.global.push([device]{ vkDeviceWaitIdle(device); vkDestroyDevice(device, nullptr); });
     log::graphics("created a vulkan gpu device");
     return device;
+}
+
+//: get queue handles
+//      use the logical device information to retrieve the actual VkQueue handles
+//      the queue handles are used to submit commands to the gpu
+decltype(vk::GPU{}.queues) vk::getQueues(const vk::GPU &gpu) {
+    //: assertions to ensure the gpu is in a valid state
+    fresa_assert(gpu.device != VK_NULL_HANDLE, "the gpu logical device has not been initialized");
+    fresa_assert(gpu.queues.size() == 0, "the gpu queue handles have already been initialized");
+    
+    //: get unique queue indices
+    std::set<int> unique_queue_indices;
+    for (const auto& index : gpu.queue_indices)
+        unique_queue_indices.insert(index);
+
+    //: get queue handles
+    decltype(vk::GPU{}.queues) handles(unique_queue_indices.size());
+    for (const auto& index : gpu.queue_indices)
+        vkGetDeviceQueue(gpu.device, index, 0, &handles.at(index));
+
+    return handles;
 }
 
 // ··········

@@ -17,6 +17,7 @@ namespace fresa::graphics
             VkPhysicalDeviceFeatures features;
             VkPhysicalDeviceMemoryProperties memory;
             std::array<int, 4> queue_indices = {-1, -1, -1, -1};
+            std::vector<VkQueue> queues = {};
             int score = -1;
         };
 
