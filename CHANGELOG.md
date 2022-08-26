@@ -13,7 +13,6 @@ _the graphics engine_
 
 **vulkan todo**
 
-- logical device
 - queues
 - memory allocator
 - swapchain
@@ -22,11 +21,12 @@ _the graphics engine_
 - synchronization objects
 - render passes, pipelines, shaders...
 
-#### [0.5.0] graphics library (_00 ago 22_)
+#### [0.5.0] vulkan initialization (_00 ago 22_)
 
 - **added** - glfw and glad extensions
 - **added** - vulkan instance, debug and gpu implementation
-- **added** - device queues and surfaces
+- **added** - device queues, surfaces, logical device
+- **added** - valid state assertions
 
 ---
 

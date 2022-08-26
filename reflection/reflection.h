@@ -14,13 +14,13 @@
 //      automatically during builds, since they are only required for debug interfaces such as the inspector.
 //
 //      this journey would have not been possible if not for the incredible contributions of different authors:
-//      · alexandr poltavsky: [type loophole](https://github.com/alexpolt/luple/blob/master/type-loophole.h)
-//      · antony polukhin: [pfr](https://github.com/apolukhin/pfr_non_boost)
-//      · konanm [tser](https://github.com/KonanM/tser)
-//      · jameson thatcher [bluescreenofdoom](http://bluescreenofdoom.com/post/code/Reflection)
-//      · veselink1 [refl-cpp](https://github.com/veselink1/refl-cpp)
-//      · fabian jung [tsmp](https://github.com/fabian-jung/tsmp)
-//      · joao baptista [counting fields](https://towardsdev.com/counting-the-number-of-fields-in-an-aggregate-in-c-20-c81aecfd725c)
+//      + alexandr poltavsky: [type loophole](https://github.com/alexpolt/luple/blob/master/type-loophole.h)
+//      + antony polukhin: [pfr](https://github.com/apolukhin/pfr_non_boost)
+//      + konanm [tser](https://github.com/KonanM/tser)
+//      + jameson thatcher [bluescreenofdoom](http://bluescreenofdoom.com/post/code/Reflection)
+//      + veselink1 [refl-cpp](https://github.com/veselink1/refl-cpp)
+//      + fabian jung [tsmp](https://github.com/fabian-jung/tsmp)
+//      + joao baptista [counting fields](https://towardsdev.com/counting-the-number-of-fields-in-an-aggregate-in-c-20-c81aecfd725c)
 #pragma once
 
 #include "std_types.h"

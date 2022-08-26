@@ -1,19 +1,20 @@
 //* vulkan_api
-//      - ...
+//      this file includes the vulkan specific functions that extend the main api
 
 #include "r_api.h"
 #include "log.h"
 #include "config.h"
 #include "strings.h"
+#include "fresa_assert.h"
 
 #include <set>
 
 using namespace fresa;
 using namespace graphics;
 
-// ---
-// VULKAN SPECIFIC FUNCTIONS
-// ---
+// ·····························
+// · VULKAN SPECIFIC FUNCTIONS ·
+// ·····························
 
 namespace fresa::graphics::vk
 {
@@ -25,17 +26,8 @@ namespace fresa::graphics::vk
 
     //: physical device
     vk::GPU selectGPU(VkInstance instance);
-    ui16 rateGPU(VkInstance instance, const vk::GPU &gpu);
+    int rateGPU(VkInstance instance, const vk::GPU &gpu);
     std::array<int, 4> getQueueIndices(VkInstance instance, const vk::GPU &gpu);
-
-    //: required device extensions and validation layers
-    constexpr std::array<const char*, 2> required_extensions{
-        "VK_KHR_portability_subset",
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    };
-    constexpr std::array<const char*, 1> validation_layers = {
-        "VK_LAYER_KHRONOS_validation"
-    };
 
     //: logical device
     VkDevice createDevice(const vk::GPU &gpu);
@@ -48,11 +40,30 @@ namespace fresa::graphics::vk
     #endif
 }
 
-// ---
-// INITIALIZATION
-// ---
+// ·····························
+// · VULKAN SPECIFIC VARIABLES ·
+// ·····························
+
+namespace fresa::graphics::vk
+{
+    //: required device extensions
+    constexpr std::array<const char*, 2> required_extensions{
+        "VK_KHR_portability_subset",
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    };
+
+    //: required validation layers
+    constexpr std::array<const char*, 1> validation_layers = {
+        "VK_LAYER_KHRONOS_validation"
+    };
+}
+
+// ··················
+// · INITIALIZATION ·
+// ··················
 
 //* create vulkan graphics api
+//      extends the graphics system initialization function by calling all the vulkan specific creation code
 void GraphicsSystem::init() {
     //: initalize glfw
     glfwSetErrorCallback(vk::glfwErrorCallback);
@@ -84,7 +95,7 @@ void GraphicsSystem::init() {
     graphics_assert(version, "glad failed to load the extra vulkan extensions required by the gpu");
 
     //: logical device
-    vk_api.device = vk::createDevice(vk_api.gpu);
+    vk_api.gpu.device = vk::createDevice(vk_api.gpu);
 
     //: surface
     vk_api.surface = vk::createSurface(vk_api.instance, win->window);
@@ -94,6 +105,8 @@ void GraphicsSystem::init() {
 }
 
 //* create vulkan instance
+//      an instance is a handle to the vulkan library, required in almost every vulkan function
+//      it includes details on how the application connects to the driver, as well as validation layers and some extensions
 VkInstance vk::createInstance() {
     //: instance extensions
     //      platform specific extensions needed to create the window surface and other utils, such as the debug messenger
@@ -172,6 +185,10 @@ VkSurfaceKHR vk::createSurface(VkInstance instance, GLFWwindow* window) {
 }
 
 //* select physical device
+//      a physical device is a representation of one of the gpus in the system
+//      it can be used to query details on the gpu's capabilities and properties
+//      this function returns a vk::GPU object, that includes a VkPhysicalDevice, but also its properties, features and memory information
+//      it will also include a list of queue family indices, which can then be used to create the command queues that the program requires
 vk::GPU vk::selectGPU(VkInstance instance) {
     //: count devices
     ui32 gpu_count;
@@ -214,8 +231,12 @@ vk::GPU vk::selectGPU(VkInstance instance) {
 //* rate physical device
 //      give a score to the gpu based on its capabilities
 //      if the score returned is 0, the gpu is invalid, otherwise selectGPU will choose the one with the highest score
-ui16 vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
-    ui16 score = 16;
+int vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
+    //: assertions to ensure the gpu is in a valid state
+    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "this gpu object has not been initialized");
+    fresa_assert(gpu.score == -1, "this gpu has already been rated");
+
+    int score = 16;
 
     //: prefer discrete gpus
     if (gpu.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) score += 256;
@@ -247,7 +268,20 @@ ui16 vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
 }
 
 //* get queue indices
+//      find the indices of the suitable queues that the program requires
+//      it will return an ordered array of indices, indexed by the enum QUEUE_INDICES
+//      the different types we are looking for are:
+//          + graphics: pipeline operations, including vertex/fragment shaders and drawing
+//          + present: send framebuffers to the screen
+//          + transfer: copy buffers and images
+//          + compute: for compute shaders
+//      not all queues are needed, and more can be created for multithread support
+//      the present and graphics queue can share the same index
 std::array<int, 4> vk::getQueueIndices(VkInstance instance, const vk::GPU &gpu) {
+    //: assertions to ensure the gpu is in a valid state
+    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "this gpu object has not been initialized");
+    fresa_assert(gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS) == -1, "the queue indices for this gpu have already been found");
+
     std::array<int, 4> indices({-1, -1, -1, -1});
     
     //: get queue families
@@ -257,14 +291,6 @@ std::array<int, 4> vk::getQueueIndices(VkInstance instance, const vk::GPU &gpu) 
     vkGetPhysicalDeviceQueueFamilyProperties(gpu.gpu, &queue_count, queues.data());
 
     //: select the desired queues
-    //      the different types we are looking for are:
-    //          · graphics: pipeline operations, including vertex/fragment shaders and drawing
-    //          · present: send framebuffers to the screen
-    //          · transfer: copy buffers and images
-    //          · compute: for compute shaders
-    //      not all queues are needed, and more can be created for multithread support
-    //      the present and graphics queue can share the same index
-
     for (int i = 0; i < queue_count; i++) {
         //: present queue
         if (indices.at(QUEUE_INDICES_PRESENT) == -1) {
@@ -291,7 +317,15 @@ std::array<int, 4> vk::getQueueIndices(VkInstance instance, const vk::GPU &gpu) 
 }
 
 //* create logical device
+//      this is the actual gpu driver for the selected gpu, and the main way to communicate with it
+//      like an instance, this handle will be used throughout the program in most vulkan functions
+//      when creating the logical device, a list of extensions can be passed to enable certain features
 VkDevice vk::createDevice(const vk::GPU &gpu) {
+    //: assertions to ensure the gpu is in a valid state
+    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "this gpu object has not been initialized");
+    fresa_assert(gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS) != -1, "this gpu queue indices have not been initialized");
+    fresa_assert(gpu.device == VK_NULL_HANDLE, "this gpu device has already been initialized");
+
     //: get unique queue indices
     std::set<int> unique_queue_indices;
     for (const auto& index : gpu.queue_indices)
@@ -330,20 +364,21 @@ VkDevice vk::createDevice(const vk::GPU &gpu) {
     graphics_assert<int>(result == VK_SUCCESS, "fatal error creating a vulkan logical device: {}", result);
 
     deletion_queues.global.push([device]{ vkDeviceWaitIdle(device); vkDestroyDevice(device, nullptr); });
+    log::graphics("created a vulkan gpu device");
     return device;
 }
 
-// ---
-// UPDATE
-// ---
+// ··········
+// · UPDATE ·
+// ··········
 
 void GraphicsSystem::update() {
     glfwPollEvents();
 }
 
-// ---
-// STOPPING
-// ---
+// ············
+// · STOPPING ·
+// ············
 
 //* stop the vulkan api
 void GraphicsSystem::stop() {
@@ -355,9 +390,9 @@ void GraphicsSystem::stop() {
     glfwTerminate();
 }
 
-// ---
-// DEBUG
-// ---
+// ·········
+// · DEBUG ·
+// ·········
 
 //* glfw error callback
 void vk::glfwErrorCallback(int error, const char *description) {

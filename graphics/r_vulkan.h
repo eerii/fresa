@@ -1,5 +1,5 @@
 //* vulkan
-//      contains all the vulkan specific structs as well as the vulkan loader
+//      contains all the vulkan specific data structures as well as the vulkan loader
 #pragma once
 
 #include <glad/vulkan.h>
@@ -11,12 +11,13 @@ namespace fresa::graphics
     {
         //* physical device, representation of a gpu
         struct GPU {
-            VkPhysicalDevice gpu;
+            VkPhysicalDevice gpu = VK_NULL_HANDLE;
+            VkDevice device = VK_NULL_HANDLE;
             VkPhysicalDeviceProperties properties;
             VkPhysicalDeviceFeatures features;
             VkPhysicalDeviceMemoryProperties memory;
-            std::array<int, 4> queue_indices;
-            ui16 score;
+            std::array<int, 4> queue_indices = {-1, -1, -1, -1};
+            int score = -1;
         };
 
         //* indices of the queue families
@@ -33,7 +34,6 @@ namespace fresa::graphics
         VkInstance instance;
         VkSurfaceKHR surface;
         vk::GPU gpu;
-        VkDevice device;
 
         VkDebugReportCallbackEXT debug_callback;
     };
