@@ -8,20 +8,24 @@ _the graphics engine_
 
 - write documentation for the new renderer
 - test the build in linux and windows, should work on all platforms with not too much trouble
-- write the vulkan to do list looking through the old renderer
 - think of what to do with regards to web builds (support opengl with no compute shaders, use webgpu, ...)
 
 **vulkan todo**
 
-- queues
-- memory allocator
 - swapchain
 - command pools
 - command buffers
 - synchronization objects
+- descriptor sets, shaders...
 - render passes, pipelines, shaders...
 
-#### [0.5.0] vulkan initialization (_00 ago 22_)
+---
+
+#### [0.5.1] commands and memory (_00 ago 22_)
+
+- **added** - vulkan memory allocator library
+
+#### [0.5.0] vulkan initialization (_26 ago 22_)
 
 - **added** - glfw and glad extensions
 - **added** - vulkan instance, debug and gpu implementation

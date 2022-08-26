@@ -9,6 +9,16 @@
 
 #include <set>
 
+#define VMA_IMPLEMENTATION
+#ifndef _MSC_VER
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Weverything"
+    #include "vk_mem_alloc.h"
+    #pragma clang diagnostic pop
+#else
+    #include "vk_mem_alloc.h"
+#endif
+
 using namespace fresa;
 using namespace graphics;
 
@@ -32,6 +42,9 @@ namespace fresa::graphics::vk
     //: logical device
     VkDevice createDevice(const vk::GPU &gpu);
     decltype(vk::GPU{}.queues) getQueues(const vk::GPU &gpu);
+
+    //: allocator
+    VmaAllocator createAllocator(VkInstance instance, const vk::GPU &gpu);
 
     //: debug
     void glfwErrorCallback(int error, const char* description);
@@ -98,6 +111,9 @@ void GraphicsSystem::init() {
     //: logical device
     vk_api.gpu.device = vk::createDevice(vk_api.gpu);
     vk_api.gpu.queues = vk::getQueues(vk_api.gpu);
+
+    //: allocator
+    vk_api.allocator = vk::createAllocator(vk_api.instance, vk_api.gpu);
 
     //: surface
     vk_api.surface = vk::createSurface(vk_api.instance, win->window);
@@ -394,6 +410,39 @@ decltype(vk::GPU{}.queues) vk::getQueues(const vk::GPU &gpu) {
         vkGetDeviceQueue(gpu.device, index, 0, &handles.at(index));
 
     return handles;
+}
+
+//* create memory allocator
+//      memory management in vulkan is really tedious, since there are many memory types (cpu, gpu...) with different limitations and speeds
+//      buffers and images have to be accompained by a VkDeviceMemory which needs to be allocated by vkAllocateMemory
+//      the problem is that it is discouraged to call vkAllocateMemory per buffer, since the number of allowed allocations is small even on top tier hardware, for example, 4096 on a gtx 1080
+//      the solution is to allocate big chunks of memory and then suballocate to each resource, using offsets and keeping track of where each buffer resides and how big it is
+//      this is hard to do right while avoiding fragmentation and overlaps, so we are integrating the vulkan memory allocator library
+//      it takes care of the big chunk allocation and position for us.
+//      it is possible to write a smaller tool to help, but in an attempt to keep the scope of the project manageable (says the one writing vulkan for a 2d tiny engine...) we'll leave it for now
+//      here we create the VmaAllocator object, which we will have to reference during buffer creation and will house the pools of memory that we will be using
+VmaAllocator vk::createAllocator(VkInstance instance, const vk::GPU &gpu) {
+    //: dinamically load vma functions
+    VmaVulkanFunctions vma_functions = {};
+    vma_functions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+    vma_functions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+
+    //: create info
+    VmaAllocatorCreateInfo create_info{
+        .physicalDevice = gpu.gpu,
+        .device = gpu.device,
+        .pVulkanFunctions = &vma_functions,
+        .instance = instance,
+    };
+
+    //: create allocator
+    VmaAllocator allocator;
+    VkResult result = vmaCreateAllocator(&create_info, &allocator);
+    graphics_assert<int>(result == VK_SUCCESS, "error creating a vulkan vma allocator: {}", result);
+
+    deletion_queues.global.push([allocator]{ vmaDestroyAllocator(allocator); });
+    log::graphics("created a vma allocator");
+    return allocator;
 }
 
 // ··········
