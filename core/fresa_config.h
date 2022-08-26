@@ -39,6 +39,8 @@ namespace fresa
         constexpr bool virtual enable_assertions() const { return false; };
         //: component pool page size
         constexpr ui32 virtual ecs_page_size() const { return 256; };
+        //: rendering frames in flight
+        constexpr ui8 virtual frames_in_flight() const { return 2; };
     };
 
     //* run config (run time)

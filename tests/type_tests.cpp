@@ -4,7 +4,6 @@
 #include "unit_test.h"
 #include "atomic_queue.h"
 #include "constexpr_for.h"
-#include "coroutines.h"
 
 namespace test
 {
@@ -91,72 +90,6 @@ namespace test
             bool result = true;
             for_([&](auto const& v){ result = result and v; }, std::make_tuple(true, 1, "hello"));
             return expect(result);
-        };
-    });
-
-    //* coroutines
-    namespace detail
-    {
-        using namespace coroutines;
-
-        FuturePromise<int> counter_yield() {
-            for (int i = 0 ;; i++)
-                co_yield i;
-        }
-
-        FuturePromise<int> counter_yield_with_return() {
-            for (int i = 0; i < 5; i++)
-                co_yield i;
-            co_return 0;
-        }
-
-        FuturePromise<int> coroutine_return() {
-            co_return 256;
-        }
-
-        str name = "bob";
-        FuturePromise<void> coroutine_void() {
-            name = "amy";
-            co_return;
-        }
-    }
-
-    inline TestSuite coroutines_test("coroutines", []{
-        "coroutine with yield"_test = []{
-            std::array<int, 5> a;
-            auto c = detail::counter_yield();
-            c.handle.resume();
-            for (int i = 0; i < 5; i++)  {
-                a[i] = c.handle.promise().value.value();
-                c.handle();
-            }
-            c.handle.destroy();
-            return expect(a == std::to_array<int>({0, 1, 2, 3, 4}));
-        };
-        "coroutine with yield and return"_test = []{
-            std::array<int, 5> a;
-            auto c = detail::counter_yield_with_return();
-            c.handle.resume();
-            int i = 0;
-            while (not c.handle.done()) {
-                a[i++] = c.handle.promise().value.value();
-                c.handle();
-            }
-            c.handle.destroy();
-            return expect(a == std::to_array<int>({0, 1, 2, 3, 4}));
-        };
-        "coroutine with return"_test = []{
-            auto c = detail::coroutine_return();
-            c.handle.resume();
-            int result = c.handle.promise().value.value();
-            c.handle.destroy();
-            return expect(result == 256);
-        };
-        "coroutine void"_test = []{
-            auto c = detail::coroutine_void();
-            c.handle.resume();
-            c.handle.destroy();
-            return expect(detail::name == "amy");
         };
     });
 }
