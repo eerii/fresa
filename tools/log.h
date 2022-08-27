@@ -4,7 +4,7 @@
 #pragma once
 
 #include "fresa_config.h"
-#include "strings.h"
+#include "string_utils.h"
 
 #if __has_include("fmt/core.h")
     #include "fmt/core.h"

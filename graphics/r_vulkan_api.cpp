@@ -3,7 +3,7 @@
 
 #include "r_api.h"
 #include "log.h"
-#include "strings.h"
+#include "string_utils.h"
 #include "fresa_assert.h"
 
 #include <set>

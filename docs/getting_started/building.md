@@ -41,6 +41,10 @@ These compilers have been tested to work. Older versions might work but are not 
 
 MSVC is mostly working, except for nested constexpr for loops in the math library. There is an issue where these loops don't compile only with MSVC. I already submitted a [bug report](https://developercommunity.visualstudio.com/t/Lambda-inside-lambda-cant-detect-conste/10085564) with a temporary workaround, and it is pending release. At this time, clang or gcc are recommended.
 
+When building for macos and using gcc, please note that you have to use apple clang as the c compiler and g++ as the c++ compiler, since gcc causes linking error against the developer frameworks when using glfw. See [this issue](https://github.com/glfw/glfw/issues/1743).
+
+On linux systems glfw requires some [development libraries](https://www.glfw.org/docs/latest/compile_guide.html#compile_deps_x11). For X11 and debian you should be fine using `sudo apt install xorg-dev`, for other systems or window managers check the complete list.
+
 ## extra: installing compilers
 
 This is a very brief and general guide to install the most recent compilers. Your system requirements might vary so please refer to the original instructions when in doubt.

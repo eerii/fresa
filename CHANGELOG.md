@@ -28,6 +28,7 @@ _the graphics engine_
 - **removed** - the job system is temporarily removed, since it is not ready and doesn't add anything to the engine
 - **removed** - coroutine implementation is also moved to a gist for now
 - **added** - command pools and buffers
+- **fixed** - string library name error on linux
 
 #### [0.5.0] vulkan initialization (_26 ago 22_)
 

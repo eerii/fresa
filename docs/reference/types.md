@@ -145,7 +145,7 @@ for_([&](auto const& a){
 }, std::make_tuple(true, 1, "hello"));
 ```
 
-## [`string utils`](https://github.com/josekoalas/fresa/blob/main/types/strings.h)
+## [`string utils`](https://github.com/josekoalas/fresa/blob/main/types/string_utils.h)
 
 **string literal**
 
