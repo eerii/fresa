@@ -9,6 +9,7 @@ _the graphics engine_
 - write documentation for the new renderer
 - test the build in linux and windows, should work on all platforms with not too much trouble
 - think of what to do with regards to web builds (support opengl with no compute shaders, use webgpu, ...)
+- new job system, look into std::async or the taskflow library (the work stealing queue)
 
 **vulkan todo**
 

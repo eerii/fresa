@@ -17,7 +17,6 @@ _This is a reimplementation of **fresa** from scratch. The motivation behind it 
 - simple entity-component system
 - compile time c++ type reflection
 - game loop and system manager
-- multithread job system
 - event manager
 - logging and debug tools
 - macro-less unit testing framework

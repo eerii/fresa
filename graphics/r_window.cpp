@@ -1,5 +1,5 @@
 //* window
-//      - ...
+//      handles window creation and management
 
 #include "r_api.h"
 #include "fresa_config.h"
