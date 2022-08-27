@@ -5,6 +5,8 @@
 #include "std_types.h"
 #include "strong_types.h"
 
+#include <mutex>
+
 namespace fresa::events
 {
     //* callback id
