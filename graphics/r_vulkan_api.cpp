@@ -3,7 +3,6 @@
 
 #include "r_api.h"
 #include "log.h"
-#include "config.h"
 #include "strings.h"
 #include "fresa_assert.h"
 
@@ -29,7 +28,7 @@ using namespace graphics;
 namespace fresa::graphics::vk
 {
     //: instance
-    VkInstance createInstance();
+    VkInstance createInstance(DeletionQueue& dq);
 
     //: physical device
     vk::GPU selectGPU(VkInstance instance);
@@ -37,24 +36,24 @@ namespace fresa::graphics::vk
     decltype(vk::GPU{}.queue_indices) getQueueIndices(VkInstance instance, const vk::GPU &gpu);
 
     //: logical device
-    VkDevice createDevice(const vk::GPU &gpu);
+    VkDevice createDevice(const vk::GPU &gpu, DeletionQueue& dq);
     decltype(vk::GPU{}.queues) getQueues(const vk::GPU &gpu);
 
     //: allocator
-    VmaAllocator createAllocator(VkInstance instance, const vk::GPU &gpu);
+    VmaAllocator createAllocator(VkInstance instance, const vk::GPU &gpu, DeletionQueue& dq);
 
     //: surface and swapchain
-    VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window);
-    vk::Swapchain createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface);
+    VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window, DeletionQueue& dq);
+    vk::Swapchain createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface, DeletionQueue& dq);
 
     //: command pools
+    void initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, DeletionQueue& dq);
     
-
     //: debug
     void glfwErrorCallback(int error, const char* description);
     #ifdef FRESA_DEBUG
     VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT obj_type, ui64 obj, std::size_t location, int code, const char* layer_prefix, const char* msg, void* user_data);
-    VkDebugReportCallbackEXT createDebugCallback(VkInstance instance);
+    VkDebugReportCallbackEXT createDebugCallback(VkInstance instance, DeletionQueue& dq);
     #endif
 }
 
@@ -100,11 +99,11 @@ void GraphicsSystem::init() {
     VulkanAPI vk_api;
 
     //: instance
-    vk_api.instance = vk::createInstance();
+    vk_api.instance = vk::createInstance(vk_api.deletion_queue_global);
     version = gladLoaderLoadVulkan(vk_api.instance, nullptr, nullptr);
     graphics_assert(version, "glad failed to load the vulkan functions that require an instance");
     #ifdef FRESA_DEBUG
-    vk_api.debug_callback = vk::createDebugCallback(vk_api.instance);
+    vk_api.debug_callback = vk::createDebugCallback(vk_api.instance, vk_api.deletion_queue_global);
     #endif
 
     //: gpu (physical device)
@@ -113,15 +112,18 @@ void GraphicsSystem::init() {
     graphics_assert(version, "glad failed to load the extra vulkan extensions required by the gpu");
 
     //: logical device
-    vk_api.gpu.device = vk::createDevice(vk_api.gpu);
+    vk_api.gpu.device = vk::createDevice(vk_api.gpu, vk_api.deletion_queue_global);
     vk_api.gpu.queues = vk::getQueues(vk_api.gpu);
 
     //: allocator
-    vk_api.allocator = vk::createAllocator(vk_api.instance, vk_api.gpu);
+    vk_api.allocator = vk::createAllocator(vk_api.instance, vk_api.gpu, vk_api.deletion_queue_global);
 
     //: surface and swapchain
-    vk_api.surface = vk::createSurface(vk_api.instance, win->window);
-    vk_api.swapchain = vk::createSwapchain(vk_api.gpu, win->window, vk_api.surface);
+    vk_api.surface = vk::createSurface(vk_api.instance, win->window, vk_api.deletion_queue_global);
+    vk_api.swapchain = vk::createSwapchain(vk_api.gpu, win->window, vk_api.surface, vk_api.deletion_queue_swapchain);
+
+    //: command pools
+    initFrameCommands(vk_api.frame, vk_api.gpu, vk_api.deletion_queue_global);
 
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const VulkanAPI>(std::move(vk_api));
@@ -130,7 +132,7 @@ void GraphicsSystem::init() {
 //* create vulkan instance
 //      an instance is a handle to the vulkan library, required in almost every vulkan function
 //      it includes details on how the application connects to the driver, as well as validation layers and some extensions
-VkInstance vk::createInstance() {
+VkInstance vk::createInstance(DeletionQueue& dq) {
     //: instance extensions
     //      platform specific extensions needed to create the window surface and other utils, such as the debug messenger
     ui32 instance_extension_count = 0;
@@ -191,7 +193,7 @@ VkInstance vk::createInstance() {
     VkResult result = vkCreateInstance(&create_info, nullptr, &instance);
     graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan instance: {}", result);
 
-    deletion_queues.global.push([instance]{ vkDestroyInstance(instance, nullptr); });
+    dq.push([instance]{ vkDestroyInstance(instance, nullptr); });
     log::graphics("created a vulkan instance");
     return instance;
 }
@@ -337,7 +339,7 @@ decltype(vk::GPU{}.queue_indices) vk::getQueueIndices(VkInstance instance, const
 //      this is the actual gpu driver for the selected gpu, and the main way to communicate with it
 //      like an instance, this handle will be used throughout the program in most vulkan functions
 //      when creating the logical device, a list of extensions can be passed to enable certain features
-VkDevice vk::createDevice(const vk::GPU &gpu) {
+VkDevice vk::createDevice(const vk::GPU &gpu, DeletionQueue& dq) {
     //: assertions to ensure the gpu is in a valid state
     fresa_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
     fresa_assert(gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS) != -1, "the gpu queue indices have not been initialized");
@@ -383,7 +385,7 @@ VkDevice vk::createDevice(const vk::GPU &gpu) {
     VkResult result = vkCreateDevice(gpu.gpu, &create_info, nullptr, &device);
     graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan logical device: {}", result);
 
-    deletion_queues.global.push([device]{ vkDeviceWaitIdle(device); vkDestroyDevice(device, nullptr); });
+    dq.push([device]{ vkDeviceWaitIdle(device); vkDestroyDevice(device, nullptr); });
     log::graphics("created a vulkan gpu device");
     return device;
 }
@@ -418,7 +420,7 @@ decltype(vk::GPU{}.queues) vk::getQueues(const vk::GPU &gpu) {
 //      it takes care of the big chunk allocation and position for us.
 //      it is possible to write a smaller tool to help, but in an attempt to keep the scope of the project manageable (says the one writing vulkan for a 2d tiny engine...) we'll leave it for now
 //      here we create the VmaAllocator object, which we will have to reference during buffer creation and will house the pools of memory that we will be using
-VmaAllocator vk::createAllocator(VkInstance instance, const vk::GPU &gpu) {
+VmaAllocator vk::createAllocator(VkInstance instance, const vk::GPU &gpu, DeletionQueue& dq) {
     //: dinamically load vma functions
     VmaVulkanFunctions vma_functions = {};
     vma_functions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
@@ -437,19 +439,19 @@ VmaAllocator vk::createAllocator(VkInstance instance, const vk::GPU &gpu) {
     VkResult result = vmaCreateAllocator(&create_info, &allocator);
     graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan vma allocator: {}", result);
 
-    deletion_queues.global.push([allocator]{ vmaDestroyAllocator(allocator); });
+    dq.push([allocator]{ vmaDestroyAllocator(allocator); });
     log::graphics("created a vma allocator");
     return allocator;
 }
 
 //* create a surface
 //      a surface is an abstraction of the window that vulkan can render to
-VkSurfaceKHR vk::createSurface(VkInstance instance, GLFWwindow* window) {
+VkSurfaceKHR vk::createSurface(VkInstance instance, GLFWwindow* window, DeletionQueue& dq) {
     VkSurfaceKHR surface;
     VkResult result = glfwCreateWindowSurface(instance, window, nullptr, &surface);
     graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan surface: {}", result);
 
-    deletion_queues.global.push([instance, surface]{ vkDestroySurfaceKHR(instance, surface, nullptr); });
+    dq.push([instance, surface]{ vkDestroySurfaceKHR(instance, surface, nullptr); });
     return surface;
 }
 
@@ -458,7 +460,7 @@ VkSurfaceKHR vk::createSurface(VkInstance instance, GLFWwindow* window) {
 //      they are not core in the vulkan specification since they are optional (for example, while running vulkan headless) and different on every platform
 //      the swapchain has a determined extent, so it (and everything that depends on it) must be recreated when the window is resized
 //      there are also different presentation modes available (no vsync, vsync, mailbox...)
-vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface) {
+vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface, DeletionQueue& dq) {
     //: select format
     //      this is the internal format for the vulkan surface, vulkan automatically converts our framebuffers to this space so we don't need to worry
     ui32 format_count;
@@ -481,7 +483,7 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
 
     VkPresentModeKHR present_mode = [&]{
         //: check if mailbox is preferred and available, if not use fifo
-        if (config.prefer_mailbox_mode)
+        if (config.vk_prefer_mailbox_mode)
             for (const auto& mode : present_modes)
                 if (mode == VK_PRESENT_MODE_MAILBOX_KHR)
                     return mode;
@@ -586,7 +588,7 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
     swapchain_data.size = (ui32)images.size();
 
     //: deletion queue
-    deletion_queues.swapchain.push([swapchain_data, device = gpu.device]{
+    dq.push([swapchain_data, device = gpu.device]{
         for (VkImageView view : swapchain_data.image_views)
             vkDestroyImageView(device, view, nullptr);
         vkDestroySwapchainKHR(device, swapchain_data.swapchain, nullptr);
@@ -595,6 +597,46 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
     log::graphics("created a swapchain: {} images, ({} {}) extent, {} present mode",
                   images.size(), extent.width, extent.height, present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? "mailbox" : "fifo");
     return swapchain_data;
+}
+
+//* initialize render commands
+void vk::initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, DeletionQueue& dq) {
+    //: create info for graphics command pools
+    VkCommandPoolCreateInfo create_info{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = (ui32)gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS)
+    };
+
+    //: allocate info for command buffers (without the command pool)
+    constexpr VkCommandBufferAllocateInfo allocate_info{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1,
+    };
+
+    for_<0, engine_config.vk_frames_in_flight()>([&](auto i){
+        //: checks for valid state
+        fresa_assert(frame.at(i).command_pool == VK_NULL_HANDLE, "command pool already initialized");
+        fresa_assert(frame.at(i).main_command_buffer == VK_NULL_HANDLE, "command buffer already initialized");
+
+        //: create command pool
+        VkResult result = vkCreateCommandPool(gpu.device, &create_info, nullptr, &frame.at(i).command_pool);
+        graphics_assert<int>(result == VK_SUCCESS, "failed to create the graphics command pool for frame {}", i);
+
+        //: allocate the main command buffer used for rendering
+        auto alloc = allocate_info;
+        alloc.commandPool = frame.at(i).command_pool;
+        result = vkAllocateCommandBuffers(gpu.device, &alloc, &frame.at(i).main_command_buffer);
+        graphics_assert<int>(result == VK_SUCCESS, "failed to allocate the main graphics command buffer for frame {}", i);
+
+        //: deletion queue
+        dq.push([command_pool = frame.at(i).command_pool, device = gpu.device]{
+            vkDestroyCommandPool(device, command_pool, nullptr);
+        });
+    });
+
+    log::graphics("initialized {} graphics command pools and buffers", engine_config.vk_frames_in_flight());
 }
 
 // ··········
@@ -612,7 +654,9 @@ void GraphicsSystem::update() {
 //* stop the vulkan api
 void GraphicsSystem::stop() {
     //: clear the deletion queues in reverse order
-    deletion_queues.clear();
+    auto vk = const_cast<VulkanAPI*>(api.get());
+    vk->deletion_queue_swapchain.clear();
+    vk->deletion_queue_global.clear();
 
     //: stop glfw
     if (win) glfwDestroyWindow(win->window);
@@ -654,7 +698,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk::debugCallback(VkDebugReportFlagsEXT flags, Vk
 }
 
 //* create debug callback
-VkDebugReportCallbackEXT vk::createDebugCallback(VkInstance instance) {
+VkDebugReportCallbackEXT vk::createDebugCallback(VkInstance instance, DeletionQueue& dq) {
     graphics_assert(vkCreateDebugReportCallbackEXT != nullptr, "vulkan debug callback function was not initialized");
 
     //: create info
@@ -669,7 +713,7 @@ VkDebugReportCallbackEXT vk::createDebugCallback(VkInstance instance) {
     VkResult result = vkCreateDebugReportCallbackEXT(instance, &create_info, nullptr, &callback);
     graphics_assert<std::size_t>(result == VK_SUCCESS, "fatal error creating a vulkan debug callback: {}", result);
 
-    deletion_queues.global.push([instance, callback]{ vkDestroyDebugReportCallbackEXT(instance, callback, nullptr); });
+    dq.push([instance, callback]{ vkDestroyDebugReportCallbackEXT(instance, callback, nullptr); });
     return callback;
 }
 #endif

@@ -2,7 +2,7 @@
 //      - ...
 
 #include "r_api.h"
-#include "config.h"
+#include "fresa_config.h"
 
 using namespace fresa;
 

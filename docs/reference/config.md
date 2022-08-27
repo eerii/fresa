@@ -91,14 +91,14 @@ void using_configuration() {
 | `enable_assertions` | `bool` | `false` |
 | `log_level` | `ui32` | `0b0000111` |
 | `ecs_page_size` | `ui32` | `256` |
-| `frames_in_flight` | `ui8` | `2` |
+| `vk_frames_in_flight` | `ui8` | `2` |
 
 **run**
 
 | option | type | default value |
 |---|---|---|
 | `window_size` | `Vec2<ui16>` | `{800, 600}` |
-| `prefer_mailbox_mode` | `bool` | `false` |
+| `vk_prefer_mailbox_mode` | `bool` | `false` |
 
 **debug**
 

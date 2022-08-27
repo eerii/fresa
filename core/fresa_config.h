@@ -39,16 +39,16 @@ namespace fresa
         constexpr bool virtual enable_assertions() const { return false; };
         //: component pool page size
         constexpr ui32 virtual ecs_page_size() const { return 256; };
-        //: rendering frames in flight
-        constexpr ui8 virtual frames_in_flight() const { return 2; };
+        //: rendering configurations
+        constexpr ui8 virtual vk_frames_in_flight() const { return 2; };
     };
 
     //* run config (run time)
     struct RunConfig {
         //: the size of the application window
         Vec2<ui16> window_size = {800, 600};
-        //: prefer mailbox mode for rendering
-        bool prefer_mailbox_mode = false;
+        //: rendering configurations
+        bool vk_prefer_mailbox_mode = false;
     };
 
     //* debug config (run time, only on debug builds)

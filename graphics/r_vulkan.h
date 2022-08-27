@@ -11,6 +11,9 @@
 #include "vk_mem_alloc.h"
 
 #include "std_types.h"
+#include "fresa_config.h"
+
+#include <stack>
 
 namespace fresa::graphics
 {
@@ -52,6 +55,26 @@ namespace fresa::graphics
             std::vector<VkImageView> image_views;
             std::vector<VkImage> images;
         };
+
+        //* deletion queue
+        //      called in reversed order of insertion to delete all resources without dependency issues
+        struct DeletionQueue {
+            std::stack<std::function<void()>> queue;
+            void push(std::function<void()> &&f) { queue.push(f); }
+            void clear() { while (!queue.empty()) { queue.top()(); queue.pop(); } }
+        };
+
+        //* per frame data
+        struct FrameData {
+            VkCommandPool command_pool = VK_NULL_HANDLE;
+            VkCommandBuffer main_command_buffer = VK_NULL_HANDLE;
+
+            //VkSemaphore image_available_semaphore;
+            //VkSemaphore render_finished_semaphore;
+            //VkFence fence_in_flight;
+
+            DeletionQueue deletion_queue_frame;
+        };
     }
 
     //* vulkan data
@@ -63,6 +86,11 @@ namespace fresa::graphics
 
         VkSurfaceKHR surface;
         vk::Swapchain swapchain;
+
+        std::array<vk::FrameData, engine_config.vk_frames_in_flight()> frame;
+
+        vk::DeletionQueue deletion_queue_global;
+        vk::DeletionQueue deletion_queue_swapchain;
 
         VkDebugReportCallbackEXT debug_callback;
     };

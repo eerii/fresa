@@ -12,9 +12,6 @@ _the graphics engine_
 
 **vulkan todo**
 
-- recreate swapchain
-- command pools
-- command buffers
 - synchronization objects
 - descriptor sets, shaders...
 - render passes, pipelines, shaders...
@@ -29,6 +26,7 @@ _the graphics engine_
 - **added** - time format for fmt library
 - **removed** - the job system is temporarily removed, since it is not ready and doesn't add anything to the engine
 - **removed** - coroutine implementation is also moved to a gist for now
+- **added** - command pools and buffers
 
 #### [0.5.0] vulkan initialization (_26 ago 22_)
 

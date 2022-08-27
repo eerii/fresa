@@ -14,8 +14,6 @@
 #include "system.h"
 #include "events.h"
 
-#include <stack>
-
 namespace fresa::graphics
 {
     //* graphics api object
@@ -43,19 +41,6 @@ namespace fresa::graphics
             fresa::quit();
         }
     }
-
-    //* deletion queues
-    //      called in reversed order of insertion to delete all resources without dependency issues
-    inline struct DeletionQueues {
-        std::stack<std::function<void()>> global;
-        std::stack<std::function<void()>> swapchain;
-        std::stack<std::function<void()>> frame;
-
-        void clear_global() { while (!global.empty()) { global.top()(); global.pop(); } }
-        void clear_swapchain() { while (!swapchain.empty()) { swapchain.top()(); swapchain.pop(); } }
-        void clear_frame() { while (!frame.empty()) { frame.top()(); frame.pop(); } }
-        void clear() { clear_frame(); clear_swapchain(); clear_global(); }
-    } deletion_queues;
 
     //* window
     //      contains the main window reference and the relevant properties
