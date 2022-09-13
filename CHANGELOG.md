@@ -13,11 +13,18 @@ _the graphics engine_
 
 **vulkan todo**
 
+- add file utilities to check if the file exists
+- configure res folder path in the build system
+- read spirv code
 - descriptor sets, shaders...
 - render passes, pipelines, shaders...
 - dont render into the swapchain directly (don't create fb for swapchain, instead blit image into it)
 
 ---
+
+#### [0.5.3] shaders and spirv (00 sept 22_)
+
+- **added** - spirv code reader
 
 #### [0.5.2] sync objects (13 sept 22_)
 

@@ -30,15 +30,21 @@ namespace fresa
         //: name
         constexpr str_view virtual name() const { return "fresa"; };
         //: version
-        constexpr std::array<ui8, 3> virtual version() const { return {0, 5, 2}; };
+        constexpr std::array<ui8, 3> virtual version() const { return {0, 5, 3}; };
+
         //: unit tests to run (comma separated list)
         constexpr str_view virtual run_tests() const { return ""; };
         //: log level (see tools/log.h for the list of levels)
         constexpr ui32 virtual log_level() const { return 0b0000111; };
         //: enable assertions
         constexpr bool virtual enable_assertions() const { return false; };
+
         //: component pool page size
         constexpr ui32 virtual ecs_page_size() const { return 256; };
+
+        //: assets path
+        constexpr str_view virtual res_path() const { return "res"; };
+
         //: rendering configurations
         constexpr ui8 virtual vk_frames_in_flight() const { return 2; };
     };

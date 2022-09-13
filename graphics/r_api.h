@@ -16,6 +16,10 @@
 
 namespace fresa::graphics
 {
+    // ················
+    // · GRAPHICS API ·
+    // ················
+
     //* graphics api object
     //      holds information specific to the graphics api currently rendering (vk, gl, ...)
     using GraphicsAPI = VulkanAPI;
@@ -29,6 +33,45 @@ namespace fresa::graphics
         static void stop();
     };
 
+    // ··········
+    // · WINDOW ·
+    // ··········
+
+    //* window type
+    //      contains the main window reference and the relevant properties
+    struct Window {
+        GLFWwindow* window;
+        Vec2<ui16> size;
+    };
+    inline std::unique_ptr<const Window> win;
+
+    //* initialize window
+    Window createWindow();
+
+    //* resize callback
+    void resizeWindow(ui16 width, ui16 height);
+
+    // ···········
+    // · SHADERS ·
+    // ···········
+
+    //* shader types
+    enum struct ShaderType {
+        VERTEX,
+        FRAGMENT,
+        COMPUTE
+    };
+
+    //* shader extensions
+    constexpr auto shader_extensions = std::to_array<str_view>({ ".vert", ".frag", ".comp" });
+
+    //* read spirv code
+    std::vector<ui32> readSPIRV(str name, ShaderType type);
+
+    // ···············
+    // · EXTRA TOOLS ·
+    // ···············
+
     //* graphics assertions
     //      checks for errors, always enabled unlike regular assertions
     //      also, unlike regular assertions, this one will call fresa::quit for a softer exit
@@ -41,14 +84,4 @@ namespace fresa::graphics
             fresa::force_quit();
         }
     }
-
-    //* window
-    //      contains the main window reference and the relevant properties
-    struct Window {
-        GLFWwindow* window;
-        Vec2<ui16> size;
-    };
-    inline std::unique_ptr<const Window> win;
-    Window createWindow();
-    void resizeWindow(ui16 width, ui16 height);
 }

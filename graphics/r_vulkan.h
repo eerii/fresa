@@ -17,6 +17,10 @@
 
 namespace fresa::graphics
 {
+    // ·······················
+    // · RENDERING DATATYPES ·
+    // ·······················
+
     namespace vk
     {
         //* indices of the queue families
@@ -77,6 +81,10 @@ namespace fresa::graphics
             DeletionQueue deletion_queue_frame;
         };
     }
+
+    // ··············
+    // · VULKAN API ·
+    // ··············
 
     //* vulkan data
     struct VulkanAPI {

@@ -91,6 +91,7 @@ void using_configuration() {
 | `enable_assertions` | `bool` | `false` |
 | `log_level` | `ui32` | `0b0000111` |
 | `ecs_page_size` | `ui32` | `256` |
+| `res_path` | `str_view` | `"res"` |
 | `vk_frames_in_flight` | `ui8` | `2` |
 
 **run**
