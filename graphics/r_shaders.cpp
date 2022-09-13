@@ -9,7 +9,7 @@ using namespace fresa;
 //* get shader source from file
 std::vector<ui32> graphics::readSPIRV(str name, ShaderType type) {
     //: calculate the path to the spirv file
-    str path = fmt::format("{}/shaders/{}.{}", engine_config.res_path(), name, shader_extensions.at((ui32)type));
+    str path = fmt::format("shaders/{}.{}", name, shader_extensions.at((ui32)type));
 
     //: open the file
     std::ifstream file(path, std::ios::ate | std::ios::binary);
