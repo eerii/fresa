@@ -30,7 +30,7 @@ namespace fresa
         //: name
         constexpr str_view virtual name() const { return "fresa"; };
         //: version
-        constexpr std::array<ui8, 3> virtual version() const { return {0, 5, 1}; };
+        constexpr std::array<ui8, 3> virtual version() const { return {0, 5, 2}; };
         //: unit tests to run (comma separated list)
         constexpr str_view virtual run_tests() const { return ""; };
         //: log level (see tools/log.h for the list of levels)

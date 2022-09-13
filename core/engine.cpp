@@ -15,8 +15,13 @@
 
 using namespace fresa;
 
+namespace {
+    //: controls wether the engine is running or not
+    bool running = true;
+}
+
 //* main entry point
-//      called from main, it creates the engine, runs it and closes it when finished
+//      called from main, it creates the engine and runs it
 void fresa::run() {
     log::info("{} {}.{}.{}",
               fmt::format(fmt::emphasis::bold, engine_config.name()),
@@ -32,16 +37,20 @@ void fresa::run() {
     fresa::detail::init();
 
     //: update loop
-    bool running = true;
-    while (running) {
-        running = fresa::detail::update();
-    }
+    while (running)
+        fresa::detail::update();
 
-    //: cleanup
+    //: cleanup and exit
     fresa::detail::stop();
 }
 
+//* quit the engine
 void fresa::quit() {
+    running = false;
+}
+
+//* force quit the engine (does not complete the update loop)
+void fresa::force_quit() {
     fresa::detail::stop();
     std::abort();
 }
@@ -59,7 +68,7 @@ void fresa::detail::init() {
 //* update
 //      update loop implementation based on https://gafferongames.com/post/fix_your_timestep/
 //      the simulation updates is decoupled from the frame time, and is instead updated in discrete steps dt
-bool fresa::detail::update() {
+void fresa::detail::update() {
     //: high precision duration and time points optimized for our delta time
     using duration = decltype(clock::duration{} + fresa::dt);
     using time_point = std::chrono::time_point<fresa::clock, duration>;
@@ -89,17 +98,11 @@ bool fresa::detail::update() {
 
         accumulator -= dt;
         simulation_time += dt;
-
-        //: temporary fake exit after 0.1s for testing
-        if (simulation_time.time_since_epoch() > 100ms)
-            return false;
     }
 
     //? interpolation
     //      const double alpha = std::chrono::duration<double>{accumulator} / dt;
     //      state = current * alpha + previous * (1.0 - alpha);
-
-    return true;
 }
 
 //* stop and cleanup

@@ -38,7 +38,7 @@ namespace fresa::graphics
             str_view file_name = location.file_name();
             file_name = file_name.substr(file_name.find_last_of("/") + 1);
             detail::log<"GRAPHICS ERROR", LOG_ERROR, fmt::color::red>("({}:{}) {}", file_name, location.line(), fmt::format(fs, std::forward<T>(t)...));
-            fresa::quit();
+            fresa::force_quit();
         }
     }
 

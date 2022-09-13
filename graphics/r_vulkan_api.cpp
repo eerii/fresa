@@ -5,6 +5,7 @@
 #include "log.h"
 #include "string_utils.h"
 #include "fresa_assert.h"
+#include "engine.h"
 
 #include <set>
 
@@ -94,6 +95,9 @@ void GraphicsSystem::init() {
 
     //: create window
     win = std::make_unique<const Window>(createWindow());
+
+    //: stop the engine on window close
+    glfwSetWindowCloseCallback(win->window, [](GLFWwindow* window) { fresa::quit(); });
 
     //: create vulkan api
     VulkanAPI vk_api;

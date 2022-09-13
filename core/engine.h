@@ -10,11 +10,12 @@ namespace fresa
 
     //* can be called when the engine needs to be stopped
     void quit();
+    void force_quit();
 
     //* different stages of the engine, referenced from run()
     namespace detail {
         void init();
-        bool update();
+        void update();
         void stop();
     }
 }

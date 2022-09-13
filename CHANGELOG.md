@@ -20,7 +20,11 @@ _the graphics engine_
 
 ---
 
-#### [0.5.1] commands and memory (_00 ago 22_)
+#### [0.5.2] NOMBRE (_00 sept 22_)
+
+- **added** - .
+
+#### [0.5.1] commands and memory (_13 sept 22_)
 
 - **added** - vulkan memory allocator library
 - **added** - swapchain
@@ -30,6 +34,8 @@ _the graphics engine_
 - **added** - command pools and buffers
 - **fixed** - string library name error on linux
 - **added** - setup ci for macos and linux
+- **changed** - engine now has a quit and force quit function
+- **added** - window closing callback stops the engine
 
 #### [0.5.0] vulkan initialization (_26 ago 22_)
 
