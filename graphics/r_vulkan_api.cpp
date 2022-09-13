@@ -290,8 +290,8 @@ int vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
     }
 
     //: require present and graphics queues, compute adds extra score
-    if (gpu.queue_indices.at(QUEUE_INDICES_PRESENT) == -1 or gpu.queue_indices[QUEUE_INDICES_GRAPHICS] == -1) return 0;
-    if (gpu.queue_indices.at(QUEUE_INDICES_COMPUTE) != -1) score += 32;
+    if (gpu.queue_indices.at((ui32)QueueIndices::PRESENT) == -1 or gpu.queue_indices[(ui32)QueueIndices::GRAPHICS] == -1) return 0;
+    if (gpu.queue_indices.at((ui32)QueueIndices::COMPUTE) != -1) score += 32;
 
     //- check swapchain support
 
@@ -311,7 +311,7 @@ int vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
 decltype(vk::GPU{}.queue_indices) vk::getQueueIndices(VkInstance instance, const vk::GPU &gpu) {
     //: assertions to ensure the gpu is in a valid state
     fresa_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
-    fresa_assert(gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS) == -1, "the queue indices for this gpu have already been found");
+    fresa_assert(gpu.queue_indices.at((ui32)QueueIndices::GRAPHICS) == -1, "the queue indices for this gpu have already been found");
 
     //: create the index array
     decltype(vk::GPU{}.queue_indices) indices;
@@ -326,24 +326,24 @@ decltype(vk::GPU{}.queue_indices) vk::getQueueIndices(VkInstance instance, const
     //: select the desired queues
     for (int i = 0; i < queue_count; i++) {
         //: present queue
-        if (indices.at(QUEUE_INDICES_PRESENT) == -1) {
+        if (indices.at((ui32)QueueIndices::PRESENT) == -1) {
             if (glfwGetPhysicalDevicePresentationSupport(instance, gpu.gpu, i))
-                indices.at(QUEUE_INDICES_PRESENT) = i;
+                indices.at((ui32)QueueIndices::PRESENT) = i;
         }
         //: graphics queue (can be the same index)
-        if (indices.at(QUEUE_INDICES_GRAPHICS) == -1 and queues.at(i).queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            indices.at(QUEUE_INDICES_GRAPHICS) = i; continue;
+        if (indices.at((ui32)QueueIndices::GRAPHICS) == -1 and queues.at(i).queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            indices.at((ui32)QueueIndices::GRAPHICS) = i; continue;
         }
         //: transfer queue
-        if (indices.at(QUEUE_INDICES_TRANSFER) == -1 and queues.at(i).queueFlags & VK_QUEUE_TRANSFER_BIT) {
-            indices.at(QUEUE_INDICES_TRANSFER) = i; continue;
+        if (indices.at((ui32)QueueIndices::TRANSFER) == -1 and queues.at(i).queueFlags & VK_QUEUE_TRANSFER_BIT) {
+            indices.at((ui32)QueueIndices::TRANSFER) = i; continue;
         }
         //: compute queue
-        if (indices.at(QUEUE_INDICES_COMPUTE) == -1 and queues.at(i).queueFlags & VK_QUEUE_COMPUTE_BIT) {
-            indices.at(QUEUE_INDICES_COMPUTE) = i; continue;
+        if (indices.at((ui32)QueueIndices::COMPUTE) == -1 and queues.at(i).queueFlags & VK_QUEUE_COMPUTE_BIT) {
+            indices.at((ui32)QueueIndices::COMPUTE) = i; continue;
         }
-        if (indices.at(QUEUE_INDICES_GRAPHICS) != -1 and indices.at(QUEUE_INDICES_PRESENT) != -1 and
-            indices.at(QUEUE_INDICES_TRANSFER) != -1 and indices.at(QUEUE_INDICES_COMPUTE) != -1) break;
+        if (indices.at((ui32)QueueIndices::GRAPHICS) != -1 and indices.at((ui32)QueueIndices::PRESENT) != -1 and
+            indices.at((ui32)QueueIndices::TRANSFER) != -1 and indices.at((ui32)QueueIndices::COMPUTE) != -1) break;
     }
 
     return indices;
@@ -356,7 +356,7 @@ decltype(vk::GPU{}.queue_indices) vk::getQueueIndices(VkInstance instance, const
 VkDevice vk::createDevice(const vk::GPU &gpu, DeletionQueue& dq) {
     //: assertions to ensure the gpu is in a valid state
     fresa_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
-    fresa_assert(gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS) != -1, "the gpu queue indices have not been initialized");
+    fresa_assert(gpu.queue_indices.at((ui32)QueueIndices::GRAPHICS) != -1, "the gpu queue indices have not been initialized");
     fresa_assert(gpu.device == VK_NULL_HANDLE, "the gpu device has already been initialized");
 
     //: get unique queue indices
@@ -554,8 +554,8 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
 
     //: specify the sharing mode for the queues
     std::array<ui32, 2> queue_family_indices;
-    queue_family_indices.at(0) = (int)gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS);
-    queue_family_indices.at(1) = (int)gpu.queue_indices.at(QUEUE_INDICES_PRESENT);
+    queue_family_indices.at(0) = (int)gpu.queue_indices.at((ui32)QueueIndices::GRAPHICS);
+    queue_family_indices.at(1) = (int)gpu.queue_indices.at((ui32)QueueIndices::PRESENT);
     if (queue_family_indices.at(0) != queue_family_indices.at(1)) {
         create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         create_info.queueFamilyIndexCount = 2;
@@ -639,7 +639,7 @@ void vk::initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, Dele
     VkCommandPoolCreateInfo create_info{
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = (ui32)gpu.queue_indices.at(QUEUE_INDICES_GRAPHICS)
+        .queueFamilyIndex = (ui32)gpu.queue_indices.at((ui32)QueueIndices::GRAPHICS)
     };
 
     //: allocate info for command buffers (without the command pool)
@@ -776,7 +776,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk::debugCallback(VkDebugReportFlagsEXT flags, Vk
                               fmt::styled(message.substr(i_spec, i_web - i_spec), fmt::emphasis::bold | fmt::fg(fmt::color::slate_gray)),
                               fmt::styled(message.substr(i_web), fmt::fg(fmt::color::slate_gray)));
 
-    detail::log<"VK VALIDATION", LOG_GRAPHICS, fmt::color::hot_pink>("{}", message);
+    detail::log<"VK VALIDATION", LogLevel::GRAPHICS, fmt::color::hot_pink>("{}", message);
     return VK_FALSE;
 }
 

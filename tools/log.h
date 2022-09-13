@@ -6,6 +6,8 @@
 #include "fresa_config.h"
 #include "string_utils.h"
 
+#include <type_traits>
+
 #if __has_include("fmt/core.h")
     #include "fmt/core.h"
     #include "fmt/color.h"
@@ -17,21 +19,25 @@
 namespace fresa
 {
     //* log level
-    enum log_levels {
-        LOG_ERROR = 1 << 0,
-        LOG_WARNING = 1 << 1,
-        LOG_INFO = 1 << 2,
-        LOG_GRAPHICS = 1 << 3,
-        LOG_TEST = 1 << 4,
-        LOG_DEBUG = 1 << 5,
-        LOG_JOBS = 1 << 6,
+    enum struct LogLevel {
+        ERROR = 1 << 0,
+        WARNING = 1 << 1,
+        INFO = 1 << 2,
+        GRAPHICS = 1 << 3,
+        TEST = 1 << 4,
+        DEBUG = 1 << 5,
+        JOBS = 1 << 6,
     };
+    constexpr LogLevel operator| (LogLevel a, LogLevel b) { using T = std::underlying_type_t<LogLevel>; return static_cast<LogLevel>(static_cast<T>(a) | static_cast<T>(b)); }
+    constexpr LogLevel operator& (LogLevel a, LogLevel b) { using T = std::underlying_type_t<LogLevel>; return static_cast<LogLevel>(static_cast<T>(a) & static_cast<T>(b)); }
+    constexpr LogLevel& operator|= (LogLevel& a, LogLevel b) { a = a | b; return a; }
+    constexpr LogLevel& operator&= (LogLevel& a, LogLevel b) { a = a & b; return a; }
 
     namespace detail
     {
-        template<str_literal name, std::size_t level, fmt::color color = fmt::color::white, typename ... T>
+        template<str_literal name, LogLevel level, fmt::color color = fmt::color::white, typename ... T>
         constexpr void log(fmt::format_string<T...> fs, T&& ...t) {
-            if constexpr((engine_config.log_level() & level) == level) {
+            if constexpr((LogLevel(engine_config.log_level()) & level) == level) {
                 fmt::print("{} {}\n",
                            fmt::format(fg(color), "[{}]:", name.value),
                            fmt::format(fs, std::forward<T>(t)...));
@@ -42,18 +48,18 @@ namespace fresa
     namespace log
     {
         template <typename ... T>
-        constexpr void error(fmt::format_string<T...> fs, T&& ...t) { detail::log<"ERROR", LOG_ERROR, fmt::color::red>(fs, std::forward<T>(t)...); }
+        constexpr void error(fmt::format_string<T...> fs, T&& ...t) { detail::log<"ERROR", LogLevel::ERROR, fmt::color::red>(fs, std::forward<T>(t)...); }
 
         template <typename ... T>
-        constexpr void warn(fmt::format_string<T...> fs, T&& ...t) { detail::log<"WARN", LOG_WARNING, fmt::color::gold>(fs, std::forward<T>(t)...); }
+        constexpr void warn(fmt::format_string<T...> fs, T&& ...t) { detail::log<"WARN", LogLevel::WARNING, fmt::color::gold>(fs, std::forward<T>(t)...); }
 
         template <typename ... T>
-        constexpr void info(fmt::format_string<T...> fs, T&& ...t) { detail::log<"INFO", LOG_INFO, fmt::color::cornflower_blue>(fs, std::forward<T>(t)...); }
+        constexpr void info(fmt::format_string<T...> fs, T&& ...t) { detail::log<"INFO", LogLevel::INFO, fmt::color::cornflower_blue>(fs, std::forward<T>(t)...); }
 
         template <typename ... T>
-        constexpr void graphics(fmt::format_string<T...> fs, T&& ...t) { detail::log<"GRAPHICS", LOG_GRAPHICS, fmt::color::dark_turquoise>(fs, std::forward<T>(t)...); }
+        constexpr void graphics(fmt::format_string<T...> fs, T&& ...t) { detail::log<"GRAPHICS", LogLevel::GRAPHICS, fmt::color::dark_turquoise>(fs, std::forward<T>(t)...); }
 
         template <typename ... T>
-        constexpr void debug(fmt::format_string<T...> fs, T&& ...t) { detail::log<"DEBUG", LOG_DEBUG, fmt::color::light_sky_blue>(fs, std::forward<T>(t)...); }
+        constexpr void debug(fmt::format_string<T...> fs, T&& ...t) { detail::log<"DEBUG", LogLevel::DEBUG, fmt::color::light_sky_blue>(fs, std::forward<T>(t)...); }
     }
 }

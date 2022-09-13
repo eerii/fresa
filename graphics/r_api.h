@@ -23,7 +23,7 @@ namespace fresa::graphics
 
     //* graphics system
     struct GraphicsSystem {
-        inline static System<GraphicsSystem, system::SYSTEM_PRIORITY_FIRST> system;
+        inline static System<GraphicsSystem, system::SystemPriority::FIRST> system;
         static void init();
         static void update();
         static void stop();
@@ -37,7 +37,7 @@ namespace fresa::graphics
         if (not condition) {
             str_view file_name = location.file_name();
             file_name = file_name.substr(file_name.find_last_of("/") + 1);
-            detail::log<"GRAPHICS ERROR", LOG_ERROR, fmt::color::red>("({}:{}) {}", file_name, location.line(), fmt::format(fs, std::forward<T>(t)...));
+            detail::log<"GRAPHICS ERROR", LogLevel::ERROR, fmt::color::red>("({}:{}) {}", file_name, location.line(), fmt::format(fs, std::forward<T>(t)...));
             fresa::force_quit();
         }
     }

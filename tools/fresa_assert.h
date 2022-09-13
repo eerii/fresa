@@ -14,7 +14,7 @@ namespace fresa
             if (not condition) {
                 str_view file_name = location.file_name();
                 file_name = file_name.substr(file_name.find_last_of("/") + 1);
-                detail::log<"ASSERTION ERROR", LOG_ERROR, fmt::color::red>("({}:{}) {}", file_name, location.line(), fmt::format(fs, std::forward<T>(t)...));
+                detail::log<"ASSERTION ERROR", LogLevel::ERROR, fmt::color::red>("({}:{}) {}", file_name, location.line(), fmt::format(fs, std::forward<T>(t)...));
                 std::abort();
             }
         }

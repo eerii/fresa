@@ -60,7 +60,7 @@ namespace fresa
             //: run selected suites
             void run (const std::vector<test_objects::Suite> &suites) {
                 for (auto suite : suites) {
-                    detail::log<"TEST", LOG_TEST, fmt::color::slate_gray>("running suite '{}'", suite.name);
+                    detail::log<"TEST", LogLevel::TEST, fmt::color::slate_gray>("running suite '{}'", suite.name);
                     suite.run();
                 }
             }
@@ -97,11 +97,11 @@ namespace fresa
         void operator=(std::invocable auto test) {
             auto t = test();
             if (t.passed) {
-                detail::log<"TEST PASSED", LOG_TEST, fmt::color::lime_green>("{}", name);
+                detail::log<"TEST PASSED", LogLevel::TEST, fmt::color::lime_green>("{}", name);
             } else {
                 str_view file_name = t.location.file_name();
                 file_name = file_name.substr(file_name.find_last_of("/") + 1);
-                detail::log<"TEST FAILED", LOG_TEST, fmt::color::red>("{} ({}:{})", name, file_name, t.location.line());
+                detail::log<"TEST FAILED", LogLevel::TEST, fmt::color::red>("{} ({}:{})", name, file_name, t.location.line());
             }
         }
     };

@@ -23,6 +23,7 @@ _the graphics engine_
 
 - **added** - created semaphore and fences
 - **added** - window and swapchain resizing
+- **changed** - switch to enum structs for type correction
 
 #### [0.5.1] commands and memory (_13 sept 22_)
 

@@ -20,12 +20,12 @@ namespace fresa::graphics
     namespace vk
     {
         //* indices of the queue families
-        enum QueueIndices {
-            QUEUE_INDICES_GRAPHICS,
-            QUEUE_INDICES_PRESENT,
-            QUEUE_INDICES_TRANSFER,
-            QUEUE_INDICES_COMPUTE,
-            QUEUE_INDICES_COUNT
+        enum struct QueueIndices {
+            GRAPHICS,
+            PRESENT,
+            TRANSFER,
+            COMPUTE,
+            COUNT
         };
 
         //* physical device, representation of a gpu
@@ -37,7 +37,7 @@ namespace fresa::graphics
             VkPhysicalDeviceFeatures features;
             VkPhysicalDeviceMemoryProperties memory;
 
-            std::array<int, QUEUE_INDICES_COUNT> queue_indices = {-1, -1, -1, -1};
+            std::array<int, (ui32)QueueIndices::COUNT> queue_indices = {-1, -1, -1, -1};
             std::vector<VkQueue> queues = {};
 
             int score = -1;

@@ -19,6 +19,6 @@ constexpr inline struct _EngineConfig : EngineConfig {
 } engine_config;
 ```
 
-This code will run the test suites indicated before the engine's startup. If the [log level](log.md) includes `LOG_TEST`, then the test results will be print to the console.
+This code will run the test suites indicated before the engine's startup. If the [log level](log.md) includes `LogLevel::TEST`, then the test results will be print to the console.
 
 Unit tests are provided for all mayor **fresa** features, such as [type definitions](https://github.com/josekoalas/fresa/blob/main/tests/type_tests.cpp), the [math library](https://github.com/josekoalas/fresa/blob/main/tests/math_tests.cpp) and the [job system](https://github.com/josekoalas/fresa/blob/main/tests/job_tests.h). You can check those files to see how suite definitions work in practise. For the sake of organization, all **fresa** internal tests are located on source files in the `tests` folder.

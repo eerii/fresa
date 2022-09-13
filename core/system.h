@@ -25,12 +25,19 @@ namespace fresa::system
         concept SystemWithUpdate = System<T> and requires(T s) { T::update(); };
     }
 
+    //* system priorities
+    enum struct SystemPriority {
+        FIRST = 0,
+        DEFAULT = 100,
+        LAST = 200,
+    };
+
     namespace detail
     {
         //* objects for the system update and stop lists
         //      a lower number means higher priority, so a system with priority 2 comes before a system with priority 4
         struct SystemObject {
-            ui8 priority;
+            SystemPriority priority;
             str_view name;
             std::function<void()> f;
         };
@@ -41,13 +48,6 @@ namespace fresa::system
                                     decltype([](auto a, auto b){ return b.priority >= a.priority; })>;
     }
 
-    //* system priorities
-    enum SystemPriorities {
-        SYSTEM_PRIORITY_FIRST = 0,
-        SYSTEM_PRIORITY_DEFAULT = 100,
-        SYSTEM_PRIORITY_LAST = 200,
-    };
-
     //* system manager
     inline struct SystemManager {
         detail::SystemPriorityQueue init;
@@ -56,7 +56,7 @@ namespace fresa::system
     } manager;
 
     //* register and initialize system
-    inline void add(concepts::System auto s, ui8 priority = SYSTEM_PRIORITY_DEFAULT) {
+    inline void add(concepts::System auto s, SystemPriority priority = SystemPriority::DEFAULT) {
         constexpr auto name = type_name<decltype(s)>();
 
         //: initialize system
@@ -74,7 +74,7 @@ namespace fresa::system
     //* init all systems in order
     inline void init() {
         while (not manager.init.empty()) {
-            ::fresa::detail::log<"SYSTEM", LOG_DEBUG, fmt::color::medium_purple>("initializing system '{}'", manager.init.top().name);
+            ::fresa::detail::log<"SYSTEM", LogLevel::DEBUG, fmt::color::medium_purple>("initializing system '{}'", manager.init.top().name);
             manager.init.top().f();
             manager.init.pop();
         }
@@ -83,7 +83,7 @@ namespace fresa::system
     //* clean all systems in inverse order when program stops
     inline void stop() {
         while (not manager.stop.empty()) {
-            ::fresa::detail::log<"SYSTEM", LOG_DEBUG, fmt::color::medium_purple>("stopping system '{}'", manager.stop.top().name);
+            ::fresa::detail::log<"SYSTEM", LogLevel::DEBUG, fmt::color::medium_purple>("stopping system '{}'", manager.stop.top().name);
             manager.stop.top().f();
             manager.stop.pop();
         }
@@ -109,7 +109,7 @@ namespace fresa::system
 //      it uses static initialization to register the system using `system::add`, which is then executed when calling `system::init` from engine
 namespace fresa
 {
-    template <typename T, ui8 priority = system::SYSTEM_PRIORITY_DEFAULT>
+    template <typename T, system::SystemPriority priority = system::SystemPriority::DEFAULT>
     struct System {
         System() { system::add(T{}, priority); }
     };
