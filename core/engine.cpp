@@ -10,6 +10,7 @@
 #include "fresa_time.h"
 #include "fresa_config.h"
 #include "system.h"
+#include "file.h"
 
 #include "r_api.h"
 
@@ -60,6 +61,9 @@ void fresa::force_quit() {
 //* initialization
 void fresa::detail::init() {
     log::debug("setting up the engine");
+
+    //: file initialization
+    file::init();
 
     //: system initialization
     system::init();

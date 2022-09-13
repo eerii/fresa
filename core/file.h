@@ -10,10 +10,28 @@
 #include <filesystem>
 #include <fstream>
 
+#ifdef __APPLE__
+#include "CoreFoundation/CoreFoundation.h"
+#endif
+
 namespace fs = std::filesystem;
 
 namespace fresa::file
 {
+    //* initialize filesystem
+    //      necessary for macos, creates a corefoundation bundle
+    inline void init() {
+        #ifdef __APPLE__
+        CFBundleRef mainBundle = CFBundleGetMainBundle();
+        CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
+        char path[PATH_MAX];
+        if (!CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8 *)path, PATH_MAX))
+            log::error("couldn't get file system representation!");
+        CFRelease(resourcesURL);
+        chdir(path);
+        #endif
+    }
+
     //* returns the absolute path to a file, relative to the executable, while also checking if the file exists
     inline str path(str p) {
         //: join the resource path with the given path
@@ -33,9 +51,9 @@ namespace fresa::file
     //* returns the path to a file, does not fail, instead returns an empty optional
     inline std::optional<str> optional_path(str p) {
         //: join the resource path with the given path
-        str full_path = fmt::format("{}/{}", engine_config.res_path(), p);
+        std::optional<str> full_path = fmt::format("{}/{}", engine_config.res_path(), p);
 
         //: return the path or an empty optional
-        return fs::exists(full_path) ? full_path : std::nullopt;
+        return fs::exists(full_path.value()) ? full_path : std::nullopt;
     }
 }
