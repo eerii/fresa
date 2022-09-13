@@ -15,6 +15,17 @@ graphics::Window graphics::createWindow() {
     graphics_assert(w, "failed to create a window");
 
     return Window{
-        .window = w
+        .window = w,
+        .size = config.window_size
     };
+}
+
+void graphics::resizeWindow(ui16 width, ui16 height) {
+    if (width == 0 or height == 0) return;
+    graphics_assert(win != nullptr, "window not initialized");
+
+    auto w = const_cast<Window*>(win.get());
+    w->size = Vec2<ui16>{width, height};
+
+    log::graphics("window resized to {}x{}", width, height);
 }

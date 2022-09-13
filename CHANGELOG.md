@@ -7,13 +7,12 @@ _the graphics engine_
 **todo**
 
 - write documentation for the new renderer
-- test the build in linux and windows, should work on all platforms with not too much trouble
-- think of what to do with regards to web builds (support opengl with no compute shaders, use webgpu, ...)
+- think of what to do with regards to web builds, probably webgpu
 - new job system, look into std::async or the taskflow library (the work stealing queue)
+- ci for windows
 
 **vulkan todo**
 
-- synchronization objects
 - descriptor sets, shaders...
 - render passes, pipelines, shaders...
 - dont render into the swapchain directly (don't create fb for swapchain, instead blit image into it)
@@ -23,6 +22,7 @@ _the graphics engine_
 #### [0.5.2] sync objects (13 sept 22_)
 
 - **added** - created semaphore and fences
+- **added** - window and swapchain resizing
 
 #### [0.5.1] commands and memory (_13 sept 22_)
 

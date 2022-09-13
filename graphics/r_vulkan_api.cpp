@@ -46,6 +46,7 @@ namespace fresa::graphics::vk
     //: surface and swapchain
     VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window, DeletionQueue& dq);
     vk::Swapchain createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface, DeletionQueue& dq);
+    void resizeCallback(GLFWwindow* window, int width, int height);
 
     //: command pools
     void initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, DeletionQueue& dq);
@@ -99,8 +100,11 @@ void GraphicsSystem::init() {
     //: create window
     win = std::make_unique<const Window>(createWindow());
 
-    //: stop the engine on window close
+    //: window callbacks
+    //      on close: quits when the window is closed
     glfwSetWindowCloseCallback(win->window, [](GLFWwindow* window) { fresa::quit(); });
+    //      on resize: resizes the swapchain
+    glfwSetWindowSizeCallback(win->window, vk::resizeCallback);
 
     //: create vulkan api
     VulkanAPI vk_api;
@@ -608,6 +612,25 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
     log::graphics("created a swapchain: {} images, ({} {}) extent, {} present mode",
                   images.size(), extent.width, extent.height, present_mode == VK_PRESENT_MODE_MAILBOX_KHR ? "mailbox" : "fifo");
     return swapchain_data;
+}
+
+//* on window resize
+void vk::resizeCallback(GLFWwindow* window, int width, int height) {
+    if (width == 0 || height == 0) return;
+
+    //: wait for the gpu to finish
+    vkDeviceWaitIdle(api->gpu.device);
+
+    //: call window resize
+    Vec2<ui16> previous_size = win->size;
+    resizeWindow((ui16)width, (ui16)height);
+    
+    //: recreate swapchain
+    if (previous_size != win->size) {
+        auto vk = const_cast<VulkanAPI*>(api.get());
+        vk->deletion_queue_swapchain.clear();
+        vk->swapchain = vk::createSwapchain(api->gpu, window, api->surface, vk->deletion_queue_swapchain);
+    }
 }
 
 //* initialize render commands

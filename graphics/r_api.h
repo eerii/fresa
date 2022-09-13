@@ -46,7 +46,9 @@ namespace fresa::graphics
     //      contains the main window reference and the relevant properties
     struct Window {
         GLFWwindow* window;
+        Vec2<ui16> size;
     };
     inline std::unique_ptr<const Window> win;
     Window createWindow();
+    void resizeWindow(ui16 width, ui16 height);
 }
