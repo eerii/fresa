@@ -20,9 +20,9 @@ _the graphics engine_
 
 ---
 
-#### [0.5.2] NOMBRE (_00 sept 22_)
+#### [0.5.2] sync objects (13 sept 22_)
 
-- **added** - .
+- **added** - created semaphore and fences
 
 #### [0.5.1] commands and memory (_13 sept 22_)
 

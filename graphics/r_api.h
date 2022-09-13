@@ -33,7 +33,7 @@ namespace fresa::graphics
     //      checks for errors, always enabled unlike regular assertions
     //      also, unlike regular assertions, this one will call fresa::quit for a softer exit
     template <typename ... T>
-    inline void graphics_assert(bool condition, fmt::format_string<T...> fs, T&& ...t, const detail::source_location &location = detail::source_location::current()) {
+    void graphics_assert(bool condition, fmt::format_string<T...> fs, T&& ...t, const detail::source_location &location = detail::source_location::current()) {
         if (not condition) {
             str_view file_name = location.file_name();
             file_name = file_name.substr(file_name.find_last_of("/") + 1);

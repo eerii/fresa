@@ -49,6 +49,9 @@ namespace fresa::graphics::vk
 
     //: command pools
     void initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, DeletionQueue& dq);
+
+    //: syncronization objects
+    void initFrameSync(decltype(api->frame) &frame, VkDevice device, DeletionQueue& dq);
     
     //: debug
     void glfwErrorCallback(int error, const char* description);
@@ -128,6 +131,9 @@ void GraphicsSystem::init() {
 
     //: command pools
     initFrameCommands(vk_api.frame, vk_api.gpu, vk_api.deletion_queue_global);
+
+    //: syncronization objects
+    initFrameSync(vk_api.frame, vk_api.gpu.device, vk_api.deletion_queue_global);
 
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const VulkanAPI>(std::move(vk_api));
@@ -587,7 +593,8 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
         .format = format.format,
         .extent = extent,
         .image_views = image_views,
-        .images = images
+        .images = images,
+        .fences_images_in_flight = std::vector<VkFence>(images.size(), VK_NULL_HANDLE)
     };
     swapchain_data.size = (ui32)images.size();
 
@@ -641,6 +648,55 @@ void vk::initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, Dele
     });
 
     log::graphics("initialized {} graphics command pools and buffers", engine_config.vk_frames_in_flight());
+}
+
+//* initialize syncronization objects
+void vk::initFrameSync(decltype(api->frame) &frame, VkDevice device, DeletionQueue& dq) {
+    //: sync objects
+    //      used to control the flow of operations when executing commands
+    //      + fence: gpu->cpu, wait from the cpu until a gpu operation has finished
+    //      + semaphore: gpu->gpu, can be signal or wait
+    //          · signal: operation locks semaphore when executing and unlocks after it is finished
+    //          · wait: wait until semaphore is unlocked to execute the command
+
+    //: semaphores (gpu->gpu)
+    //      + image available, locks when vkAcquireNextImageKHR() is getting a new image, then submits command buffer
+    //      + render finished, locks while the command buffer is in execution, then finishes frame
+    VkSemaphoreCreateInfo semaphore_info{
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    };
+
+    //: fences (gpu->cpu)
+    //      + frame in flight, waits until the frame is not in flight and can be writter again
+    //      + images in flight (allocated with swapchain), we need to track for each swapchain image if a frame in flight is currently using it, has size of swapchain
+    VkFenceCreateInfo fence_info{
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT
+    };
+
+    //: create sync objects
+    for_<0, engine_config.vk_frames_in_flight()>([&](auto i){
+        auto &f = frame.at(i);
+        VkResult result;
+        
+        result = vkCreateSemaphore(device, &semaphore_info, nullptr, &f.image_available_semaphore);
+        graphics_assert<int>(result == VK_SUCCESS, "failed to create the image available semaphore for frame {}", i);
+
+        result = vkCreateSemaphore(device, &semaphore_info, nullptr, &f.render_finished_semaphore);
+        graphics_assert<int>(result == VK_SUCCESS, "failed to create the render finished semaphore for frame {}", i);
+
+        result = vkCreateFence(device, &fence_info, nullptr, &f.fence_in_flight);
+        graphics_assert<int>(result == VK_SUCCESS, "failed to create the frame in flight fence for frame {}", i);
+
+        //: deletion queue
+        dq.push([device, ia_s = f.image_available_semaphore, rf_s = f.render_finished_semaphore, fif_f = f.fence_in_flight]{
+            vkDestroySemaphore(device, ia_s, nullptr);
+            vkDestroySemaphore(device, rf_s, nullptr);
+            vkDestroyFence(device, fif_f, nullptr);
+        });
+    });
+
+    log::graphics("initialized sync objects");
 }
 
 // ··········

@@ -54,6 +54,7 @@ namespace fresa::graphics
             
             std::vector<VkImageView> image_views;
             std::vector<VkImage> images;
+            std::vector<VkFence> fences_images_in_flight;
         };
 
         //* deletion queue
@@ -69,9 +70,9 @@ namespace fresa::graphics
             VkCommandPool command_pool = VK_NULL_HANDLE;
             VkCommandBuffer main_command_buffer = VK_NULL_HANDLE;
 
-            //VkSemaphore image_available_semaphore;
-            //VkSemaphore render_finished_semaphore;
-            //VkFence fence_in_flight;
+            VkSemaphore image_available_semaphore;
+            VkSemaphore render_finished_semaphore;
+            VkFence fence_in_flight;
 
             DeletionQueue deletion_queue_frame;
         };
