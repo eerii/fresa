@@ -61,7 +61,7 @@ namespace fresa::graphics::vk
 }
 
 // ·····························
-// · VULKAN SPECIFIC VARIABLES ·
+// · VULKAN SPECIFIC CONSTANTS ·
 // ·····························
 
 namespace fresa::graphics::vk

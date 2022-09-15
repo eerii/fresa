@@ -14,5 +14,9 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+//: spirv-cross, shader reflection and cross compilation
+#include "spirv_glsl.hpp"
+namespace spv_c = spirv_cross;
+
 //: standard types
 #include "std_types.h"

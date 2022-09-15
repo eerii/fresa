@@ -14,7 +14,6 @@ _the graphics engine_
 
 **vulkan todo**
 
-- create shader module
 - create shader pass
 - spirv setup
 - reflect descriptor layout bindings
@@ -37,6 +36,8 @@ _the graphics engine_
 - **changed** - now there are soft and strong assertions
 - **added** - monitor detection and refresh rates
 - **changed** - now the game loop sleeps if there is no work to do
+- **added** - create shader module
+- **added** - integrated spirv cross as a submodule
 
 #### [0.5.2] sync objects (13 sept 22_)
 
