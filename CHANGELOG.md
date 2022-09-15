@@ -14,12 +14,10 @@ _the graphics engine_
 
 **vulkan todo**
 
-- create shader pass
-- spirv setup
-- reflect descriptor layout bindings
 - create descriptor set
 - create descriptor resources
 - create pipelines
+- create shader pass
 - render passes, pipelines, shaders...
 - dont render into the swapchain directly (don't create fb for swapchain, instead blit image into it)
 
@@ -38,6 +36,7 @@ _the graphics engine_
 - **changed** - now the game loop sleeps if there is no work to do
 - **added** - create shader module
 - **added** - integrated spirv cross as a submodule
+- **added** - reflect descriptor layout bindings
 
 #### [0.5.2] sync objects (13 sept 22_)
 

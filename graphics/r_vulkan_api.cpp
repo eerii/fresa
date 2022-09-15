@@ -2,6 +2,8 @@
 //      this file includes the vulkan specific functions that extend the main api
 
 #include "r_api.h"
+#include "r_shaders.h"
+
 #include "string_utils.h"
 #include "fresa_assert.h"
 #include "engine.h"
