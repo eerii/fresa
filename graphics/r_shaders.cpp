@@ -1,7 +1,7 @@
 //* shaders
 //      different utilities relating to rendering shaders
 
-#include "r_api.h"
+#include "r_shaders.h"
 
 #include "file.h"
 #include "fresa_assert.h"
@@ -9,7 +9,7 @@
 using namespace fresa;
 
 //* get shader source from file
-std::vector<ui32> graphics::readSPIRV(str name, ShaderType type) {
+std::vector<ui32> graphics::shader::readSPIRV(str name, ShaderStage type) {
     //: calculate the path to the spirv file
     str path = file::path(fmt::format("shaders/{}/{}.{}.spv", name, name, shader_extensions.at((ui32)type)));
 
