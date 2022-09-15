@@ -62,9 +62,6 @@ void fresa::force_quit() {
 void fresa::detail::init() {
     log::debug("setting up the engine");
 
-    //: file initialization
-    file::init();
-
     //: system initialization
     system::init();
 }

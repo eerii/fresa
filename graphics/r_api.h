@@ -13,7 +13,7 @@ namespace fresa::graphics
     // ···················
 
     struct GraphicsSystem {
-        inline static System<GraphicsSystem, system::SystemPriority::FIRST> system;
+        inline static System<GraphicsSystem, system::SystemPriority::GRAPHICS> system;
         //: defined on r_*_api.cpp
         static void init();
         static void update();

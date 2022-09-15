@@ -28,6 +28,8 @@ namespace fresa::system
     //* system priorities
     enum struct SystemPriority {
         FIRST = 0,
+        FILES = 1,
+        GRAPHICS = 10,
         DEFAULT = 100,
         LAST = 200,
     };
