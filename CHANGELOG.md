@@ -13,7 +13,13 @@ _the graphics engine_
 
 **vulkan todo**
 
-- descriptor sets, shaders...
+- create shader module
+- create shader pass
+- spirv setup
+- reflect descriptor layout bindings
+- create descriptor set
+- create descriptor resources
+- create pipelines
 - render passes, pipelines, shaders...
 - dont render into the swapchain directly (don't create fb for swapchain, instead blit image into it)
 
@@ -25,6 +31,9 @@ _the graphics engine_
 - **added** - resource folder which automatically syncs to the binary folder
 - **added** - specific file system for macos
 - **added** - shader compilation during build using glslc
+- **changed** - moved window definitions to r_window.h and refactored the window code
+- **added** - new r_types.h for general graphics import
+- **changed** - now there are soft and strong assertions
 
 #### [0.5.2] sync objects (13 sept 22_)
 

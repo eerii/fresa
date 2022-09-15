@@ -1,10 +1,10 @@
 # [`assertions`](https://github.com/josekoalas/fresa/blob/main/tools/fresa_assert.h)
 
-To check if code is running propperly, **fresa** includes an assertion system. For code that can be checked at compile time, the standard `static_assert()` is recommended. However, for runtime code, it includes `fresa_assert()`. It is used like so:
+To check if code is running propperly, **fresa** includes an assertion system. For code that can be checked at compile time, the standard `static_assert()` is recommended. However, for runtime code, it includes `soft_assert()`. It is used like so:
 
 ```cpp
 void something(int i) {
-    fresa_assert(i > 0, "i must be greater than 0");
+    soft_assert(i > 0, "i must be greater than 0");
     // ...
 }
 ```
@@ -15,8 +15,10 @@ If you want to pass a formatted string, you can do so, but you must manually spe
 
 ```cpp
 void something(int i) {
-    fresa_assert<int>(i > 0, "i must be greater than 0: {}", i); //: correct
-    fresa_assert(i > 0, "i must be greater than 0: {}", i); //! error
+    soft_assert<int>(i > 0, "i must be greater than 0: {}", i); //: correct
+    soft_assert(i > 0, "i must be greater than 0: {}", i); //! error
     // ...
 }
 ```
+
+There is also a `strong_assert()`, which will not be disabled in release mode. It is meant to be used for error handling with nice messages. They will call force_quit instead of aborting the program, so the engine can be properly cleaned up. Do not use `soft_assert()` for critical error handling, since in release mode it will be disabled and the program will continue running.

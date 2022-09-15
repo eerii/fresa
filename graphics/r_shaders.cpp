@@ -2,7 +2,9 @@
 //      different utilities relating to rendering shaders
 
 #include "r_api.h"
+
 #include "file.h"
+#include "fresa_assert.h"
 
 using namespace fresa;
 
@@ -13,7 +15,7 @@ std::vector<ui32> graphics::readSPIRV(str name, ShaderType type) {
 
     //: open the file
     std::ifstream file(path, std::ios::ate | std::ios::binary);
-    graphics_assert<str_view>(file.is_open(), "failed to open shader file '{}'", path);
+    strong_assert<str_view>(file.is_open(), "failed to open shader file '{}'", path);
 
     //: create a ui32 buffer (suitable for spirv-cross)
     std::size_t file_size = file.tellg();

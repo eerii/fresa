@@ -1,18 +1,31 @@
 //* window
 //      handles window creation and management
 
+#include "r_window.h"
 #include "r_api.h"
+
+#include "engine.h"
 #include "fresa_config.h"
+#include "fresa_assert.h"
 
 using namespace fresa;
 
-graphics::Window graphics::createWindow() {
+//: initialize window using glfw
+graphics::Window graphics::window::create() {
+    //: window name
     const str name = fmt::format("{} - version {}.{}.{} - vulkan", engine_config.name(), engine_config.version()[0], engine_config.version()[1], engine_config.version()[2]);
     
+    //: create window
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE); //- temporary while developing the core engine
     GLFWwindow* w = glfwCreateWindow(config.window_size.x, config.window_size.y, name.c_str(), nullptr, nullptr);
-    graphics_assert(w, "failed to create a window");
+    strong_assert(w, "failed to create a window");
+
+    //: window callbacks
+    //      on close: quits when the window is closed
+    glfwSetWindowCloseCallback(w, [](GLFWwindow* window) { fresa::quit(); });
+    //      on resize: resizes the swapchain
+    glfwSetWindowSizeCallback(w, window::onResize);
 
     return Window{
         .window = w,
@@ -20,12 +33,7 @@ graphics::Window graphics::createWindow() {
     };
 }
 
-void graphics::resizeWindow(ui16 width, ui16 height) {
-    if (width == 0 or height == 0) return;
-    graphics_assert(win != nullptr, "window not initialized");
-
-    auto w = const_cast<Window*>(win.get());
-    w->size = Vec2<ui16>{width, height};
-
-    log::graphics("window resized to {}x{}", width, height);
+//: get current monitor
+GLFWmonitor* graphics::window::getMonitor() {
+    return glfwGetPrimaryMonitor(); //!!!!!!!!!!!!!!!!!
 }

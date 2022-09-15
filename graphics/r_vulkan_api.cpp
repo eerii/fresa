@@ -2,7 +2,6 @@
 //      this file includes the vulkan specific functions that extend the main api
 
 #include "r_api.h"
-#include "log.h"
 #include "string_utils.h"
 #include "fresa_assert.h"
 #include "engine.h"
@@ -46,7 +45,6 @@ namespace fresa::graphics::vk
     //: surface and swapchain
     VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window, DeletionQueue& dq);
     vk::Swapchain createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface, DeletionQueue& dq);
-    void resizeCallback(GLFWwindow* window, int width, int height);
 
     //: command pools
     void initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, DeletionQueue& dq);
@@ -89,22 +87,16 @@ namespace fresa::graphics::vk
 void GraphicsSystem::init() {
     //: initalize glfw
     glfwSetErrorCallback(vk::glfwErrorCallback);
-    graphics_assert(glfwInit(), "failed to initalize glfw");
+    strong_assert(glfwInit(), "failed to initalize glfw");
 
     //: check for vulkan support
-	graphics_assert(glfwVulkanSupported(), "a vulkan loader has not been found");
+	strong_assert(glfwVulkanSupported(), "a vulkan loader has not been found");
     int version = gladLoaderLoadVulkan(nullptr, nullptr, nullptr);
-    graphics_assert(version, "glad failed to load vulkan");
+    strong_assert(version, "glad failed to load vulkan");
     log::graphics("glad vulkan loader ({}.{})", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
     //: create window
-    win = std::make_unique<const Window>(createWindow());
-
-    //: window callbacks
-    //      on close: quits when the window is closed
-    glfwSetWindowCloseCallback(win->window, [](GLFWwindow* window) { fresa::quit(); });
-    //      on resize: resizes the swapchain
-    glfwSetWindowSizeCallback(win->window, vk::resizeCallback);
+    win = std::make_unique<const Window>(window::create());
 
     //: create vulkan api
     VulkanAPI vk_api;
@@ -112,7 +104,7 @@ void GraphicsSystem::init() {
     //: instance
     vk_api.instance = vk::createInstance(vk_api.deletion_queue_global);
     version = gladLoaderLoadVulkan(vk_api.instance, nullptr, nullptr);
-    graphics_assert(version, "glad failed to load the vulkan functions that require an instance");
+    strong_assert(version, "glad failed to load the vulkan functions that require an instance");
     #ifdef FRESA_DEBUG
     vk_api.debug_callback = vk::createDebugCallback(vk_api.instance, vk_api.deletion_queue_global);
     #endif
@@ -120,7 +112,7 @@ void GraphicsSystem::init() {
     //: gpu (physical device)
     vk_api.gpu = vk::selectGPU(vk_api.instance);
     version = gladLoaderLoadVulkan(vk_api.instance, vk_api.gpu.gpu, nullptr);
-    graphics_assert(version, "glad failed to load the extra vulkan extensions required by the gpu");
+    strong_assert(version, "glad failed to load the extra vulkan extensions required by the gpu");
 
     //: logical device
     vk_api.gpu.device = vk::createDevice(vk_api.gpu, vk_api.deletion_queue_global);
@@ -205,7 +197,7 @@ VkInstance vk::createInstance(DeletionQueue& dq) {
     //: create instance
     VkInstance instance;
     VkResult result = vkCreateInstance(&create_info, nullptr, &instance);
-    graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan instance: {}", result);
+    strong_assert<int>(result == VK_SUCCESS, "failed to create a vulkan instance: {}", result);
 
     dq.push([instance]{ vkDestroyInstance(instance, nullptr); });
     log::graphics("created a vulkan instance");
@@ -221,8 +213,8 @@ vk::GPU vk::selectGPU(VkInstance instance) {
     //: count devices
     ui32 gpu_count;
     VkResult result = vkEnumeratePhysicalDevices(instance, &gpu_count, nullptr);
-    graphics_assert<int>(result == VK_SUCCESS, "fatal error enumerating physical devices: {}", result);
-    graphics_assert(gpu_count > 0, "no physical devices found");
+    strong_assert<int>(result == VK_SUCCESS, "fatal error enumerating physical devices: {}", result);
+    strong_assert(gpu_count > 0, "no physical devices found");
     
     //: get the available gpus
     std::vector<VkPhysicalDevice> physical_devices(gpu_count);
@@ -246,7 +238,7 @@ vk::GPU vk::selectGPU(VkInstance instance) {
 
     //: get the gpu with the highest score
     auto it = std::max_element(gpus.begin(), gpus.end(), [](const auto& a, const auto& b) { return a.score < b.score; });
-    graphics_assert(it != gpus.end() and it->score > 0, "no suitable gpu found");
+    strong_assert(it != gpus.end() and it->score > 0, "no suitable gpu found");
 
     //: log the chosen gpu and the required device extensions
     log::graphics("gpu{}:", gpu_count > 1 ? "s" : "");
@@ -264,8 +256,8 @@ vk::GPU vk::selectGPU(VkInstance instance) {
 //      if the score returned is 0, the gpu is invalid, otherwise selectGPU will choose the one with the highest score
 int vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
     //: assertions to ensure the gpu is in a valid state
-    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
-    fresa_assert(gpu.score == -1, "the gpu has already been rated");
+    soft_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
+    soft_assert(gpu.score == -1, "the gpu has already been rated");
 
     int score = 16;
 
@@ -310,8 +302,8 @@ int vk::rateGPU(VkInstance instance, const vk::GPU &gpu) {
 //      the present and graphics queue can share the same index
 decltype(vk::GPU{}.queue_indices) vk::getQueueIndices(VkInstance instance, const vk::GPU &gpu) {
     //: assertions to ensure the gpu is in a valid state
-    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
-    fresa_assert(gpu.queue_indices.at((ui32)QueueIndices::GRAPHICS) == -1, "the queue indices for this gpu have already been found");
+    soft_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
+    soft_assert(gpu.queue_indices.at((ui32)QueueIndices::GRAPHICS) == -1, "the queue indices for this gpu have already been found");
 
     //: create the index array
     decltype(vk::GPU{}.queue_indices) indices;
@@ -355,9 +347,9 @@ decltype(vk::GPU{}.queue_indices) vk::getQueueIndices(VkInstance instance, const
 //      when creating the logical device, a list of extensions can be passed to enable certain features
 VkDevice vk::createDevice(const vk::GPU &gpu, DeletionQueue& dq) {
     //: assertions to ensure the gpu is in a valid state
-    fresa_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
-    fresa_assert(gpu.queue_indices.at((ui32)QueueIndices::GRAPHICS) != -1, "the gpu queue indices have not been initialized");
-    fresa_assert(gpu.device == VK_NULL_HANDLE, "the gpu device has already been initialized");
+    soft_assert(gpu.gpu != VK_NULL_HANDLE, "the gpu object has not been initialized");
+    soft_assert(gpu.queue_indices.at((ui32)QueueIndices::GRAPHICS) != -1, "the gpu queue indices have not been initialized");
+    soft_assert(gpu.device == VK_NULL_HANDLE, "the gpu device has already been initialized");
 
     //: get unique queue indices
     std::map<int, float> unique_queue_indices;
@@ -397,7 +389,7 @@ VkDevice vk::createDevice(const vk::GPU &gpu, DeletionQueue& dq) {
     //: create logical device
     VkDevice device;
     VkResult result = vkCreateDevice(gpu.gpu, &create_info, nullptr, &device);
-    graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan logical device: {}", result);
+    strong_assert<int>(result == VK_SUCCESS, "failed to create a vulkan logical device: {}", result);
 
     dq.push([device]{ vkDeviceWaitIdle(device); vkDestroyDevice(device, nullptr); });
     log::graphics("created a vulkan gpu device");
@@ -409,8 +401,8 @@ VkDevice vk::createDevice(const vk::GPU &gpu, DeletionQueue& dq) {
 //      the queue handles are used to submit commands to the gpu
 decltype(vk::GPU{}.queues) vk::getQueues(const vk::GPU &gpu) {
     //: assertions to ensure the gpu is in a valid state
-    fresa_assert(gpu.device != VK_NULL_HANDLE, "the gpu logical device has not been initialized");
-    fresa_assert(gpu.queues.size() == 0, "the gpu queue handles have already been initialized");
+    soft_assert(gpu.device != VK_NULL_HANDLE, "the gpu logical device has not been initialized");
+    soft_assert(gpu.queues.size() == 0, "the gpu queue handles have already been initialized");
     
     //: get unique queue indices
     std::set<int> unique_queue_indices;
@@ -451,7 +443,7 @@ VmaAllocator vk::createAllocator(VkInstance instance, const vk::GPU &gpu, Deleti
     //: create allocator
     VmaAllocator allocator;
     VkResult result = vmaCreateAllocator(&create_info, &allocator);
-    graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan vma allocator: {}", result);
+    strong_assert<int>(result == VK_SUCCESS, "failed to create a vulkan vma allocator: {}", result);
 
     dq.push([allocator]{ vmaDestroyAllocator(allocator); });
     log::graphics("created a vma allocator");
@@ -463,7 +455,7 @@ VmaAllocator vk::createAllocator(VkInstance instance, const vk::GPU &gpu, Deleti
 VkSurfaceKHR vk::createSurface(VkInstance instance, GLFWwindow* window, DeletionQueue& dq) {
     VkSurfaceKHR surface;
     VkResult result = glfwCreateWindowSurface(instance, window, nullptr, &surface);
-    graphics_assert<int>(result == VK_SUCCESS, "failed to create a vulkan surface: {}", result);
+    strong_assert<int>(result == VK_SUCCESS, "failed to create a vulkan surface: {}", result);
 
     dq.push([instance, surface]{ vkDestroySurfaceKHR(instance, surface, nullptr); });
     return surface;
@@ -567,7 +559,7 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
     //: create swapchain
     VkSwapchainKHR swapchain;
     VkResult result = vkCreateSwapchainKHR(gpu.device, &create_info, nullptr, &swapchain);
-    graphics_assert(result == VK_SUCCESS, "failed to create a vulkan swapchain");
+    strong_assert(result == VK_SUCCESS, "failed to create a vulkan swapchain");
 
     //: get swapchain images
     ui32 image_count;
@@ -588,7 +580,7 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
             .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1},
         };
         VkResult result = vkCreateImageView(gpu.device, &create_info, nullptr, &image_views.at(i));
-        graphics_assert(result == VK_SUCCESS, "failed to create a vulkan image view for the swapchain");
+        strong_assert(result == VK_SUCCESS, "failed to create a vulkan image view for the swapchain");
     }
 
     //: create swapchain object
@@ -615,22 +607,29 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
 }
 
 //* on window resize
-void vk::resizeCallback(GLFWwindow* window, int width, int height) {
-    if (width == 0 || height == 0) return;
+void window::onResize(GLFWwindow* window, int width, int height) {
+    if (width <= 0 || height <= 0) return;
+    soft_assert(win != nullptr, "window not initialized");
 
     //: wait for the gpu to finish
     vkDeviceWaitIdle(api->gpu.device);
 
-    //: call window resize
+    //: save the new size
     Vec2<ui16> previous_size = win->size;
-    resizeWindow((ui16)width, (ui16)height);
+    auto w = const_cast<Window*>(win.get());
+    w->size = Vec2<ui16>{(ui16)width, (ui16)height};
+
+    //: check the monitor again
+    w->monitor = window::getMonitor();
     
-    //: recreate swapchain
+    //: recreate swapchain (if size has changed)
     if (previous_size != win->size) {
         auto vk = const_cast<VulkanAPI*>(api.get());
         vk->deletion_queue_swapchain.clear();
         vk->swapchain = vk::createSwapchain(api->gpu, window, api->surface, vk->deletion_queue_swapchain);
     }
+
+    log::graphics("window resized to {}x{}", width, height);
 }
 
 //* initialize render commands
@@ -651,18 +650,18 @@ void vk::initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, Dele
 
     for_<0, engine_config.vk_frames_in_flight()>([&](auto i){
         //: checks for valid state
-        fresa_assert(frame.at(i).command_pool == VK_NULL_HANDLE, "command pool already initialized");
-        fresa_assert(frame.at(i).main_command_buffer == VK_NULL_HANDLE, "command buffer already initialized");
+        soft_assert(frame.at(i).command_pool == VK_NULL_HANDLE, "command pool already initialized");
+        soft_assert(frame.at(i).main_command_buffer == VK_NULL_HANDLE, "command buffer already initialized");
 
         //: create command pool
         VkResult result = vkCreateCommandPool(gpu.device, &create_info, nullptr, &frame.at(i).command_pool);
-        graphics_assert<int>(result == VK_SUCCESS, "failed to create the graphics command pool for frame {}", i);
+        strong_assert<int>(result == VK_SUCCESS, "failed to create the graphics command pool for frame {}", i);
 
         //: allocate the main command buffer used for rendering
         auto alloc = allocate_info;
         alloc.commandPool = frame.at(i).command_pool;
         result = vkAllocateCommandBuffers(gpu.device, &alloc, &frame.at(i).main_command_buffer);
-        graphics_assert<int>(result == VK_SUCCESS, "failed to allocate the main graphics command buffer for frame {}", i);
+        strong_assert<int>(result == VK_SUCCESS, "failed to allocate the main graphics command buffer for frame {}", i);
 
         //: deletion queue
         dq.push([command_pool = frame.at(i).command_pool, device = gpu.device]{
@@ -703,13 +702,13 @@ void vk::initFrameSync(decltype(api->frame) &frame, VkDevice device, DeletionQue
         VkResult result;
         
         result = vkCreateSemaphore(device, &semaphore_info, nullptr, &f.image_available_semaphore);
-        graphics_assert<int>(result == VK_SUCCESS, "failed to create the image available semaphore for frame {}", i);
+        strong_assert<int>(result == VK_SUCCESS, "failed to create the image available semaphore for frame {}", i);
 
         result = vkCreateSemaphore(device, &semaphore_info, nullptr, &f.render_finished_semaphore);
-        graphics_assert<int>(result == VK_SUCCESS, "failed to create the render finished semaphore for frame {}", i);
+        strong_assert<int>(result == VK_SUCCESS, "failed to create the render finished semaphore for frame {}", i);
 
         result = vkCreateFence(device, &fence_info, nullptr, &f.fence_in_flight);
-        graphics_assert<int>(result == VK_SUCCESS, "failed to create the frame in flight fence for frame {}", i);
+        strong_assert<int>(result == VK_SUCCESS, "failed to create the frame in flight fence for frame {}", i);
 
         //: deletion queue
         dq.push([device, ia_s = f.image_available_semaphore, rf_s = f.render_finished_semaphore, fif_f = f.fence_in_flight]{
@@ -782,7 +781,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk::debugCallback(VkDebugReportFlagsEXT flags, Vk
 
 //* create debug callback
 VkDebugReportCallbackEXT vk::createDebugCallback(VkInstance instance, DeletionQueue& dq) {
-    graphics_assert(vkCreateDebugReportCallbackEXT != nullptr, "vulkan debug callback function was not initialized");
+    soft_assert(vkCreateDebugReportCallbackEXT != nullptr, "vulkan debug callback function was not initialized");
 
     //: create info
     VkDebugReportCallbackCreateInfoEXT create_info{
@@ -794,7 +793,7 @@ VkDebugReportCallbackEXT vk::createDebugCallback(VkInstance instance, DeletionQu
     //: create callback
     VkDebugReportCallbackEXT callback;
     VkResult result = vkCreateDebugReportCallbackEXT(instance, &create_info, nullptr, &callback);
-    graphics_assert<std::size_t>(result == VK_SUCCESS, "fatal error creating a vulkan debug callback: {}", result);
+    strong_assert<std::size_t>(result == VK_SUCCESS, "fatal error creating a vulkan debug callback: {}", result);
 
     dq.push([instance, callback]{ vkDestroyDebugReportCallbackEXT(instance, callback, nullptr); });
     return callback;

@@ -3,16 +3,11 @@
 #pragma once
 
 #include "r_vulkan.h"
-
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-
-#include "std_types.h"
-#include "source_loc.h"
+#include "r_window.h"
 
 #include "engine.h"
 #include "system.h"
-#include "events.h"
+#include "source_loc.h"
 
 namespace fresa::graphics
 {
@@ -33,23 +28,8 @@ namespace fresa::graphics
         static void stop();
     };
 
-    // ··········
-    // · WINDOW ·
-    // ··········
-
-    //* window type
-    //      contains the main window reference and the relevant properties
-    struct Window {
-        GLFWwindow* window;
-        Vec2<ui16> size;
-    };
+    //: window object
     inline std::unique_ptr<const Window> win;
-
-    //* initialize window
-    Window createWindow();
-
-    //* resize callback
-    void resizeWindow(ui16 width, ui16 height);
 
     // ···········
     // · SHADERS ·
@@ -71,17 +51,4 @@ namespace fresa::graphics
     // ···············
     // · EXTRA TOOLS ·
     // ···············
-
-    //* graphics assertions
-    //      checks for errors, always enabled unlike regular assertions
-    //      also, unlike regular assertions, this one will call fresa::quit for a softer exit
-    template <typename ... T>
-    void graphics_assert(bool condition, fmt::format_string<T...> fs, T&& ...t, const detail::source_location &location = detail::source_location::current()) {
-        if (not condition) {
-            str_view file_name = location.file_name();
-            file_name = file_name.substr(file_name.find_last_of("/") + 1);
-            detail::log<"GRAPHICS ERROR", LogLevel::ERROR, fmt::color::red>("({}:{}) {}", file_name, location.line(), fmt::format(fs, std::forward<T>(t)...));
-            fresa::force_quit();
-        }
-    }
 }

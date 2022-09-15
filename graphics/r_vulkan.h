@@ -2,15 +2,7 @@
 //      contains all the vulkan specific data structures as well as the vulkan loader
 #pragma once
 
-//: glad vulkan loader
-#include <glad/vulkan.h>
-
-//: vulkan memory allocator (load funcions dinamically)
-#define VMA_STATIC_VULKAN_FUNCTIONS 0
-#define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
-#include "vk_mem_alloc.h"
-
-#include "std_types.h"
+#include "r_types.h"
 #include "fresa_config.h"
 
 #include <stack>
