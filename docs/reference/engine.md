@@ -10,7 +10,7 @@ void fresa::run()
 
 This is the main entrypoint of the engine. First it perform the tests defined in the configuration file (if enabled with `FRESA_ENABLE_TESTS`). Then calls [`init`](#init), which handles system initialization.
 
-Finally it calls the main `update` loop of the application. The simulation update is decoupled from the frame time, instead being increased in discrete steps of `dt`. This allows the engine to run independent of frame rate. The implementation is very similar to the one described in the [fix your timestep](https://gafferongames.com/post/fix_your_timestep) article.
+Finally it calls the main `update` loop of the application. The simulation update is decoupled from the frame time, instead being increased in discrete steps of `dt`. This allows the engine to run independent of frame rate. The implementation is very similar to the one described in the [fix your timestep](https://gafferongames.com/post/fix_your_timestep) article. It also includes a sleep function to avoid using 100% of the CPU if not necessary. It will limit the simulation checks to the value defined in the configuration file.
 
 ## `quit` and `force_quit`
 

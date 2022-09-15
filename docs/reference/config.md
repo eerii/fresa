@@ -91,6 +91,7 @@ void using_configuration() {
 | `enable_assertions` | `bool` | `false` |
 | `log_level` | `ui32` | `0b0000111` |
 | `ecs_page_size` | `ui32` | `256` |
+| `game_loop_wait` | `std::chrono::milliseconds` | `0.5ms` |
 | `res_path` | `str_view` | `"res"` |
 | `vk_frames_in_flight` | `ui8` | `2` |
 

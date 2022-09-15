@@ -86,12 +86,16 @@ void fresa::detail::update() {
     time_point new_time = time();
     auto frame_time = new_time - previous_time;
 
-    //: cap the frame different to avoid 'the spiral of death'
+    //: cap the frame difference to avoid 'the spiral of death'
     if (frame_time > 250ms) frame_time = 250ms;
 
     //: assign the new values to the previous time and the accumulator
     previous_time = new_time;
     accumulator += frame_time;
+
+    //: sleep to avoid wasting CPU time
+    if (fresa::dt > accumulator + engine_config.game_loop_wait())
+        std::this_thread::sleep_for(engine_config.game_loop_wait());
 
     //: update the simulation with discrete steps
     while (accumulator >= dt) {

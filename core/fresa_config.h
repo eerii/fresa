@@ -22,6 +22,7 @@
 
 #include "std_types.h"
 #include "fresa_math.h"
+#include "fresa_time.h"
 
 namespace fresa
 {
@@ -41,6 +42,8 @@ namespace fresa
 
         //: component pool page size
         constexpr ui32 virtual ecs_page_size() const { return 256; };
+        //: game loop wait time
+        constexpr decltype(1.0ms) virtual game_loop_wait() const { return 0.5ms; };
 
         //: assets path
         constexpr str_view virtual res_path() const { return "res"; };

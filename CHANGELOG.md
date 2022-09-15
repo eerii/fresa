@@ -36,6 +36,7 @@ _the graphics engine_
 - **added** - new r_types.h for general graphics import
 - **changed** - now there are soft and strong assertions
 - **added** - monitor detection and refresh rates
+- **changed** - now the game loop sleeps if there is no work to do
 
 #### [0.5.2] sync objects (13 sept 22_)
 
