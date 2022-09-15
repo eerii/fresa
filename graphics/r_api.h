@@ -15,12 +15,12 @@ namespace fresa::graphics
     // · GRAPHICS API ·
     // ················
 
-    //* graphics api object
+    //: graphics api object
     //      holds information specific to the graphics api currently rendering (vk, gl, ...)
     using GraphicsAPI = VulkanAPI;
     inline std::unique_ptr<const GraphicsAPI> api;
 
-    //* graphics system
+    //: graphics system
     struct GraphicsSystem {
         inline static System<GraphicsSystem, system::SystemPriority::FIRST> system;
         static void init();
@@ -35,20 +35,16 @@ namespace fresa::graphics
     // · SHADERS ·
     // ···········
 
-    //* shader types
+    //: shader types
     enum struct ShaderType {
         VERTEX,
         FRAGMENT,
         COMPUTE
     };
 
-    //* shader extensions
+    //: shader extensions
     constexpr auto shader_extensions = std::to_array<str_view>({ ".vert", ".frag", ".comp" });
 
-    //* read spirv code
+    //: read spirv code
     std::vector<ui32> readSPIRV(str name, ShaderType type);
-
-    // ···············
-    // · EXTRA TOOLS ·
-    // ···············
 }

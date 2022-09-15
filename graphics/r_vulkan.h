@@ -15,7 +15,7 @@ namespace fresa::graphics
 
     namespace vk
     {
-        //* indices of the queue families
+        //: indices of the queue families
         enum struct QueueIndices {
             GRAPHICS,
             PRESENT,
@@ -24,7 +24,7 @@ namespace fresa::graphics
             COUNT
         };
 
-        //* physical device, representation of a gpu
+        //: physical device, representation of a gpu
         struct GPU {
             VkPhysicalDevice gpu = VK_NULL_HANDLE;
             VkDevice device = VK_NULL_HANDLE;
@@ -39,7 +39,7 @@ namespace fresa::graphics
             int score = -1;
         };
 
-        //* swapchain information, necessary to present to the screen
+        //: swapchain information, necessary to present to the screen
         struct Swapchain {
             VkSwapchainKHR swapchain;
 
@@ -53,7 +53,7 @@ namespace fresa::graphics
             std::vector<VkFence> fences_images_in_flight;
         };
 
-        //* deletion queue
+        //: deletion queue
         //      called in reversed order of insertion to delete all resources without dependency issues
         struct DeletionQueue {
             std::stack<std::function<void()>> queue;
@@ -61,7 +61,7 @@ namespace fresa::graphics
             void clear() { while (!queue.empty()) { queue.top()(); queue.pop(); } }
         };
 
-        //* per frame data
+        //: per frame data
         struct FrameData {
             VkCommandPool command_pool = VK_NULL_HANDLE;
             VkCommandBuffer main_command_buffer = VK_NULL_HANDLE;
@@ -78,7 +78,7 @@ namespace fresa::graphics
     // · VULKAN API ·
     // ··············
 
-    //* vulkan data
+    //: vulkan data
     struct VulkanAPI {
         VkInstance instance;
         vk::GPU gpu;

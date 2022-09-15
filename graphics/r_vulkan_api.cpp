@@ -97,6 +97,7 @@ void GraphicsSystem::init() {
 
     //: create window
     win = std::make_unique<const Window>(window::create());
+    log::graphics("refresh rate: {}hz", window::getRefreshRate());
 
     //: create vulkan api
     VulkanAPI vk_api;
@@ -620,7 +621,7 @@ void window::onResize(GLFWwindow* window, int width, int height) {
     w->size = Vec2<ui16>{(ui16)width, (ui16)height};
 
     //: check the monitor again
-    w->monitor = window::getMonitor();
+    w->monitor = window::getMonitor(win->window);
     
     //: recreate swapchain (if size has changed)
     if (previous_size != win->size) {

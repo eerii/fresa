@@ -6,6 +6,7 @@ _the graphics engine_
 
 **todo**
 
+- multiple monitor testing
 - write documentation for the new renderer
 - think of what to do with regards to web builds, probably webgpu
 - new job system, look into std::async or the taskflow library (the work stealing queue)
@@ -34,6 +35,7 @@ _the graphics engine_
 - **changed** - moved window definitions to r_window.h and refactored the window code
 - **added** - new r_types.h for general graphics import
 - **changed** - now there are soft and strong assertions
+- **added** - monitor detection and refresh rates
 
 #### [0.5.2] sync objects (13 sept 22_)
 
