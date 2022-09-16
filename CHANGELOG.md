@@ -36,7 +36,8 @@ _the graphics engine_
 - **changed** - now the game loop sleeps if there is no work to do
 - **added** - create shader module
 - **added** - integrated spirv cross as a submodule
-- **added** - reflect descriptor layout bindings
+- **added** - reflect descriptor layout bindings abnd layout creation
+- **added** - descriptor pools
 
 #### [0.5.2] sync objects (13 sept 22_)
 

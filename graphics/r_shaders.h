@@ -67,6 +67,13 @@ namespace fresa::graphics
         std::vector<DescriptorLayoutBinding> bindings;
     };
 
+    //: descriptor set
+    struct DescriptorSet {
+        ui32 set_index;
+        VkDescriptorSetLayout layout;
+        std::array<VkDescriptorSet, engine_config.vk_frames_in_flight()> descriptors;
+    };
+
     // ···········
     // · SYSTEMS ·
     // ···········
@@ -83,16 +90,26 @@ namespace fresa::graphics
         //      it has to revert all the bits in the shader code since spirv cross takes it that way
         spv_c::CompilerGLSL createCompiler(std::vector<ui32> code);
 
-        //: use spirv reflection to automatically get the descriptor set layout bindings
-        std::vector<DescriptorLayoutBinding> getDescriptorBindings(const spv_c::CompilerGLSL& compiler, ShaderStage stage);
-
-        //* vulkan shader components
+        //* shader modules
 
         //: create vulkan shader module from spirv code
         VkShaderModule createVkShader(const std::vector<ui32>& code);
 
         //: create shader module object
         ShaderModule createModule(str name, ShaderStage stage);
+
+        //* descriptor sets
+
+        //: use spirv reflection to automatically get the descriptor set layout bindings
+        std::vector<DescriptorLayoutBinding> getDescriptorBindings(const spv_c::CompilerGLSL& compiler, ShaderStage stage);
+
+        //: create vulkan descriptor set layout from the bindings
+        std::unordered_map<ui32, VkDescriptorSetLayout> createDescriptorLayout(const std::vector<ShaderModule> &stages);
+
+        //: create descriptor pool
+        VkDescriptorPool createDescriptorPool();
+
+        //* shader pass
 
         //: create a shader pass from one or more shader modules, also does reflection on descriptor layouts
         //- ShaderPass createPass(str name);

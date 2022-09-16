@@ -90,6 +90,8 @@ namespace fresa::graphics
 
         std::array<vk::FrameData, engine_config.vk_frames_in_flight()> frame;
 
+        std::vector<VkDescriptorPool> descriptor_pools;
+
         vk::DeletionQueue deletion_queue_global;
         vk::DeletionQueue deletion_queue_swapchain;
 

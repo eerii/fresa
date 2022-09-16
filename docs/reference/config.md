@@ -94,6 +94,7 @@ void using_configuration() {
 | `game_loop_wait` | `std::chrono::milliseconds` | `0.5ms` |
 | `res_path` | `str_view` | `"res"` |
 | `vk_frames_in_flight` | `ui8` | `2` |
+| `vk_descriptor_pool_max_sets` | `ui32` | `256` |
 
 **run**
 

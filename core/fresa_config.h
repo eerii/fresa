@@ -50,6 +50,7 @@ namespace fresa
 
         //: rendering configurations
         constexpr ui8 virtual vk_frames_in_flight() const { return 2; };
+        constexpr ui32 virtual vk_descriptor_pool_max_sets() const { return 256; };
     };
 
     //* run config (run time)
