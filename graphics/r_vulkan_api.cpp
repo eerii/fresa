@@ -136,6 +136,11 @@ void GraphicsSystem::init() {
 
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const VulkanAPI>(std::move(vk_api));
+
+    auto v = shader::createModule("test", ShaderStage::VERTEX);
+    auto f = shader::createModule("test", ShaderStage::FRAGMENT);
+    auto d = shader::createDescriptorSets({v, f});
+    log::info("{}", d.size());
 }
 
 //* create vulkan instance
@@ -610,6 +615,7 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
 }
 
 //* on window resize
+//      called when the window changes shape, it is used to recreate the swapchain and all related resources
 void window::onResize(GLFWwindow* window, int width, int height) {
     if (width <= 0 || height <= 0) return;
     soft_assert(win != nullptr, "window not initialized");
@@ -636,6 +642,13 @@ void window::onResize(GLFWwindow* window, int width, int height) {
 }
 
 //* initialize render commands
+//      we need to create a command pool and command buffers per each frame in flight, so multiple frames can be worked on parallel
+//      vulkan allows for multithread rendering, with a set of rules to mantain syncronization:
+//          + command buffers from one pool may not be recorded simultaneously from different threads
+//          + command buffers and pools can't be destroyed while the gpu is executing them
+//      this means that we can have f*t command pools (f = frames in flight, t = threads) to avoid any of the previous conditions
+//      however, since parallel recording only starts to be useful when there are many draw calls, we will only record from one thread and leave it for later
+//      ? look into multi-threading command buffer recording
 void vk::initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, DeletionQueue& dq) {
     //: create info for graphics command pools
     VkCommandPoolCreateInfo create_info{
@@ -676,14 +689,12 @@ void vk::initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, Dele
 }
 
 //* initialize syncronization objects
+//      used to control the flow of operations when executing commands
+//      + fence: gpu->cpu, wait from the cpu until a gpu operation has finished
+//      + semaphore: gpu->gpu, can be signal or wait
+//          · signal: operation locks semaphore when executing and unlocks after it is finished
+//          · wait: wait until semaphore is unlocked to execute the command
 void vk::initFrameSync(decltype(api->frame) &frame, VkDevice device, DeletionQueue& dq) {
-    //: sync objects
-    //      used to control the flow of operations when executing commands
-    //      + fence: gpu->cpu, wait from the cpu until a gpu operation has finished
-    //      + semaphore: gpu->gpu, can be signal or wait
-    //          · signal: operation locks semaphore when executing and unlocks after it is finished
-    //          · wait: wait until semaphore is unlocked to execute the command
-
     //: semaphores (gpu->gpu)
     //      + image available, locks when vkAcquireNextImageKHR() is getting a new image, then submits command buffer
     //      + render finished, locks while the command buffer is in execution, then finishes frame
@@ -760,7 +771,7 @@ void vk::glfwErrorCallback(int error, const char *description) {
 #ifdef FRESA_DEBUG
 //* vulkan debug callback
 VKAPI_ATTR VkBool32 VKAPI_CALL vk::debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT obj_type, ui64 obj, std::size_t location, int code, const char* layer_prefix, const char* msg, void* user_data) {
-    str message = msg;
+    str_view message = msg;
 
     //: pretty formatting
     std::size_t i_object, i_error, i_spec, i_web;

@@ -25,6 +25,8 @@ namespace fresa::graphics
         };
 
         //: physical device, representation of a gpu
+        //      contains key vulkan structures, such as the gpu (physical device) and the logical device, which are used in almost every function
+        //      there is also some important information about the gpu capabilities and extensions, as well as a list of available queues
         struct GPU {
             VkPhysicalDevice gpu = VK_NULL_HANDLE;
             VkDevice device = VK_NULL_HANDLE;
@@ -39,7 +41,9 @@ namespace fresa::graphics
             int score = -1;
         };
 
-        //: swapchain information, necessary to present to the screen
+        //: swapchain
+        //      it is what we use to present images to the screen
+        //      must be recreated when the window changes
         struct Swapchain {
             VkSwapchainKHR swapchain;
 
@@ -62,6 +66,8 @@ namespace fresa::graphics
         };
 
         //: per frame data
+        //      since we can have multiple frames in flight (for ex. one being worked on by the cpu and one being presented by the gpu)
+        //      we need to have some resources that are unique to each frame, such as command pools and syncronization objects
         struct FrameData {
             VkCommandPool command_pool = VK_NULL_HANDLE;
             VkCommandBuffer main_command_buffer = VK_NULL_HANDLE;
@@ -80,21 +86,28 @@ namespace fresa::graphics
 
     //: vulkan data
     struct VulkanAPI {
+        //: initialization structures
         VkInstance instance;
         vk::GPU gpu;
         
+        //: memory allocator (using vma)
         VmaAllocator allocator;
 
+        //: presentation
         VkSurfaceKHR surface;
         vk::Swapchain swapchain;
 
+        //: per frame data
         std::array<vk::FrameData, engine_config.vk_frames_in_flight()> frame;
 
+        //: descriptors
         std::vector<VkDescriptorPool> descriptor_pools;
 
+        //: deletion queues
         vk::DeletionQueue deletion_queue_global;
         vk::DeletionQueue deletion_queue_swapchain;
 
+        //: debug
         VkDebugReportCallbackEXT debug_callback;
     };
 }

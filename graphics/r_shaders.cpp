@@ -11,6 +11,31 @@
 using namespace fresa;
 using namespace graphics;
 
+// ····························
+// · IMPLEMENTATION FUNCTIONS ·
+// ····························
+
+namespace fresa::graphics::shader::detail
+{
+    //: read spirv code from .spv file
+    std::vector<ui32> readSPIRV(str_view name, ShaderStage stage);
+
+    //: create spirv cross compiler from the code
+    //      this is used to get the reflection data from the shader
+    //      it has to revert all the bits in the shader code since spirv cross takes it that way
+    spv_c::CompilerGLSL createCompiler(std::vector<ui32> code);
+
+    //: create vulkan shader module from the code
+    VkShaderModule createVkShader(const std::vector<ui32>& code);
+
+    //: use spirv reflection to automatically get the descriptor set layout bindings
+    std::vector<DescriptorLayoutBinding> getDescriptorBindings(const spv_c::CompilerGLSL& compiler, ShaderStage stage);
+
+    //: create vulkan descriptor set layout from the bindings
+    std::unordered_map<ui32, VkDescriptorSetLayout> createDescriptorLayout(const std::vector<ShaderModule> &stages);
+}
+
+
 // ·········
 // · SPIRV ·
 // ·········
@@ -18,7 +43,7 @@ using namespace graphics;
 //* get shader source from file
 //      reads the shader source from a .spv file, which must have already been compiled to spirv
 //      spirv is the binary shader format which is used by vulkan
-std::vector<ui32> shader::readSPIRV(str name, ShaderStage stage) {
+std::vector<ui32> shader::detail::readSPIRV(str_view name, ShaderStage stage) {
     //: calculate the path to the spirv file
     str path = file::path(fmt::format("shaders/{}/{}.{}.spv", name, name, shader_stages.at((ui32)stage).extension));
 
@@ -43,7 +68,7 @@ std::vector<ui32> shader::readSPIRV(str name, ShaderStage stage) {
 //      a compiler is a tool spirv cross provides that can be used to get reflection data from the shader's code
 //      it can also be used for cross compilation, for example, to turn spirv back to glsl for opengl
 //      when cross compiling, it can also alter the shader code to make it compatible with previous versions or another api such as webgl
-spv_c::CompilerGLSL shader::createCompiler(std::vector<ui32> code) {
+spv_c::CompilerGLSL shader::detail::createCompiler(std::vector<ui32> code) {
     //: revert the bytes in each ui32 (necessary for spirv-cross)
     for (auto i : code) {
         ui8 *istart = (ui8*)&i, *iend = (ui8*)&i + sizeof(ui32) / sizeof(ui8);
@@ -60,7 +85,7 @@ spv_c::CompilerGLSL shader::createCompiler(std::vector<ui32> code) {
 
 //* create vulkan shader representation
 //      a vk shader module is a vulkan object that represents the underlying shader code for one stage
-VkShaderModule shader::createVkShader(const std::vector<ui32>& code) {
+VkShaderModule shader::detail::createVkShader(const std::vector<ui32>& code) {
     soft_assert(api != nullptr, "the graphics api is not initialized");
 
     //: create info
@@ -81,21 +106,21 @@ VkShaderModule shader::createVkShader(const std::vector<ui32>& code) {
 
 //* create shader module object
 //      not to be confused with a vk shader module, this is a wrapper type that contains the vk module, the stage it represents and the reflected bindings
-ShaderModule shader::createModule(str name, ShaderStage stage) {
+ShaderModule shader::createModule(str_view name, ShaderStage stage) {
     ShaderModule sm;
 
     //: read the spirv code and create compiler
-    auto code = readSPIRV(name, stage);
-    auto compiler = createCompiler(code);
+    auto code = detail::readSPIRV(name, stage);
+    auto compiler = detail::createCompiler(code);
 
     //: create the vulkan shader
-    sm.module = createVkShader(code);
+    sm.module = detail::createVkShader(code);
 
     //: set stage
     sm.stage = stage;
 
     //: get descriptor layout bindings
-    sm.bindings = getDescriptorBindings(compiler, stage);
+    sm.bindings = detail::getDescriptorBindings(compiler, stage);
     
     return sm;
 }
@@ -109,7 +134,7 @@ ShaderModule shader::createModule(str name, ShaderStage stage) {
 //      a binding is a resource we attach to the shader, for example, an uniform buffer or a texture
 //      each binding has a binding number, which must be unique inside the set, and a descriptor name
 //      we use the spirv compiler to get the shader resources and process them into a list of bindings
-std::vector<DescriptorLayoutBinding> shader::getDescriptorBindings(const spv_c::CompilerGLSL& compiler, ShaderStage stage) {
+std::vector<DescriptorLayoutBinding> shader::detail::getDescriptorBindings(const spv_c::CompilerGLSL& compiler, ShaderStage stage) {
     //: get the reflection resources
     //      a resource is one input/output of the shader, for example a uniform buffer or a texture
     spv_c::ShaderResources resources = compiler.get_shader_resources();
@@ -167,7 +192,7 @@ std::vector<DescriptorLayoutBinding> shader::getDescriptorBindings(const spv_c::
 //      once we have the reflected bindings, we can encapsule them in the vulkan descriptor layout object
 //      for that, we first group the bindings by set, and join bindings in multiple stages on a same entry
 //      then, we return a map of the set number to the associated layout object, to be used for descriptor set creation
-std::unordered_map<ui32, VkDescriptorSetLayout> shader::createDescriptorLayout(const std::vector<ShaderModule> &stages) {
+std::unordered_map<ui32, VkDescriptorSetLayout> shader::detail::createDescriptorLayout(const std::vector<ShaderModule> &stages) {
     soft_assert(api != nullptr, "the graphics api is not initialized");
 
     //: we are going to order the bindings by set, merging bindings from each stage, and transforming them into vulkan structures
@@ -226,7 +251,7 @@ std::unordered_map<ui32, VkDescriptorSetLayout> shader::createDescriptorLayout(c
 //      + allocate sets once at the start of the program, and then use them each time
 //        this is what we are doing here, so we can know the exact pool size and destroy the pool at the end
 //      + allocate sets per frame, this can be implemented in the future
-//        tt can be cheap using VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT and resetting the entire pool per frame
+//        it can be cheap using VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT and resetting the entire pool per frame
 //        we would have a list of descriptor pools with big sizes for each type of descriptor, and if an allocation fails,
 //        just create another pool and add it to the list. at the end of the frame all of them get deleted.
 VkDescriptorPool shader::createDescriptorPool() {
@@ -258,4 +283,56 @@ VkDescriptorPool shader::createDescriptorPool() {
     //: cleanup and return
     const_cast<GraphicsAPI*>(api.get())->deletion_queue_global.push([pool]() { vkDestroyDescriptorPool(api->gpu.device, pool, nullptr); });
     return pool;
+}
+
+//* create descriptor sets
+//      a descriptor set is a collection of descriptors that can be bound to a pipeline
+//      it specifies the resources used by the shader with a series of bindings
+std::vector<DescriptorSet> shader::createDescriptorSets(const std::vector<ShaderModule> &stages) {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+
+    //: get descriptor layouts
+    auto layouts = detail::createDescriptorLayout(stages);
+
+    //: initialize pools if they are empty
+    auto &pools = const_cast<GraphicsAPI*>(api.get())->descriptor_pools;
+    if (pools.empty())
+        pools.push_back(createDescriptorPool());
+
+    //: create descriptor sets
+    std::vector<DescriptorSet> sets;
+    for (const auto &[set, layout] : layouts) {
+        //: allocate info
+        std::array<VkDescriptorSetLayout, engine_config.vk_frames_in_flight()> layouts;
+        std::fill(layouts.begin(), layouts.end(), layout);
+        VkDescriptorSetAllocateInfo alloc_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .descriptorPool = pools.back(),
+            .descriptorSetCount = engine_config.vk_frames_in_flight(),
+            .pSetLayouts = layouts.data()
+        };
+
+        //: try allocation
+        std::array<VkDescriptorSet, engine_config.vk_frames_in_flight()> descriptors{};
+        VkResult result = vkAllocateDescriptorSets(api->gpu.device, &alloc_info, descriptors.data());
+
+        //: if allocation failed with out of pool memory, create a new pool and try again
+        if (result == VK_ERROR_OUT_OF_POOL_MEMORY) {
+            pools.push_back(createDescriptorPool());
+            alloc_info.descriptorPool = pools.back();
+            result = vkAllocateDescriptorSets(api->gpu.device, &alloc_info, descriptors.data());
+        }
+
+        //: check if allocation worked finally
+        strong_assert(result == VK_SUCCESS, "failed to allocate descriptor sets");
+
+        //: add to the list
+        sets.push_back({
+            .set_index = set,
+            .layout = layout,
+            .descriptors = descriptors
+        });
+    }
+
+    return sets;
 }
