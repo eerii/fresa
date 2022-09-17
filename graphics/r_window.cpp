@@ -2,7 +2,6 @@
 //      handles window creation and management
 
 #include "r_window.h"
-#include "r_api.h"
 
 #include "engine.h"
 #include "fresa_config.h"

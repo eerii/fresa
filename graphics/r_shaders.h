@@ -2,7 +2,7 @@
 //      includes the spv shader loading and compilation functions, as well as the datatypes for representing them
 #pragma once
 
-#include "r_types.h"
+#include "r_api.h"
 #include "fresa_config.h"
 
 namespace fresa::graphics
@@ -65,7 +65,7 @@ namespace fresa::graphics
     //: shader module
     //      encapsulates a vulkan shader module (the compiled shader), as well as the stage it belongs to and reflection data
     struct ShaderModule {
-        VkShaderModule module;
+        VkShaderModule module = VK_NULL_HANDLE;
         ShaderStage stage;
         std::vector<DescriptorLayoutBinding> bindings;
     };
@@ -74,7 +74,7 @@ namespace fresa::graphics
     //      contains a descriptor set list (one per frame in flight) and its layout and set index
     struct DescriptorSet {
         ui32 set_index;
-        VkDescriptorSetLayout layout;
+        VkDescriptorSetLayout layout = VK_NULL_HANDLE;
         std::array<VkDescriptorSet, engine_config.vk_frames_in_flight()> descriptors;
     };
 
@@ -84,8 +84,8 @@ namespace fresa::graphics
     struct ShaderPass {
         std::vector<ShaderModule> stages;
         std::vector<DescriptorSet> descriptors;
-        VkPipelineLayout pipeline_layout;
-        VkPipeline pipeline;
+        VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+        VkPipeline pipeline = VK_NULL_HANDLE;
     };
 
     // ···········

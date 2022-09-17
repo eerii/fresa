@@ -25,6 +25,7 @@ _the graphics engine_
 #### [0.5.4] pipelines (00 sept 22_)
 
 - **added** - pipeline layout
+- **changed** - moved r_vulkan and r_types contents to r_api and renamed r_vulkan_api to r_api_vulkan
 
 #### [0.5.3] shaders and spirv (17 sept 22_)
 

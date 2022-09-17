@@ -3,6 +3,7 @@
 
 #include "r_api.h"
 #include "r_shaders.h"
+#include "r_window.h"
 
 #include "string_utils.h"
 #include "fresa_assert.h"
@@ -102,7 +103,7 @@ void GraphicsSystem::init() {
     log::graphics("refresh rate: {}hz", window::getRefreshRate());
 
     //: create vulkan api
-    VulkanAPI vk_api;
+    vk::VulkanAPI vk_api;
 
     //: instance
     vk_api.instance = vk::createInstance(vk_api.deletion_queue_global);
@@ -135,7 +136,7 @@ void GraphicsSystem::init() {
     initFrameSync(vk_api.frame, vk_api.gpu.device, vk_api.deletion_queue_global);
 
     //: save the api pointer, can't be modified after this point
-    api = std::make_unique<const VulkanAPI>(std::move(vk_api));
+    api = std::make_unique<const vk::VulkanAPI>(std::move(vk_api));
 
     shader::createPass("test");
 }
@@ -630,7 +631,7 @@ void window::onResize(GLFWwindow* window, int width, int height) {
     
     //: recreate swapchain (if size has changed)
     if (previous_size != win->size) {
-        auto vk = const_cast<VulkanAPI*>(api.get());
+        auto vk = const_cast<vk::VulkanAPI*>(api.get());
         vk->deletion_queue_swapchain.clear();
         vk->swapchain = vk::createSwapchain(api->gpu, window, api->surface, vk->deletion_queue_swapchain);
     }
@@ -747,7 +748,7 @@ void GraphicsSystem::update() {
 //* stop the vulkan api
 void GraphicsSystem::stop() {
     //: clear the deletion queues in reverse order
-    auto vk = const_cast<VulkanAPI*>(api.get());
+    auto vk = const_cast<vk::VulkanAPI*>(api.get());
     vk->deletion_queue_swapchain.clear();
     vk->deletion_queue_global.clear();
 

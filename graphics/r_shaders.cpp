@@ -2,7 +2,6 @@
 //      different utilities relating to rendering shaders
 
 #include "r_shaders.h"
-#include "r_api.h"
 
 #include "file.h"
 #include "fresa_assert.h"
