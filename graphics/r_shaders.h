@@ -12,14 +12,14 @@ namespace fresa::graphics
     // ···············
 
     //: shader stages
-    struct ShaderStageData {
-        str_view extension;
-        VkShaderStageFlagBits stage;
-    };
     enum struct ShaderStage {
         VERTEX,
         FRAGMENT,
         COMPUTE
+    };
+    struct ShaderStageData {
+        str_view extension;
+        VkShaderStageFlagBits stage;
     };
     constexpr inline auto shader_stages = std::to_array<ShaderStageData>({
         {"vert", VK_SHADER_STAGE_VERTEX_BIT},
@@ -50,6 +50,8 @@ namespace fresa::graphics
     // ·············
 
     //: descriptor set layout binding
+    //      contains information about a shader binding, populated by spirv reflection
+    //      can be translated to a vkDescriptorSetLayoutBinding, but includes useful extra information
     struct DescriptorLayoutBinding {
         ui32 binding;
         ui32 set;
@@ -61,6 +63,7 @@ namespace fresa::graphics
     };
 
     //: shader module
+    //      encapsulates a vulkan shader module (the compiled shader), as well as the stage it belongs to and reflection data
     struct ShaderModule {
         VkShaderModule module;
         ShaderStage stage;
@@ -68,10 +71,21 @@ namespace fresa::graphics
     };
 
     //: descriptor set
+    //      contains a descriptor set list (one per frame in flight) and its layout and set index
     struct DescriptorSet {
         ui32 set_index;
         VkDescriptorSetLayout layout;
         std::array<VkDescriptorSet, engine_config.vk_frames_in_flight()> descriptors;
+    };
+
+    //: shader pass
+    //      it is a representation of a built vulkan pipeline. it contains the pipeline, its layout and the descriptor sets and modules needed to use it
+    //      this is the final encapsulation step for a shader, and contains all the necessary information to render with it
+    struct ShaderPass {
+        std::vector<ShaderModule> stages;
+        std::vector<DescriptorSet> descriptors;
+        VkPipelineLayout pipeline_layout;
+        VkPipeline pipeline;
     };
 
     // ···········
@@ -87,9 +101,9 @@ namespace fresa::graphics
         VkDescriptorPool createDescriptorPool();
 
         //: create descriptor sets
-        std::vector<DescriptorSet> createDescriptorSets(const std::vector<ShaderModule> &stages);
+        std::vector<DescriptorSet> allocateDescriptorSets(const std::vector<ShaderModule> &stages);
 
-        //: create a shader pass from one or more shader modules, also does reflection on descriptor layouts
-        //- ShaderPass createPass(str_view name);
+        //: create a shader pass from the given shader name
+        ShaderPass createPass(str_view name);
     }
 }

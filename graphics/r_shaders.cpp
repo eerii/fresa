@@ -33,6 +33,13 @@ namespace fresa::graphics::shader::detail
 
     //: create vulkan descriptor set layout from the bindings
     std::unordered_map<ui32, VkDescriptorSetLayout> createDescriptorLayout(const std::vector<ShaderModule> &stages);
+
+    //: pipeline layout creation
+    VkPipelineLayout createPipelineLayout(const std::vector<VkDescriptorSetLayout> &descriptor_layout, const std::vector<VkPushConstantRange> &push_constants);
+
+    //: build pipeline (draw or compute)
+    VkPipeline buildDrawPipeline();
+    VkPipeline buildComputePipeline();
 }
 
 
@@ -288,7 +295,7 @@ VkDescriptorPool shader::createDescriptorPool() {
 //* create descriptor sets
 //      a descriptor set is a collection of descriptors that can be bound to a pipeline
 //      it specifies the resources used by the shader with a series of bindings
-std::vector<DescriptorSet> shader::createDescriptorSets(const std::vector<ShaderModule> &stages) {
+std::vector<DescriptorSet> shader::allocateDescriptorSets(const std::vector<ShaderModule> &stages) {
     soft_assert(api != nullptr, "the graphics api is not initialized");
 
     //: get descriptor layouts
@@ -335,4 +342,93 @@ std::vector<DescriptorSet> shader::createDescriptorSets(const std::vector<Shader
     }
 
     return sets;
+}
+
+// ·············
+// · PIPELINES ·
+// ·············
+
+//* create pipeline layout
+//      holds the information of the descriptor set layouts that we created earlier
+//      this allows to reference uniforms or images at draw time and change them without recreating the pipeline
+VkPipelineLayout shader::detail::createPipelineLayout(const std::vector<VkDescriptorSetLayout> &descriptor_layout, const std::vector<VkPushConstantRange> &push_constants) {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+    
+    //: create info
+    VkPipelineLayoutCreateInfo layout_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = (ui32)descriptor_layout.size(),
+        .pSetLayouts = descriptor_layout.data(),
+        .pushConstantRangeCount = (ui32)push_constants.size(),
+        .pPushConstantRanges = push_constants.data()
+    };
+
+    //: create pipeline layout
+    VkPipelineLayout layout;
+    VkResult result = vkCreatePipelineLayout(api->gpu.device, &layout_info, nullptr, &layout);
+    strong_assert(result == VK_SUCCESS, "failed to create a pipeline layout");
+
+    //: cleanup and return
+    const_cast<GraphicsAPI*>(api.get())->deletion_queue_global.push([layout]() { vkDestroyPipelineLayout(api->gpu.device, layout, nullptr); });
+    return layout;
+}
+
+//* build draw pipeline
+//      - todo
+VkPipeline shader::detail::buildDrawPipeline() {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+
+    return VK_NULL_HANDLE;
+}
+
+//* build compute pipeline
+//      - todo
+VkPipeline shader::detail::buildComputePipeline() {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+
+    return VK_NULL_HANDLE;
+}
+
+//* create shader pass
+//      a shader pass is a collection of shaders that are compiled to a pipeline
+//      it is the final step in the shader compilation process, producing an object that contains all information needed to render
+ShaderPass shader::createPass(str_view name) {
+    ShaderPass pass{};
+
+    //: get the shader path from the name
+    std::optional<str> path = file::optional_path(fmt::format("shaders/{}/", name));
+    strong_assert<str_view>(path.has_value(), "the shader path 'shaders/{}/' does not exist", std::forward<str_view>(name));
+
+    //: find all the available modules in the shader path
+    for (const auto &f : fs::recursive_directory_iterator(path.value())) {
+        //: only check for .spv shaders
+        if (f.path().extension() != ".spv")
+            continue;
+        
+        //: get the shader stage
+        auto s = split(f.path().stem().string(), '.') | ranges::to_vector;
+        strong_assert<str_view>(s.size() == 2, "invalid shader name '{}', it must be file.extension.spv", f.path().stem().string());
+        auto it = std::find_if(shader_stages.begin(), shader_stages.end(), [s](const auto &stage){ return s.at(1) == stage.extension; });
+        strong_assert<str_view>(it != shader_stages.end(), "invalid shader extension '.{}'", std::forward<str_view>(s.at(1)));
+        
+        //: add the module to the pass
+        pass.stages.push_back(createModule(name, (ShaderStage)std::distance(shader_stages.begin(), it)));
+    }
+    strong_assert<str_view>(not pass.stages.empty(), "the shader path 'shaders/{}/' does not contain any shaders", std::forward<str_view>(name));
+
+    //: create the descriptor sets
+    pass.descriptors = allocateDescriptorSets(pass.stages);
+
+    //: create the pipeline layout
+    std::vector<VkDescriptorSetLayout> descriptor_layouts = pass.descriptors | rv::transform([](const auto &d){ return d.layout; }) | ranges::to_vector;
+    pass.pipeline_layout = detail::createPipelineLayout(descriptor_layouts, {});
+
+    //: check if it is draw or compute
+    bool is_compute = ranges::any_of(pass.stages, [](const auto &stage){ return stage.stage == ShaderStage::COMPUTE; });
+    soft_assert<str_view>(not (is_compute and ranges::any_of(pass.stages, [](const auto &stage){ return stage.stage == ShaderStage::VERTEX or stage.stage == ShaderStage::FRAGMENT; })), "you cannot mix compute and draw shaders under the same shader pass '{}'", std::forward<str_view>(name));
+
+    //- create the pipeline
+    pass.pipeline = is_compute ? detail::buildComputePipeline() : detail::buildDrawPipeline();
+
+    return pass;
 }

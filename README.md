@@ -1,6 +1,6 @@
 # fresa :strawberry:
 
-<a href="https://github.com/josekoalas/fresa/blob/main/CHANGELOG.md"><img alt="changelog" src="https://img.shields.io/badge/changelog-0.5.3-4673db?style=pl"/></a>
+<a href="https://github.com/josekoalas/fresa/blob/main/CHANGELOG.md"><img alt="changelog" src="https://img.shields.io/badge/changelog-0.5.4-4673db?style=pl"/></a>
 [![build](https://github.com/josekoalas/mermelada/actions/workflows/cmake.yml/badge.svg)](https://github.com/josekoalas/mermelada/actions/workflows/cmake.yml)
 
 A tiny game engine made in `c++20`.

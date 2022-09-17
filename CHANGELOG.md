@@ -14,16 +14,19 @@ _the graphics engine_
 
 **vulkan todo**
 
-- create descriptor set
-- create descriptor resources
 - create pipelines
-- create shader pass
-- render passes, pipelines, shaders...
+- buffers
+- create descriptor resources
+- render passes...
 - dont render into the swapchain directly (don't create fb for swapchain, instead blit image into it)
 
 ---
 
-#### [0.5.3] shaders and spirv (00 sept 22_)
+#### [0.5.4] pipelines (00 sept 22_)
+
+- **added** - pipeline layout
+
+#### [0.5.3] shaders and spirv (17 sept 22_)
 
 - **added** - spirv code reader
 - **added** - resource folder which automatically syncs to the binary folder
@@ -37,7 +40,7 @@ _the graphics engine_
 - **added** - create shader module
 - **added** - integrated spirv cross as a submodule
 - **added** - reflect descriptor layout bindings abnd layout creation
-- **added** - descriptor pools
+- **added** - descriptor pools and descriptor sets
 
 #### [0.5.2] sync objects (13 sept 22_)
 

@@ -55,9 +55,9 @@ namespace fresa::file
     }
 
     //* returns the path to a file, does not fail, instead returns an empty optional
-    inline std::optional<str_view> optional_path(str_view p) {
+    inline std::optional<str> optional_path(str_view p) {
         //: join the resource path with the given path
-        std::optional<str_view> full_path = fmt::format("{}/{}", engine_config.res_path(), p);
+        std::optional<str> full_path = fmt::format("{}/{}", engine_config.res_path(), p);
 
         //: return the path or an empty optional
         return fs::exists(full_path.value()) ? full_path : std::nullopt;

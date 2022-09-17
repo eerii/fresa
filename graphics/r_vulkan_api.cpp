@@ -137,10 +137,7 @@ void GraphicsSystem::init() {
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const VulkanAPI>(std::move(vk_api));
 
-    auto v = shader::createModule("test", ShaderStage::VERTEX);
-    auto f = shader::createModule("test", ShaderStage::FRAGMENT);
-    auto d = shader::createDescriptorSets({v, f});
-    log::info("{}", d.size());
+    shader::createPass("test");
 }
 
 //* create vulkan instance
