@@ -113,6 +113,19 @@ namespace fresa::graphics
             DeletionQueue deletion_queue_frame;
         };
 
+        //: pipeline configuration data
+        //      includes a manageable subset of options for configuring a vulkan pipeline
+        struct PipelineConfig {
+            str_view name = "unnamed";
+            VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+            VkPolygonMode polygon_mode = VK_POLYGON_MODE_FILL;
+            VkCullModeFlagBits cull_mode = VK_CULL_MODE_NONE;
+            VkCompareOp compare_op = VK_COMPARE_OP_LESS;
+            float line_width = 1.0f;
+            bool depth_test = true;
+            bool depth_write = true;
+        };
+
         //: vulkan api
         struct VulkanAPI {
             //: initialization structures

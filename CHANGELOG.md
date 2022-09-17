@@ -14,10 +14,12 @@ _the graphics engine_
 
 **vulkan todo**
 
-- create pipelines
+- attachment
+- subpass
+- renderpass
+- vertex descriptions
 - buffers
 - create descriptor resources
-- render passes...
 - dont render into the swapchain directly (don't create fb for swapchain, instead blit image into it)
 
 ---
@@ -27,6 +29,7 @@ _the graphics engine_
 - **added** - pipeline layout
 - **changed** - moved r_vulkan and r_types contents to r_api and renamed r_vulkan_api to r_api_vulkan
 - **changed** - only r_api_* should be able to modify the api object after creation, added new private m_api to allow this
+- **added** - pipeline configuration and creation (still needs to add renderpasses and vertex descriptions)
 
 #### [0.5.3] shaders and spirv (17 sept 22_)
 

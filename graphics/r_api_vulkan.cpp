@@ -50,26 +50,26 @@ namespace fresa::graphics::vk
     decltype(vk::GPU{}.queue_indices) getQueueIndices(VkInstance instance, const vk::GPU &gpu);
 
     //: logical device
-    VkDevice createDevice(const vk::GPU &gpu, DeletionQueue& dq);
+    VkDevice createDevice(const vk::GPU &gpu, DeletionQueue &dq);
     decltype(vk::GPU{}.queues) getQueues(const vk::GPU &gpu);
 
     //: allocator
-    VmaAllocator createAllocator(VkInstance instance, const vk::GPU &gpu, DeletionQueue& dq);
+    VmaAllocator createAllocator(VkInstance instance, const vk::GPU &gpu, DeletionQueue &dq);
 
     //: surface and swapchain
-    VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window, DeletionQueue& dq);
-    vk::Swapchain createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface, DeletionQueue& dq);
+    VkSurfaceKHR createSurface(VkInstance instance, GLFWwindow* window, DeletionQueue &dq);
+    vk::Swapchain createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurfaceKHR surface, DeletionQueue &dq);
 
     //: command pools
-    void initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, DeletionQueue& dq);
+    void initFrameCommands(decltype(api->frame) &frame, const vk::GPU &gpu, DeletionQueue &dq);
 
     //: syncronization objects
-    void initFrameSync(decltype(api->frame) &frame, VkDevice device, DeletionQueue& dq);
+    void initFrameSync(decltype(api->frame) &frame, VkDevice device, DeletionQueue &dq);
 
     //* descriptors
 
     //: create vulkan shader module
-    VkShaderModule createShaderModule(const std::vector<ui32>& code);
+    VkShaderModule createShaderModule(const std::vector<ui32> &code);
 
     //: create descriptor set layout
     std::unordered_map<ui32, VkDescriptorSetLayout> createDescriptorLayout(const std::vector<ShaderModule> &stages);
@@ -80,7 +80,7 @@ namespace fresa::graphics::vk
     VkPipelineLayout createPipelineLayout(const std::vector<VkDescriptorSetLayout> &descriptor_layout, const std::vector<VkPushConstantRange> &push_constants);
 
     //: build pipeline (draw or compute)
-    VkPipeline buildDrawPipeline();
+    VkPipeline buildDrawPipeline(PipelineConfig &&config, const ShaderPass &shader);
     VkPipeline buildComputePipeline();
     
     //* debug
@@ -987,11 +987,183 @@ VkPipelineLayout vk::createPipelineLayout(const std::vector<VkDescriptorSetLayou
 }
 
 //* build draw pipeline
-//      - todo
-VkPipeline vk::buildDrawPipeline() {
+//      the graphics pipeline is a series of stages that convert vertex and other data into a visible image that can be shown to the screen
+//      input assembler -> vertex shader -> tesselation -> geometry shader -> rasterization -> fragment shader -> color blending -> frame
+//      here we put all the information together (it has a lot of configuration options)
+VkPipeline vk::buildDrawPipeline(PipelineConfig &&config, const ShaderPass &shader) {
     soft_assert(api != nullptr, "the graphics api is not initialized");
+    soft_assert(shader.stages.size() > 0, "the shader pass has no stages");
+    soft_assert(shader.pipeline_layout != VK_NULL_HANDLE, "the pipeline layout has not been initialized");
 
-    return VK_NULL_HANDLE;
+    //- vertex input (use reflection)
+    std::vector<VkVertexInputBindingDescription> vertex_input_binding_descriptions;
+    std::vector<VkVertexInputAttributeDescription> vertex_input_attribute_descriptions;
+
+    VkPipelineVertexInputStateCreateInfo vertex_input{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .vertexBindingDescriptionCount = (ui32)vertex_input_binding_descriptions.size(),
+        .pVertexBindingDescriptions = vertex_input_binding_descriptions.data(),
+        .vertexAttributeDescriptionCount = (ui32)vertex_input_attribute_descriptions.size(),
+        .pVertexAttributeDescriptions = vertex_input_attribute_descriptions.data()
+    };
+
+    //: input assembly
+    //      here we specify the way the vertices will be processed, for example a triangle list (each 3 vertices will form a triangle)
+    //      other possible configurations make it possible to draw points or lines
+    //      if primitiveRestartEnable is set to true, it is possible to break strips using a special index, but we won't use it yet
+    VkPipelineInputAssemblyStateCreateInfo input_assembly {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        .topology = config.topology,
+        .primitiveRestartEnable = VK_FALSE
+    };
+
+    //: rasterizer
+    //      while it is not directly programmable like the vertex or fragment stage, we can set some variables to modify how it works
+    //      + polygon modes
+    //          · fill: fills the triangle area with fragments
+    //          · line: draws the edges of the triangle as lines
+    //          · point: only draws the vertices of the triangle as points
+    //          (line and point require enabling gpu features)
+    //      + line width
+    //          describes the thickness of lines in term of fragments, it requires enabling the wideLines GPU feature
+    //      + culling (disabled)
+    //          we will be culling the back face to save in performance
+    //          to calculate the front face, if we are not sending normals, the vertices will be calculated in counter clockwise order
+    //          if nothing shows to the screen, one of the most probable causes is the winding order of the vertices to be reversed
+    VkPipelineRasterizationStateCreateInfo rasterizer {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .depthClampEnable = VK_FALSE,
+        .rasterizerDiscardEnable = VK_FALSE,
+        .polygonMode = config.polygon_mode,
+        .cullMode = config.cull_mode,
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+        .depthBiasEnable = VK_FALSE,
+        .lineWidth = config.line_width
+    };
+
+    //: multisampling (disabled)
+    //      it is one of the ways to perform anti-aliasing when multiple polygons rasterize to the same pixel
+    //      - enable multisampling when the renderer is working
+    VkPipelineMultisampleStateCreateInfo multisampling {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .sampleShadingEnable = VK_FALSE,
+        .minSampleShading = 1.0f,
+        .pSampleMask = nullptr,
+        .alphaToCoverageEnable = VK_FALSE,
+        .alphaToOneEnable = VK_FALSE
+    };
+
+    //: color blending (disabled)
+    //      specifies how colors should be blended together
+    VkPipelineColorBlendAttachmentState color_blend_attachment {
+        .blendEnable = VK_FALSE,
+        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+    };
+
+    //? possible color blending: alpha blending (simple transparency)
+    //      final_color.rgb = new_color.a * new_color.rgb + (1 - new_color.a) * old_color.rgb;
+    //      final_color.a = new_color.a;
+
+    /*VkPipelineColorBlendAttachmentState color_blend_attachment {
+        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+        .blendEnable = VK_TRUE,
+        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+        .colorBlendOp = VK_BLEND_OP_ADD,
+        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+        .alphaBlendOp = VK_BLEND_OP_ADD
+    };*/
+
+    VkPipelineColorBlendStateCreateInfo color_blending {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+        .logicOpEnable = VK_FALSE,
+        .logicOp = VK_LOGIC_OP_COPY,
+        .attachmentCount = 1,
+        .pAttachments = &color_blend_attachment
+    };
+
+    //: depth and stencil testing
+    //      we will be using the depth buffer to determine which fragments are in front of others
+    //      - WORK IN PROGRESS, get back to this
+    VkPipelineDepthStencilStateCreateInfo depth_stencil {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable = ui32(config.depth_test ? VK_TRUE : VK_FALSE),
+        .depthWriteEnable = ui32(config.depth_write ? VK_TRUE : VK_FALSE),
+        .depthCompareOp = config.depth_test ? config.compare_op : VK_COMPARE_OP_ALWAYS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable = VK_FALSE,
+        .minDepthBounds = 0.0f,
+        .maxDepthBounds = 1.0f
+    };
+
+    //: viewport and scissor
+    //      the viewport is the area of the screen where the image will be drawn
+    //      the scissor is the area of the viewport where the image will be drawn
+    //      the viewport and scissor are set in the dynamic state, so we don't need to specify them here
+    VkViewport viewport{};
+    VkRect2D scissor{};
+    VkPipelineViewportStateCreateInfo viewport_state {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+        .viewportCount = 1,
+        .pViewports = &viewport,
+        .scissorCount = 1,
+        .pScissors = &scissor
+    };
+
+    //: dynamic state
+    constexpr auto states = std::to_array<VkDynamicState>({VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_DEPTH_BIAS});
+    VkPipelineDynamicStateCreateInfo dynamic_state {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+        .dynamicStateCount = states.size(),
+        .pDynamicStates = states.data()
+    };
+
+    //: shader stages
+    std::vector<VkPipelineShaderStageCreateInfo> stage_create_info{};
+    for (const auto& s : shader.stages) {
+        stage_create_info.push_back(VkPipelineShaderStageCreateInfo {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = shader_stages.at((ui32)s.stage).stage,
+            .module = s.module,
+            .pName = "main"
+        });
+    }
+
+    //- renderpass and relative subpass
+    VkRenderPass renderpass = VK_NULL_HANDLE;
+    ui32 relative_subpass = 0;
+
+    //: create info
+    VkGraphicsPipelineCreateInfo pipeline_info {
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .stageCount = (ui32)stage_create_info.size(),
+        .pStages = stage_create_info.data(),
+        .pVertexInputState = &vertex_input,
+        .pInputAssemblyState = &input_assembly,
+        .pViewportState = &viewport_state,
+        .pRasterizationState = &rasterizer,
+        .pMultisampleState = &multisampling,
+        .pDepthStencilState = &depth_stencil,
+        .pColorBlendState = &color_blending,
+        .pDynamicState = &dynamic_state,
+        .layout = shader.pipeline_layout,
+        .renderPass = renderpass,
+        .subpass = relative_subpass,
+        .basePipelineHandle = VK_NULL_HANDLE,
+    };
+
+    //- create pipeline
+    VkPipeline pipeline;
+    log::warn("pipeline creation is still being worked on, get back when renderpasses and vertex attributes are done");
+    /*VkResult result = vkCreateGraphicsPipelines(api->gpu.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &pipeline);
+    strong_assert(result == VK_SUCCESS, "failed to create graphics pipeline");
+
+    //: cleanup and return
+    m_api()->deletion_queue_global.push([pipeline]() { vkDestroyPipeline(api->gpu.device, pipeline, nullptr); });
+    log::graphics("built a graphics pipeline for shader '{}'", config.name);*/
+    return pipeline;
 }
 
 //* build compute pipeline
@@ -1041,7 +1213,7 @@ ShaderPass shader::createPass(str_view name) {
     soft_assert<str_view>(not (is_compute and ranges::any_of(pass.stages, [](const auto &stage){ return stage.stage == ShaderStage::VERTEX or stage.stage == ShaderStage::FRAGMENT; })), "you cannot mix compute and draw shaders under the same shader pass '{}'", std::forward<str_view>(name));
 
     //- create the pipeline
-    pass.pipeline = is_compute ? vk::buildComputePipeline() : vk::buildDrawPipeline();
+    pass.pipeline = is_compute ? vk::buildComputePipeline() : vk::buildDrawPipeline(vk::PipelineConfig{.name = name}, pass);
 
     return pass;
 }
