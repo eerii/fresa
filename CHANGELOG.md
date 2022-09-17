@@ -26,6 +26,7 @@ _the graphics engine_
 
 - **added** - pipeline layout
 - **changed** - moved r_vulkan and r_types contents to r_api and renamed r_vulkan_api to r_api_vulkan
+- **changed** - only r_api_* should be able to modify the api object after creation, added new private m_api to allow this
 
 #### [0.5.3] shaders and spirv (17 sept 22_)
 

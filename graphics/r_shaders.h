@@ -11,6 +11,17 @@ namespace fresa::graphics
     // · DEFINITIONS ·
     // ···············
 
+    //: interfaces for vulkan objects (allows for making this file mostly api agnostic in the future)
+    using IShaderStageFlagBits = VkShaderStageFlagBits;
+    using IDescriptorType = VkDescriptorType;
+    using IShaderModule = VkShaderModule;
+    using IDescriptorSetLayout = VkDescriptorSetLayout;
+    using IDescriptorSet = VkDescriptorSet;
+    using IDescriptorPool = VkDescriptorPool;
+    using IPipelineLayout = VkPipelineLayout;
+    using IPipeline = VkPipeline;
+    #define FRESA_NULL VK_NULL_HANDLE;
+
     //: shader stages
     enum struct ShaderStage {
         VERTEX,
@@ -19,7 +30,7 @@ namespace fresa::graphics
     };
     struct ShaderStageData {
         str_view extension;
-        VkShaderStageFlagBits stage;
+        IShaderStageFlagBits stage;
     };
     constexpr inline auto shader_stages = std::to_array<ShaderStageData>({
         {"vert", VK_SHADER_STAGE_VERTEX_BIT},
@@ -36,7 +47,7 @@ namespace fresa::graphics
     };
     struct ShaderDescriptorData {
         str_view name;
-        VkDescriptorType descriptor_type;
+        IDescriptorType descriptor_type;
     };
     constexpr inline auto shader_descriptors = std::to_array<ShaderDescriptorData>({
         {"uniform", VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
@@ -57,7 +68,7 @@ namespace fresa::graphics
         ui32 set;
         ui32 size;
         ui32 descriptor_count;
-        VkDescriptorType descriptor_type;
+        IDescriptorType descriptor_type;
         ShaderStage stage_flags;
         str name;
     };
@@ -65,7 +76,7 @@ namespace fresa::graphics
     //: shader module
     //      encapsulates a vulkan shader module (the compiled shader), as well as the stage it belongs to and reflection data
     struct ShaderModule {
-        VkShaderModule module = VK_NULL_HANDLE;
+        IShaderModule module = FRESA_NULL;
         ShaderStage stage;
         std::vector<DescriptorLayoutBinding> bindings;
     };
@@ -74,8 +85,8 @@ namespace fresa::graphics
     //      contains a descriptor set list (one per frame in flight) and its layout and set index
     struct DescriptorSet {
         ui32 set_index;
-        VkDescriptorSetLayout layout = VK_NULL_HANDLE;
-        std::array<VkDescriptorSet, engine_config.vk_frames_in_flight()> descriptors;
+        IDescriptorSetLayout layout = FRESA_NULL;
+        std::array<IDescriptorSet, engine_config.vk_frames_in_flight()> descriptors;
     };
 
     //: shader pass
@@ -84,8 +95,8 @@ namespace fresa::graphics
     struct ShaderPass {
         std::vector<ShaderModule> stages;
         std::vector<DescriptorSet> descriptors;
-        VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-        VkPipeline pipeline = VK_NULL_HANDLE;
+        IPipelineLayout pipeline_layout = FRESA_NULL;
+        IPipeline pipeline = FRESA_NULL;
     };
 
     // ···········
@@ -94,11 +105,26 @@ namespace fresa::graphics
 
     namespace shader
     {
+        //  implemented in r_shaders.cpp
+
+        //: read spirv code from .spv file
+        std::vector<ui32> readSPIRV(str_view name, ShaderStage stage);
+
+        //: create spirv cross compiler from the code
+        //      this is used to get the reflection data from the shader
+        //      it has to revert all the bits in the shader code since spirv cross takes it that way
+        spv_c::CompilerGLSL createCompiler(std::vector<ui32> code);
+
+        //: use spirv reflection to automatically get the descriptor set layout bindings
+        std::vector<DescriptorLayoutBinding> getDescriptorBindings(const spv_c::CompilerGLSL& compiler, ShaderStage stage);
+
+        //  implemented in r_api_*.cpp
+
         //: create shader module object
         ShaderModule createModule(str_view name, ShaderStage stage);
 
         //: create descriptor pool
-        VkDescriptorPool createDescriptorPool();
+        IDescriptorPool createDescriptorPool();
 
         //: create descriptor sets
         std::vector<DescriptorSet> allocateDescriptorSets(const std::vector<ShaderModule> &stages);

@@ -18,10 +18,7 @@
 #include "spirv_glsl.hpp"
 namespace spv_c = spirv_cross;
 
-//: standard types
 #include "std_types.h"
-
-//: other imports
 #include "fresa_config.h"
 #include "system.h"
 #include <stack>

@@ -6,6 +6,7 @@
 #include "r_window.h"
 
 #include "string_utils.h"
+#include "file.h"
 #include "fresa_assert.h"
 #include "engine.h"
 
@@ -24,12 +25,22 @@
 using namespace fresa;
 using namespace graphics;
 
+namespace
+{
+    //: modifyiable reference to the api
+    //      after creation, only this file is supposed to be able to modify the api (for example, to add an item to the deletion queue)
+    //      even then, this should only be called when the api *needs* to be modified, everywhere else should use the regular api-> syntax
+    auto m_api = []()-> vk::VulkanAPI* { return api != nullptr ? const_cast<vk::VulkanAPI*>(api.get()) : nullptr; };
+}
+
 // ·····························
 // · VULKAN SPECIFIC FUNCTIONS ·
 // ·····························
 
 namespace fresa::graphics::vk
 {
+    //* initialization
+
     //: instance
     VkInstance createInstance(DeletionQueue& dq);
 
@@ -54,8 +65,26 @@ namespace fresa::graphics::vk
 
     //: syncronization objects
     void initFrameSync(decltype(api->frame) &frame, VkDevice device, DeletionQueue& dq);
+
+    //* descriptors
+
+    //: create vulkan shader module
+    VkShaderModule createShaderModule(const std::vector<ui32>& code);
+
+    //: create descriptor set layout
+    std::unordered_map<ui32, VkDescriptorSetLayout> createDescriptorLayout(const std::vector<ShaderModule> &stages);
+
+    //* pipelines
+
+    //: create pipeline layout
+    VkPipelineLayout createPipelineLayout(const std::vector<VkDescriptorSetLayout> &descriptor_layout, const std::vector<VkPushConstantRange> &push_constants);
+
+    //: build pipeline (draw or compute)
+    VkPipeline buildDrawPipeline();
+    VkPipeline buildComputePipeline();
     
-    //: debug
+    //* debug
+
     void glfwErrorCallback(int error, const char* description);
     #ifdef FRESA_DEBUG
     VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT obj_type, ui64 obj, std::size_t location, int code, const char* layer_prefix, const char* msg, void* user_data);
@@ -617,6 +646,7 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
 void window::onResize(GLFWwindow* window, int width, int height) {
     if (width <= 0 || height <= 0) return;
     soft_assert(win != nullptr, "window not initialized");
+    soft_assert(api != nullptr, "api not initialized");
 
     //: wait for the gpu to finish
     vkDeviceWaitIdle(api->gpu.device);
@@ -631,9 +661,8 @@ void window::onResize(GLFWwindow* window, int width, int height) {
     
     //: recreate swapchain (if size has changed)
     if (previous_size != win->size) {
-        auto vk = const_cast<vk::VulkanAPI*>(api.get());
-        vk->deletion_queue_swapchain.clear();
-        vk->swapchain = vk::createSwapchain(api->gpu, window, api->surface, vk->deletion_queue_swapchain);
+        m_api()->deletion_queue_swapchain.clear();
+        m_api()->swapchain = vk::createSwapchain(api->gpu, window, api->surface, m_api()->deletion_queue_swapchain);
     }
 
     log::graphics("window resized to {}x{}", width, height);
@@ -733,6 +762,290 @@ void vk::initFrameSync(decltype(api->frame) &frame, VkDevice device, DeletionQue
     log::graphics("initialized sync objects");
 }
 
+// ···························
+// · DESCRIPTORS AND SHADERS ·
+// ···························
+
+//* create vulkan shader representation
+//      a vk shader module is a vulkan object that represents the underlying shader code for one stage
+VkShaderModule vk::createShaderModule(const std::vector<ui32>& code) {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+
+    //: create info
+    VkShaderModuleCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.codeSize = code.size() * sizeof(ui32);
+    create_info.pCode = code.data();
+
+    //: create the shader module
+    VkShaderModule shader_module;
+    VkResult result = vkCreateShaderModule(api->gpu.device, &create_info, nullptr, &shader_module);
+    strong_assert(result == VK_SUCCESS, "failed to create shader module");
+
+    //: cleanup and return
+    m_api()->deletion_queue_global.push([shader_module]() { vkDestroyShaderModule(api->gpu.device, shader_module, nullptr); });
+    return shader_module;
+}
+
+//* create shader module object
+//      not to be confused with a vk shader module, this is a wrapper type that contains the vk module, the stage it represents and the reflected bindings
+ShaderModule shader::createModule(str_view name, ShaderStage stage) {
+    ShaderModule sm;
+
+    //: read the spirv code and create compiler
+    auto code = readSPIRV(name, stage);
+    auto compiler = createCompiler(code);
+
+    //: create the vulkan shader
+    sm.module = vk::createShaderModule(code);
+
+    //: set stage
+    sm.stage = stage;
+
+    //: get descriptor layout bindings
+    sm.bindings = getDescriptorBindings(compiler, stage);
+    
+    return sm;
+}
+
+//* create descriptor set layout
+//      once we have the reflected bindings, we can encapsule them in the vulkan descriptor layout object
+//      for that, we first group the bindings by set, and join bindings in multiple stages on a same entry
+//      then, we return a map of the set number to the associated layout object, to be used for descriptor set creation
+std::unordered_map<ui32, VkDescriptorSetLayout> vk::createDescriptorLayout(const std::vector<ShaderModule> &stages) {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+
+    //: we are going to order the bindings by set, merging bindings from each stage, and transforming them into vulkan structures
+    std::unordered_map<ui32, std::vector<VkDescriptorSetLayoutBinding>> set_bindings;
+    for (const auto &stage : stages) {
+        for (const auto &binding : stage.bindings) {
+            auto &s = set_bindings[binding.set];
+            auto vk_stage_flag = shader_stages.at((ui32)binding.stage_flags).stage;
+            //: check if there is already a binding with the same number
+            auto it = std::find_if(s.begin(), s.end(), [&](const auto &b){ return b.binding == binding.binding; });
+            if (it != s.end()) {
+                //: if the binding already exists, check for errors and then merge the stage flags
+                strong_assert<const ui32, const str_view, const str_view>(it->descriptorType == binding.descriptor_type,
+                              "descriptor types for the same binding ({}) must be the same, but are '{}' and '{}'",
+                              std::forward<const ui32>(binding.binding), std::forward<const str_view>(shader_descriptors.at(it->descriptorType).name), std::forward<const str_view>(shader_descriptors.at(binding.descriptor_type).name));
+                strong_assert<const ui32, const str_view>(it->stageFlags == vk_stage_flag,
+                              "it is not allowed to repeat the same binding ({}) in the same stage '{}'",
+                              std::forward<const ui32>(binding.binding), std::forward<const str_view>(shader_descriptors.at(binding.descriptor_type).name));
+                it->stageFlags |= vk_stage_flag;
+            } else {
+                //: if the binding does not exist, create it
+                s.push_back(VkDescriptorSetLayoutBinding{
+                    .binding = binding.binding,
+                    .descriptorType = binding.descriptor_type,
+                    .descriptorCount = binding.descriptor_count,
+                    .stageFlags = vk_stage_flag
+                });
+            }
+        }
+    }
+
+    //: create the layouts
+    std::unordered_map<ui32, VkDescriptorSetLayout> layouts;
+    for (const auto &[set, bindings] : set_bindings) {
+        VkDescriptorSetLayoutCreateInfo layout_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .bindingCount = (ui32)bindings.size(),
+            .pBindings = bindings.data()
+        };
+        layouts[set] = VkDescriptorSetLayout{};
+        VkResult result = vkCreateDescriptorSetLayout(api->gpu.device, &layout_info, nullptr, &layouts.at(set));
+        strong_assert(result == VK_SUCCESS, "failed to create a descriptor set layout");
+    }
+
+    //: cleanup and return
+    m_api()->deletion_queue_global.push([layouts]() {
+        for (const auto &[_, layout] : layouts)
+            vkDestroyDescriptorSetLayout(api->gpu.device, layout, nullptr);
+    });
+    return layouts;
+}
+
+//* create descriptor pool
+//      a descriptor pool will house descriptor sets of various kinds
+//      there are two types of usage for a descriptor pool:
+//      + allocate sets once at the start of the program, and then use them each time
+//        this is what we are doing here, so we can know the exact pool size and destroy the pool at the end
+//      + allocate sets per frame, this can be implemented in the future
+//        it can be cheap using VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT and resetting the entire pool per frame
+//        we would have a list of descriptor pools with big sizes for each type of descriptor, and if an allocation fails,
+//        just create another pool and add it to the list. at the end of the frame all of them get deleted.
+VkDescriptorPool shader::createDescriptorPool() {
+    //: pool sizes
+    //      we need to define how many descriptors of each type a pool can host
+    //      the propper way to do this would be to average the number of descriptors on each shader and get the relative frequencies
+    //      also, they can be grouped by descriptor layouts, so it can even waste less memory
+    //      however, in the interest of keeping everything simple for now, we just allocate descriptor_pool_max_sets of each type we are using
+    constexpr auto pool_sizes = std::to_array<VkDescriptorPoolSize>({
+        { .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,            .descriptorCount = 1 * engine_config.vk_descriptor_pool_max_sets() },
+        { .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,            .descriptorCount = 1 * engine_config.vk_descriptor_pool_max_sets() },
+        { .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,    .descriptorCount = 1 * engine_config.vk_descriptor_pool_max_sets() },
+        { .type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,          .descriptorCount = 1 * engine_config.vk_descriptor_pool_max_sets() },
+    });
+
+    //: create info
+    VkDescriptorPoolCreateInfo pool_info = {
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .maxSets = engine_config.vk_descriptor_pool_max_sets(),
+        .poolSizeCount = (ui32)pool_sizes.size(),
+        .pPoolSizes = pool_sizes.data()
+    };
+
+    //: create descriptor pool
+    VkDescriptorPool pool;
+    VkResult result = vkCreateDescriptorPool(api->gpu.device, &pool_info, nullptr, &pool);
+    strong_assert(result == VK_SUCCESS, "failed to create a descriptor pool");
+
+    //: cleanup and return
+    m_api()->deletion_queue_global.push([pool]() { vkDestroyDescriptorPool(api->gpu.device, pool, nullptr); });
+    return pool;
+}
+
+//* create descriptor sets
+//      a descriptor set is a collection of descriptors that can be bound to a pipeline
+//      it specifies the resources used by the shader with a series of bindings
+std::vector<DescriptorSet> shader::allocateDescriptorSets(const std::vector<ShaderModule> &stages) {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+
+    //: get descriptor layouts
+    auto layouts = vk::createDescriptorLayout(stages);
+
+    //: initialize pools if they are empty
+    auto &pools = m_api()->descriptor_pools;
+    if (pools.empty())
+        pools.push_back(createDescriptorPool());
+
+    //: create descriptor sets
+    std::vector<DescriptorSet> sets;
+    for (const auto &[set, layout] : layouts) {
+        //: allocate info
+        std::array<VkDescriptorSetLayout, engine_config.vk_frames_in_flight()> layouts;
+        std::fill(layouts.begin(), layouts.end(), layout);
+        VkDescriptorSetAllocateInfo alloc_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .descriptorPool = pools.back(),
+            .descriptorSetCount = engine_config.vk_frames_in_flight(),
+            .pSetLayouts = layouts.data()
+        };
+
+        //: try allocation
+        std::array<VkDescriptorSet, engine_config.vk_frames_in_flight()> descriptors{};
+        VkResult result = vkAllocateDescriptorSets(api->gpu.device, &alloc_info, descriptors.data());
+
+        //: if allocation failed with out of pool memory, create a new pool and try again
+        if (result == VK_ERROR_OUT_OF_POOL_MEMORY) {
+            pools.push_back(createDescriptorPool());
+            alloc_info.descriptorPool = pools.back();
+            result = vkAllocateDescriptorSets(api->gpu.device, &alloc_info, descriptors.data());
+        }
+
+        //: check if allocation worked finally
+        strong_assert(result == VK_SUCCESS, "failed to allocate descriptor sets");
+
+        //: add to the list
+        sets.push_back({
+            .set_index = set,
+            .layout = layout,
+            .descriptors = descriptors
+        });
+    }
+
+    return sets;
+}
+
+// ·············
+// · PIPELINES ·
+// ·············
+
+//* create pipeline layout
+//      holds the information of the descriptor set layouts that we created earlier
+//      this allows to reference uniforms or images at draw time and change them without recreating the pipeline
+VkPipelineLayout vk::createPipelineLayout(const std::vector<VkDescriptorSetLayout> &descriptor_layout, const std::vector<VkPushConstantRange> &push_constants) {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+    
+    //: create info
+    VkPipelineLayoutCreateInfo layout_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = (ui32)descriptor_layout.size(),
+        .pSetLayouts = descriptor_layout.data(),
+        .pushConstantRangeCount = (ui32)push_constants.size(),
+        .pPushConstantRanges = push_constants.data()
+    };
+
+    //: create pipeline layout
+    VkPipelineLayout layout;
+    VkResult result = vkCreatePipelineLayout(api->gpu.device, &layout_info, nullptr, &layout);
+    strong_assert(result == VK_SUCCESS, "failed to create a pipeline layout");
+
+    //: cleanup and return
+    m_api()->deletion_queue_global.push([layout]() { vkDestroyPipelineLayout(api->gpu.device, layout, nullptr); });
+    return layout;
+}
+
+//* build draw pipeline
+//      - todo
+VkPipeline vk::buildDrawPipeline() {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+
+    return VK_NULL_HANDLE;
+}
+
+//* build compute pipeline
+//      - todo
+VkPipeline vk::buildComputePipeline() {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+
+    return VK_NULL_HANDLE;
+}
+
+//* create shader pass
+//      a shader pass is a collection of shaders that are compiled to a pipeline
+//      it is the final step in the shader compilation process, producing an object that contains all information needed to render
+ShaderPass shader::createPass(str_view name) {
+    ShaderPass pass{};
+
+    //: get the shader path from the name
+    std::optional<str> path = file::optional_path(fmt::format("shaders/{}/", name));
+    strong_assert<str_view>(path.has_value(), "the shader path 'shaders/{}/' does not exist", std::forward<str_view>(name));
+
+    //: find all the available modules in the shader path
+    for (const auto &f : fs::recursive_directory_iterator(path.value())) {
+        //: only check for .spv shaders
+        if (f.path().extension() != ".spv")
+            continue;
+        
+        //: get the shader stage
+        auto s = split(f.path().stem().string(), '.') | ranges::to_vector;
+        strong_assert<str_view>(s.size() == 2, "invalid shader name '{}', it must be file.extension.spv", f.path().stem().string());
+        auto it = std::find_if(shader_stages.begin(), shader_stages.end(), [s](const auto &stage){ return s.at(1) == stage.extension; });
+        strong_assert<str_view>(it != shader_stages.end(), "invalid shader extension '.{}'", std::forward<str_view>(s.at(1)));
+        
+        //: add the module to the pass
+        pass.stages.push_back(createModule(name, (ShaderStage)std::distance(shader_stages.begin(), it)));
+    }
+    strong_assert<str_view>(not pass.stages.empty(), "the shader path 'shaders/{}/' does not contain any shaders", std::forward<str_view>(name));
+
+    //: create the descriptor sets
+    pass.descriptors = allocateDescriptorSets(pass.stages);
+
+    //: create the pipeline layout
+    std::vector<VkDescriptorSetLayout> descriptor_layouts = pass.descriptors | rv::transform([](const auto &d){ return d.layout; }) | ranges::to_vector;
+    pass.pipeline_layout = vk::createPipelineLayout(descriptor_layouts, {});
+
+    //: check if it is draw or compute
+    bool is_compute = ranges::any_of(pass.stages, [](const auto &stage){ return stage.stage == ShaderStage::COMPUTE; });
+    soft_assert<str_view>(not (is_compute and ranges::any_of(pass.stages, [](const auto &stage){ return stage.stage == ShaderStage::VERTEX or stage.stage == ShaderStage::FRAGMENT; })), "you cannot mix compute and draw shaders under the same shader pass '{}'", std::forward<str_view>(name));
+
+    //- create the pipeline
+    pass.pipeline = is_compute ? vk::buildComputePipeline() : vk::buildDrawPipeline();
+
+    return pass;
+}
+
 // ··········
 // · UPDATE ·
 // ··········
@@ -748,9 +1061,8 @@ void GraphicsSystem::update() {
 //* stop the vulkan api
 void GraphicsSystem::stop() {
     //: clear the deletion queues in reverse order
-    auto vk = const_cast<vk::VulkanAPI*>(api.get());
-    vk->deletion_queue_swapchain.clear();
-    vk->deletion_queue_global.clear();
+    m_api()->deletion_queue_swapchain.clear();
+    m_api()->deletion_queue_global.clear();
 
     //: stop glfw
     if (win) glfwDestroyWindow(win->window);
