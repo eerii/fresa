@@ -4,6 +4,7 @@
 #include "r_api.h"
 #include "r_shaders.h"
 #include "r_window.h"
+#include "r_attachments.h"
 
 #include "string_utils.h"
 #include "file.h"
@@ -82,6 +83,12 @@ namespace fresa::graphics::vk
     //: build pipeline (draw or compute)
     VkPipeline buildDrawPipeline(PipelineConfig &&config, const ShaderPass &shader);
     VkPipeline buildComputePipeline();
+
+    //* attachments
+
+    //: create image and image view
+    std::pair<VkImage, VmaAllocation> createImage(Vec2<ui32> size, VmaMemoryUsage memory, VkFormat format, VkImageUsageFlagBits usage, VkImageLayout initial_layout);
+    VkImageView createImageView(VkImage image, VkImageAspectFlagBits aspect, VkFormat format);
     
     //* debug
 
@@ -166,8 +173,6 @@ void GraphicsSystem::init() {
 
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const vk::VulkanAPI>(std::move(vk_api));
-
-    shader::createPass("test");
 }
 
 //* create vulkan instance
@@ -1216,6 +1221,108 @@ ShaderPass shader::createPass(str_view name) {
     pass.pipeline = is_compute ? vk::buildComputePipeline() : vk::buildDrawPipeline(vk::PipelineConfig{.name = name}, pass);
 
     return pass;
+}
+
+// ···············
+// · ATTACHMENTS ·
+// ···············
+
+//* create an image
+//      an image is a 2d texture that can be used as a color or depth attachment. to create one you must specify:
+//          · size (width and height)
+//          · memory usage (for vma allocation, gpu only or cpu visible)
+//          · format (depending on channels, bits per channels, usage...)
+//          · usage (what will the image be used for, can be a color/depth attachment, an input attachment, transfer operations, storage...)
+//          · initial layout (what layout the image will be in when created, may be transitioned to another layout later)
+std::pair<VkImage, VmaAllocation> vk::createImage(Vec2<ui32> size, VmaMemoryUsage memory, VkFormat format, VkImageUsageFlagBits usage, VkImageLayout initial_layout) {
+    //: image create info
+    VkImageCreateInfo create_info {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = format,
+        .extent = { size.x, size.y, 1 },
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = VK_SAMPLE_COUNT_1_BIT, //- allow multisampling
+        .tiling = VK_IMAGE_TILING_OPTIMAL, //: using this prevents the image from being accessed directly, but it is better for performance
+        .usage = usage,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .initialLayout = initial_layout
+    };
+
+    //: image allocation info
+    VmaAllocationCreateInfo alloc_info {
+        .usage = memory
+    };
+
+    //: create the image
+    VkImage image;
+    VmaAllocation allocation;
+    VkResult result = vmaCreateImage(api->allocator, &create_info, &alloc_info, &image, &allocation, nullptr);
+    strong_assert(result == VK_SUCCESS, "failed to create image");
+
+    //: return and cleanup
+    m_api()->deletion_queue_global.push([image, allocation]() { vmaDestroyImage(api->allocator, image, allocation); });
+    return { image, allocation };
+}
+
+//* create an image view
+//      similar to the str_view concept, an image view allows for accessing an image without changing the image object
+//      necessary in many parts of the vulkan api, it describe how to access an image and which parts to access
+//          · aspect (what is the image used for, color, depth, stencil...)
+//          · format (this must match the image format)
+VkImageView vk::createImageView(VkImage image, VkImageAspectFlagBits aspect, VkFormat format) {
+    //: create info
+    VkImageViewCreateInfo create_info {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = image,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = format,
+        .subresourceRange = {
+            .aspectMask = aspect,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
+    };
+
+    //: create the image view
+    VkImageView view;
+    VkResult result = vkCreateImageView(api->gpu.device, &create_info, nullptr, &view);
+    strong_assert(result == VK_SUCCESS, "failed to create image view");
+
+    //: return and cleanup
+    m_api()->deletion_queue_global.push([view]() { vkDestroyImageView(api->gpu.device, view, nullptr); });
+    return view;
+}
+
+//* create a texture
+//      we define this data structure to contain all the information about a texture (image, allocation, view, formats...)
+//      this function build a texture from a set of prompts. to do so, you must specify:
+//          · size, memory usage, format, usage, initial layout and aspect
+//      then this function will create the image (allocation memory for it) and an image view to access it, which will be stored in the texture object
+void attachment::buildTexture(Texture& texture) {
+    //: check the if passed texture object has not been built
+    soft_assert(texture.image == VK_NULL_HANDLE, "the texture object has already been built");
+    soft_assert(texture.image_view == VK_NULL_HANDLE, "the texture object has already been built");
+    soft_assert(texture.allocation == VK_NULL_HANDLE, "the texture object has already been built");
+
+    //: check if the parameters passed are valid
+    soft_assert(texture.size.x > 0 and texture.size.y > 0, "the texture size must be greater than 0");
+    soft_assert(texture.memory_usage != VMA_MEMORY_USAGE_MAX_ENUM, "the texture memory usage must be specified");
+    soft_assert(texture.format != VK_FORMAT_MAX_ENUM, "the texture format must be specified");
+    soft_assert(texture.usage != VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM, "the texture usage must be specified");
+    soft_assert(texture.aspect != VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM, "the texture aspect must be specified");
+    soft_assert(texture.initial_layout != VK_IMAGE_LAYOUT_MAX_ENUM, "the texture initial layout must be specified");
+        
+    //: create the image
+    auto [image, allocation] = vk::createImage(texture.size, texture.memory_usage, texture.format, texture.usage, texture.initial_layout);
+    texture.image = image;
+    texture.allocation = allocation;
+
+    //: create the image view
+    texture.image_view = vk::createImageView(image, texture.aspect, texture.format);
 }
 
 // ··········

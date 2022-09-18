@@ -3,7 +3,6 @@
 #pragma once
 
 #include "r_api.h"
-#include "fresa_config.h"
 
 namespace fresa::graphics
 {
@@ -20,7 +19,6 @@ namespace fresa::graphics
     using IDescriptorPool = VkDescriptorPool;
     using IPipelineLayout = VkPipelineLayout;
     using IPipeline = VkPipeline;
-    #define FRESA_NULL VK_NULL_HANDLE;
 
     //: shader stages
     enum struct ShaderStage {
@@ -76,7 +74,7 @@ namespace fresa::graphics
     //: shader module
     //      encapsulates a vulkan shader module (the compiled shader), as well as the stage it belongs to and reflection data
     struct ShaderModule {
-        IShaderModule module = FRESA_NULL;
+        IShaderModule module = VK_NULL_HANDLE;
         ShaderStage stage;
         std::vector<DescriptorLayoutBinding> bindings;
     };
@@ -85,7 +83,7 @@ namespace fresa::graphics
     //      contains a descriptor set list (one per frame in flight) and its layout and set index
     struct DescriptorSet {
         ui32 set_index;
-        IDescriptorSetLayout layout = FRESA_NULL;
+        IDescriptorSetLayout layout = VK_NULL_HANDLE;
         std::array<IDescriptorSet, engine_config.vk_frames_in_flight()> descriptors;
     };
 
@@ -95,8 +93,8 @@ namespace fresa::graphics
     struct ShaderPass {
         std::vector<ShaderModule> stages;
         std::vector<DescriptorSet> descriptors;
-        IPipelineLayout pipeline_layout = FRESA_NULL;
-        IPipeline pipeline = FRESA_NULL;
+        IPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+        IPipeline pipeline = VK_NULL_HANDLE;
     };
 
     // ···········
