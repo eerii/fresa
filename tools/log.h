@@ -4,6 +4,7 @@
 #pragma once
 
 #include "fresa_config.h"
+#include "fresa_enum.h"
 #include "string_utils.h"
 
 #include <type_traits>
@@ -28,16 +29,12 @@ namespace fresa
         DEBUG = 1 << 5,
         JOBS = 1 << 6,
     };
-    constexpr LogLevel operator| (LogLevel a, LogLevel b) { using T = std::underlying_type_t<LogLevel>; return LogLevel(T(a) | T(b)); }
-    constexpr LogLevel operator& (LogLevel a, LogLevel b) { using T = std::underlying_type_t<LogLevel>; return LogLevel(T(a) & T(b)); }
-    constexpr LogLevel& operator|= (LogLevel& a, LogLevel b) { a = a | b; return a; }
-    constexpr LogLevel& operator&= (LogLevel& a, LogLevel b) { a = a & b; return a; }
 
     namespace detail
     {
         template<str_literal name, LogLevel level, fmt::color color = fmt::color::white, typename ... T>
         constexpr void log(fmt::format_string<T...> fs, T&& ...t) {
-            if constexpr((LogLevel(engine_config.log_level()) & level) == level) {
+            if constexpr(engine_config.log_level() & +level) {
                 fmt::print("{} {}\n",
                            fmt::format(fg(color), "[{}]:", name.value),
                            fmt::format(fs, std::forward<T>(t)...));

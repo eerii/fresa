@@ -4,6 +4,7 @@
 
 #include "r_api.h"
 #include "fresa_math.h"
+#include "fresa_enum.h"
 
 namespace fresa::graphics
 {
@@ -31,11 +32,7 @@ namespace fresa::graphics
         DEPTH = 1 << 2,
         INPUT = 1 << 3
     };
-    constexpr auto operator+(AttachmentType a) {return static_cast<std::underlying_type_t<AttachmentType>>(a);}
-    constexpr AttachmentType operator| (AttachmentType a, AttachmentType b) { return AttachmentType(+a | +b); }
-    constexpr std::underlying_type_t<AttachmentType> operator| (AttachmentType a, std::underlying_type_t<AttachmentType> b) { return +a | b; }
-    constexpr std::underlying_type_t<AttachmentType> operator& (AttachmentType a, std::underlying_type_t<AttachmentType> b) { return +a & b; }
-
+    
     // ·············
     // · DATATYPES ·
     // ·············

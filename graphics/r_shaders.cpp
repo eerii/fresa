@@ -90,7 +90,7 @@ std::vector<DescriptorLayoutBinding> shader::getDescriptorBindings(const spv_c::
             
             //: buffer size, only for uniform and storage, used to allocate the descriptor buffers
             //      - todo: calculate runtime size for variable sized arrays inside buffers
-            if (type.value == (int)ShaderDescriptor::UNIFORM || type.value == (int)ShaderDescriptor::STORAGE) {
+            if (type.value == ShaderDescriptor::UNIFORM or type.value == ShaderDescriptor::STORAGE) {
                 const spv_c::SPIRType &spv_t = compiler.get_type(res.base_type_id);
                 data.size = (ui32)compiler.get_declared_struct_size(spv_t);
                 if (data.size == 0) {

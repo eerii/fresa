@@ -8,6 +8,7 @@ _the graphics engine_
 
 - multiple monitor testing
 - write documentation for the new renderer
+- documentation for fresa enums
 - think of what to do with regards to web builds, probably webgpu
 - new job system, look into std::async or the taskflow library (the work stealing queue)
 - ci for windows
@@ -28,6 +29,7 @@ _the graphics engine_
 - **added** - create vkimage and vkimageview
 - **added** - texture data struct and creation
 - **added** - create attachments
+- **added** - enumeration utilities, adds custom bitwise operators to enum structs
 
 #### [0.5.4] pipelines (17 sept 22_)
 

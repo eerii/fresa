@@ -667,7 +667,7 @@ vk::Swapchain vk::createSwapchain(const vk::GPU &gpu, GLFWwindow* window, VkSurf
 //* on window resize
 //      called when the window changes shape, it is used to recreate the swapchain and all related resources
 void window::onResize(GLFWwindow* window, int width, int height) {
-    if (width <= 0 || height <= 0) return;
+    if (width <= 0 or height <= 0) return;
     soft_assert(win != nullptr, "window not initialized");
     soft_assert(api != nullptr, "api not initialized");
 
