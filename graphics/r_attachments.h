@@ -14,8 +14,8 @@ namespace fresa::graphics
     //: interfaces for vulkan objects (allows for making this file mostly api agnostic in the future)
     using IImage = VkImage;
     using IImageView = VkImageView;
-    using IImageUsageFlagBits = VkImageUsageFlagBits;
-    using IImageAspectFlagBits = VkImageAspectFlagBits;
+    using IImageUsageFlags = VkImageUsageFlags;
+    using IImageAspectFlags = VkImageAspectFlags;
     using IImageLayout = VkImageLayout;
     using IFormat = VkFormat;
     using IImageLayout = VkImageLayout;
@@ -27,10 +27,14 @@ namespace fresa::graphics
 
     //: attachment type
     enum struct AttachmentType {
-        COLOR = 1 << 0,
-        DEPTH = 1 << 1,
-        INPUT = 1 << 2
+        COLOR = 1 << 1,
+        DEPTH = 1 << 2,
+        INPUT = 1 << 3
     };
+    constexpr auto operator+(AttachmentType a) {return static_cast<std::underlying_type_t<AttachmentType>>(a);}
+    constexpr AttachmentType operator| (AttachmentType a, AttachmentType b) { return AttachmentType(+a | +b); }
+    constexpr std::underlying_type_t<AttachmentType> operator| (AttachmentType a, std::underlying_type_t<AttachmentType> b) { return +a | b; }
+    constexpr std::underlying_type_t<AttachmentType> operator& (AttachmentType a, std::underlying_type_t<AttachmentType> b) { return +a & b; }
 
     // ·············
     // · DATATYPES ·
@@ -45,8 +49,8 @@ namespace fresa::graphics
         IMemoryUsage memory_usage = VMA_MEMORY_USAGE_MAX_ENUM;
 
         IFormat format = VK_FORMAT_MAX_ENUM;
-        IImageUsageFlagBits usage = VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM;
-        IImageAspectFlagBits aspect = VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM;
+        IImageUsageFlags usage = VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM;
+        IImageAspectFlags aspect = VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM;
 
         IImageLayout initial_layout = VK_IMAGE_LAYOUT_MAX_ENUM;
         IImageLayout final_layout = VK_IMAGE_LAYOUT_MAX_ENUM;
@@ -74,5 +78,8 @@ namespace fresa::graphics
 
         //: construct a texture object from a set of parameters
         void buildTexture(Texture &texture);
+
+        //: create attachment
+        Attachment create(AttachmentType type, Vec2<ui32> size);
     }
 }

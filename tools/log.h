@@ -28,8 +28,8 @@ namespace fresa
         DEBUG = 1 << 5,
         JOBS = 1 << 6,
     };
-    constexpr LogLevel operator| (LogLevel a, LogLevel b) { using T = std::underlying_type_t<LogLevel>; return static_cast<LogLevel>(static_cast<T>(a) | static_cast<T>(b)); }
-    constexpr LogLevel operator& (LogLevel a, LogLevel b) { using T = std::underlying_type_t<LogLevel>; return static_cast<LogLevel>(static_cast<T>(a) & static_cast<T>(b)); }
+    constexpr LogLevel operator| (LogLevel a, LogLevel b) { using T = std::underlying_type_t<LogLevel>; return LogLevel(T(a) | T(b)); }
+    constexpr LogLevel operator& (LogLevel a, LogLevel b) { using T = std::underlying_type_t<LogLevel>; return LogLevel(T(a) & T(b)); }
     constexpr LogLevel& operator|= (LogLevel& a, LogLevel b) { a = a | b; return a; }
     constexpr LogLevel& operator&= (LogLevel& a, LogLevel b) { a = a & b; return a; }
 

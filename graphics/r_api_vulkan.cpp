@@ -49,6 +49,7 @@ namespace fresa::graphics::vk
     vk::GPU selectGPU(VkInstance instance);
     int rateGPU(VkInstance instance, const vk::GPU &gpu);
     decltype(vk::GPU{}.queue_indices) getQueueIndices(VkInstance instance, const vk::GPU &gpu);
+    VkFormat chooseSupportedFormat(const vk::GPU &gpu, std::vector<VkFormat> &&candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
     //: logical device
     VkDevice createDevice(const vk::GPU &gpu, DeletionQueue &dq);
@@ -87,8 +88,8 @@ namespace fresa::graphics::vk
     //* attachments
 
     //: create image and image view
-    std::pair<VkImage, VmaAllocation> createImage(Vec2<ui32> size, VmaMemoryUsage memory, VkFormat format, VkImageUsageFlagBits usage, VkImageLayout initial_layout);
-    VkImageView createImageView(VkImage image, VkImageAspectFlagBits aspect, VkFormat format);
+    std::pair<VkImage, VmaAllocation> createImage(Vec2<ui32> size, VmaMemoryUsage memory, VkFormat format, VkImageUsageFlags usage, VkImageLayout initial_layout);
+    VkImageView createImageView(VkImage image, VkImageAspectFlags aspect, VkFormat format);
     
     //* debug
 
@@ -379,6 +380,23 @@ decltype(vk::GPU{}.queue_indices) vk::getQueueIndices(VkInstance instance, const
     }
 
     return indices;
+}
+
+//* choose supported format
+//      given a list of formats, choose the first one that is supported by the gpu that supports the given features and tiling
+VkFormat vk::chooseSupportedFormat(const vk::GPU &gpu, std::vector<VkFormat> &&formats, VkImageTiling tiling, VkFormatFeatureFlags features) {
+    for (auto format : formats) {
+        //: get the properties of the format
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(gpu.gpu, format, &props);
+
+        //: check if the format supports the given features
+        if (tiling == VK_IMAGE_TILING_LINEAR and (props.linearTilingFeatures & features) == features) return format;
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL and (props.optimalTilingFeatures & features) == features) return format;
+    }
+
+    log::warn("no supported format found");
+    return VK_FORMAT_UNDEFINED;
 }
 
 //* create logical device
@@ -1234,7 +1252,7 @@ ShaderPass shader::createPass(str_view name) {
 //          · format (depending on channels, bits per channels, usage...)
 //          · usage (what will the image be used for, can be a color/depth attachment, an input attachment, transfer operations, storage...)
 //          · initial layout (what layout the image will be in when created, may be transitioned to another layout later)
-std::pair<VkImage, VmaAllocation> vk::createImage(Vec2<ui32> size, VmaMemoryUsage memory, VkFormat format, VkImageUsageFlagBits usage, VkImageLayout initial_layout) {
+std::pair<VkImage, VmaAllocation> vk::createImage(Vec2<ui32> size, VmaMemoryUsage memory, VkFormat format, VkImageUsageFlags usage, VkImageLayout initial_layout) {
     //: image create info
     VkImageCreateInfo create_info {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -1271,7 +1289,7 @@ std::pair<VkImage, VmaAllocation> vk::createImage(Vec2<ui32> size, VmaMemoryUsag
 //      necessary in many parts of the vulkan api, it describe how to access an image and which parts to access
 //          · aspect (what is the image used for, color, depth, stencil...)
 //          · format (this must match the image format)
-VkImageView vk::createImageView(VkImage image, VkImageAspectFlagBits aspect, VkFormat format) {
+VkImageView vk::createImageView(VkImage image, VkImageAspectFlags aspect, VkFormat format) {
     //: create info
     VkImageViewCreateInfo create_info {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -1323,6 +1341,69 @@ void attachment::buildTexture(Texture& texture) {
 
     //: create the image view
     texture.image_view = vk::createImageView(image, texture.aspect, texture.format);
+}
+
+//* create an attachment
+//      an attachment is a texture that is used in the rendering pipeline
+//      there are multiple uses for one, such as color, depth, input...
+Attachment attachment::create(AttachmentType type, Vec2<ui32> size) {
+    soft_assert(api != nullptr, "the graphics api is not initialized");
+    soft_assert(not (type & +AttachmentType::COLOR and type & +AttachmentType::DEPTH), "the attachment type can't be color or depth at the same time");
+    soft_assert(not (type & +AttachmentType::INPUT) or (type & +AttachmentType::COLOR or type & +AttachmentType::DEPTH), "the attachment type can't be input without being color or depth");
+
+    //: default values
+    Attachment a{
+        .type = type,
+        .texture = Texture{
+            .memory_usage = VMA_MEMORY_USAGE_GPU_ONLY,
+            .usage = VkImageUsageFlags{},
+            .aspect = VkImageAspectFlags{},
+            .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .size = size
+        },
+        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .store_op = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    };
+
+    //: color attachment
+    if (type & +AttachmentType::COLOR) {
+        a.texture.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        a.texture.aspect |= VK_IMAGE_ASPECT_COLOR_BIT;
+        a.texture.final_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        a.texture.format = api->swapchain.format;
+    }
+
+    //: depth attachment
+    if (type & +AttachmentType::DEPTH) {
+        a.texture.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        a.texture.aspect |= VK_IMAGE_ASPECT_DEPTH_BIT;
+        a.texture.final_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        a.texture.format = vk::chooseSupportedFormat(api->gpu, { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT }, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    }
+
+    //: input attachment
+    if (type & +AttachmentType::INPUT) {
+        a.texture.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+        a.texture.final_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        a.store_op = VK_ATTACHMENT_STORE_OP_STORE;
+    }
+
+    //: build the texture data
+    attachment::buildTexture(a.texture);
+
+    //: create attachment description
+    a.description = {
+        .format = a.texture.format,
+        .samples = VK_SAMPLE_COUNT_1_BIT, //- change when multisampling is enabled
+        .loadOp = a.load_op,
+        .storeOp = a.store_op,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = a.texture.initial_layout,
+        .finalLayout = a.texture.final_layout
+    };
+
+    return a;
 }
 
 // ··········

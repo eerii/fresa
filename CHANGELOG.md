@@ -14,7 +14,6 @@ _the graphics engine_
 
 **vulkan todo**
 
-- attachment
 - subpass
 - renderpass
 - vertex descriptions
@@ -28,6 +27,7 @@ _the graphics engine_
 
 - **added** - create vkimage and vkimageview
 - **added** - texture data struct and creation
+- **added** - create attachments
 
 #### [0.5.4] pipelines (17 sept 22_)
 
