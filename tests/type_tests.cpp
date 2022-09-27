@@ -4,6 +4,7 @@
 #include "unit_test.h"
 #include "atomic_queue.h"
 #include "constexpr_for.h"
+#include "bidirectional_map.h"
 
 namespace test
 {
@@ -90,6 +91,57 @@ namespace test
             bool result = true;
             for_([&](auto const& v){ result = result and v; }, std::make_tuple(true, 1, "hello"));
             return expect(result);
+        };
+    });
+
+    //* bidirectional map
+    inline TestSuite bidirectional_map_test("bidirectional_map", []{
+        "adding"_test = []{
+            BiMap<int, str> m;
+            m.add(1, "a");
+            m.add(1, "b");
+            m.add(1, "c");
+            m.add(2, "b");
+
+            return expect(m.a_to_b == decltype(m.a_to_b)({{1, "a"}, {1, "b"}, {1, "c"}, {2, "b"}}) and
+                          m.b_to_a == decltype(m.b_to_a)({{"a", 1}, {"b", 1}, {"c", 1}, {"b", 2}}));
+        };
+
+        "initializer constructor"_test = []{
+            BiMap<int, str> m{{
+                {1, "a"},
+                {1, "b"},
+                {1, "c"},
+                {2, "b"}
+            }};
+
+            return expect(m.a_to_b == decltype(m.a_to_b)({{1, "a"}, {1, "b"}, {1, "c"}, {2, "b"}}) and
+                          m.b_to_a == decltype(m.b_to_a)({{"a", 1}, {"b", 1}, {"c", 1}, {"b", 2}}));
+        };
+
+        "removing"_test = []{
+            BiMap<int, str> m({ {1, "a"}, {1, "b"}, {1, "c"}, {2, "b"} });
+            m.remove_b("b");
+
+            return expect(m.a_to_b == decltype(m.a_to_b)({{1, "a"}, {1, "c"}}) and
+                          m.b_to_a == decltype(m.b_to_a)({{"a", 1}, {"c", 1}}));
+        };
+
+        "remove specific pair"_test = []{
+            BiMap<int, str> m({ {1, "a"}, {1, "b"}, {1, "c"}, {2, "b"} });
+            m.remove(1, "b");
+            return expect(m.a_to_b == decltype(m.a_to_b)({{1, "a"}, {1, "c"}, {2, "b"}}) and
+                          m.b_to_a == decltype(m.b_to_a)({{"a", 1}, {"c", 1}, {"b", 2}}));
+        };
+
+        "get b from a"_test = []{
+            BiMap<int, str> m({ {1, "a"}, {1, "b"}, {1, "c"}, {2, "b"} });
+            return expect((m.get_b(1) | ranges::to_vector) == std::vector<str>{"a", "b", "c"});
+        };
+
+        "get a from b"_test = []{
+            BiMap<int, str> m({ {1, "a"}, {1, "b"}, {1, "c"}, {2, "b"} });
+            return expect((m.get_a("b") | ranges::to_vector) == std::vector<int>{1, 2});
         };
     });
 }

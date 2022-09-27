@@ -213,6 +213,25 @@ std::size_t n = queue.size();
 queue.clear();
 ```
 
+## [`bidirectional map`](https://github.com/josekoalas/fresa/blob/main/types/bidirectional_map.h)
+
+Container that allows to access the elements by key or value. It is implemented using two `std::set`, one from A to B and one from B to A. Use `get_a(B b)` or `get_b(A a)` to get a range view to all the elements matching the specified key.
+
+```cpp
+fresa::BiMap<int, str> map;
+//: add elements
+map.add(1, "a");
+map.add(1, "b");
+map.add(1, "c");
+map.add(2, "b");
+//: get all the elements with key 1
+auto a_range = map.get_a(1); // == {"a", "b", "c"}
+//: get all the elements with value "b"
+auto b_range = map.get_b("b"); // == {1, 2}
+//: delete elements with A key 1
+map.remove_a(1); // map == {{2, "b"}}
+```
+
 ## [`coroutines`](https://github.com/josekoalas/fresa/blob/main/types/coroutines.h)
 
 See [coroutines](coroutines.md).

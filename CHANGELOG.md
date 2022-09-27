@@ -30,6 +30,7 @@ _the graphics engine_
 - **added** - texture data struct and creation
 - **added** - create attachments
 - **added** - enumeration utilities, adds custom bitwise operators to enum structs
+- **added** - bidirectional map
 
 #### [0.5.4] pipelines (17 sept 22_)
 

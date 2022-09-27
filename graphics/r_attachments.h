@@ -65,6 +65,16 @@ namespace fresa::graphics
         IAttachmentDescription description;
     };
 
+    //: subpass data
+    struct Subpass {
+
+    };
+
+    //: renderpass data
+    struct Renderpass {
+
+    };
+
     // ···········
     // · SYSTEMS ·
     // ···········
@@ -78,5 +88,13 @@ namespace fresa::graphics
 
         //: create attachment
         Attachment create(AttachmentType type, Vec2<ui32> size);
+    }
+
+    namespace subpass
+    {
+        //  implemented in r_api_*.cpp
+
+        //: create subpass
+        void create();
     }
 }
