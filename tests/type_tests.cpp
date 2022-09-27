@@ -143,6 +143,28 @@ namespace test
             BiMap<int, str> m({ {1, "a"}, {1, "b"}, {1, "c"}, {2, "b"} });
             return expect((m.get_a("b") | ranges::to_vector) == std::vector<int>{1, 2});
         };
+
+        "bidirectional chain (dim 2)"_test = []{
+            BiMap<int, float> m({ {1, 1.0f}, {1, 2.0f}, {2, 3.0f} });
+            BiMap<float, str> n({ {1.0f, "a"}, {2.0f, "b"}, {3.0f, "a"} });
+            BiChain chain(m, n);
+
+            auto bs = chain.get_b(1) | ranges::to_vector;
+            auto as = chain.get_a("a") | ranges::to_vector;
+
+            return expect(bs == std::vector<str>{"a", "b"} and as == std::vector<int>{1, 2});
+        };
+        "bidirectional chain (dim 3)"_test = []{
+            BiMap<int, char> m({ {1, 'x'}, {1, 'y'}, {2, 'z'} });
+            BiMap<char, str> n({ {'x', "a"}, {'y', "b"}, {'z', "a"} });
+            BiMap<str, float> o({ {"a", 5.0f}, {"b", 7.0f}, {"c", 9.0f} });
+            BiChain chain(m, n, o);
+
+            auto bs = chain.get_b(1) | ranges::to_vector;
+            auto as = chain.get_a(5.0f) | ranges::to_vector;
+
+            return expect(bs == std::vector<float>{5.0f, 7.0f} and as == std::vector<int>{1, 2});
+        };
     });
 }
 
