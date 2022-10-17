@@ -174,6 +174,10 @@ void GraphicsSystem::init() {
 
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const vk::VulkanAPI>(std::move(vk_api));
+
+    //! TEMPORARY TESTS
+    auto shader_pass = shader::createPass("test");
+    auto attachment = attachment::create(AttachmentType::COLOR, Vec2<ui32>{1280, 720});
 }
 
 //* create vulkan instance
@@ -843,23 +847,23 @@ std::unordered_map<ui32, VkDescriptorSetLayout> vk::createDescriptorLayout(const
     for (const auto &stage : stages) {
         for (const auto &binding : stage.bindings) {
             auto &s = set_bindings[binding.set];
-            auto vk_stage_flag = shader_stages.at((ui32)binding.stage_flags).stage;
+            auto vk_stage_flag = shader_stage_values.at((ui32)binding.stage_flags);
             //: check if there is already a binding with the same number
             auto it = std::find_if(s.begin(), s.end(), [&](const auto &b){ return b.binding == binding.binding; });
             if (it != s.end()) {
                 //: if the binding already exists, check for errors and then merge the stage flags
                 strong_assert<const ui32, const str_view, const str_view>(it->descriptorType == binding.descriptor_type,
                               "descriptor types for the same binding ({}) must be the same, but are '{}' and '{}'",
-                              std::forward<const ui32>(binding.binding), std::forward<const str_view>(shader_descriptors.at(it->descriptorType).name), std::forward<const str_view>(shader_descriptors.at(binding.descriptor_type).name));
+                              std::forward<const ui32>(binding.binding), std::forward<const str_view>(shader_descriptor_names.at(it->descriptorType)), std::forward<const str_view>(shader_descriptor_names.at((std::size_t)binding.descriptor_type)));
                 strong_assert<const ui32, const str_view>(it->stageFlags == vk_stage_flag,
                               "it is not allowed to repeat the same binding ({}) in the same stage '{}'",
-                              std::forward<const ui32>(binding.binding), std::forward<const str_view>(shader_descriptors.at(binding.descriptor_type).name));
+                              std::forward<const ui32>(binding.binding), std::forward<const str_view>(shader_descriptor_names.at((std::size_t)binding.descriptor_type)));
                 it->stageFlags |= vk_stage_flag;
             } else {
                 //: if the binding does not exist, create it
                 s.push_back(VkDescriptorSetLayoutBinding{
                     .binding = binding.binding,
-                    .descriptorType = binding.descriptor_type,
+                    .descriptorType = shader_descriptor_values.at((std::size_t)binding.descriptor_type),
                     .descriptorCount = binding.descriptor_count,
                     .stageFlags = vk_stage_flag
                 });
@@ -1148,7 +1152,7 @@ VkPipeline vk::buildDrawPipeline(PipelineConfig &&config, const ShaderPass &shad
     for (const auto& s : shader.stages) {
         stage_create_info.push_back(VkPipelineShaderStageCreateInfo {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage = shader_stages.at((ui32)s.stage).stage,
+            .stage = shader_stage_values.at((std::size_t)s.stage),
             .module = s.module,
             .pName = "main"
         });
@@ -1216,11 +1220,11 @@ ShaderPass shader::createPass(str_view name) {
         //: get the shader stage
         auto s = split(f.path().stem().string(), '.') | ranges::to_vector;
         strong_assert<str_view>(s.size() == 2, "invalid shader name '{}', it must be file.extension.spv", f.path().stem().string());
-        auto it = std::find_if(shader_stages.begin(), shader_stages.end(), [s](const auto &stage){ return s.at(1) == stage.extension; });
-        strong_assert<str_view>(it != shader_stages.end(), "invalid shader extension '.{}'", std::forward<str_view>(s.at(1)));
+        auto it = std::find_if(shader_stage_extensions.begin(), shader_stage_extensions.end(), [s](const auto &ext){ return s.at(1) == ext; });
+        strong_assert<str_view>(it != shader_stage_extensions.end(), "invalid shader extension '.{}'", std::forward<str_view>(s.at(1)));
         
         //: add the module to the pass
-        pass.stages.push_back(createModule(name, (ShaderStage)std::distance(shader_stages.begin(), it)));
+        pass.stages.push_back(createModule(name, (ShaderStage)std::distance(shader_stage_extensions.begin(), it)));
     }
     strong_assert<str_view>(not pass.stages.empty(), "the shader path 'shaders/{}/' does not contain any shaders", std::forward<str_view>(name));
 
@@ -1328,11 +1332,11 @@ void attachment::buildTexture(Texture& texture) {
 
     //: check if the parameters passed are valid
     soft_assert(texture.size.x > 0 and texture.size.y > 0, "the texture size must be greater than 0");
-    soft_assert(texture.memory_usage != VMA_MEMORY_USAGE_MAX_ENUM, "the texture memory usage must be specified");
-    soft_assert(texture.format != VK_FORMAT_MAX_ENUM, "the texture format must be specified");
-    soft_assert(texture.usage != VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM, "the texture usage must be specified");
-    soft_assert(texture.aspect != VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM, "the texture aspect must be specified");
-    soft_assert(texture.initial_layout != VK_IMAGE_LAYOUT_MAX_ENUM, "the texture initial layout must be specified");
+    soft_assert(texture.memory_usage != no_memory_usage, "the texture memory usage must be specified");
+    soft_assert(texture.format != no_format, "the texture format must be specified");
+    soft_assert(texture.usage != no_usage, "the texture usage must be specified");
+    soft_assert(texture.aspect != no_aspect, "the texture aspect must be specified");
+    soft_assert(texture.initial_layout != no_image_layout, "the texture initial layout must be specified");
         
     //: create the image
     auto [image, allocation] = vk::createImage(texture.size, texture.memory_usage, texture.format, texture.usage, texture.initial_layout);

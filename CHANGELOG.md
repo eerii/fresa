@@ -24,13 +24,14 @@ _the graphics engine_
 
 ---
 
-#### [0.5.5] attachments (00 sept 22_)
+#### [0.5.5] attachments (00 oct 22_)
 
 - **added** - create vkimage and vkimageview
 - **added** - texture data struct and creation
 - **added** - create attachments
 - **added** - enumeration utilities, adds custom bitwise operators to enum structs
 - **added** - bidirectional map
+- **changed** - cleanup of api and window implementation logic
 
 #### [0.5.4] pipelines (17 sept 22_)
 

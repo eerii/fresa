@@ -12,19 +12,24 @@ namespace fresa::graphics
     // · DEFINITIONS ·
     // ···············
 
-    //: interfaces for vulkan objects (allows for making this file mostly api agnostic in the future)
-    using IImage = VkImage;
-    using IImageView = VkImageView;
-    using IImageUsageFlags = VkImageUsageFlags;
-    using IImageAspectFlags = VkImageAspectFlags;
-    using IImageLayout = VkImageLayout;
-    using IFormat = VkFormat;
-    using IImageLayout = VkImageLayout;
-    using IAllocation = VmaAllocation;
-    using IMemoryUsage = VmaMemoryUsage;
-    using IAttachmentLoadOp = VkAttachmentLoadOp;
-    using IAttachmentStoreOp = VkAttachmentStoreOp;
-    using IAttachmentDescription = VkAttachmentDescription;
+    //: check for required interface definitions
+    static_assert(requires { typename IImage; },                    "graphics api interface 'IImage' not defined");
+    static_assert(requires { typename IImageView; },                "graphics api interface 'IImageView' not defined");
+    static_assert(requires { typename IImageUsageFlags; },          "graphics api interface 'IImageUsageFlags' not defined");
+    static_assert(requires { typename IImageAspectFlags; },         "graphics api interface 'IImageAspectFlags' not defined");
+    static_assert(requires { typename IImageLayout; },              "graphics api interface 'IImageLayout' not defined");
+    static_assert(requires { typename IFormat; },                   "graphics api interface 'IFormat' not defined");
+    static_assert(requires { typename IAllocation; },               "graphics api interface 'IAllocation' not defined");
+    static_assert(requires { typename IMemoryUsage; },              "graphics api interface 'IMemoryUsage' not defined");
+    static_assert(requires { typename IAttachmentLoadOp; },         "graphics api interface 'IAttachmentLoadOp' not defined");
+    static_assert(requires { typename IAttachmentStoreOp; },        "graphics api interface 'IAttachmentStoreOp' not defined");
+    static_assert(requires { typename IAttachmentDescription; },    "graphics api interface 'IAttachmentDescription' not defined");
+
+    static_assert(no_image_layout != 0, "graphics api interface 'no_image_layout' not defined");
+    static_assert(no_format != 0,       "graphics api interface 'no_format' not defined");
+    static_assert(no_usage != 0,        "graphics api interface 'no_usage' not defined");
+    static_assert(no_aspect != 0,       "graphics api interface 'no_aspect' not defined");
+    static_assert(no_memory_usage != 0, "graphics api interface 'no_memory_usage' not defined");
 
     //: attachment type
     enum struct AttachmentType {
@@ -39,18 +44,18 @@ namespace fresa::graphics
 
     //: texture data
     struct Texture {
-        IImage image = VK_NULL_HANDLE;
-        IImageView image_view = VK_NULL_HANDLE;
+        IImage image;
+        IImageView image_view;
 
-        IAllocation allocation = VK_NULL_HANDLE;
-        IMemoryUsage memory_usage = VMA_MEMORY_USAGE_MAX_ENUM;
+        IAllocation allocation;
+        IMemoryUsage memory_usage = no_memory_usage;
 
-        IFormat format = VK_FORMAT_MAX_ENUM;
-        IImageUsageFlags usage = VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM;
-        IImageAspectFlags aspect = VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM;
+        IFormat format = no_format;
+        IImageUsageFlags usage = no_usage;
+        IImageAspectFlags aspect = no_aspect;
 
-        IImageLayout initial_layout = VK_IMAGE_LAYOUT_MAX_ENUM;
-        IImageLayout final_layout = VK_IMAGE_LAYOUT_MAX_ENUM;
+        IImageLayout initial_layout = no_image_layout;
+        IImageLayout final_layout = no_image_layout;
         
         Vec2<ui32> size;
     };

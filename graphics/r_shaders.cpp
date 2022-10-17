@@ -19,7 +19,7 @@ using namespace graphics;
 //      spirv is the binary shader format which is used by vulkan
 std::vector<ui32> shader::readSPIRV(str_view name, ShaderStage stage) {
     //: calculate the path to the spirv file
-    str path = file::path(fmt::format("shaders/{}/{}.{}.spv", name, name, shader_stages.at((ui32)stage).extension));
+    str path = file::path(fmt::format("shaders/{}/{}.{}.spv", name, name, shader_stage_extensions.at((ui32)stage)));
 
     //: open the file
     std::ifstream file(path, std::ios::ate | std::ios::binary);
@@ -80,7 +80,7 @@ std::vector<DescriptorLayoutBinding> shader::getDescriptorBindings(const spv_c::
         for (const auto &res : std::get<type>(descriptor_types)) {
             DescriptorLayoutBinding data;
 
-            //: binding, indicated by layout(binding = 0), necessary for VkDescriptorSetLayoutBinding creation
+            //: binding, indicated by layout(binding = 0), necessary for vkDescriptorSetLayoutBinding creation
             data.binding = compiler.get_decoration(res.id, spv::DecorationBinding);
 
             //: set, indicated by layout(set = 0), for multiple descriptor set support
@@ -103,7 +103,7 @@ std::vector<DescriptorLayoutBinding> shader::getDescriptorBindings(const spv_c::
             data.name = res.name;
 
             //: other properties
-            data.descriptor_type = shader_descriptors.at(type.value).descriptor_type;
+            data.descriptor_type = (ShaderDescriptor)type.value;
             data.descriptor_count = 1;
             data.stage_flags = stage;
 

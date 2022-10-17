@@ -10,15 +10,13 @@ namespace fresa::graphics
     // · DEFINITIONS ·
     // ···············
 
-    //: interfaces for vulkan objects (allows for making this file mostly api agnostic in the future)
-    using IShaderStageFlagBits = VkShaderStageFlagBits;
-    using IDescriptorType = VkDescriptorType;
-    using IShaderModule = VkShaderModule;
-    using IDescriptorSetLayout = VkDescriptorSetLayout;
-    using IDescriptorSet = VkDescriptorSet;
-    using IDescriptorPool = VkDescriptorPool;
-    using IPipelineLayout = VkPipelineLayout;
-    using IPipeline = VkPipeline;
+    //: check for required interface definitions
+    static_assert(requires { typename IShaderModule; },         "graphics api interface 'IShaderModule' not defined");
+    static_assert(requires { typename IDescriptorSetLayout; },  "graphics api interface 'IDescriptorSetLayout' not defined");
+    static_assert(requires { typename IDescriptorSet; },        "graphics api interface 'IDescriptorSet' not defined");
+    static_assert(requires { typename IDescriptorPool; },       "graphics api interface 'IDescriptorPool' not defined");
+    static_assert(requires { typename IPipelineLayout; },       "graphics api interface 'IPipelineLayout' not defined");
+    static_assert(requires { typename IPipeline; },             "graphics api interface 'IPipeline' not defined");
 
     //: shader stages
     enum struct ShaderStage {
@@ -26,14 +24,10 @@ namespace fresa::graphics
         FRAGMENT,
         COMPUTE
     };
-    struct ShaderStageData {
-        str_view extension;
-        IShaderStageFlagBits stage;
-    };
-    constexpr inline auto shader_stages = std::to_array<ShaderStageData>({
-        {"vert", VK_SHADER_STAGE_VERTEX_BIT},
-        {"frag", VK_SHADER_STAGE_FRAGMENT_BIT},
-        {"comp", VK_SHADER_STAGE_COMPUTE_BIT}
+    constexpr auto shader_stage_extensions = std::to_array({
+        "vert",
+        "frag",
+        "comp"
     });
 
     //: shader descriptor types
@@ -43,16 +37,18 @@ namespace fresa::graphics
         IMAGE_SAMPLER,
         INPUT_ATTACHMENT
     };
-    struct ShaderDescriptorData {
-        str_view name;
-        IDescriptorType descriptor_type;
-    };
-    constexpr inline auto shader_descriptors = std::to_array<ShaderDescriptorData>({
-        {"uniform", VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
-        {"storage", VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
-        {"image_sampler", VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER},
-        {"input_attachment", VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT}
+    constexpr auto shader_descriptor_names = std::to_array({
+        "uniform",
+        "storage",
+        "image_sampler",
+        "input_attachment"
     });
+
+    //: check required values for enum types
+    static_assert(shader_stage_values.size() == shader_stage_extensions.size(),
+                  "shader stage values have not been defined in the implementation");
+    static_assert(shader_descriptor_values.size() == shader_descriptor_names.size(),
+                  "shader descriptor values have not been defined in the implementation");
 
     // ·············
     // · DATATYPES ·
@@ -66,7 +62,7 @@ namespace fresa::graphics
         ui32 set;
         ui32 size;
         ui32 descriptor_count;
-        IDescriptorType descriptor_type;
+        ShaderDescriptor descriptor_type;
         ShaderStage stage_flags;
         str name;
     };
@@ -74,7 +70,7 @@ namespace fresa::graphics
     //: shader module
     //      encapsulates a vulkan shader module (the compiled shader), as well as the stage it belongs to and reflection data
     struct ShaderModule {
-        IShaderModule module = VK_NULL_HANDLE;
+        IShaderModule module;
         ShaderStage stage;
         std::vector<DescriptorLayoutBinding> bindings;
     };
@@ -83,7 +79,7 @@ namespace fresa::graphics
     //      contains a descriptor set list (one per frame in flight) and its layout and set index
     struct DescriptorSet {
         ui32 set_index;
-        IDescriptorSetLayout layout = VK_NULL_HANDLE;
+        IDescriptorSetLayout layout;
         std::array<IDescriptorSet, engine_config.vk_frames_in_flight()> descriptors;
     };
 
@@ -93,8 +89,8 @@ namespace fresa::graphics
     struct ShaderPass {
         std::vector<ShaderModule> stages;
         std::vector<DescriptorSet> descriptors;
-        IPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-        IPipeline pipeline = VK_NULL_HANDLE;
+        IPipelineLayout pipeline_layout;
+        IPipeline pipeline;
     };
 
     // ···········
