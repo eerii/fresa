@@ -24,7 +24,11 @@ _the graphics engine_
 
 ---
 
-#### [0.5.5] attachments (00 oct 22_)
+#### [0.5.6] compiler support (_00 oct 22_)
+
+- **changed** - 
+
+#### [0.5.5] attachments (_17 oct 22_)
 
 - **added** - create vkimage and vkimageview
 - **added** - texture data struct and creation
@@ -33,14 +37,14 @@ _the graphics engine_
 - **added** - bidirectional map
 - **changed** - cleanup of api and window implementation logic
 
-#### [0.5.4] pipelines (17 sept 22_)
+#### [0.5.4] pipelines (_17 sept 22_)
 
 - **added** - pipeline layout
 - **changed** - moved r_vulkan and r_types contents to r_api and renamed r_vulkan_api to r_api_vulkan
 - **changed** - only r_api_* should be able to modify the api object after creation, added new private m_api to allow this
 - **added** - pipeline configuration and creation (still needs to add renderpasses and vertex descriptions)
 
-#### [0.5.3] shaders and spirv (17 sept 22_)
+#### [0.5.3] shaders and spirv (_17 sept 22_)
 
 - **added** - spirv code reader
 - **added** - resource folder which automatically syncs to the binary folder
@@ -56,7 +60,7 @@ _the graphics engine_
 - **added** - reflect descriptor layout bindings abnd layout creation
 - **added** - descriptor pools and descriptor sets
 
-#### [0.5.2] sync objects (13 sept 22_)
+#### [0.5.2] sync objects (_13 sept 22_)
 
 - **added** - created semaphore and fences
 - **added** - window and swapchain resizing
