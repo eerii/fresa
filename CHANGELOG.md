@@ -26,7 +26,8 @@ _the graphics engine_
 
 #### [0.5.6] compiler support (_00 oct 22_)
 
-- **changed** - 
+- **changed** - made type names and hashes consteval
+- **changed** - switched config to consteval
 
 #### [0.5.5] attachments (_17 oct 22_)
 

@@ -12,7 +12,7 @@ The struct `EngineConfig` contains constexpr virtual methods (a new `c++20` feat
 
 ```cpp
 struct fresa::EngineConfig {
-    constexpr str_view virtual name() const { return "fresa"; };
+    consteval str_view virtual name() const { return "fresa"; };
 };
 ```
 
@@ -21,7 +21,7 @@ Which can be overwritten as:
 ```cpp
 struct _EngineConfig : fresa::EngineConfig {
     //: change the project name to "mermelada"
-    constexpr str_view name() const override { return "mermelada"; }
+    consteval str_view name() const override { return "mermelada"; }
 };
 ```
 
@@ -36,7 +36,7 @@ struct _EngineConfig : fresa::EngineConfig {
 namespace fresa
 {
     constexpr inline struct _EngineConfig : EngineConfig {
-        constexpr str_view name() const override { return "my project"; }
+        consteval str_view name() const override { return "my project"; }
     } engine_config;
 
     inline RunConfig config{

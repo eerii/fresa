@@ -42,21 +42,14 @@ namespace fresa
     {
         namespace rv = ranges::views;
     }
-#elif defined __cpp_lib_ranges
-    #include <ranges>
-    namespace fresa
-    {
-        namespace rv = std::ranges::views;
-        namespace ranges = std::ranges;
-    }
 #else
     #error "ranges not supported"
 #endif
 
 //* new jthread
 #include <thread>
-#if defined __cpp_lib_jthread
-    //: jthread is supported
+#ifdef __cpp_lib_jthread
+    //: jthread is supported (included in <thread>)
 #elif __has_include("jthread.hpp") and __has_include("stop_token.hpp")
     #include "jthread.hpp"
     #include "stop_token.hpp"

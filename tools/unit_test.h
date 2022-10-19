@@ -107,7 +107,7 @@ namespace fresa
     };
 
     //* test literal operator
-    constexpr auto operator""_test(const char* name, std::size_t size) {
+    consteval auto operator""_test(const char* name, std::size_t size) {
         return Test{.name = str_view{name, size}};
     }
 

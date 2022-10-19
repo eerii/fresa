@@ -9,7 +9,7 @@
     {
         using source_location = std::source_location;
     }
-#else 
+#else
     namespace fresa::detail
     {
         struct source_location

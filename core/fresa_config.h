@@ -29,28 +29,28 @@ namespace fresa
     //* engine config (compile time)
     struct EngineConfig {
         //: name
-        constexpr str_view virtual name() const { return "fresa"; };
+        consteval str_view virtual name() const { return "fresa"; };
         //: version
-        constexpr std::array<ui8, 3> virtual version() const { return {0, 5, 6}; };
+        consteval std::array<ui8, 3> virtual version() const { return {0, 5, 6}; };
 
         //: unit tests to run (comma separated list)
-        constexpr str_view virtual run_tests() const { return ""; };
+        consteval str_view virtual run_tests() const { return ""; };
         //: log level (see tools/log.h for the list of levels)
-        constexpr ui32 virtual log_level() const { return 0b0000111; };
+        consteval ui32 virtual log_level() const { return 0b0000111; };
         //: enable assertions
-        constexpr bool virtual enable_assertions() const { return false; };
+        consteval bool virtual enable_assertions() const { return false; };
 
         //: component pool page size
-        constexpr ui32 virtual ecs_page_size() const { return 256; };
+        consteval ui32 virtual ecs_page_size() const { return 256; };
         //: game loop wait time
-        constexpr decltype(1.0ms) virtual game_loop_wait() const { return 0.5ms; };
+        consteval decltype(1.0ms) virtual game_loop_wait() const { return 0.5ms; };
 
         //: assets path
-        constexpr str_view virtual res_path() const { return "res"; };
+        consteval str_view virtual res_path() const { return "res"; };
 
         //: rendering configurations
-        constexpr ui8 virtual vk_frames_in_flight() const { return 2; };
-        constexpr ui32 virtual vk_descriptor_pool_max_sets() const { return 256; };
+        consteval ui8 virtual vk_frames_in_flight() const { return 2; };
+        consteval ui32 virtual vk_descriptor_pool_max_sets() const { return 256; };
     };
 
     //* run config (run time)

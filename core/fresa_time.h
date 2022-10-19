@@ -16,7 +16,7 @@ namespace fresa
     [[nodiscard]] inline clock::time_point time() { return clock::now(); }
 
     //* fixed delta time for updates, new simulation each 1/N seconds
-    auto constexpr dt = 1.0s/100.0;
+    constexpr auto dt = 1.0s/100.0;
 }
 
 //* custom time difference formatter for the fmt library
