@@ -417,7 +417,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../coroutines/" class="md-nav__link">
+      <a href="../../coroutines.md" class="md-nav__link">
         coroutines
       </a>
     </li>
@@ -676,10 +676,10 @@
 
 <h1 id="log"><a href="https://github.com/josekoalas/fresa/blob/main/tools/log.h"><code>log</code></a><a class="headerlink" href="#log" title="Permanent link">&para;</a></h1>
 <p><strong>fresa</strong> has a simple logging system using the <a href="https://github.com/fmtlib/fmt"><code>fmt</code></a> library. The function <code>fresa::detail::log</code> is a passthrough to <code>fmt::print</code> with extra parameters for special formatting.</p>
-<div class="highlight"><pre><span></span><code><span class="n">fresa</span><span class="o">::</span><span class="n">detail</span><span class="o">::</span><span class="n">log</span><span class="o">&lt;</span><span class="s">&quot;NAME&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">LOG_LEVEL</span><span class="p">,</span><span class="w"> </span><span class="n">fmt</span><span class="o">::</span><span class="n">color</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="n">fresa</span><span class="o">::</span><span class="n">detail</span><span class="o">::</span><span class="n">log</span><span class="o">&lt;</span><span class="s">&quot;NAME&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">LogLevel</span><span class="o">::</span><span class="n">LEVEL</span><span class="p">,</span><span class="w"> </span><span class="n">fmt</span><span class="o">::</span><span class="n">color</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span><span class="w"></span>
 <span class="o">&gt;</span><span class="w"> </span><span class="p">[</span><span class="n">NAME</span><span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="p">...</span><span class="w"></span>
 </code></pre></div>
-<p>The <code>name</code> template parameter is the type of log message, <code>LOG_LEVEL</code> is used to enable or disable log types, and a color can be passed to make the output more readable. The first function parameter must be an <a href="https://fmt.dev/latest/syntax.html"><code>fmt::format_string</code></a>. Simplifying, this means that it will behave as a regular string but everywhere there is a "{}" it will be replaced with the next argument. Custom printing formats can be passed, for example, as "{:.2f}". Leveraging the new features introduced in <code>fmt</code> with <code>c++20</code>, the passthrough can now use constant expressions to format at compile time.</p>
+<p>The <code>name</code> template parameter is the type of log message, <code>LogLevel::LEVEL</code> is used to enable or disable log types, and a color can be passed to make the output more readable. The first function parameter must be an <a href="https://fmt.dev/latest/syntax.html"><code>fmt::format_string</code></a>. Simplifying, this means that it will behave as a regular string but everywhere there is a "{}" it will be replaced with the next argument. Custom printing formats can be passed, for example, as "{:.2f}". Leveraging the new features introduced in <code>fmt</code> with <code>c++20</code>, the passthrough can now use constant expressions to format at compile time.</p>
 <h2 id="log-levels">log levels<a class="headerlink" href="#log-levels" title="Permanent link">&para;</a></h2>
 <p>The logging level can be specified using the <code>engine_config.log_level()</code> <a href="../../config/">config</a> parameter. Each log level is defined in a bitwise enum, so they can be granularly combined.</p>
 <table>
@@ -691,31 +691,31 @@
 </thead>
 <tbody>
 <tr>
-<td><code>LOG_ERROR</code></td>
+<td><code>LogLevel::ERROR</code></td>
 <td>1 &lt;&lt; 0</td>
 </tr>
 <tr>
-<td><code>LOG_WARNING</code></td>
+<td><code>LogLevel::WARNING</code></td>
 <td>1 &lt;&lt; 1</td>
 </tr>
 <tr>
-<td><code>LOG_INFO</code></td>
+<td><code>LogLevel::INFO</code></td>
 <td>1 &lt;&lt; 2</td>
 </tr>
 <tr>
-<td><code>LOG_GRAPHICS</code></td>
+<td><code>LogLevel::GRAPHICS</code></td>
 <td>1 &lt;&lt; 3</td>
 </tr>
 <tr>
-<td><code>LOG_TEST</code></td>
+<td><code>LogLevel::TEST</code></td>
 <td>1 &lt;&lt; 4</td>
 </tr>
 <tr>
-<td><code>LOG_DEBUG</code></td>
+<td><code>LogLevel::DEBUG</code></td>
 <td>1 &lt;&lt; 5</td>
 </tr>
 <tr>
-<td><code>LOG_JOBS</code></td>
+<td><code>LogLevel::JOBS</code></td>
 <td>1 &lt;&lt; 6</td>
 </tr>
 </tbody>
@@ -736,31 +736,31 @@
 <tr>
 <td><code>log::error</code></td>
 <td>"ERROR"</td>
-<td><code>LOG_ERROR</code></td>
+<td><code>LogLevel::ERROR</code></td>
 <td>red</td>
 </tr>
 <tr>
 <td><code>log::warn</code></td>
 <td>"WARN"</td>
-<td><code>LOG_WARN</code></td>
+<td><code>LogLevel::WARN</code></td>
 <td>gold</td>
 </tr>
 <tr>
 <td><code>log::info</code></td>
 <td>"INFO"</td>
-<td><code>LOG_INFO</code></td>
+<td><code>LogLevel::INFO</code></td>
 <td>cornflower_blue</td>
 </tr>
 <tr>
 <td><code>log::graphics</code></td>
 <td>"GRAPHICS"</td>
-<td><code>LOG_GRAPHICS</code></td>
+<td><code>LogLevel::GRAPHICS</code></td>
 <td>dark_turquoise</td>
 </tr>
 <tr>
 <td><code>log::debug</code></td>
 <td>"DEBUG"</td>
-<td><code>LOG_DEBUG</code></td>
+<td><code>LogLevel::DEBUG</code></td>
 <td>light_sky_blue</td>
 </tr>
 </tbody>

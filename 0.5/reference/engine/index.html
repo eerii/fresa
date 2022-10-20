@@ -388,29 +388,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#init" class="md-nav__link">
-    init
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#update" class="md-nav__link">
-    update
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#stop" class="md-nav__link">
-    stop
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quit" class="md-nav__link">
-    quit
+  <a href="#quit-and-force_quit" class="md-nav__link">
+    quit and force_quit
   </a>
   
 </li>
@@ -486,7 +465,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../coroutines/" class="md-nav__link">
+      <a href="../coroutines.md" class="md-nav__link">
         coroutines
       </a>
     </li>
@@ -698,23 +677,13 @@
 <h2 id="run"><code>run</code><a class="headerlink" href="#run" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">run</span><span class="p">()</span><span class="w"></span>
 </code></pre></div>
-<p>This is the main entrypoint of the engine. First it perform the tests defined in the configuration file (if enabled with <code>FRESA_ENABLE_TESTS</code>). Then calls <a href="#init"><code>init</code></a> before running the update loop. Finally it stops all systems and returns control to the caller function.</p>
-<h2 id="init"><code>init</code><a class="headerlink" href="#init" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">detail</span><span class="o">::</span><span class="n">init</span><span class="p">()</span><span class="w"></span>
-</code></pre></div>
-<p>Called from <a href="#run"><code>run</code></a> handles system initialization and all work needed before the main update loop.</p>
-<h2 id="update"><code>update</code><a class="headerlink" href="#update" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kt">bool</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">detail</span><span class="o">::</span><span class="n">update</span><span class="p">()</span><span class="w"></span>
-</code></pre></div>
-<p>Main update loop of the application. The simulation update is decoupled from the frame time, instead being increased in discrete steps of <code>dt</code>. This allows the engine to run independent of frame rate. The implementation is very similar to the one described in the <a href="https://gafferongames.com/post/fix_your_timestep">fix your timestep</a> article.</p>
-<h2 id="stop"><code>stop</code><a class="headerlink" href="#stop" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">detail</span><span class="o">::</span><span class="n">stop</span><span class="p">()</span><span class="w"></span>
-</code></pre></div>
-<p>Called from <a href="#run"><code>run</code></a> when execution ends. Clear systems in LIFO order (using an <code>std::stack</code>).</p>
-<h2 id="quit"><code>quit</code><a class="headerlink" href="#quit" title="Permanent link">&para;</a></h2>
+<p>This is the main entrypoint of the engine. First it perform the tests defined in the configuration file (if enabled with <code>FRESA_ENABLE_TESTS</code>). Then calls <a href="#init"><code>init</code></a>, which handles system initialization.</p>
+<p>Finally it calls the main <code>update</code> loop of the application. The simulation update is decoupled from the frame time, instead being increased in discrete steps of <code>dt</code>. This allows the engine to run independent of frame rate. The implementation is very similar to the one described in the <a href="https://gafferongames.com/post/fix_your_timestep">fix your timestep</a> article. It also includes a sleep function to avoid using 100% of the CPU if not necessary. It will limit the simulation checks to the value defined in the configuration file.</p>
+<h2 id="quit-and-force_quit"><code>quit</code> and <code>force_quit</code><a class="headerlink" href="#quit-and-force_quit" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">quit</span><span class="p">()</span><span class="w"></span>
+<span class="kt">void</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">force_quit</span><span class="p">()</span><span class="w"></span>
 </code></pre></div>
-<p>Can be called when the engine needs to exit early. This will call <a href="#stop"><code>stop</code></a> and then exit the application.</p>
+<p>Can be called when the engine needs to exit early. This will call <a href="#stop"><code>stop</code></a> and then exit the application. There are two variants: the regular <code>quit</code> first completes the current frame of the update loop, and then exists, while <code>force_quit</code> runs <code>stop</code> and exits immediately.</p>
 
               
             </article>

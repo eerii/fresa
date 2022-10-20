@@ -507,7 +507,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/coroutines/" class="md-nav__link">
+      <a href="../../reference/coroutines.md" class="md-nav__link">
         coroutines
       </a>
     </li>
@@ -740,6 +740,8 @@ cmake --build build
 <li>gcc 12.1+</li>
 </ul>
 <p>MSVC is mostly working, except for nested constexpr for loops in the math library. There is an issue where these loops don't compile only with MSVC. I already submitted a <a href="https://developercommunity.visualstudio.com/t/Lambda-inside-lambda-cant-detect-conste/10085564">bug report</a> with a temporary workaround, and it is pending release. At this time, clang or gcc are recommended.</p>
+<p>When building for macos and using gcc, please note that you have to use apple clang as the c compiler and g++ as the c++ compiler, since gcc causes linking error against the developer frameworks when using glfw. See <a href="https://github.com/glfw/glfw/issues/1743">this issue</a>.</p>
+<p>On linux systems glfw requires some <a href="https://www.glfw.org/docs/latest/compile_guide.html#compile_deps_x11">development libraries</a>. For X11 and debian you should be fine using <code>sudo apt install xorg-dev</code>, for other systems or window managers check the complete list.</p>
 <h2 id="extra-installing-compilers">extra: installing compilers<a class="headerlink" href="#extra-installing-compilers" title="Permanent link">&para;</a></h2>
 <p>This is a very brief and general guide to install the most recent compilers. Your system requirements might vary so please refer to the original instructions when in doubt.</p>
 <p><strong>debian/ubuntu:</strong></p>
@@ -783,10 +785,12 @@ snap install cmake
 <li><a href="https://github.com/josuttis/jthread"><strong>jthread</strong></a> <em>[CC BY 4.0]</em>: For <code>std::jthread</code>.</li>
 </ul>
 <p><strong>rendering libraries</strong></p>
-<p>Despite incorporating its own renderer, some low level functions are required to create and manage a cross platform window, surface and input. For this purpose we use glfw3, along with glad2 for loading functions for both opengl and vulkan.</p>
+<p>Despite incorporating its own renderer, some low level functions are required to create and manage a cross platform window, surface and input. For this purpose we use glfw3, along with glad2 for loading functions for both opengl and vulkan. We also use the vulkan memory allocator for managing memory inside the vulkan application and SPIRV-Cross for shader reflection.</p>
 <ul>
 <li><a href="https://github.com/glfw/glfw"><strong>glfw</strong></a> <em>[ZLIB]</em>: For window creation and input.</li>
 <li><a href="https://github.com/Dav1dde/glad/tree/glad2"><strong>glad</strong></a> <em>[MIT]</em>: For opengl and vulkan loading.</li>
+<li><a href="https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator"><strong>vma</strong></a> <em>[MIT]</em>: For vulkan memory management.</li>
+<li><a href="https://github.com/KhronosGroup/SPIRV-Cross"><strong>spirv-cross</strong></a> <em>[Apache 2.0]</em>: For converting spirv to glsl and reflecting shaders.</li>
 </ul>
 
               

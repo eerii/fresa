@@ -450,8 +450,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#coroutines" class="md-nav__link">
-    coroutines
+  <a href="#bidirectional-map" class="md-nav__link">
+    bidirectional map
   </a>
   
 </li>
@@ -520,7 +520,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../coroutines/" class="md-nav__link">
+      <a href="../coroutines.md" class="md-nav__link">
         coroutines
       </a>
     </li>
@@ -854,6 +854,9 @@
 <span class="n">type_name_n</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;std::array&quot;</span><span class="p">;</span><span class="w"></span>
 <span class="n">type_name</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">array</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;std::array&quot;</span><span class="p">;</span><span class="w"></span>
 </code></pre></div>
+<p>You can also get an unique hash for a type using <code>type_hash</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">type_hash</span><span class="o">&lt;</span><span class="n">fresa</span><span class="o">::</span><span class="n">detail</span><span class="o">::</span><span class="n">array</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="p">...;</span><span class="w"></span>
+</code></pre></div>
 <h2 id="constexpr-for"><a href="https://github.com/josekoalas/fresa/blob/main/types/constexpr_for.h"><code>constexpr for</code></a><a class="headerlink" href="#constexpr-for" title="Permanent link">&para;</a></h2>
 <p>Approach of a variety of constexpr for loops. Uses template metaprograming to create the iteration on compile time, supporting constexpr results.</p>
 <p><strong>integral for</strong></p>
@@ -885,7 +888,7 @@
 <span class="w">    </span><span class="p">...</span><span class="w"></span>
 <span class="p">},</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_tuple</span><span class="p">(</span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;hello&quot;</span><span class="p">));</span><span class="w"></span>
 </code></pre></div>
-<h2 id="string-utils"><a href="https://github.com/josekoalas/fresa/blob/main/types/strings.h"><code>string utils</code></a><a class="headerlink" href="#string-utils" title="Permanent link">&para;</a></h2>
+<h2 id="string-utils"><a href="https://github.com/josekoalas/fresa/blob/main/types/string_utils.h"><code>string utils</code></a><a class="headerlink" href="#string-utils" title="Permanent link">&para;</a></h2>
 <p><strong>string literal</strong></p>
 <p>Used for passing a string literal as a template parameter.</p>
 <div class="highlight"><pre><span></span><code><span class="k">template</span><span class="o">&lt;</span><span class="n">str_literal</span><span class="w"> </span><span class="n">name</span><span class="o">&gt;</span><span class="w"></span>
@@ -931,8 +934,21 @@
 <span class="c1">//: clear the queue</span>
 <span class="n">queue</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
 </code></pre></div>
-<h2 id="coroutines"><a href="https://github.com/josekoalas/fresa/blob/main/types/coroutines.h"><code>coroutines</code></a><a class="headerlink" href="#coroutines" title="Permanent link">&para;</a></h2>
-<p>See <a href="../coroutines/">coroutines</a>.</p>
+<h2 id="bidirectional-map"><a href="https://github.com/josekoalas/fresa/blob/main/types/bidirectional_map.h"><code>bidirectional map</code></a><a class="headerlink" href="#bidirectional-map" title="Permanent link">&para;</a></h2>
+<p>Container that allows to access the elements by key or value. It is implemented using two <code>std::set</code>, one from A to B and one from B to A. Use <code>get_a(B b)</code> or <code>get_b(A a)</code> to get a range view to all the elements matching the specified key.</p>
+<div class="highlight"><pre><span></span><code><span class="n">fresa</span><span class="o">::</span><span class="n">BiMap</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="n">str</span><span class="o">&gt;</span><span class="w"> </span><span class="n">map</span><span class="p">;</span><span class="w"></span>
+<span class="c1">//: add elements</span>
+<span class="n">map</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;a&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="n">map</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;b&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="n">map</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;c&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="n">map</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;b&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="c1">//: get all the elements with key 1</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">a_range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">map</span><span class="p">.</span><span class="n">get_a</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"> </span><span class="c1">// == {&quot;a&quot;, &quot;b&quot;, &quot;c&quot;}</span>
+<span class="c1">//: get all the elements with value &quot;b&quot;</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">b_range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">map</span><span class="p">.</span><span class="n">get_b</span><span class="p">(</span><span class="s">&quot;b&quot;</span><span class="p">);</span><span class="w"> </span><span class="c1">// == {1, 2}</span>
+<span class="c1">//: delete elements with A key 1</span>
+<span class="n">map</span><span class="p">.</span><span class="n">remove_a</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"> </span><span class="c1">// map == {{2, &quot;b&quot;}}</span>
+</code></pre></div>
 <h2 id="strong-types"><a href="https://github.com/josekoalas/fresa/blob/main/types/strong_types.h"><code>strong types</code></a><a class="headerlink" href="#strong-types" title="Permanent link">&para;</a></h2>
 <p>A reimplementation of rollbear's <a href="https://github.com/rollbear/strong_type">strong type</a> library. The functionality and usage is mostly the same, but I simplified it a bit for our usecase and used concepts instead of SFINAE for clarity since <code>c++20</code> is already required for the rest of the engine. All credits go to their implementation.</p>
 <p>To describe a strong type alias you do the following:</p>

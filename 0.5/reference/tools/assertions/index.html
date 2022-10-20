@@ -417,7 +417,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../coroutines/" class="md-nav__link">
+      <a href="../../coroutines.md" class="md-nav__link">
         coroutines
       </a>
     </li>
@@ -637,20 +637,21 @@
 
 
 <h1 id="assertions"><a href="https://github.com/josekoalas/fresa/blob/main/tools/fresa_assert.h"><code>assertions</code></a><a class="headerlink" href="#assertions" title="Permanent link">&para;</a></h1>
-<p>To check if code is running propperly, <strong>fresa</strong> includes an assertion system. For code that can be checked at compile time, the standard <code>static_assert()</code> is recommended. However, for runtime code, it includes <code>fresa_assert()</code>. It is used like so:</p>
+<p>To check if code is running propperly, <strong>fresa</strong> includes an assertion system. For code that can be checked at compile time, the standard <code>static_assert()</code> is recommended. However, for runtime code, it includes <code>soft_assert()</code>. It is used like so:</p>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">something</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">fresa_assert</span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;i must be greater than 0&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">soft_assert</span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;i must be greater than 0&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">    </span><span class="c1">// ...</span>
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
 <p>If the assertion fails, the program will abort and print a message along with the file and line of the error. If it passes, nothing will happen. Runtime assertions have a small performance penalty since they have to check if the condition is met at runtime, but they are useful debugging tools. Assertions are disabled by default, and should be only used for debugging, not production code. The flag to enable them is inside the <a href="../../config/"><code>engine configuration</code></a>, called <code>enable_assertions()</code>.</p>
 <p>If you want to pass a formatted string, you can do so, but you must manually specify the template parameters of the format arguments. This is needed since the function also takes the source location to display where the assertion is failing, so if the arguments are not specified the default value of source location is not added, resulting in an error.</p>
 <div class="highlight"><pre><span></span><code><span class="kt">void</span><span class="w"> </span><span class="nf">something</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="n">fresa_assert</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;i must be greater than 0: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"> </span><span class="c1">//: correct</span>
-<span class="w">    </span><span class="n">fresa_assert</span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;i must be greater than 0: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"> </span><span class="c1">//! error</span>
+<span class="w">    </span><span class="n">soft_assert</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;i must be greater than 0: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"> </span><span class="c1">//: correct</span>
+<span class="w">    </span><span class="n">soft_assert</span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;i must be greater than 0: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"> </span><span class="c1">//! error</span>
 <span class="w">    </span><span class="c1">// ...</span>
 <span class="p">}</span><span class="w"></span>
 </code></pre></div>
+<p>There is also a <code>strong_assert()</code>, which will not be disabled in release mode. It is meant to be used for error handling with nice messages. They will call force_quit instead of aborting the program, so the engine can be properly cleaned up. Do not use <code>soft_assert()</code> for critical error handling, since in release mode it will be disabled and the program will continue running.</p>
 
               
             </article>

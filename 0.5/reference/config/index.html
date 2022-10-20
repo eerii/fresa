@@ -479,7 +479,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../coroutines/" class="md-nav__link">
+      <a href="../coroutines.md" class="md-nav__link">
         coroutines
       </a>
     </li>
@@ -696,13 +696,13 @@
 <h2 id="engine-config">engine config<a class="headerlink" href="#engine-config" title="Permanent link">&para;</a></h2>
 <p>The struct <code>EngineConfig</code> contains constexpr virtual methods (a new <code>c++20</code> feature), allowing to create an interface that can be extended but retaining the compile time definitions. It is a bit more verbose than other approaches, but being able to extend and override constant expressions is very powerful. Look at this example, here we have the original config structure:</p>
 <div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">fresa</span><span class="o">::</span><span class="n">EngineConfig</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="n">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;fresa&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
+<span class="w">    </span><span class="k">consteval</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="n">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;fresa&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">};</span><span class="w"></span>
 <span class="p">};</span><span class="w"></span>
 </code></pre></div>
 <p>Which can be overwritten as:</p>
 <div class="highlight"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">_EngineConfig</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fresa</span><span class="o">::</span><span class="n">EngineConfig</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="c1">//: change the project name to &quot;mermelada&quot;</span>
-<span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;mermelada&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="k">consteval</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;mermelada&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="p">};</span><span class="w"></span>
 </code></pre></div>
 <h2 id="configuration-file">configuration file<a class="headerlink" href="#configuration-file" title="Permanent link">&para;</a></h2>
@@ -713,7 +713,7 @@
 <span class="k">namespace</span><span class="w"> </span><span class="nn">fresa</span><span class="w"></span>
 <span class="p">{</span><span class="w"></span>
 <span class="w">    </span><span class="k">constexpr</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">_EngineConfig</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">EngineConfig</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">        </span><span class="k">constexpr</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;my project&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="k">consteval</span><span class="w"> </span><span class="n">str_view</span><span class="w"> </span><span class="nf">name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s">&quot;my project&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
 <span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">engine_config</span><span class="p">;</span><span class="w"></span>
 
 <span class="w">    </span><span class="kr">inline</span><span class="w"> </span><span class="n">RunConfig</span><span class="w"> </span><span class="n">config</span><span class="p">{</span><span class="w"></span>
@@ -791,6 +791,26 @@
 <td><code>ui32</code></td>
 <td><code>256</code></td>
 </tr>
+<tr>
+<td><code>game_loop_wait</code></td>
+<td><code>std::chrono::milliseconds</code></td>
+<td><code>0.5ms</code></td>
+</tr>
+<tr>
+<td><code>res_path</code></td>
+<td><code>str_view</code></td>
+<td><code>"res"</code></td>
+</tr>
+<tr>
+<td> <code>vk_frames_in_flight</code></td>
+<td><code>ui8</code></td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td> <code>vk_descriptor_pool_max_sets</code></td>
+<td><code>ui32</code></td>
+<td><code>256</code></td>
+</tr>
 </tbody>
 </table>
 <p><strong>run</strong></p>
@@ -804,9 +824,14 @@
 </thead>
 <tbody>
 <tr>
-<td></td>
-<td></td>
-<td></td>
+<td><code>window_size</code></td>
+<td><code>Vec2&lt;ui16&gt;</code></td>
+<td><code>{800, 600}</code></td>
+</tr>
+<tr>
+<td><code>vk_prefer_mailbox_mode</code></td>
+<td><code>bool</code></td>
+<td><code>false</code></td>
 </tr>
 </tbody>
 </table>
