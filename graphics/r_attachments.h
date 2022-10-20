@@ -3,6 +3,7 @@
 #pragma once
 
 #include "r_api.h"
+#include "r_render_graph.h"
 #include "fresa_math.h"
 #include "fresa_enum.h"
 

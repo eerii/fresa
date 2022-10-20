@@ -1459,7 +1459,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk::debugCallback(VkDebugReportFlagsEXT flags, Vk
                               fmt::styled(message.substr(i_spec, i_web - i_spec), fmt::emphasis::bold | fmt::fg(fmt::color::slate_gray)),
                               fmt::styled(message.substr(i_web), fmt::fg(fmt::color::slate_gray)));
 
-    detail::log<"VK VALIDATION", LogLevel::GRAPHICS, fmt::color::hot_pink>("{}", message);
+    ::fresa::detail::log<"VK VALIDATION", LogLevel::GRAPHICS, fmt::color::hot_pink>("{}", message);
     return VK_FALSE;
 }
 

@@ -62,10 +62,16 @@ namespace fresa
         {
             template <template <typename...> typename Template, typename... Args>
             void DerivedFromImpl(const Template<Args...>&);
+            template <template <auto...> typename Template, auto... Args>
+            void DerivedFromImplValue(const Template<Args...>&);
         }
         template <typename T, template <typename...> typename Template>
         concept SpecializationOf = requires(const T& t) {
             detail::DerivedFromImpl<Template>(t);
+        };
+        template <typename T, template <auto...> typename Template>
+        concept SpecializationOfV = requires(const T& t) {
+            detail::DerivedFromImplValue<Template>(t);
         };
 
         //: detects if a type is strongly defined
