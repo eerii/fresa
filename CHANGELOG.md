@@ -28,6 +28,7 @@ _the graphics engine_
 
 - **changed** - made type names and hashes consteval
 - **changed** - switched config to consteval
+- **changed** - fixed some comments
 
 #### [0.5.5] attachments (_17 oct 22_)
 

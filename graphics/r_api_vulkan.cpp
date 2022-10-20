@@ -174,10 +174,6 @@ void GraphicsSystem::init() {
 
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const vk::VulkanAPI>(std::move(vk_api));
-
-    //! TEMPORARY TESTS
-    auto shader_pass = shader::createPass("test");
-    auto attachment = attachment::create(AttachmentType::COLOR, Vec2<ui32>{1280, 720});
 }
 
 //* create vulkan instance

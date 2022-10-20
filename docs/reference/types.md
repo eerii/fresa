@@ -100,6 +100,12 @@ type_name_n<std::array>() == "std::array";
 type_name<std::array>() == "std::array";
 ```
 
+You can also get an unique hash for a type using `type_hash`:
+
+```cpp
+type_hash<fresa::detail::array>() == ...;
+```
+
 ## [`constexpr for`](https://github.com/josekoalas/fresa/blob/main/types/constexpr_for.h)
 
 Approach of a variety of constexpr for loops. Uses template metaprograming to create the iteration on compile time, supporting constexpr results.
@@ -231,10 +237,6 @@ auto b_range = map.get_b("b"); // == {1, 2}
 //: delete elements with A key 1
 map.remove_a(1); // map == {{2, "b"}}
 ```
-
-## [`coroutines`](https://github.com/josekoalas/fresa/blob/main/types/coroutines.h)
-
-See [coroutines](coroutines.md).
 
 ## [`strong types`](https://github.com/josekoalas/fresa/blob/main/types/strong_types.h)
 

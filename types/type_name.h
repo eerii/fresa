@@ -69,6 +69,9 @@ namespace fresa
 
     //* type hash
     //      hashes the type name to allow for type lookup in an unordered map
+    //      uses the fnv1a hash algorithm (https://en.wikipedia.org/wiki/Fowler–Noll–Vo_hash_function)
+    //      the hash is a constant value calculated at compile time
+    //      the function type_hash allows for type lookup in an unordered map
 
     consteval ui64 hash_fnv1a(str_view s) {
         constexpr ui64 fnv_prime = 0x100000001b3;

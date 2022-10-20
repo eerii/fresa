@@ -30,6 +30,4 @@ namespace fresa
                  | rv::transform([](auto &&r) { return str_view(&*r.begin(), ranges::distance(r)); })
                  | rv::filter([](auto &&s) { return !s.empty(); });
     }
-
-    //- string hash
 }

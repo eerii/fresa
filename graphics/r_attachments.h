@@ -72,12 +72,12 @@ namespace fresa::graphics
 
     //: subpass data
     struct Subpass {
-
+        //- todo
     };
 
     //: renderpass data
     struct Renderpass {
-
+        //- todo
     };
 
     // ···········

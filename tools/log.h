@@ -30,6 +30,7 @@ namespace fresa
         JOBS = 1 << 6,
     };
 
+    //* logging funcition, passes arguments to fmt::print to log it to the console
     namespace detail
     {
         template<str_literal name, LogLevel level, fmt::color color = fmt::color::white, typename ... T>
@@ -42,6 +43,7 @@ namespace fresa
         }
     }
 
+    //* specializations of log for different logging levels
     namespace log
     {
         template <typename ... T>
