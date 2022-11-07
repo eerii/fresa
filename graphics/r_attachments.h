@@ -1,5 +1,5 @@
 //* attachments
-//      includes the definitions for attachments, subpasses and renderpasses
+//      includes the definitions for attachments
 #pragma once
 
 #include "r_api.h"
@@ -68,16 +68,6 @@ namespace fresa::graphics
         IAttachmentLoadOp load_op;
         IAttachmentStoreOp store_op;
         IAttachmentDescription description;
-    };
-
-    //: subpass data
-    struct Subpass {
-        //- todo
-    };
-
-    //: renderpass data
-    struct Renderpass {
-        //- todo
     };
 
     // ···········

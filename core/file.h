@@ -35,6 +35,7 @@ namespace fresa::file
             io_thread = std::jthread([](std::stop_token token) {
                 while (!token.stop_requested()) {
                     while (!io_queue.empty()) {
+                        if (token.stop_requested()) break;
                         auto f = io_queue.front();
                         io_queue.pop();
                         f();
@@ -56,9 +57,9 @@ namespace fresa::file
         }
 
         //: stop
-        void stop() {
+        static void stop() {
             io_thread.request_stop();
-            io_thread.join();
+            io_thread.detach();
         }
 
         //: add a job to the io queue

@@ -5,6 +5,7 @@
 #include "r_shaders.h"
 #include "r_window.h"
 #include "r_attachments.h"
+#include "r_render_graph.h"
 
 #include "string_utils.h"
 #include "file.h"
@@ -175,8 +176,8 @@ void GraphicsSystem::init() {
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const vk::VulkanAPI>(std::move(vk_api));
 
-    //- create temporary pass
-    shader::createPass("test");
+    //- load render graph
+    RenderGraph render_graph = rg::loadRenderGraph();
 }
 
 //* create vulkan instance

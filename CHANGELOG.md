@@ -30,6 +30,7 @@ _the graphics engine_
 - **changed** - switched config to consteval
 - **changed** - fixed some comments
 - **added** - hot reloading for files
+- **added** - simple render graph support
 
 #### [0.5.5] attachments (_17 oct 22_)
 

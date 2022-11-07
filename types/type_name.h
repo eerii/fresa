@@ -73,7 +73,7 @@ namespace fresa
     //      the hash is a constant value calculated at compile time
     //      the function type_hash allows for type lookup in an unordered map
 
-    consteval ui64 hash_fnv1a(str_view s) {
+    constexpr ui64 hash_fnv1a(str_view s) {
         constexpr ui64 fnv_prime = 0x100000001b3;
         ui64 result = 0xcbf29ce484222325;
         for (auto c : s) {
@@ -86,7 +86,7 @@ namespace fresa
     using TypeHash = strong::Type<ui64, decltype([]{}), strong::Hashable>;
 
     template <typename T>
-    [[nodiscard]] consteval TypeHash type_hash() {
+    [[nodiscard]] constexpr TypeHash type_hash() {
         constexpr auto name = type_name_n<T>();
         return hash_fnv1a(name);
     }

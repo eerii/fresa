@@ -61,12 +61,13 @@ namespace fresa
         Vec2<ui16> window_size = {800, 600};
         //: rendering configurations
         bool vk_prefer_mailbox_mode = false;
+        str_view render_graph_path = "rendering/render_graph";
     };
 
     //* debug config (run time, only on debug builds)
     #ifdef FRESA_DEBUG
     struct DebugConfig {
-
+        
     };
     #endif
 }
