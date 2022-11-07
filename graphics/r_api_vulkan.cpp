@@ -174,6 +174,9 @@ void GraphicsSystem::init() {
 
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const vk::VulkanAPI>(std::move(vk_api));
+
+    //- create temporary pass
+    shader::createPass("test");
 }
 
 //* create vulkan instance
@@ -1219,6 +1222,11 @@ ShaderPass shader::createPass(str_view name) {
         auto it = std::find_if(shader_stage_extensions.begin(), shader_stage_extensions.end(), [s](const auto &ext){ return s.at(1) == ext; });
         strong_assert<str_view>(it != shader_stage_extensions.end(), "invalid shader extension '.{}'", std::forward<str_view>(s.at(1)));
         
+        //- todo: hot reload the shader
+        file::monitor(fmt::format("shaders/{}/{}.{}", name, name, s.at(1)), [](str_view path) {
+            log::warn("todo: reload shader '{}'", path);
+        });
+    
         //: add the module to the pass
         pass.stages.push_back(createModule(name, (ShaderStage)std::distance(shader_stage_extensions.begin(), it)));
     }

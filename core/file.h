@@ -23,9 +23,27 @@ namespace fresa::file
     struct FileSystem {
         inline static System<FileSystem, system::SystemPriority::FILES> system;
 
+        //: io thread and queue
+        inline static std::jthread io_thread;
+        inline static std::queue<std::function<void()>> io_queue;
+
         //: initialize files
         //      necessary for macos, creates a corefoundation bundle
+        //      create a thread for io operations
         static void init() {
+            //: create io thread
+            io_thread = std::jthread([](std::stop_token token) {
+                while (!token.stop_requested()) {
+                    while (!io_queue.empty()) {
+                        auto f = io_queue.front();
+                        io_queue.pop();
+                        f();
+                    }
+                    std::this_thread::sleep_for(1s);
+                }
+            });
+
+            //: macos specific code
             #ifdef __APPLE__
             CFBundleRef mainBundle = CFBundleGetMainBundle();
             CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
@@ -35,6 +53,17 @@ namespace fresa::file
             CFRelease(resourcesURL);
             chdir(path);
             #endif
+        }
+
+        //: stop
+        void stop() {
+            io_thread.request_stop();
+            io_thread.join();
+        }
+
+        //: add a job to the io queue
+        static void add(std::function<void()> f) {
+            io_queue.push(f);
         }
     };
 
@@ -61,5 +90,47 @@ namespace fresa::file
 
         //: return the path or an empty optional
         return fs::exists(full_path.value()) ? full_path : std::nullopt;
+    }
+
+    //* monitors a file for changes and hot reloads
+    struct FileMonitor {
+        //: path to the file
+        str file;
+
+        //: last modified time of the file
+        fs::file_time_type last_modified;
+
+        //: callback to call when the file changes
+        std::function<void(str_view)> callback;
+
+        //: constructor
+        FileMonitor(str_view fp, std::function<void(str_view)> callback) : callback(callback) {
+            file = path(fp);
+            last_modified = fs::last_write_time(file);
+            FileSystem::add([this]{update();});
+        }
+
+        //: update the file monitor
+        void update() {
+            //: if the last modified time has changed, call the callback
+            if (fs::last_write_time(file) != last_modified) {
+                last_modified = fs::last_write_time(file);
+                callback(file);
+            }
+
+            FileSystem::add([this]{update();});
+        }
+    };
+
+    //* create a file monitor
+    inline std::vector<std::unique_ptr<FileMonitor>> monitors;
+    inline void monitor(str_view fp, std::function<void(str_view)> callback) {
+        monitors.push_back(std::make_unique<FileMonitor>(fp, callback));
+    }
+
+    //* create a file monitor only when hot reloading is enabled
+    inline void hot_reload(str_view fp, std::function<void(str_view)> callback) {
+        if constexpr (engine_config.hot_reload())
+            monitor(fp, callback);
     }
 }

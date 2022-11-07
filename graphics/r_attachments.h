@@ -3,7 +3,6 @@
 #pragma once
 
 #include "r_api.h"
-#include "r_render_graph.h"
 #include "fresa_math.h"
 #include "fresa_enum.h"
 
@@ -94,13 +93,5 @@ namespace fresa::graphics
 
         //: create attachment
         Attachment create(AttachmentType type, Vec2<ui32> size);
-    }
-
-    namespace subpass
-    {
-        //  implemented in r_api_*.cpp
-
-        //: create subpass
-        void create();
     }
 }

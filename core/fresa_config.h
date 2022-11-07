@@ -47,6 +47,8 @@ namespace fresa
 
         //: assets path
         consteval str_view virtual res_path() const { return "res"; };
+        //: hot reload
+        consteval bool virtual hot_reload() const { return false; };
 
         //: rendering configurations
         consteval ui8 virtual vk_frames_in_flight() const { return 2; };
