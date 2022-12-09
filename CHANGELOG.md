@@ -6,12 +6,14 @@ _the graphics engine_
 
 **todo**
 
+- reflection clang plugin
+- update ci, add windows ci
+- update documentation to reflect new changes (clang plugin)
 - multiple monitor testing
 - write documentation for the new renderer
 - documentation for fresa enums
 - think of what to do with regards to web builds, probably webgpu
 - new job system, look into std::async or the taskflow library (the work stealing queue)
-- ci for windows
 
 **vulkan todo**
 
@@ -24,7 +26,7 @@ _the graphics engine_
 
 ---
 
-#### [0.5.6] render graph (_00 nov 22_)
+#### [0.5.6] render graph (_08 nov 22_)
 
 - **changed** - made type names and hashes consteval
 - **changed** - switched config to consteval

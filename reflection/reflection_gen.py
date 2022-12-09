@@ -106,7 +106,7 @@ for l in lines:
         if "=" in l:
             l = l.split("=")[0]
 
-        if "," in l:
+        if "," in l and not "<" in l and not ">" in l:
             names = l.split(",")
             for n in names:
                 name = n.strip().split()[-1]
