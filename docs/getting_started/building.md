@@ -35,7 +35,7 @@ cmake --build build
 
 These compilers have been tested to work. Older versions might work but are not officially supported.
 
-- clang 15.0+
+- clang 14.0+
 
 MSVC and gcc may work, but they are out of the scope of the project since the reflection system is a clang plugin, so it is not possible to use it with other compilers.
 

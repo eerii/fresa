@@ -16,9 +16,36 @@ enum class State {
     Attachment
 };
 
+void buildRenderGraph(RenderGraph &r);
+
 //* load render graph
 //      from a file input fills the render graph abstraction
-RenderGraph rg::loadRenderGraph() {
+//      - hardcoded for now, implement a parser later
+void rg::loadRenderGraph() {
+    RenderGraph r;
+
+    r.attachments[aid("color")] = {
+        .type = AttachmentType::COLOR,
+        .size = { api->swapchain.extent.width, api->swapchain.extent.height }
+    };
+
+    r.attachments[aid("depth")] = {
+        .type = AttachmentType::DEPTH,
+        .size = { api->swapchain.extent.width, api->swapchain.extent.height }
+    };
+
+    r.renderpasses[rid("main")] = {
+        .input_attachments = { aid("color"), aid("depth") },
+        .output_attachments = { aid("color") },
+        .shader = "test",
+        .index = 0
+    };
+
+    buildRenderGraph(r);
+    render_graph = std::make_unique<const RenderGraph>(r);
+}
+
+/*RenderGraph rg::loadRenderGraph() {
     RenderGraph r;
     RenderpassID current_renderpass;
     AttachmentID current_attachment;
@@ -95,4 +122,20 @@ RenderGraph rg::loadRenderGraph() {
     }
 
     return r;
+}*/
+
+//* build render graph
+//      after a render graph is loaded, create the relevant objects from it
+void buildRenderGraph(RenderGraph& r) {
+    //: create attachments
+    for (auto& [id, a] : r.attachments) {
+        a.attachment = attachment::create(a.type, a.size);
+        log::graphics("attachment '{}' created", id);
+    }
+
+    //: create renderpasses
+    for (auto& [id, rp] : r.renderpasses) {
+        rg::buildRenderpass(rp, r);
+        log::graphics("renderpass '{}' created", id);
+    }
 }

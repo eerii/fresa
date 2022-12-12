@@ -35,7 +35,7 @@ cmake -S . -B build
 cmake --build build
 ```
 
-The build system of choice is [`cmake`](https://cmake.org), and the build is tested with `clang 15.0`. Other compilers may work, but for now the scope of the project is limited to clang since the reflection system is a clang-only plugin.
+The build system of choice is [`cmake`](https://cmake.org), and the build is tested with `clang 14+`. Other compilers may work, but for now the scope of the project is limited to clang since the reflection system is a clang-only plugin.
 
 The [`vulkan sdk`](https://vulkan.lunarg.com/sdk/home) is also required since Vulkan is used for the renderer backend.
 

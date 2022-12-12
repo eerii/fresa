@@ -176,9 +176,8 @@ void GraphicsSystem::init() {
     //: save the api pointer, can't be modified after this point
     api = std::make_unique<const vk::VulkanAPI>(std::move(vk_api));
 
-    //- load render graph
-    // RenderGraph render_graph = rg::loadRenderGraph();
-    log::info("TODO: load render graph");
+    //: load render graph
+    rg::loadRenderGraph();
 }
 
 //* create vulkan instance
@@ -1414,6 +1413,67 @@ Attachment attachment::create(AttachmentType type, Vec2<ui32> size) {
     };
 
     return a;
+}
+
+// ··············
+// · RENDERPASS ·
+// ··············
+
+//* create a renderpass
+//      a renderpass is a collection of attachments that are used in the rendering pipeline
+void rg::buildRenderpass(RenderpassDescription &description, const RenderGraph &r) {
+    //: attachment descriptions
+    std::vector<VkAttachmentDescription> attachments;
+    std::vector<AttachmentID> attachment_ids;
+    for (const auto& [id, a] : r.attachments) {
+        attachments.push_back(a.attachment.description);
+        attachment_ids.push_back(id);
+    }
+
+    //: attachment references
+    auto createAttachmentReferences = [&](AttachmentType type) {
+        std::vector<VkAttachmentReference> references;
+        for (const auto& [id, a] : r.attachments) {
+            if (a.type & +type) {
+                auto it = std::find(attachment_ids.begin(), attachment_ids.end(), id);
+                ui32 index = (ui32)std::distance(attachment_ids.begin(), it);
+                references.push_back({ .attachment = index, .layout = a.attachment.texture.final_layout });
+            }
+        }
+        return references;
+    };
+    std::vector<VkAttachmentReference> color_attachments = createAttachmentReferences(AttachmentType::COLOR);
+    std::vector<VkAttachmentReference> depth_attachments = createAttachmentReferences(AttachmentType::DEPTH);
+    strong_assert(depth_attachments.size() <= 1, "there can only be one depth attachment");
+
+    //: subpass description (only one for now)
+    VkSubpassDescription subpass {
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .colorAttachmentCount = (ui32)color_attachments.size(),
+        .pColorAttachments = color_attachments.data(),
+        .pDepthStencilAttachment = depth_attachments.empty() ? VK_NULL_HANDLE : depth_attachments.data()
+    };
+
+    //: create the renderpass
+    VkRenderPassCreateInfo create_info {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+
+        .attachmentCount = (ui32)attachments.size(),
+        .pAttachments = attachments.data(),
+
+        .subpassCount = 1,
+        .pSubpasses = &subpass,
+
+        .dependencyCount = 0,
+        .pDependencies = VK_NULL_HANDLE
+    };
+    VkResult result = vkCreateRenderPass(api->gpu.device, &create_info, nullptr, &description.renderpass);
+    strong_assert(result == VK_SUCCESS, "failed to create renderpass");
+
+    //: add to deletion queue
+    m_api()->deletion_queue_swapchain.push([=]() {
+        vkDestroyRenderPass(api->gpu.device, description.renderpass, nullptr);
+    });
 }
 
 // ··········

@@ -33,8 +33,7 @@ namespace fresa::graphics
         struct AttachmentDescription {
             AttachmentType type;
             Vec2<ui32> size;
-            IFormat format;
-            ui32 samples;
+            Attachment attachment;
         };
 
         //: renderpass description
@@ -42,6 +41,8 @@ namespace fresa::graphics
             std::vector<AttachmentID> input_attachments;
             std::vector<AttachmentID> output_attachments;
             str_view shader;
+            ui32 index;
+            IRenderpass renderpass;
         };
     }
 
@@ -50,6 +51,7 @@ namespace fresa::graphics
         std::unordered_map<RenderpassID, rg::RenderpassDescription> renderpasses;
         std::unordered_map<AttachmentID, rg::AttachmentDescription> attachments;
     };
+    inline std::unique_ptr<const RenderGraph> render_graph;
 
     // ···········
     // · SYSTEMS ·
@@ -57,6 +59,10 @@ namespace fresa::graphics
 
     namespace rg
     {
-        RenderGraph loadRenderGraph();
+        //: load render graph and build all objects
+        void loadRenderGraph();
+
+        //: create a renderpass (implemented in r_api_*.cpp)
+        void buildRenderpass(RenderpassDescription &description, const RenderGraph &r);
     }
 }

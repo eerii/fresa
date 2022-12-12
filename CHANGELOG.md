@@ -33,6 +33,7 @@ _the graphics engine_
 - **added** - container serialization
 - **deprecated** - python reflection generator
 - **added** - template to generate reflection using clang plugin
+- **added** - simple render graph with a hardcoded single pass
 
 #### [0.5.6] render graph (_08 nov 22_)
 

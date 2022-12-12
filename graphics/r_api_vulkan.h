@@ -168,6 +168,8 @@ namespace fresa::graphics
     using IAttachmentLoadOp = VkAttachmentLoadOp;
     using IAttachmentStoreOp = VkAttachmentStoreOp;
     using IAttachmentDescription = VkAttachmentDescription;
+    using IRenderpass = VkRenderPass;
+    using IFramebuffer = VkFramebuffer;
 
     constexpr auto no_image_layout = VK_IMAGE_LAYOUT_MAX_ENUM;
     constexpr auto no_format = VK_FORMAT_MAX_ENUM;
