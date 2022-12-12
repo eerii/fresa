@@ -81,8 +81,10 @@ RenderGraph rg::loadRenderGraph() {
             switch (state) {
                 case State::Renderpass:
                     //- todo: create custom reflection field serializator for this
+                    log::info("renderpass: {} {}", key, value);
                     break;
                 case State::Attachment:
+                    log::info("attachment: {} {}", key, value);
                     break;
                 case State::None:
                     strong_assert<int, str_view>(false, "invalid syntax, no header token found\n"

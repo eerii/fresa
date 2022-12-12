@@ -30,4 +30,13 @@ namespace fresa
                  | rv::transform([](auto &&r) { return str_view(&*r.begin(), ranges::distance(r)); })
                  | rv::filter([](auto &&s) { return !s.empty(); });
     }
+
+    //* trim
+    [[nodiscard]] constexpr str_view trim(str_view s) {
+        auto first = s.begin();
+        while (first != s.end() && std::isspace(*first)) ++first;
+        auto last = s.end();
+        while (last != first && std::isspace(*(last - 1))) --last;
+        return str_view(&*first, last - first);
+    }
 }

@@ -26,6 +26,12 @@ _the graphics engine_
 
 ---
 
+#### [0.5.7] serialization (_12 dic 22_)
+
+- **added** - serializer structure
+- **added** - base type serialization
+- **added** - container serialization
+
 #### [0.5.6] render graph (_08 nov 22_)
 
 - **changed** - made type names and hashes consteval
