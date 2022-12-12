@@ -31,6 +31,8 @@ _the graphics engine_
 - **added** - serializer structure
 - **added** - base type serialization
 - **added** - container serialization
+- **deprecated** - python reflection generator
+- **added** - template to generate reflection using clang plugin
 
 #### [0.5.6] render graph (_08 nov 22_)
 

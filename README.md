@@ -14,7 +14,6 @@ The documentation is available at [josekoalas.github.io/fresa](https://josekoala
 _This is a reimplementation of **fresa** from scratch. The motivation behind it is to focus on clarity and documentation from the beginning. You can see the source for the fully-functioning legacy version [here](https://github.com/josekoalas/fresa-legacy). This new version is not up to par feature-wise with the original project yet._
 
 - simple entity-component system
-- compile time c++ type reflection
 - game loop and system manager
 - event manager
 - logging and debug tools
@@ -23,6 +22,7 @@ _This is a reimplementation of **fresa** from scratch. The motivation behind it 
 **next up**
 
 - gpu driven renderer
+- reflecion via clang tooling
 
 ## building :hammer:
 
@@ -35,7 +35,7 @@ cmake -S . -B build
 cmake --build build
 ```
 
-The build system of choice is [`cmake`](https://cmake.org), and the build is tested with `clang 14.0` and `gcc 12.1`. `MSVC` support is comming as soon as the fix for [this](https://developercommunity.visualstudio.com/t/Lambda-inside-lambda-cant-detect-conste/10085564) bug report I submitted is released.
+The build system of choice is [`cmake`](https://cmake.org), and the build is tested with `clang 15.0`. Other compilers may work, but for now the scope of the project is limited to clang since the reflection system is a clang-only plugin.
 
 The [`vulkan sdk`](https://vulkan.lunarg.com/sdk/home) is also required since Vulkan is used for the renderer backend.
 

@@ -177,7 +177,8 @@ void GraphicsSystem::init() {
     api = std::make_unique<const vk::VulkanAPI>(std::move(vk_api));
 
     //- load render graph
-    RenderGraph render_graph = rg::loadRenderGraph();
+    // RenderGraph render_graph = rg::loadRenderGraph();
+    log::info("TODO: load render graph");
 }
 
 //* create vulkan instance

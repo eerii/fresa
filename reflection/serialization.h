@@ -2,10 +2,8 @@
 //     using reflection, we can serialize from/to text certain datatypes
 #pragma once
 
-#include "reflection.h"
 #include "fresa_math.h"
 #include "fresa_assert.h"
-#include "log.h"
 #include "string_utils.h"
 
 #include <charconv>
