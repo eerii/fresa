@@ -3,8 +3,8 @@
 //      included by r_api.h as a vulkan implementation of the graphics api
 #pragma once
 
-//: glad vulkan loader
-#include <glad/vulkan.h>
+//: volk vulkan loader
+#include <volk.h>
 
 //: vulkan memory allocator (load funcions dinamically)
 #define VMA_STATIC_VULKAN_FUNCTIONS 0

@@ -34,6 +34,8 @@ _the graphics engine_
 - **deprecated** - python reflection generator
 - **added** - template to generate reflection using clang plugin
 - **added** - simple render graph with a hardcoded single pass
+- **changed** - switched to volk vulkean loader
+- **removed** - removed glad2
 
 #### [0.5.6] render graph (_08 nov 22_)
 

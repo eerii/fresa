@@ -111,9 +111,8 @@ Some compilers don't have full support of all `c++20` features. Therefore, while
 
 **rendering libraries**
 
-Despite incorporating its own renderer, some low level functions are required to create and manage a cross platform window, surface and input. For this purpose we use glfw3, along with glad2 for loading functions for both opengl and vulkan. We also use the vulkan memory allocator for managing memory inside the vulkan application and SPIRV-Cross for shader reflection.
+Despite incorporating its own renderer, some low level functions are required to create and manage a cross platform window, surface and input. For this purpose we use glfw3. We also use the vulkan memory allocator for managing memory inside the vulkan application and SPIRV-Cross for shader reflection.
 
 - [**glfw**](https://github.com/glfw/glfw) _[ZLIB]_: For window creation and input.
-- [**glad**](https://github.com/Dav1dde/glad/tree/glad2) _[MIT]_: For opengl and vulkan loading.
 - [**vma**](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) _[MIT]_: For vulkan memory management.
 - [**spirv-cross**](https://github.com/KhronosGroup/SPIRV-Cross) _[Apache 2.0]_: For converting spirv to glsl and reflecting shaders.

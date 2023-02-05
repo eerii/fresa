@@ -132,9 +132,9 @@ void GraphicsSystem::init() {
 
     //: check for vulkan support
 	strong_assert(glfwVulkanSupported(), "a vulkan loader has not been found");
-    int version = gladLoaderLoadVulkan(nullptr, nullptr, nullptr);
-    strong_assert(version, "glad failed to load vulkan");
-    log::graphics("glad vulkan loader ({}.{})", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
+    VkResult result = volkInitialize();
+    strong_assert(result == VK_SUCCESS, "volk failed to load vulkan");
+    log::graphics("vulkan version: {}.{}.{}", VK_VERSION_MAJOR(VK_HEADER_VERSION), VK_VERSION_MINOR(VK_HEADER_VERSION), VK_VERSION_PATCH(VK_HEADER_VERSION));
 
     //: create window
     win = std::make_unique<const Window>(window::create());
@@ -145,19 +145,17 @@ void GraphicsSystem::init() {
 
     //: instance
     vk_api.instance = vk::createInstance(vk_api.deletion_queue_global);
-    version = gladLoaderLoadVulkan(vk_api.instance, nullptr, nullptr);
-    strong_assert(version, "glad failed to load the vulkan functions that require an instance");
+    volkLoadInstance(vk_api.instance);
     #ifdef FRESA_DEBUG
     vk_api.debug_callback = vk::createDebugCallback(vk_api.instance, vk_api.deletion_queue_global);
     #endif
 
     //: gpu (physical device)
     vk_api.gpu = vk::selectGPU(vk_api.instance);
-    version = gladLoaderLoadVulkan(vk_api.instance, vk_api.gpu.gpu, nullptr);
-    strong_assert(version, "glad failed to load the extra vulkan extensions required by the gpu");
 
     //: logical device
     vk_api.gpu.device = vk::createDevice(vk_api.gpu, vk_api.deletion_queue_global);
+    volkLoadDevice(vk_api.gpu.device);
     vk_api.gpu.queues = vk::getQueues(vk_api.gpu);
 
     //: allocator
