@@ -108,8 +108,7 @@ namespace fresa::graphics::vk
 namespace fresa::graphics::vk
 {
     //: required device extensions
-    constexpr std::array<const char*, 2> required_extensions{
-        "VK_KHR_portability_subset",
+    constexpr std::array<const char*, 1> required_extensions{
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
     };
 
@@ -190,7 +189,6 @@ VkInstance vk::createInstance(DeletionQueue& dq) {
     log::graphics("instance extensions:");
     for (ui32 i = 0; i < instance_extension_count; i++)
         instance_extensions.at(i) = instance_extension_buffer[i];
-    instance_extensions.push_back("VK_KHR_portability_enumeration");
     #ifdef FRESA_DEBUG
     instance_extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     #endif
@@ -227,7 +225,6 @@ VkInstance vk::createInstance(DeletionQueue& dq) {
     //: instance info
     VkInstanceCreateInfo create_info{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
         .pApplicationInfo = &app_info
     };
     create_info.enabledExtensionCount = (int)instance_extensions.size();
@@ -290,6 +287,9 @@ vk::GPU vk::selectGPU(VkInstance instance) {
     log::graphics("required extensions:");
     for (auto &ext : required_extensions)
         log::graphics(" - {}", lower(ext));
+    log::graphics("queue indices: graphics: {}, present: {}, transfer: {}, compute: {}",
+                  it->queue_indices.at((ui32)QueueIndices::GRAPHICS), it->queue_indices.at((ui32)QueueIndices::PRESENT),
+                  it->queue_indices.at((ui32)QueueIndices::TRANSFER), it->queue_indices.at((ui32)QueueIndices::COMPUTE));
 
     return *it;
 }
@@ -414,9 +414,9 @@ VkDevice vk::createDevice(const vk::GPU &gpu, DeletionQueue& dq) {
     //: get unique queue indices
     std::map<int, float> unique_queue_indices;
     constexpr std::size_t queue_count = decltype(vk::GPU::queue_indices){}.size();
-    constexpr std::array<float, queue_count> queue_priorities = { 1.0f, 1.0f, 0.5f, 0.5f};
+    constexpr std::array<float, queue_count> queue_priorities = { 1.0f, 1.0f, 0.5f, 0.5f };
     for (const auto& index : gpu.queue_indices) {
-        if (not unique_queue_indices.contains(index))
+        if (not unique_queue_indices.contains(index) && index != -1 && index < queue_count)
             unique_queue_indices[index] = queue_priorities.at(index);
     }
     
@@ -466,13 +466,15 @@ decltype(vk::GPU{}.queues) vk::getQueues(const vk::GPU &gpu) {
     
     //: get unique queue indices
     std::set<int> unique_queue_indices;
-    for (const auto& index : gpu.queue_indices)
-        unique_queue_indices.insert(index);
+    for (const auto& index : gpu.queue_indices) 
+        if (index != -1)
+            unique_queue_indices.insert(index);
 
     //: get queue handles
     decltype(vk::GPU{}.queues) handles(unique_queue_indices.size());
     for (const auto& index : gpu.queue_indices)
-        vkGetDeviceQueue(gpu.device, index, 0, &handles.at(index));
+        if (index != -1)
+            vkGetDeviceQueue(gpu.device, index, 0, &handles.at(index));
 
     return handles;
 }
